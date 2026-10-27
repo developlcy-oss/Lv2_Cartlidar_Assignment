@@ -1,0 +1,7 @@
+# 증속벨트 1:1.5 (2026-10-27 장착) — controllers_4wd.yaml 다음에 diff_drive_controller 에 덮어 씀
+#   바퀴 한계: 모터 7.91 rad/s (WHEEL_VEL_LIMIT_RAW 330) × 1.5 = 11.87 rad/s ≈ 0.39 m/s (12 V) · 약 0.34 m/s (배터리 11.1 V)
+diff_drive_controller:
+  ros__parameters:
+    wheel_separation: 0.317          # 바퀴 중심 |y| 0.1585 × 2 (URDF drive:=belt 와 같게) ★ 장착 후 실측, 미끄럼은 multiplier 로
+    linear.x.max_velocity: 0.34
+    linear.x.min_velocity: -0.34

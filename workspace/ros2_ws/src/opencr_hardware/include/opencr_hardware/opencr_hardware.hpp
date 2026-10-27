@@ -82,6 +82,7 @@ private:
   int reset_button_ = 7;
   double battery_warn_v_ = 11.1;
   double battery_error_v_ = 10.5;
+  double wheel_gear_ = 1.0;    // 바퀴 각속도 / 모터 각속도 (URDF drive 인자). 펌웨어 STATE · CMD 는 모터 축 기준
   bool listen_only_ = false;   // true: CMD 를 한 번도 보내지 않음 — 토크 · 모션 없이 STATE 수신만 확인
   bool auto_rearm_ = false;    // true: 잠금이 풀리면 리셋 버튼 없이 REARM (조이스틱 없는 벤치 전용, 실기 운용 금지)
 

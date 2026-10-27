@@ -1,5 +1,5 @@
 # 프로세스 ① ros2_control_node (+ 컨트롤러 spawner) · ② base_container (robot_state_publisher · twist_mux · joy · teleop)
-# ros2 launch opencr_hardware base_bringup.launch.py wheel_count:=4 use_gripper:=false
+# ros2 launch opencr_hardware base_bringup.launch.py wheel_count:=4 use_gripper:=false drive:=belt
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
@@ -13,14 +13,19 @@ def _setup(context):
     wheel_count = LaunchConfiguration('wheel_count').perform(context)
     use_gripper = LaunchConfiguration('use_gripper').perform(context).lower() == 'true'
     use_teleop = LaunchConfiguration('use_teleop').perform(context).lower() == 'true'
+    drive = LaunchConfiguration('drive').perform(context)
+    if drive not in ('direct', 'belt'):
+        raise RuntimeError(f'drive 는 direct 또는 belt: {drive}')
 
     robot_description = ParameterValue(Command([
         'xacro ', PathJoinSubstitution([pkg, 'urdf', 'robot.urdf.xacro']),
         ' wheel_count:=', wheel_count,
         ' use_gripper:=', 'true' if use_gripper else 'false',
         ' ports:=', LaunchConfiguration('ports'),
-        ' joy_required:=', LaunchConfiguration('use_teleop')]), value_type=str)
+        ' joy_required:=', LaunchConfiguration('use_teleop'),
+        ' drive:=', drive]), value_type=str)
     controllers = PathJoinSubstitution([pkg, 'config', f'controllers_{wheel_count}wd.yaml'])
+    drive_params = PathJoinSubstitution([pkg, 'config', f'drive_{drive}.yaml'])   # 바퀴 간격 · 속도 한계 (뒤 파일이 덮어씀)
 
     def spawner(name, extra=()):
         return Node(package='controller_manager', executable='spawner', output='screen',
@@ -33,7 +38,7 @@ def _setup(context):
              parameters=[controllers], remappings=[('~/robot_description', '/robot_description')]),
         spawner('joint_state_broadcaster'),
         spawner('imu_sensor_broadcaster', ['--controller-ros-args', '-r imu_sensor_broadcaster/imu:=/imu/data']),
-        spawner('diff_drive_controller', ['--controller-ros-args',
+        spawner('diff_drive_controller', ['--param-file', drive_params, '--controller-ros-args',
                 '-r diff_drive_controller/cmd_vel:=/cmd_vel -r diff_drive_controller/odom:=/odom']),
         spawner('arm_controller'),
         # ② base_container 묶음 (component 미지원 노드는 단독 실행)
@@ -66,5 +71,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_teleop', default_value='true'),
         DeclareLaunchArgument('ports', default_value='/dev/ttyACM0,/dev/ttyACM1',
                               description='역할 자동 판별을 위한 두 OpenCR 후보 포트, 쉼표로 구분'),
+        DeclareLaunchArgument('drive', default_value='belt',
+                              description='구동: belt (증속벨트 1:1.5) | direct (직결) — URDF · 기어비 · diff_drive 가 같이 바뀜'),
         OpaqueFunction(function=_setup),
     ])

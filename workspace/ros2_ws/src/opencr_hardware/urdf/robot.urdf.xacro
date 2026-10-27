@@ -7,14 +7,24 @@
   <xacro:arg name="use_gripper" default="false"/>
   <xacro:arg name="ports" default="/dev/ttyACM0,/dev/ttyACM1"/>
   <xacro:arg name="joy_required" default="true"/>
+  <!-- 구동 방식: belt = 증속벨트 1:1.5 (2026-10-27 장착), direct = 직결 (urdfv2). 바퀴 y · 한계 · 기어비가 같이 바뀐다 -->
+  <xacro:arg name="drive" default="belt"/>
   <xacro:include filename="$(find opencr_hardware)/urdf/opencr.ros2_control.xacro"/>
 
   <xacro:property name="wheel_count" value="$(arg wheel_count)"/>
+  <xacro:property name="drive" value="$(arg drive)"/>
+  <xacro:if value="${drive not in ['direct', 'belt']}">
+    ${xacro.fatal("drive 는 direct 또는 belt: " + drive)}
+  </xacro:if>
+  <xacro:property name="belt" value="${drive == 'belt'}"/>
   <!-- 바퀴 · 차체 높이 · IMU 는 기준 URDF urdfv2/urdf/teamrobot.urdf (teamrobot_4wd, 직결) 값 (2026-10-26).
        base_link 원점 = urdfv2 와 같음 (하판 윗면 중심, 바닥 위 56.25 mm). 관절 이름은 ros2_control · 컨트롤러 설정 때문에 기존 이름 유지:
        wheel_left_front = wheel_fl · wheel_left_rear = wheel_rl · wheel_right_front = wheel_fr · wheel_right_rear = wheel_rr -->
-  <xacro:property name="wheel_y" value="0.1372"/>     <!-- 바퀴 중심 |y| (직결, 바퀴 간격 0.2744) -->
-  <xacro:property name="wheel_x" value="0.100"/>      <!-- 앞바퀴 x, 뒤바퀴 x = -0.100 (앞뒤 대칭) -->
+  <!-- belt: 증속벨트 설계 (구동_증속벨트 drive_belt.scad · ref/wheels_shifted15.stl) — 바퀴를 바깥으로 15 mm, x · 축 높이는 직결과 같음.
+       y 0.1585 는 설계 차체 기준 절대값 (설계 직결 |y| 143.5 ≠ urdfv2 직결 137.2) ★ 장착 후 바퀴 간격 실측 -->
+  <xacro:property name="wheel_y" value="${0.1585 if belt else 0.1372}"/>   <!-- 바퀴 중심 |y| (간격 belt 0.317 · direct 0.2744) -->
+  <xacro:property name="wheel_x" value="0.100"/>      <!-- 앞바퀴 x, 뒤바퀴 x = -0.100 (앞뒤 대칭, belt · direct 같음) -->
+  <xacro:property name="wheel_gear" value="${1.5 if belt else 1.0}"/>      <!-- 바퀴 각속도 / 모터 각속도 (모터 36T → 바퀴 24T) -->
   <xacro:property name="wheel_z" value="-0.02325"/>   <!-- 바퀴 중심 z (base_link 아래) -->
   <xacro:property name="wheel_radius" value="0.033"/> <!-- Ø66. controllers_4wd.yaml wheel_radius 와 같게 -->
 
@@ -35,7 +45,8 @@
       <child link="${name}_link"/>
       <origin xyz="${x} ${y} ${wheel_z}" rpy="0 0 0"/>
       <axis xyz="0 1 0"/>
-      <limit effort="3.0" velocity="8.063421"/>   <!-- XM430-W210 12 V: 3.0 N·m, 무부하 77 rpm (직결) -->
+      <!-- XM430-W210 12 V: 3.0 N·m, 무부하 77 rpm (8.063 rad/s) → 바퀴 기준 토크 ÷ 기어비, 속도 × 기어비 -->
+      <limit effort="${3.0 / wheel_gear}" velocity="${8.063421 * wheel_gear}"/>
     </joint>
   </xacro:macro>
   <xacro:wheel name="wheel_left_front"  x="${wheel_x}"  y="${wheel_y}"/>
@@ -89,5 +100,5 @@
   <xacro:fixed_link name="tool_link"       parent="gripper_roll_link" xyz="0.086 0 0" rpy="0 0 0"/>
 
   <xacro:opencr_ros2_control ports="$(arg ports)" wheel_count="${wheel_count}" use_gripper="$(arg use_gripper)"
-                             joy_required="$(arg joy_required)"/>
+                             joy_required="$(arg joy_required)" wheel_gear="${wheel_gear}"/>
 </robot>

@@ -31,7 +31,7 @@
 
   <!-- 두 OpenCR의 순서는 고정하지 않고 STATE.role로 역할을 판별한다. -->
   <!-- wheel_count 4 의 칸 순서 (왼앞 0 · 왼뒤 1 · 오른앞 2 · 오른뒤 3) 는 주행 펌웨어 config.h WHEEL_IDS · WHEEL_DIR 와 같다 -->
-  <xacro:macro name="opencr_ros2_control" params="name:=OpenCRSystem ports:=/dev/ttyACM0,/dev/ttyACM1 wheel_count:=4 use_gripper:=false joy_required:=true">
+  <xacro:macro name="opencr_ros2_control" params="name:=OpenCRSystem ports:=/dev/ttyACM0,/dev/ttyACM1 wheel_count:=4 use_gripper:=false joy_required:=true wheel_gear:=1.0">
     <ros2_control name="${name}" type="system">
       <hardware>
         <plugin>opencr_hardware/OpenCRHardware</plugin>
@@ -45,6 +45,8 @@
         <param name="reset_button">7</param>
         <param name="battery_warn_v">11.1</param>
         <param name="battery_error_v">10.5</param>
+        <!-- 바퀴 각속도 / 모터 각속도. 펌웨어는 모터 축 기준 (WHEEL_GEAR 1.0 고정), 변환은 하드웨어 인터페이스가 한다 -->
+        <param name="wheel_gear">${wheel_gear}</param>
       </hardware>
 
       <xacro:if value="${wheel_count == 4}">

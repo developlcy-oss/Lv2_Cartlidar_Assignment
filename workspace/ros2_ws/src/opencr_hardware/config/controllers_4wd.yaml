@@ -8,7 +8,7 @@ diff_drive_controller:
     type: diff_drive_controller/DiffDriveController
     left_wheel_names: ["wheel_left_front_joint", "wheel_left_rear_joint"]
     right_wheel_names: ["wheel_right_front_joint", "wheel_right_rear_joint"]
-    wheel_separation: 0.317          # 바퀴 중심 사이 ★ 4WD 미끄럼 보정은 wheel_separation_multiplier 로
+    # wheel_separation · linear.x 한계는 구동 방식별 drive_<direct|belt>.yaml (base_bringup 의 drive 인자가 고름)
     wheel_separation_multiplier: 1.0
     wheel_radius: 0.033
     odom_frame_id: odom
@@ -16,8 +16,6 @@ diff_drive_controller:
     enable_odom_tf: false            # odom→base_link TF 는 ekf 만 발행
     publish_rate: 50.0
     cmd_vel_timeout: 0.5
-    linear.x.max_velocity: 0.34
-    linear.x.min_velocity: -0.34
     linear.x.max_acceleration: 1.5
     linear.x.min_acceleration: -1.5
     angular.z.max_velocity: 2.0

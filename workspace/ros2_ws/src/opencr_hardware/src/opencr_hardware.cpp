@@ -49,6 +49,12 @@ hi::CallbackReturn OpenCRHardware::on_init(const hi::HardwareComponentInterfaceP
   battery_error_v_ = std::stod(param_or(hw, "battery_error_v", "10.5"));
   listen_only_ = param_or(hw, "listen_only", "false") == "true";
   auto_rearm_ = param_or(hw, "auto_rearm", "false") == "true";
+  wheel_gear_ = std::stod(param_or(hw, "wheel_gear", "1.0"));
+  if (!std::isfinite(wheel_gear_) || wheel_gear_ <= 0.0) {
+    RCLCPP_FATAL(get_logger(), "wheel_gear %.3f — 0 보다 커야 함", wheel_gear_);
+    return CallbackReturn::ERROR;
+  }
+  RCLCPP_INFO(get_logger(), "바퀴 기어비 %.2f (바퀴 / 모터)", wheel_gear_);
   if (listen_only_) {RCLCPP_WARN(get_logger(), "listen_only: CMD 를 보내지 않음 (STATE 수신만 확인)");}
   if (auto_rearm_) {RCLCPP_WARN(get_logger(), "auto_rearm: 리셋 버튼 없이 REARM — 벤치 시험 전용");}
 
@@ -395,8 +401,9 @@ void OpenCRHardware::apply_state_to_interfaces()
       continue;
     }
     const int k = (j.role == Role::WHEEL ? 0 : opencr_proto::MAX_WHEELS) + j.slot;
-    set_state_if(j.name + "/" + hi::HW_IF_POSITION, latest_.pos[k]);
-    set_state_if(j.name + "/" + hi::HW_IF_VELOCITY, latest_.vel[k]);
+    const double g = j.role == Role::WHEEL ? wheel_gear_ : 1.0;   // 바퀴: 모터 축 → 바퀴 (전류는 모터 값 그대로, A)
+    set_state_if(j.name + "/" + hi::HW_IF_POSITION, latest_.pos[k] * g);
+    set_state_if(j.name + "/" + hi::HW_IF_VELOCITY, latest_.vel[k] * g);
     set_state_if(j.name + "/" + hi::HW_IF_EFFORT, latest_.effort[k]);
   }
   if (!imu_name_.empty()) {
@@ -497,7 +504,7 @@ bool OpenCRHardware::send_cmd_for_role(uint8_t role, bool torque_on)
   for (const auto & j : joints_) {
     if (role == opencr_proto::ROLE_WHEEL && j.role == Role::WHEEL) {
       const double v = get_command<double>(j.name + "/" + hi::HW_IF_VELOCITY);
-      c.wheel_vel[j.slot] = std::isfinite(v) ? static_cast<float>(v) : 0.0f;
+      c.wheel_vel[j.slot] = std::isfinite(v) ? static_cast<float>(v / wheel_gear_) : 0.0f;   // 펌웨어는 모터 rad/s
     } else if (role == opencr_proto::ROLE_ARM && j.role == Role::ARM) {
       const double p = get_command<double>(j.name + "/" + hi::HW_IF_POSITION);
       const double q = std::isfinite(p) ? p : latest_.pos[opencr_proto::MAX_WHEELS + j.slot];

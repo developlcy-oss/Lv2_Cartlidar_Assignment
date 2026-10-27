@@ -56,8 +56,10 @@ static const uint8_t WHEEL_IDS[WHEEL_COUNT] = {1, 3, 2, 4};      // 칸 순서�
 static const int8_t  WHEEL_DIR[WHEEL_COUNT] = {+1, +1, -1, -1};  // 왼쪽 +1 · 오른쪽 -1 (모터가 마주 보게 장착 가정) — 실물 회전 확인 필수 ★
 //   URDF (urdfv2 teamrobot.urdf) 바퀴 축은 4개 모두 +y → + = 앞. 오른쪽 반전은 여기서만 한다.
 //   모터 Drive Mode 의 반전 비트는 0 이어야 함 (둘 다 반전하면 다시 거꾸로) — 부팅 때 prepareWheelConfig 가 0 으로 맞춤
-static const float   WHEEL_GEAR     = 1.0f;   // 바퀴 각속도 / 모터 각속도. 직결 (2026-10-26 실물 확인, urdfv2 와 같음)
-static const int32_t WHEEL_VEL_LIMIT_RAW = 330;   // Goal Velocity 한계 (0.229 rpm 단위) = 75.6 rpm = 바퀴 7.91 rad/s ≈ 0.261 m/s
+static const float   WHEEL_GEAR     = 1.0f;   // 1.0 고정: 펌웨어 CMD · STATE 는 모터 축 기준. 증속벨트 등 기어비는 호스트가 변환
+                                              //   (URDF drive 인자 → <param name="wheel_gear">, 2026-10-27). 여기서 바꾸면 두 번 적용됨
+static const int32_t WHEEL_VEL_LIMIT_RAW = 330;   // Goal Velocity 한계 (0.229 rpm 단위) = 75.6 rpm = 모터 7.91 rad/s
+                                                  //   바퀴: direct ≈ 0.261 m/s · belt (× 1.5) ≈ 0.39 m/s (12 V)
                                                   // (URDF velocity 8.06 rad/s = XM430-W210 12 V 무부하 77 rpm 안쪽) ★
                                                   // 모터 EEPROM Velocity Limit (주소 44) 은 이 값 이상이어야 함 — 작으면 부팅 때 이 값으로 올림
 static const uint16_t WHEEL_MODEL = 1030;  // 부팅 점검: 바퀴 XM430-W210 (= 1030, 확정 2026-10-22). W350 이면 1020
