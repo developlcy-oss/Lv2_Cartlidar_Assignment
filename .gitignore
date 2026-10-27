@@ -81,3 +81,9 @@ core.*
 AGENTS.md
 CLAUDE.md
 codex/
+
+# 시뮬레이션 인수인계 자료 (저장소 최상위에 두고 보기만 함, 올리지 않음)
+/urdf_261027_1711.zip
+/waffle_4wd_usd_261027_1711.zip
+/verify_261027_1711.zip
+/COMMANDS_waffle_4wd_sim.md
