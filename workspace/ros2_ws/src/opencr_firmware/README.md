@@ -61,8 +61,10 @@ tools/build_firmware.sh wheel --upload /dev/ttyACM0    # 빌드 후 업로드 �
 - `WHEEL_DIR` (★): 왼쪽 +1 · 오른쪽 −1 은 모터가 서로 마주 보게 달렸다는 가정이다. **바퀴를 띄운 상태에서 실제 회전 방향을 확인**하고 고친다.
   기준 URDF (urdfv2 `teamrobot.urdf`) 의 바퀴 축은 4개 모두 +y 라 + = 앞. 방향 반전은 `WHEEL_DIR` 로만 하고,
   **모터 Drive Mode 의 반전 비트는 0 으로 둔다** (urdfv2 문서의 "Drive Mode 반전" 은 이 펌웨어에서는 하지 않음 — 둘 다 하면 다시 거꾸로).
-- `WHEEL_GEAR = 1.0` (직결, 2026-10-26 실물 확인 — urdfv2 와 같음). `WHEEL_VEL_LIMIT_RAW = 330` (★) = 75.6 rpm = 바퀴 7.91 rad/s ≈ 0.261 m/s
-  (URDF 한계 8.06 rad/s 안쪽).
+- `WHEEL_GEAR = 1.0` **고정** — 펌웨어는 모터 축 기준으로 명령 · 상태를 주고받는다. 증속벨트 (1:1.5, 2026-10-27 장착) 같은 기어비는
+  호스트 `OpenCRHardware` 가 URDF `wheel_gear` 파라미터로 변환한다 (`drive:=belt|direct`). 여기서 바꾸면 두 번 적용된다.
+  `WHEEL_VEL_LIMIT_RAW = 330` (★) = 75.6 rpm = 모터 7.91 rad/s → 바퀴 direct ≈ 0.261 m/s · belt ≈ 0.39 m/s (12 V, 11.1 V 에서 약 0.34)
+  (URDF 바퀴 한계 direct 8.06 · belt 12.09 rad/s 안쪽).
 - 한계 초과 명령 (D6): 한 바퀴라도 넘으면 **모든 바퀴를 같은 비율로 줄인다** (좌우 속도비 = 회전 반경 유지). 개별 clamp 는 안전망으로 남김.
 - 부팅 때 바퀴 모터 설정을 맞춘다 (`prepareWheelConfig`, 토크 OFF 상태에서 다를 때만 EEPROM 에 씀):
   **Drive Mode bit0 (반전) → 0**, **Velocity Limit (주소 44) < 330 이면 → 330**. 쓴 뒤 다시 읽어 맞지 않으면
@@ -133,6 +135,8 @@ colcon build --packages-up-to opencr_hardware && colcon test --packages-select o
 ## 아직 정하지 않은 것 (★)
 
 - 바퀴: 모터 ID 다시 매기기 (실물), `WHEEL_DIR` 실측, 첫 부팅 때 STATE 에 `ERR_MOTOR_CONFIG` 가 없는지 확인 (실물),
-  호스트 diff_drive 한계를 바퀴 한계 (0.261 m/s) 에 맞추기 (D6 — 펌웨어는 비례 축소로 처리).
+  호스트 diff_drive 한계는 `opencr_hardware/config/drive_<direct|belt>.yaml` 에서 바퀴 한계에 맞춤 (D6 — 펌웨어는 비례 축소로 처리),
+  실행 후 `ros2 param get /diff_drive_controller wheel_separation` 이 0.317 (belt) · 0.2744 (direct) 인지 확인 (spawner 두 번째 설정 파일 덮어쓰기, 실물 미확인),
+  증속벨트 전류 보호 (설계 README: Present Current 약 0.6 A 초과 시 정지 — 제자리 회전 전류 실측 후 값 결정).
 - 팔: 6 번째 칸 (그리퍼 개폐) 의 규격 반영 · 그리퍼 결합 다시 맞추기, 시작 자세를 범위에 넣기 (A안), 위치 게인 (중력 처짐), 정밀 영점.
 - 공통: 물리 E-stop 배선, v5 · 4륜의 팀 규격 승인, D3 · D4 (`../../../docs/firmware_safety_analysis.md`).

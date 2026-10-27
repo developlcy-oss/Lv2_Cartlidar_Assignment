@@ -38,7 +38,8 @@ source workspace/ros2_ws/install/setup.bash
 ros2 launch bringup bringup.launch.py
 ```
 
-주요 인자: `use_hardware` · `use_teleop` · `use_perception` · `use_ekf` (기본 true), `ports` (기본 `/dev/ttyACM0,/dev/ttyACM1`, 역할은 프로토콜 응답으로 판별), `skill_enabled` (기본 false, ONNX 빌드에서만 true).
+주요 인자: `use_hardware` · `use_teleop` · `use_perception` · `use_ekf` (기본 true), `ports` (기본 `/dev/ttyACM0,/dev/ttyACM1`, 역할은 프로토콜 응답으로 판별), `skill_enabled` (기본 false, ONNX 빌드에서만 true),
+`drive` (기본 `belt` = 증속벨트 1:1.5, `direct` = 직결 — URDF 바퀴 위치 · 한계, 기어비, diff_drive 바퀴 간격 · 속도 한계가 같이 바뀜).
 nav2 · slam_toolbox 는 기존 launch 를 쓰고, nav2 체인의 마지막 출력만 `/cmd_vel_nav` 로 둔다.
 
 운용 순서:
@@ -69,5 +70,6 @@ colcon test && colcon test-result --verbose
 | TF · 카메라 | tfmini_link · arm_camera_link TF, Arducam 보정, 태그 크기 |
 | 팔 | STOW · READY · PLACE · TAG_VIEW 관절각, 링크 길이 · 관절 한계 (manipulator.yaml · URDF · config.h 세 곳 같게) |
 | 펌웨어 | 바퀴 ID · 방향 · 속도 한계, `WHEEL_MODEL` (바퀴 XM430-W210 = 1030 확정) |
+| 구동 (`drive:=belt`) | 바퀴 간격 실측 (URDF `wheel_y` 0.1585 · `drive_belt.yaml` `wheel_separation` 0.317 = 설계값), 실행 후 `ros2 param get /diff_drive_controller wheel_separation` = 0.317 확인 (`drive_belt.yaml` 이 기본 설정을 덮어쓰는지), `wheel_separation_multiplier` (회전 시험), 벨트 장력 · 이빨 건너뜀 |
 | 조이스틱 · 스위치 | 버튼 번호 (`teleop.yaml`, URDF `estop_button` · `reset_button`), 물리 스위치 핀 |
 | 그리퍼 | 개폐 액추에이터 (미정) |
