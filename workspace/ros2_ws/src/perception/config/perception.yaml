@@ -22,7 +22,7 @@ perception_node:
       arm:
         image_topic: /arm_camera/image_raw
         info_topic: /arm_camera/camera_info     # 왜곡 보정·태그 자세에 쓴다. 없으면 보정 없이 태그 id 만
-        frame_id: ""            # 비우면 영상 header (URDF camera_optical_frame 으로 발행해야 함)
+        frame_id: ""            # 비우면 영상 header (UVC 드라이버 frame_id 를 URDF arm_camera_optical_frame 으로 발행해야 함)
     depth:
       min_m: 0.15               # [m] 이보다 가까운 깊이는 버림
       max_m: 4.0

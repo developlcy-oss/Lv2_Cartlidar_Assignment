@@ -9,6 +9,7 @@
   <xacro:arg name="joy_required" default="true"/>
   <!-- 구동 방식: belt = 증속벨트 1:1.5 (2026-10-27 장착), direct = 직결 (urdfv2). 바퀴 y · 한계 · 기어비가 같이 바뀐다 -->
   <xacro:arg name="drive" default="belt"/>
+  <xacro:arg name="sim" default="false"/>   <!-- Isaac Sim: TopicBasedSystem (opencr.ros2_control.xacro) -->
   <xacro:include filename="$(find opencr_hardware)/urdf/opencr.ros2_control.xacro"/>
 
   <xacro:property name="wheel_count" value="$(arg wheel_count)"/>
@@ -70,8 +71,13 @@
   <!-- OpenCR 내장 IMU (주행 보드): urdfv2 imu_link — 하판 아래에 뒤집어 단 보드 축 (z 아래). ekf 가 이 TF 로 yaw rate 를 base_link 로 돌린다.
        뒤집어 장착 실물 확인 (2026-10-26). 위에서 봐서 반시계로 돌리면 /imu/data angular_velocity.z 는 음수 (보드 z 가 아래) -->
   <xacro:fixed_link name="imu_link"          parent="base_link" xyz="0 0 -0.0192" rpy="3.141593 0 1.570796"/>
+  <!-- ★ 적용 필요: LDS-03 은 뒤집어 장착 → roll π (front rpy "3.141593 0 0" · rear "3.141593 0 3.141593").
+       근거: USD waffle_4wd_usd_261027_1711 lidar_*_scan roll 180°, urdfv2 lds03_* 같음. 미적용이면 스캔 좌우가 뒤집힌다 (docs/frames_tf.md) -->
   <xacro:fixed_link name="laser_front"       parent="base_link" xyz="0.15 0 0.08" rpy="0 0 0"/>
   <xacro:fixed_link name="laser_rear"        parent="base_link" xyz="-0.15 0 0.08" rpy="0 0 3.14159"/>
+  <!-- ★ C: realsense2_camera (camera_name top_camera_front · top_camera_rear) 의 TF 뿌리는 <camera_name>_link (왼쪽 IR = 깊이 원점).
+       지금 이름 camera_front_link · camera_rear_link 로는 base_link → top_camera_*_color_optical_frame 이 끊겨 perception TF 조회가 실패한다.
+       USD waffle_4wd_usd_261027_1711 은 top_camera_front_link · top_camera_rear_link (docs/frames_tf.md) -->
   <xacro:fixed_link name="camera_front_link" parent="base_link" xyz="0.16 0 0.13" rpy="0 0.35 0"/>
   <xacro:fixed_link name="camera_rear_link"  parent="base_link" xyz="-0.16 0 0.13" rpy="0 0.35 3.14159"/>
   <xacro:fixed_link name="arm_base_link"     parent="base_link" xyz="0.087 0 0.111" rpy="0 0 0"/>
@@ -95,10 +101,14 @@
   <xacro:arm_joint name="joint4" parent="link3" child="link4" xyz="0.124 0 0" axis="0 1 0" lower="-1.92" upper="2.0"/>
   <xacro:arm_joint name="joint5" parent="link4" child="link5" xyz="0.04 0 0" axis="1 0 0" lower="-2.8" upper="2.8"/>
   <xacro:arm_joint name="gripper_roll" parent="link5" child="gripper_roll_link" xyz="0.041 0 0" axis="1 0 0" lower="-0.7946" upper="0.9541"/>
+  <!-- Arducam: 그리퍼에 장착 (2026-10-28 확인). UVC 드라이버 frame_id = arm_camera_optical_frame (광학 축: +z 앞 · +x 오른쪽 · +y 아래) -->
   <xacro:fixed_link name="arm_camera_link" parent="gripper_roll_link" xyz="0.02 0 0.035" rpy="0 0 0"/>
+  <xacro:fixed_link name="arm_camera_optical_frame" parent="arm_camera_link" xyz="0 0 0" rpy="-1.570796 0 -1.570796"/>
+  <!-- ★ 적용 필요: TFmini 는 차체 1층 플레이트에 장착 (2026-10-28 확인) → parent base_link 로 옮길 것.
+       urdfv2 tfmini_joint 는 base_link 기준 xyz "0.132 0 -0.02125". 옮기면 manipulator.yaml pick ① (range_offset) 가정도 다시 볼 것 -->
   <xacro:fixed_link name="tfmini_link"     parent="gripper_roll_link" xyz="0.02 0 -0.035" rpy="0 0 0"/>
   <xacro:fixed_link name="tool_link"       parent="gripper_roll_link" xyz="0.086 0 0" rpy="0 0 0"/>
 
   <xacro:opencr_ros2_control ports="$(arg ports)" wheel_count="${wheel_count}" use_gripper="$(arg use_gripper)"
-                             joy_required="$(arg joy_required)" wheel_gear="${wheel_gear}"/>
+                             joy_required="$(arg joy_required)" wheel_gear="${wheel_gear}" sim="$(arg sim)"/>
 </robot>

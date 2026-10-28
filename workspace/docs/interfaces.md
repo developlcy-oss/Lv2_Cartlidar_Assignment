@@ -31,7 +31,7 @@
 | /joy | sensor_msgs/Joy | 기본, 20 Hz autorepeat | joy_node | teleop_twist_joy, OpenCRHardware (heartbeat) |
 | /e_stop | std_msgs/Bool | Reliable + TransientLocal, 10 Hz | OpenCRHardware (잠금식) | twist_mux (lock 0.5 s), mission, manipulator |
 | /diagnostics | diagnostic_msgs/DiagnosticArray | 기본, 1 Hz + 오류 즉시 | OpenCRHardware (`opencr/link · motors · battery · estop`, hardware_id `opencr`) | mission (opencr/ 만) |
-| /tf · /tf_static | tf2_msgs/TFMessage | 기본 · TransientLocal | slam_toolbox · ekf · robot_state_publisher | 전체 |
+| /tf · /tf_static | tf2_msgs/TFMessage | 기본 · TransientLocal | slam_toolbox · ekf · robot_state_publisher · realsense2_camera — 규약 [frames_tf.md](frames_tf.md) | 전체 |
 | /arm/skill_state · /arm/safety_state | robot_interfaces/SkillState · SafetyState | TransientLocal | manipulator_node | 모니터링 — **표 추가 여부 결정 필요** |
 
 ## Action · Service

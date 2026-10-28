@@ -4,6 +4,9 @@ manipulator_node:
   ros__parameters:
     arm:
       joint_names: [joint1, joint2, joint3, joint4, joint5, gripper_roll]  # controllers.yaml arm_controller와 동일
+      # ★ B (2026-10-28 검토): 아래 한계가 URDF · 펌웨어 config.h ARM_MIN/MAX_RAD 보다 넓다 (j3 ±2.5 · j4 -2.0 · j5 ±3.14 · gripper_roll ±3.14).
+      #   펌웨어는 범위 밖 CMD 를 통째로 거부하므로 같게 맞출 것:
+      #   lower [-3.14159, -2.14, -1.6, -1.92, -2.8, -0.7946] · upper [3.14159, 1.6, 1.6, 2.0, 2.8, 0.9541]
       lower_limits: [-3.14, -1.57, -2.5, -2.0, -3.14, -3.14]   # TODO 관절 한계 (rad)
       upper_limits: [3.14, 1.57, 2.5, 2.0, 3.14, 3.14]
       max_joint_velocity: 0.5    # rad/s, 궤적 시간 계산용
@@ -28,6 +31,8 @@ manipulator_node:
     #   TAG_VIEW: 팔 끝 Arducam이 태그를 보는 자세 (mission 시작 단계)
     poses:
       names: [STOW, READY, PLACE, TAG_VIEW]
+      # ★ A · 적용 필요 (2026-10-28 검토): STOW joint3 -2.3 이 펌웨어 범위 (-1.6 ~ 1.6) 밖이라 STOW 명령이 거부된다.
+      #   arm_bench 대기 자세 (J1 1008 · J2 691 · J3 3057 · J4 835 · J5 2039 tick, docs/arm_bench_test_2026-10-27.md) 를 관절 부호 확인 후 rad 로 바꿔 넣을 것
       STOW: [0.0, 1.2, -2.3, 1.1, 0.0, 0.0]
       READY: [0.0, 0.6, -1.2, -0.9, 0.0, 0.0]
       PLACE: [1.57, 0.4, -0.8, -1.1, 0.0, 0.0]
@@ -65,6 +70,8 @@ manipulator_node:
       approach_distance: 0.15    # 파지점 앞 접근 위치 거리 (m). TFmini 최소 0.1m 이상 떨어지게
       # 파지점 거리 = TFmini 측정값 + range_offset (물체 반지름 + 센서가 끝단보다 뒤에 있는 거리)
       # 보정 목표 측정값 = approach_distance - range_offset (>= 0.10, TFmini 최소 거리)
+      # ★ 적용 필요: TFmini 는 팔이 아니라 차체 1층 플레이트에 장착 (2026-10-28 확인). URDF tfmini_link 를 base_link 로 옮기면
+      #   '센서가 끝단보다 뒤에 있는 거리' 가정과 pick ① 계산을 다시 볼 것
       range_offset: 0.02         # TODO TFmini 장착 위치(Perception 협의) · 물체 크기
       range_mismatch_tolerance: 0.04  # 측정 기반 거리와 계획 거리 차이가 이보다 크면 TFmini 무시 (m)
       max_final_approach: 0.25   # 최종 전진 거리 상한 (m), 넘으면 abort
