@@ -2,11 +2,13 @@
 //   urdf/robot.urdf.xacro (기본 인자: 4륜 · use_gripper false) 를 펼쳐 ros2_control 의 실제 파서에 넣고
 //   1) 관절 이름 · 역할 · 칸이 펌웨어 칸 순서와 같은지, 팔 명령 한계가 펌웨어 config.h 범위와 URDF <limit> 안인지
 //      (펌웨어는 범위 밖 CMD 를 통째로 거부한다), 컨트롤러 설정 (config/controllers_4wd.yaml) 의 관절이 있는지
-//   2) 다른 노드가 쓰는 좌표가 있는지 본다.
+//   2) 다른 노드가 쓰는 좌표가 있는지, 구동 방식 · 바퀴 수마다 TF 가 base_link 뿌리 하나인 나무인지 본다 (docs/frames_tf.md).
+//   3) 구동 방식별 diff_drive 설정 (config/drive_<belt|direct>.yaml) 이 URDF 바퀴 간격 · 반지름 · 속도 한계와 맞는지 본다.
 //   hardware_interface 6.x 는 URDF 에 없는 ros2_control 관절을 거부하므로 (Joint '...' not found in URDF), 이름이 어긋나면 여기서 잡힌다.
 #include <gtest/gtest.h>
 #include <unistd.h>
 
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <map>
@@ -31,8 +33,8 @@ std::string read_file(const std::string & path)
 
 bool have_xacro() {return std::system("command -v xacro > /dev/null 2>&1") == 0;}
 
-// xacro 글을 임시 파일로 써서 펼친다. $(find opencr_hardware) 는 소스 폴더로 (설치 · ament 색인 없이)
-bool expand_xacro(std::string text, std::string & urdf)
+// xacro 글을 임시 파일로 써서 펼친다 (args 예: "drive:=direct"). $(find opencr_hardware) 는 소스 폴더로 (설치 · ament 색인 없이)
+bool expand_xacro(std::string text, std::string & urdf, const std::string & args = "")
 {
   text = std::regex_replace(text, std::regex(R"(\$\(find opencr_hardware\))"), PKG_DIR);
   char tmp[] = "/tmp/robot_description_XXXXXX";
@@ -40,7 +42,7 @@ bool expand_xacro(std::string text, std::string & urdf)
   if (fd < 0) {return false;}
   close(fd);
   std::ofstream(tmp) << text;
-  FILE * p = popen((std::string("xacro ") + tmp + " 2>&1").c_str(), "r");
+  FILE * p = popen((std::string("xacro ") + tmp + " " + args + " 2>&1").c_str(), "r");
   char buf[4096];
   size_t n;
   urdf.clear();
@@ -59,6 +61,41 @@ std::vector<std::string> yaml_list(const std::string & yaml, const std::string &
   const std::string body = m[1];
   const std::regex item(R"([A-Za-z0-9_]+)");
   for (auto it = std::sregex_iterator(body.begin(), body.end(), item); it != std::sregex_iterator(); ++it) {out.push_back(it->str());}
+  return out;
+}
+
+// yaml 의 첫 "key: 숫자" (key 는 정규식, 점은 \.)
+double yaml_number(const std::string & yaml, const std::string & key)
+{
+  std::smatch m;
+  return std::regex_search(yaml, m, std::regex(key + R"(:\s*(-?[0-9.]+))")) ? std::stod(m[1]) : NAN;
+}
+
+// 펼친 URDF 의 관절 (<ros2_control> 안의 <joint> 는 type 이 없어 빠진다)
+struct UrdfJoint
+{
+  std::string type, parent, child;
+  double xyz[3]{}, rpy[3]{};
+};
+
+std::map<std::string, UrdfJoint> urdf_joints(const std::string & urdf)
+{
+  const auto attr = [](const std::string & body, const std::string & re) {
+      std::smatch m;
+      return std::regex_search(body, m, std::regex(re)) ? m[1].str() : std::string();
+    };
+  std::map<std::string, UrdfJoint> out;
+  const std::regex block(R"re(<joint name="([^"]+)" type="([^"]+)">([\s\S]*?)</joint>)re");
+  for (auto it = std::sregex_iterator(urdf.begin(), urdf.end(), block); it != std::sregex_iterator(); ++it) {
+    UrdfJoint j;
+    j.type = (*it)[2];
+    const std::string body = (*it)[3];
+    j.parent = attr(body, R"re(<parent link="([^"]+)")re");
+    j.child = attr(body, R"re(<child link="([^"]+)")re");
+    std::istringstream(attr(body, R"re(<origin[^>]*xyz="([^"]+)")re")) >> j.xyz[0] >> j.xyz[1] >> j.xyz[2];
+    std::istringstream(attr(body, R"re(<origin[^>]*rpy="([^"]+)")re")) >> j.rpy[0] >> j.rpy[1] >> j.rpy[2];
+    out[(*it)[1]] = j;
+  }
   return out;
 }
 
@@ -141,12 +178,75 @@ TEST(RobotDescription, Ros2ControlMatchesFirmwareAndControllers)
 TEST(RobotDescription, RobotUrdfProvidesFramesUsedByOtherNodes)
 {
   if (!have_xacro()) {GTEST_SKIP() << "xacro 없음 (sudo apt install ros-lyrical-xacro)";}
+  // 구동 방식 · 바퀴 수가 달라도 TF 는 base_link 뿌리 하나인 나무 (링크마다 부모 하나 · 순환 · 끊김 없음)
+  for (const std::string args : {"drive:=belt", "drive:=direct", "wheel_count:=6"}) {
+    std::string urdf;
+    ASSERT_TRUE(expand_xacro(read_file(PKG_DIR "/urdf/robot.urdf.xacro"), urdf, args)) << args << "\n" << urdf;
+    std::set<std::string> links;
+    const std::regex link_re(R"re(<link name="([^"]+)")re");
+    for (auto it = std::sregex_iterator(urdf.begin(), urdf.end(), link_re); it != std::sregex_iterator(); ++it) {links.insert((*it)[1]);}
+    std::map<std::string, std::string> parent;
+    for (const auto & [name, j] : urdf_joints(urdf)) {
+      EXPECT_TRUE(links.count(j.parent) && links.count(j.child)) << args << ": " << name << " 의 링크가 없음";
+      EXPECT_TRUE(parent.emplace(j.child, j.parent).second) << args << ": " << j.child << " 의 부모가 둘";
+    }
+    for (const auto & link : links) {
+      std::string cur = link;
+      for (size_t n = 0; parent.count(cur) && n <= links.size(); ++n) {cur = parent.at(cur);}
+      EXPECT_EQ(cur, "base_link") << args << ": " << link << " 이 base_link 에 닿지 않음 (순환 또는 끊김)";
+    }
+  }
+
   std::string urdf;
   ASSERT_TRUE(expand_xacro(read_file(PKG_DIR "/urdf/robot.urdf.xacro"), urdf)) << urdf;
-  // ekf · mission · lidar (base_link), Perception 찾기 (base_footprint), IMU broadcaster (imu_link), Controller (arm_base_link · tfmini_link)
-  for (const char * link : {"base_link", "base_footprint", "imu_link", "arm_base_link", "tfmini_link"}) {
+  // ekf · mission · lidar (base_link), Perception 찾기 (base_footprint), IMU broadcaster (imu_link), Controller (arm_base_link · tfmini_link),
+  // LiDAR 드라이버 frame_id (laser_front · laser_rear), Arducam UVC 드라이버 frame_id (arm_camera_optical_frame)
+  for (const char * link : {"base_link", "base_footprint", "imu_link", "arm_base_link", "tfmini_link",
+      "laser_front", "laser_rear", "arm_camera_optical_frame"})
+  {
     EXPECT_NE(urdf.find(std::string("<link name=\"") + link + "\""), std::string::npos) << link;
   }
+  const auto joints = urdf_joints(urdf);
+  // Arducam 은 그리퍼에 장착 (2026-10-28 확인). 광학 프레임: +z 앞 · +x 오른쪽 · +y 아래 → 몸체 프레임 기준 rpy (-π/2, 0, -π/2)
+  ASSERT_EQ(joints.count("arm_camera_link_joint"), 1u);
+  EXPECT_EQ(joints.at("arm_camera_link_joint").parent, "gripper_roll_link");
+  ASSERT_EQ(joints.count("arm_camera_optical_frame_joint"), 1u);
+  const auto & optical = joints.at("arm_camera_optical_frame_joint");
+  EXPECT_EQ(optical.parent, "arm_camera_link");
+  EXPECT_NEAR(optical.rpy[0], -M_PI / 2, 1e-5);
+  EXPECT_NEAR(optical.rpy[1], 0.0, 1e-5);
+  EXPECT_NEAR(optical.rpy[2], -M_PI / 2, 1e-5);
+  // ★ 적용 필요: TFmini 는 차체 1층 플레이트에 장착 (2026-10-28 확인) — URDF 를 옮기면
+  //   EXPECT_EQ(joints.at("tfmini_link_joint").parent, "base_link") 를 켠다.
+  // ★ C: realsense2_camera 의 TF 뿌리 <camera_name>_link 가 URDF 에 없다 (camera_front_link · camera_rear_link 로 되어 있음).
+  //   이름을 바꾸면 {"top_camera_front_link", "top_camera_rear_link"} 를 위 링크 목록에 넣는다.
   // realsense 드라이버가 발행하는 좌표를 URDF 가 또 만들면 TF 부모가 둘이 됨
   EXPECT_EQ(urdf.find("_color_optical_frame\""), std::string::npos);
+}
+
+// 구동 방식별 diff_drive 설정 (drive_<belt|direct>.yaml) = URDF 바퀴 (README '실물에서 맞출 값': wheel_y · wheel_separation)
+TEST(RobotDescription, DriveConfigMatchesUrdfWheels)
+{
+  if (!have_xacro()) {GTEST_SKIP() << "xacro 없음 (sudo apt install ros-lyrical-xacro)";}
+  const double radius = yaml_number(read_file(PKG_DIR "/config/controllers_4wd.yaml"), "wheel_radius");
+  ASSERT_FALSE(std::isnan(radius));
+  for (const std::string drive : {"belt", "direct"}) {
+    std::string urdf;
+    ASSERT_TRUE(expand_xacro(read_file(PKG_DIR "/urdf/robot.urdf.xacro"), urdf, "drive:=" + drive)) << urdf;
+    const auto joints = urdf_joints(urdf);
+    ASSERT_EQ(joints.count("wheel_left_front_joint"), 1u);
+    const auto & lf = joints.at("wheel_left_front_joint");
+    for (const char * wheel : {"wheel_left_rear_joint", "wheel_right_front_joint", "wheel_right_rear_joint"}) {
+      ASSERT_EQ(joints.count(wheel), 1u) << wheel;
+      EXPECT_NEAR(std::abs(joints.at(wheel).xyz[1]), lf.xyz[1], 1e-6) << drive << ": " << wheel << " |y|";
+      EXPECT_NEAR(joints.at(wheel).xyz[2], lf.xyz[2], 1e-6) << drive << ": " << wheel << " z";
+    }
+    const std::string yaml = read_file(std::string(PKG_DIR "/config/drive_") + drive + ".yaml");
+    EXPECT_NEAR(yaml_number(yaml, "wheel_separation"), 2 * lf.xyz[1], 1e-4) << drive;
+    // base_footprint = 바퀴 중심 아래 반지름만큼
+    EXPECT_NEAR(lf.xyz[2] - joints.at("base_footprint_joint").xyz[2], radius, 1e-6) << drive;
+    std::smatch m;
+    ASSERT_TRUE(std::regex_search(urdf, m, std::regex(R"re(<joint name="wheel_left_front_joint" type=[^>]*>[\s\S]*?<limit[^>]*velocity="([^"]+)")re")));
+    EXPECT_LE(yaml_number(yaml, R"(linear\.x\.max_velocity)"), std::stod(m[1]) * radius + 1e-6) << drive << ": 바퀴 속도 한계보다 빠름";
+  }
 }
