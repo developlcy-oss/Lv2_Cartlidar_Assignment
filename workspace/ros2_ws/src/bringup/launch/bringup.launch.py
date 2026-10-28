@@ -5,7 +5,7 @@
 #   ros2 launch bringup bringup.launch.py use_perception:=false  # 카메라 없이
 #   ros2 launch bringup bringup.launch.py skill_enabled:=true    # ONNX Runtime 빌드에서만 (정책 실행)
 #   ros2 launch bringup bringup.launch.py drive:=direct          # 직결 구동 (기본 belt = 증속벨트)
-#   ros2 launch bringup bringup.launch.py use_hardware:=false use_sim_time:=true   # 시뮬레이션 (Isaac Sim 이 /clock 발행)
+#   ros2 launch bringup bringup.launch.py sim:=true use_sim_time:=true use_teleop:=false   # Isaac Sim (workspace/tools/isaac_sim 브리지)
 #
 # ① ros2_control_node · ② base_container : opencr_hardware/base_bringup.launch.py
 # ⑦ perception_container                  : perception/perception.launch.py
@@ -54,6 +54,8 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
+        DeclareLaunchArgument('sim', default_value='false',
+                              description='① 을 Isaac Sim 브리지에 연결 (TopicBasedSystem). use_sim_time:=true 와 함께'),
         DeclareLaunchArgument('use_teleop', default_value='true', description='조이스틱 (끄면 E-stop heartbeat 검사도 끔)'),
         DeclareLaunchArgument('use_perception', default_value='true', description='⑦ 카메라 3대 · 검출'),
         DeclareLaunchArgument('use_ekf', default_value='true', description='⑥ robot_localization ekf'),
@@ -68,7 +70,7 @@ def generate_launch_description():
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution([hw, 'launch', 'base_bringup.launch.py'])),
             launch_arguments={'use_teleop': LaunchConfiguration('use_teleop'), 'ports': LaunchConfiguration('ports'),
-                              'drive': LaunchConfiguration('drive')}.items(),
+                              'drive': LaunchConfiguration('drive'), 'sim': LaunchConfiguration('sim')}.items(),
             condition=IfCondition(LaunchConfiguration('use_hardware'))),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution([per, 'launch', 'perception.launch.py'])),
