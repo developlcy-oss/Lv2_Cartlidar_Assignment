@@ -1,0 +1,40 @@
+{
+ "_설명": "waffle_4wd Isaac 공유본 물리값 (2026-10-29 사용자와 하나씩 정함). value 만 코드가 읽음. status = 값의 근거. 실측하면 여기만 고치고 convert 를 다시 (Isaac Lab 로봇 설정은 USD 를 다시 안 만들어도 이 값으로 덮어씀).",
+ "wheels": {
+  "effort_limit": {"value": 1.8, "unit": "N·m", "status": "URDF (벨트 1:1.5)", "source": "받은 URDF 바퀴 관절 effort. 사용자 결정 2026-10-29: 벨트 1:1.5 (URDF 그대로). 팀 펌웨어 config.h 는 직결 WHEEL_GEAR 1.0 (W210 3.0 N·m) 이라 다름"},
+  "velocity_limit": {"value": 10.995574, "unit": "rad/s", "status": "URDF (벨트 1:1.5)", "source": "받은 URDF 바퀴 관절 velocity (= 0.363 m/s). 팀 펌웨어 한계는 7.91 rad/s (WHEEL_VEL_LIMIT_RAW 330, 직결 기준)"},
+  "damping": {"value": 0.2133, "unit": "N·m·s/rad", "status": "펌웨어 기본 게인 환산", "source": "XM430-W210 Velocity P 100 모터 축 환산 0.48 (TeamRobot robot_params) / 1.5² (벨트). 사용자 결정 2026-10-29"},
+  "armature": {"value": 0.00222, "unit": "kg·m²", "status": "추정", "source": "모터 반사 관성 0.005 (TeamRobot 추정) / 1.5². 너무 작으면 제자리 회전 때 바퀴 속도가 튐"},
+  "radius": {"value": 0.033, "unit": "m", "status": "URDF", "source": "바퀴 Ø66"},
+  "separation": {"value": 0.317, "unit": "m", "status": "URDF (바퀴 폭 가운데) = 실물 (팀원 확인)", "source": "좌우 바퀴 폭 가운데 y ±0.1585 (바퀴 메시 · 충돌 원통). 바퀴 관절 원점 ±0.1546 (간격 0.3092) 은 3.9 mm 안쪽이라 쓰지 않음. 팀 controllers_4wd.yaml 0.317 과 같음. 2026-10-29 정정 (처음 0.3092 는 관절 원점 간격을 잘못 쓴 것)"}
+ },
+ "arm": {
+  "stiffness": {"value": 18.8756, "unit": "N·m/rad", "status": "펌웨어 게인 환산", "source": "팀 펌웨어 ARM_POS_P_GAIN 800 (I 0, D 0): P/128 x 4096/2π x 4.1/885 (arm_bench 와 같은 식). 사용자 결정 2026-10-29. 펌웨어 I 게인은 시뮬에 없음"},
+  "damping": {"value": 0.8506, "unit": "N·m·s/rad", "status": "펌웨어 게인 환산", "source": "위치 D 0 -> 역기전력만: 정지 토크 4.1 / 무부하 4.82 rad/s (XM430-W350 12 V)"},
+  "armature": {"value": 0.01, "unit": "kg·m²", "status": "추정", "source": "XM430-W350 (감속비 353.5) 반사 관성 (TeamRobot · arm_bench 와 같음)"},
+  "effort_limit": {"value": 4.1, "unit": "N·m", "status": "제조사", "source": "XM430-W350 12 V 정지 토크 (URDF 와 같음)"},
+  "velocity_limit": {"value": 4.8, "unit": "rad/s", "status": "URDF", "source": "URDF 관절 velocity (무부하 4.82 rad/s)"}
+ },
+ "fingers": {
+  "force_limit": {"value": 13.0, "unit": "N", "status": "펌웨어 환산 + 추정", "source": "GRIP_SQUEEZE_TICKS 33 -> 모터 0.96 N·m -> 손가락 하나 13.0 N (기구 효율 0.5 추정 ★, arm_bench 와 같은 식). 사용자 결정 2026-10-29"},
+  "stiffness": {"value": 6500.0, "unit": "N/m", "status": "계산", "source": "힘 한계 / 0.002 m (2 mm 덜 닫히면 한계 힘 = 펌웨어 쥐기 흉내)"},
+  "damping": {"value": 130.0, "unit": "N·s/m", "status": "계산", "source": "강성 x 0.02"},
+  "velocity_limit": {"value": 0.0408, "unit": "m/s", "status": "추정", "source": "빈 손 끝에서 끝까지 31 mm 약 0.76 s (arm_bench)"},
+  "closed": {"value": -0.011, "unit": "m", "status": "URDF", "source": "손가락 관절 하한"},
+  "open": {"value": 0.02, "unit": "m", "status": "URDF", "source": "손가락 관절 상한"}
+ },
+ "contact": {
+  "static_friction": {"value": 1.0, "unit": "-", "status": "미측정", "source": "사용자 결정 2026-10-29: Gazebo 공유본 (sensors.yaml wheel_friction) 과 같게. 바닥에 바퀴를 올리고 미끄러지기 시작하는 기울기 tan θ 로 실측하면 고침"},
+  "dynamic_friction": {"value": 1.0, "unit": "-", "status": "미측정", "source": "위와 같음"},
+  "self_collision": {"value": true, "unit": "-", "status": "사용자 결정", "source": "2026-10-29: 팔 ↔ 차체 항상 켬. 팔 몸체끼리는 뺌 (충돌 상자가 실물보다 커서, 예전 cartridar 시험)"}
+ },
+ "poses": {
+  "default": {"value": "drive", "unit": "-", "status": "사용자 결정", "source": "2026-10-29: 기본 시작 자세 = 주행 자세"},
+  "drive": {"value": {"joint1": 0.0, "joint2": -1.35, "joint3": 1.1497, "joint4": 0.8094, "joint5": 0.0, "gripper_roll": 0.0, "gripper_left_joint": 0.0, "gripper_right_joint": 0.0},
+            "unit": "rad · m", "status": "사용자 결정 (웹 시뮬레이터 값 수정)", "source": "주행 자세 J2 −77.3° · J3 +65.9° · J4 +46.4°. 웹 시뮬레이터 (TeamRobot Sim3D) 값 J2 −82.3° 에서 사용자 결정 2026-10-29 로 4.9° 덜 접음: 가벼운 판 D435 기둥 쪽 상자에 윗팔이 닿아서 (정밀 판은 원래 값도 안 닿음). 앞 D435 화면 아래 가운데에 그리퍼가 보임"},
+  "stow": {"value": {"joint1": 1.5739, "joint2": -2.0831, "joint3": 1.5463, "joint4": -1.8653, "joint5": 0.0, "gripper_roll": 0.0, "gripper_left_joint": 0.0, "gripper_right_joint": 0.0},
+           "unit": "rad · m", "status": "실물 tick 환산", "source": "2026-10-26 확정 전원 켤 때 자세 (J1 3074 · J2 690 · J3 3056 · J4 832 tick, 2048 = 0 rad, 1안 차체 기준). 2안에서는 윗팔이 차체에 약 6 N 으로 기댐. 주행 자세와 오갈 때는 영 자세를 거칠 것 (가벼운 판에서는 바로 가면 J1 이 돌 때 접힌 팔이 D435 기둥 쪽 상자에 걸림, 정밀 판은 괜찮음)"},
+  "zero": {"value": {"joint1": 0.0, "joint2": 0.0, "joint3": 0.0, "joint4": 0.0, "joint5": 0.0, "gripper_roll": 0.0, "gripper_left_joint": 0.0, "gripper_right_joint": 0.0},
+           "unit": "rad · m", "status": "URDF", "source": "모든 관절 0 (URDF · Gazebo 와 같음). 팔이 차체 앞으로 0.41 m"}
+ }
+}

@@ -1,0 +1,141 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Value: true
+      Cell Size: 0.5
+      Color: 160; 160; 164
+      Plane: XY
+      Plane Cell Count: 20
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Value: true
+      Description Source: Topic
+      Description Topic:
+        Value: /robot_description
+      Visual Enabled: true
+      Collision Enabled: false
+      Alpha: 1.0
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Value: false
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+    - Class: rviz_default_plugins/LaserScan
+      Name: scan_front (LDS-03)
+      Value: true
+      Topic:
+        Value: /scan_front
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+      Color Transformer: FlatColor
+      Color: 255; 60; 60
+      Style: Flat Squares
+      Size (m): 0.02
+    - Class: rviz_default_plugins/LaserScan
+      Name: scan_rear (LDS-03)
+      Value: true
+      Topic:
+        Value: /scan_rear
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+      Color Transformer: FlatColor
+      Color: 60; 160; 255
+      Style: Flat Squares
+      Size (m): 0.02
+    - Class: rviz_default_plugins/Range
+      Name: tfmini (Range)
+      Value: true
+      Topic:
+        Value: /tfmini/range
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+      Color: 255; 220; 0
+      Alpha: 0.6
+    - Class: rviz_default_plugins/Odometry
+      Name: ground_truth (Gazebo)
+      Value: false
+      Topic:
+        Value: /ground_truth/odom
+        Reliability Policy: Reliable
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+      Keep: 100
+    # 영상은 켜면 Gazebo 가 그 카메라를 렌더한다 (켤수록 시뮬이 느려짐). 앞 · 뒤 컬러만 켜 둠
+    - Class: rviz_default_plugins/Image
+      Name: front color (D435)
+      Value: true
+      Topic:
+        Value: /top_camera_front/color/image_raw
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+    - Class: rviz_default_plugins/Image
+      Name: rear color (D435)
+      Value: true
+      Topic:
+        Value: /top_camera_rear/color/image_raw
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+    - Class: rviz_default_plugins/Image
+      Name: rear depth (D435)
+      Value: false
+      Normalize Range: true
+      Topic:
+        Value: /top_camera_rear/aligned_depth_to_color/image_raw
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+    - Class: rviz_default_plugins/Image
+      Name: arm camera (Arducam)
+      Value: false
+      Topic:
+        Value: /arm_camera/image_raw
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+    - Class: rviz_default_plugins/Image
+      Name: front depth (D435)
+      Value: false
+      Normalize Range: true
+      Topic:
+        Value: /top_camera_front/aligned_depth_to_color/image_raw
+        Reliability Policy: Best Effort
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Depth: 5
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/FocusCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 2.5
+      Focal Point:
+        X: 0
+        Y: 0
+        Z: 0.2
+      Name: Current View
