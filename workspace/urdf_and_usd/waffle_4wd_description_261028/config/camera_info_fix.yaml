@@ -1,0 +1,43 @@
+# scripts/camera_info_fix.py 설정 - tools/make_revision.py 가 config/sensors.yaml 로 만듦 (직접 고치지 말 것)
+camera_info:
+- in: /gz/top_camera_front/color/camera_info
+  out: /top_camera_front/color/camera_info
+  baseline_m: 0.0
+- in: /gz/top_camera_front/aligned_depth_to_color/camera_info
+  out: /top_camera_front/aligned_depth_to_color/camera_info
+  baseline_m: 0.0
+- in: /gz/top_camera_front/infra1/camera_info
+  out: /top_camera_front/infra1/camera_info
+  baseline_m: 0.0
+- in: /gz/top_camera_front/infra2/camera_info
+  out: /top_camera_front/infra2/camera_info
+  baseline_m: 0.05
+- in: /gz/top_camera_rear/color/camera_info
+  out: /top_camera_rear/color/camera_info
+  baseline_m: 0.0
+- in: /gz/top_camera_rear/aligned_depth_to_color/camera_info
+  out: /top_camera_rear/aligned_depth_to_color/camera_info
+  baseline_m: 0.0
+- in: /gz/top_camera_rear/infra1/camera_info
+  out: /top_camera_rear/infra1/camera_info
+  baseline_m: 0.0
+- in: /gz/top_camera_rear/infra2/camera_info
+  out: /top_camera_rear/infra2/camera_info
+  baseline_m: 0.05
+- in: /gz/arm_camera/camera_info
+  out: /arm_camera/camera_info
+  baseline_m: 0.0
+depth_image:
+- in: /gz/top_camera_front/aligned_depth_to_color/image_raw
+  out: /top_camera_front/aligned_depth_to_color/image_raw
+  add_m: 0.008
+- in: /gz/top_camera_rear/aligned_depth_to_color/image_raw
+  out: /top_camera_rear/aligned_depth_to_color/image_raw
+  add_m: 0.008
+points:
+- in: /gz/top_camera_front/depth/color/points
+  out: /top_camera_front/depth/color/points
+  add_m: 0.008
+- in: /gz/top_camera_rear/depth/color/points
+  out: /top_camera_rear/depth/color/points
+  add_m: 0.008
