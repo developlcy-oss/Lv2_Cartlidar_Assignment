@@ -30,8 +30,28 @@ perception_node:
       sync_tol_s: 0.02          # [s] 컬러와 깊이 stamp 차이 허용 (이전 모듈 2026-10-06 Pi 실측: D435 640x480 30 Hz, 미리보기 끔에서 짝 놓침 0.4 %)
     arm:
       detect_width: 640         # ARM_ALIGN 검출 해상도 (줄여서 15 Hz 확보, 오차는 정규화 값이라 해상도와 무관)
-      lock_gate: 0.25           # ★ ARM_ALIGN 목표 유지(arm_target_lock.hpp): 직전 박스 중심 · 처음 투영점에서 이 정규화 거리 안만 같은 퍽 (가정값)
-      lock_size_ratio: 2.0      # ★ 박스 폭이 직전의 1/배 ~ 배 안이어야 같은 퍽 (가정값)
+      lock_gate: 0.25           # ★ ARM_ALIGN 목표 유지(arm_target_lock.hpp): 따라가기 문턱 상한. 거리는 x 단위(화면 반폭, 세로는 × 높이/폭)
+      lock_seed_gate: 0.10      # ★ 처음 잠글 때 · 놓친 뒤 다시 잡을 때 D435 목표 투영점에서 이 안만 (넘으면 그 장은 잡지 않음)
+      lock_follow_k: 0.6        # ★ 따라가기 문턱 = 이 값 × 직전 박스 폭 (맞닿은 이웃은 중심 사이 약 폭 하나 이상)
+                                # 근거(2026-10-27, A1 렌더 모의): 고정 0.25 로는 첫 장에 0.2 옆 퍽을 잠그고, 목표가 화면 밖으로 나간 동안 그 자리로 들어온 5 cm 옆 이웃을 잡음
+      lock_size_ratio: 1.3      # ★ 따라가는 동안 박스 폭이 직전 장의 1/배 ~ 배 안이어야 같은 퍽 (라벨이 잘려 이웃과 합쳐진 상자는 약 1.5 배)
+      lock_reacquire_size_ratio: 2.0   # ★ 놓친 뒤 다시 잡을 때 직전 폭 대비 배율
+      label:                    # ARM_ALIGN 색 검출 라벨 인식 (detector.hpp label_aware). TensorRT 검출기면 쓰지 않음
+        # 근거(2026-10-27, A1 렌더 모의): 위에서 본 퍽은 가운데 흰 라벨이 색 덩어리의 구멍이 되어 채움이 하한 아래
+        #   (서 있는 원기둥 0/20 · 서 있는 직육면체 88/127 검출) → 라벨로 묶고 나누면 19/20 · 124/127
+        enabled: true
+        dark_v_max: 90          # ★ 태그 검은 칸 V · S 상한 (렌더 태그 검은 칸 V 23~30 · S 13~64)
+        dark_s_max: 90
+        dark_window: 31        # 상대 어둠 문턱 창(px), 어두운 선반을 태그로 잡지 않음
+        dark_c: 20.0           # 주변 V평균보다 이만큼 어두워야 태그
+        body_v_min: 15         # 팔 검출만: 그림자진 옆면 포함, D435·신호 HSV 유지
+        merge_same_id: true    # 원본에서 해독한 같은 퍽ID의 여러면을 한 물체로
+        tag_close: 5            # [px] 태그 무늬를 한 덩어리로 닫는 커널
+        tag_min_px: 30.0        # [px²] 태그 덩어리 최소 넓이 (0.4 m 의 16 mm 태그 약 11 × 11 px)
+        square_min: 0.5         # 태그 정사각형 판정 하한 (짧은 변 / 긴 변, 넓이 / 사각형)
+        scale: 1.25             # 라벨 / 태그 한 변 (20 / 16 mm)
+        ring_frac: 0.2          # 라벨 색을 보는 바깥 띠 폭 / 라벨 한 변
+        ring_min: 0.25          # 띠의 그 색 비율 하한
     detector:
       type: auto                # auto | tensorrt | color
       engine_path: ""           # ★ TensorRT 엔진 (.engine). 비우면 색 검출기

@@ -101,3 +101,33 @@ TEST(DepthSplit, OverlappingBoxesNoDuplicate)
   DetectorConfig c;
   EXPECT_EQ(split_by_depth(dets, img, depth, 1.0, c.hsv, 3, 3, K, DepthSplitConfig{}, 0.3f).size(), 1u);
 }
+
+TEST(DepthSplit, OversizeThinBridgeSeparatesTwoCores)
+{
+  cv::Mat img(480, 640, CV_8UC3, cv::Scalar(90, 90, 90));
+  cv::Mat depth(480, 640, CV_32F, cv::Scalar(1.f));
+  cv::rectangle(img, cv::Rect(280, 210, 30, 50), cv::Scalar(0, 0, 220), cv::FILLED);
+  cv::rectangle(img, cv::Rect(330, 210, 30, 50), cv::Scalar(0, 0, 220), cv::FILLED);
+  cv::line(img, {309, 235}, {330, 235}, cv::Scalar(0, 0, 220), 1);
+  const cv::Mat before = depth.clone();
+  Detection d; d.box = {280, 210, 80, 50}; d.class_id = 0; d.score = 1;
+  DetectorConfig c; DepthSplitConfig cfg; cfg.max_piece_m = .09;
+  const auto p = split_by_depth({d}, img, depth, 1, c.hsv, 0, 1, K, cfg, .3);
+  ASSERT_EQ(p.size(), 2u);
+  EXPECT_LT(std::min(p[0].center.x, p[1].center.x), 310);
+  EXPECT_GT(std::max(p[0].center.x, p[1].center.x), 330);
+  for (const auto & x : p) {EXPECT_TRUE(size_plausible(x.det.box, x.depth, K, .015, .09));}
+  EXPECT_EQ(cv::norm(before, depth, cv::NORM_INF), 0);
+}
+
+TEST(DepthSplit, OversizeSingleSurfaceRemainsRejected)
+{
+  cv::Mat img(480, 640, CV_8UC3, cv::Scalar(90, 90, 90));
+  cv::Mat depth(480, 640, CV_32F, cv::Scalar(1.f));
+  cv::rectangle(img, cv::Rect(280, 210, 80, 50), cv::Scalar(0, 0, 220), cv::FILLED);
+  Detection d; d.box = {280, 210, 80, 50}; d.class_id = 0; d.score = 1;
+  DetectorConfig c; DepthSplitConfig cfg; cfg.max_piece_m = .09;
+  const auto p = split_by_depth({d}, img, depth, 1, c.hsv, 0, 1, K, cfg, .3);
+  ASSERT_EQ(p.size(), 1u);
+  EXPECT_FALSE(size_plausible(p[0].det.box, p[0].depth, K, .015, .09));
+}

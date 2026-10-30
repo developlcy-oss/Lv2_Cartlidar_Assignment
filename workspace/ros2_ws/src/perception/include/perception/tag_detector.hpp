@@ -29,7 +29,7 @@ class TagDetector
 public:
   // family: "tag36h11" (기본) · "tag25h9" · "tag16h5"
   //         Aruco(과제 마커): "DICT_4X4_50" · "DICT_4X4_100" · "DICT_5X5_50" · "DICT_6X6_50"
-  TagDetector(const std::string & family, double tag_size_m);
+  TagDetector(const std::string & family, double tag_size_m, double gamma = 1.0, bool upscale_all = false);
   bool ok() const {return ok_;}
   // K · D 가 비어 있으면 자세 추정 없이 id 만
   std::vector<TagDetection> detect(const cv::Mat & bgr, const cv::Mat & K, const cv::Mat & D) const;
@@ -37,6 +37,8 @@ public:
 private:
   int dict_id_ = 0;
   double size_ = 0.1;
+  double gamma_ = 1.0;
+  bool upscale_all_ = false;
   bool ok_ = false;
   bool aruco_ = false;
 };
