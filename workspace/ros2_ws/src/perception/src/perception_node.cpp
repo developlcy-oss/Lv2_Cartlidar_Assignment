@@ -371,6 +371,12 @@ public:
       RCLCPP_WARN(get_logger(), "detector.class_names 는 TensorRT 엔진에만 씀: %s 에서는 무시", detector_->name().c_str());
       class_names_.clear();
     }
+    // 번호 → 색 · 모양이 어긋나면 퍽 색을 틀리게 내므로 시작하지 않는다 (puck_class.hpp)
+    const std::string cls_err = class_names_mismatch(detector_->num_classes(), class_names_);
+    if (!cls_err.empty()) {
+      RCLCPP_FATAL(get_logger(), "%s", cls_err.c_str());
+      throw std::runtime_error("detector.class_names");
+    }
     // 팔 카메라(ARM_ALIGN) 검출기: arm.detector = color(기본, 엔진이 있어도 색 검출) | main(주 검출기와 같은 것)
     //   엔진(YOLO)은 D435 영상으로만 학습 · 평가했으므로 팔 영상에 쓰려면 main 을 명시한다
     const std::string arm_det = declare_parameter("arm.detector", std::string("color"));

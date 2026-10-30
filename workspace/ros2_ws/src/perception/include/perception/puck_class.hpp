@@ -38,4 +38,21 @@ inline PuckClass puck_class(int class_id, const std::vector<std::string> & class
   return puck_class_from_name(class_names[class_id]);
 }
 
+// 엔진 클래스 수와 class_names 가 맞는지. 맞으면 빈 문자열, 아니면 사유
+//   class_names 가 있으면 길이 = 엔진 클래스 수
+//   비면 색 검출기 번호(0 빨강 · 1 초록 · 2 파랑)로 읽으므로 3 클래스 엔진만 허용 (4 클래스면 2 번이 파랑이 됨)
+inline std::string class_names_mismatch(int engine_classes, const std::vector<std::string> & class_names)
+{
+  if (engine_classes < 0) {return "";}
+  const int n = static_cast<int>(class_names.size());
+  if (n == 0) {
+    if (engine_classes == 3) {return "";}
+    return "엔진 클래스 " + std::to_string(engine_classes) + " 개인데 detector.class_names 가 비어 있음";
+  }
+  if (n != engine_classes) {
+    return "엔진 클래스 " + std::to_string(engine_classes) + " 개와 detector.class_names " + std::to_string(n) + " 개가 다름";
+  }
+  return "";
+}
+
 }  // namespace perception

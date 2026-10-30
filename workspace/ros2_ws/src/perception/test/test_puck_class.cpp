@@ -42,3 +42,16 @@ TEST(PuckClass, MissingWordIsUnknown)
   EXPECT_EQ(puck_class(0, {"green"}).shape, UNK);
   EXPECT_EQ(puck_class(0, {"green"}).color, GREEN);
 }
+
+// 엔진 클래스 수와 class_names 대조: 색 검출기(-1)는 늘 통과, 이름 없는 엔진은 3 클래스만
+TEST(PuckClass, ClassNamesMismatch)
+{
+  const std::vector<std::string> n4{"red_cylinder", "green_cylinder", "red_cuboid", "green_cuboid"};
+  EXPECT_TRUE(class_names_mismatch(-1, {}).empty());
+  EXPECT_TRUE(class_names_mismatch(-1, n4).empty());
+  EXPECT_TRUE(class_names_mismatch(4, n4).empty());
+  EXPECT_TRUE(class_names_mismatch(3, {}).empty());
+  EXPECT_FALSE(class_names_mismatch(4, {}).empty());
+  EXPECT_FALSE(class_names_mismatch(3, n4).empty());
+  EXPECT_FALSE(class_names_mismatch(5, n4).empty());
+}
