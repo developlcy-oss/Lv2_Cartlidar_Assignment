@@ -25,6 +25,7 @@ struct DepthSplitConfig
   double min_fill = 0.35;       // 조각 화소 수 / 외접 상자 넓이 하한(검출기 min_fill_ratio 와 같게). 블러로 덩어리 둘레에 생긴
                                 // 1 px 테두리는 배경 깊이로 따로 이어지는데, 채움이 작아 여기서 빠진다
   double min_m = 0.15, max_m = 4.0;
+  double max_piece_m = 0;  // 0이면 기존 방식. 크기 초과 영역만 가는 깊이 연결을 재확인
 };
 
 struct DepthPiece
@@ -98,6 +99,26 @@ inline std::vector<DepthPiece> split_by_depth(const std::vector<Detection> & det
         const double face_px = (K.fx * cfg.face_m / zm) * (K.fy * cfg.face_m / zm);
         if (static_cast<double>(pix.size()) < cfg.min_face_ratio * face_px) {continue;}
         const cv::Rect b = cv::boundingRect(pix);
+        if (cfg.max_piece_m > 0 && !size_plausible(cv::Rect2f(b), zm, K, 0, cfg.max_piece_m)) {
+          cv::Mat core = cv::Mat::zeros(r.size(), CV_8U);
+          for (const auto & p : pix) {core.at<uint8_t>(p) = 255;}
+          cv::erode(core, core, cv::getStructuringElement(cv::MORPH_ELLIPSE, {3, 3}));
+          cv::Mat core_depth = cv::Mat::zeros(depth.size(), depth.type());
+          depth(r).copyTo(core_depth(r), core);
+          auto retry_cfg = cfg;
+          retry_cfg.max_piece_m = 0;  // 재시도는 한 번만
+          auto retry = split_by_depth({d}, bgr, core_depth, scale, hsv, blur_ksize,
+            morph_kernel, K, retry_cfg, score_threshold);
+          if (retry.size() >= 2) {
+            for (const auto & pc : retry) {
+              const bool dup = std::any_of(out.begin(), out.end(), [&](const DepthPiece & o) {
+                  return o.det.class_id == pc.det.class_id &&
+                         std::abs(o.center.x - pc.center.x) <= 2 && std::abs(o.center.y - pc.center.y) <= 2;});
+              if (!dup) {out.push_back(pc);}
+            }
+            continue;
+          }
+        }
         const double fill = static_cast<double>(pix.size()) / b.area();
         if (fill < cfg.min_fill) {continue;}
         const double aspect = static_cast<double>(std::min(b.width, b.height)) / std::max(b.width, b.height);

@@ -19,8 +19,8 @@
 namespace perception
 {
 
-TagDetector::TagDetector(const std::string & family, double tag_size_m)
-: size_(tag_size_m)
+TagDetector::TagDetector(const std::string & family, double tag_size_m, double gamma, bool upscale_all)
+: size_(tag_size_m), gamma_(gamma), upscale_all_(upscale_all)
 {
   ok_ = true;
   if (family == "tag36h11") {dict_id_ = cv::aruco::DICT_APRILTAG_36h11;}
@@ -88,11 +88,13 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
   cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
   // AprilTag 은 두 방식으로 찾아 번호별로 합친다: CORNER_REFINE_APRILTAG(AprilTag 사각형 찾기)와
   // CORNER_REFINE_SUBPIX(윤곽 찾기)가 놓치는 태그가 서로 달라서(2026-10-23 합성 영상 144조건: 113 · 102 → 합쳐서 128).
-  // 같은 번호면 AprilTag 방식 결과를 쓴다. Aruco 마커는 SUBPIX 한 번
+  // 같은 면의 중복만 합치고 같은 번호의 다른 면은 보존한다. Aruco 마커는 SUBPIX 한 번
   std::vector<int> ids;
   std::vector<std::vector<cv::Point2f>> corners;
   std::vector<std::vector<cv::Point2f>> cand;   // 원래 크기 영상에서 사각형은 찾았지만 해독하지 못한 후보
   bool keep_cand = true;
+  double coord_scale = 1.0;
+  cv::Point2f coord_offset(0.f, 0.f);
   auto run = [&](int method) {
       std::vector<int> ii;
       std::vector<std::vector<cv::Point2f>> cc, rejected;
@@ -107,9 +109,23 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
       cv::aruco::detectMarkers(gray, cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p, rejected);
 #endif
       for (size_t k = 0; k < ii.size(); ++k) {
-        if (std::find(ids.begin(), ids.end(), ii[k]) != ids.end()) {continue;}
+        auto mapped = cc[k];
+        cv::Point2f center(0.f, 0.f);
+        for (auto & point : mapped) {
+          point = (point + cv::Point2f(.5f,.5f)) * static_cast<float>(coord_scale) - cv::Point2f(.5f,.5f) + coord_offset;
+          center += point * .25f;
+        }
+        bool duplicate = false;
+        const double gate = .25 * cv::norm(mapped[0] - mapped[2]);
+        for (size_t j=0; j<ids.size(); ++j) {
+          if (ids[j] != ii[k]) {continue;}
+          cv::Point2f other(0.f,0.f);
+          for (const auto & point : corners[j]) {other += point * .25f;}
+          if (cv::norm(center-other) <= gate) {duplicate=true;break;}
+        }
+        if (duplicate) {continue;}
         ids.push_back(ii[k]);
-        corners.push_back(cc[k]);
+        corners.push_back(std::move(mapped));
       }
       if (keep_cand) {cand.insert(cand.end(), rejected.begin(), rejected.end());}
     };
@@ -119,22 +135,28 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
     run(cv::aruco::CORNER_REFINE_APRILTAG);
     run(cv::aruco::CORNER_REFINE_SUBPIX);
   }
+  if(gamma_>0 && gamma_!=1.0) {
+    const cv::Mat original=gray;cv::Mat adjusted;cv::Mat lut(1,256,CV_8U);
+    for(int i=0;i<256;++i)lut.at<uchar>(i)=static_cast<uchar>(std::nearbyint(255*std::pow(i/255.0,gamma_)));
+    cv::LUT(original,lut,adjusted);gray=adjusted;
+    run(cv::aruco::CORNER_REFINE_APRILTAG);run(cv::aruco::CORNER_REFINE_SUBPIX);
+    // 원본 검출을 보존한 상태로 작은 태그의 추가 확대에는 감마 영상을 쓴다.
+  }
   // 하나도 못 찾으면 2배로 키운 영상에서 한 번 더 찾고 꼭짓점을 원래 크기로 줄인다.
   // D435 1 m 의 48 mm 장소 태그(약 29 px)를 밝은 조명에서 놓친 7장이 2배에서 모두 찾아짐(R5 렌더 2026-10-25)
   keep_cand = false;
   const bool none_at_1x = ids.empty();
-  if (ids.empty()) {
+  if (ids.empty() || upscale_all_) {
     const cv::Mat orig = gray;
     cv::resize(orig, gray, cv::Size(), 2.0, 2.0, cv::INTER_CUBIC);
+    coord_scale = .5;
     if (aruco_) {
       run(cv::aruco::CORNER_REFINE_SUBPIX);
     } else {
       run(cv::aruco::CORNER_REFINE_APRILTAG);
       run(cv::aruco::CORNER_REFINE_SUBPIX);
     }
-    for (auto & cs : corners) {
-      for (auto & c : cs) {c = (c + cv::Point2f(0.5f, 0.5f)) * 0.5f - cv::Point2f(0.5f, 0.5f);}   // 화소 가운데 기준
-    }
+    coord_scale = 1.0;
     gray = orig;
   }
   // 다른 태그는 찾아 위의 2배 재검출이 돌지 않았으면, 해독하지 못한 사각형 후보 둘레만 2배로 키워 다시 해독한다.
@@ -164,16 +186,16 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
       cv::Mat up;   // 새 버퍼에 키움: 키운 크기가 원래 영상과 같아도 orig 를 덮어쓰지 않게
       cv::resize(orig(r), up, cv::Size(), 2.0, 2.0, cv::INTER_CUBIC);
       gray = up;
-      const size_t n0 = corners.size();
+      coord_scale = .5;
+      coord_offset = cv::Point2f(r.tl());
       if (aruco_) {
         run(cv::aruco::CORNER_REFINE_SUBPIX);
       } else {
         run(cv::aruco::CORNER_REFINE_APRILTAG);
         run(cv::aruco::CORNER_REFINE_SUBPIX);
       }
-      for (size_t k = n0; k < corners.size(); ++k) {
-        for (auto & c : corners[k]) {c = (c + cv::Point2f(0.5f, 0.5f)) * 0.5f - cv::Point2f(0.5f, 0.5f) + cv::Point2f(r.tl());}
-      }
+      coord_scale = 1.0;
+      coord_offset = cv::Point2f(0.f,0.f);
     }
     gray = orig;
   }
