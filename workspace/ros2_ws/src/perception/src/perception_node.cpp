@@ -72,6 +72,7 @@
 #include "perception/detector.hpp"
 #include "perception/dice_check.hpp"
 #include "perception/frame_gate.hpp"
+#include "perception/puck_class.hpp"
 #include "perception/geometry.hpp"
 #include "perception/puck_estimator.hpp"
 #include "perception/puck_merge.hpp"
@@ -223,6 +224,7 @@ public:
     dc.blur_ksize = static_cast<int>(declare_parameter("detector.blur_ksize", dc.blur_ksize));
     dc.morph_kernel = static_cast<int>(declare_parameter("detector.morph_kernel", dc.morph_kernel));
     dc.min_fill_ratio = declare_parameter("detector.min_fill_ratio", dc.min_fill_ratio);
+    class_names_ = declare_parameter<std::vector<std::string>>("detector.class_names", std::vector<std::string>{});
     {   // HSV 범위: detector.hsv.<key>.lower/upper = [H, S, V]. 조명이 바뀌면 yaml 만 고친다
       const char * keys[] = {"red", "red2", "green", "blue"};
       for (size_t i = 0; i < dc.hsv.size(); ++i) {
@@ -364,6 +366,11 @@ public:
       throw std::runtime_error("detector");
     }
     split_on_ = split_on_ && detector_->name() != "tensorrt";   // 깊이 나누기는 색 검출기 덩어리에만
+    // class_names 는 엔진 클래스 번호의 뜻. 색 검출기(auto 대체 포함)는 번호가 0 빨강 · 1 초록 · 2 파랑으로 정해져 있어 쓰지 않는다
+    if (detector_->name() != "tensorrt" && !class_names_.empty()) {
+      RCLCPP_WARN(get_logger(), "detector.class_names 는 TensorRT 엔진에만 씀: %s 에서는 무시", detector_->name().c_str());
+      class_names_.clear();
+    }
     // 팔 카메라(ARM_ALIGN): 색 검출기면 라벨 인식 검출기를 따로 둔다 (위에서 본 퍽의 라벨 구멍 · 조각 · 맞닿음, detector.hpp)
     if (declare_parameter("arm.label.enabled", true) && detector_->name().rfind("color", 0) == 0) {
       DetectorConfig ac = dc;
@@ -682,8 +689,9 @@ private:
       const tf2::Vector3 b = *tf_->fixed(base_frame_, frame) * tf2::Vector3(cp.x, cp.y, cp.z);   // to_base_odom 이 이미 찾아 둠
       Puck p;
       p.tag_id = -1;
-      p.color = (d.class_id >= 0 && d.class_id < 3) ? static_cast<uint8_t>(d.class_id + 1) : Puck::COLOR_UNKNOWN;
-      p.shape = Puck::SHAPE_UNKNOWN;
+      const PuckClass pc_cls = puck_class(d.class_id, class_names_);   // 색 검출기는 모양 모름 (puck_class.hpp)
+      p.color = pc_cls.color;
+      p.shape = pc_cls.shape;
       p.pose.position.x = b.x();
       p.pose.position.y = b.y();
       p.pose.position.z = b.z();
@@ -965,7 +973,7 @@ private:
     for (const auto * l : lists) {
       for (const auto & p : *l) {
         all.push_back(&p);
-        obs.push_back({p.pose.position.x, p.pose.position.y, p.pose.position.z, p.color, p.tag_id, p.camera, p.confidence});
+        obs.push_back({p.pose.position.x, p.pose.position.y, p.pose.position.z, p.color, p.tag_id, p.camera, p.confidence, p.shape});
       }
     }
     for (size_t i : merge_pucks(obs, merge_dist_)) {msg.pucks.push_back(*all[i]);}
@@ -1505,6 +1513,7 @@ private:
   std::string base_frame_, odom_frame_;
   double depth_min_, depth_max_, frame_max_age_;
   int depth_win_, detect_w_, target_class_;
+  std::vector<std::string> class_names_;   // 엔진 클래스 번호 → 이름 (TensorRT 일 때만, puck_class.hpp)
   int64_t depth_tol_ns_;
   double size_min_m_ = 0.015, size_max_m_ = 0.09;
   rclcpp::QoS image_qos_{rclcpp::KeepLast(2)};
