@@ -112,6 +112,9 @@ class Survey:
             for field in ('color','shape','pose','id'):
                 votes=self._votes(t,field)
                 if len(votes)!=1 or sum(votes.values())<self.minimum:problems[i].append(f'{field}_unknown_or_conflict')
+            # 모양은 팔 카메라 태그 관측으로만 확정한다. 실물 앞 D435 YOLO 는 서 있는 직육면체를 원기둥으로 같은 퍽에서 되풀이해 틀려
+            # (후보 C 실물 근접 평가 2026-11-02: 520 상자 중 60) D435 표만으로는 표가 모여도 틀린 채 완료될 수 있다. 색은 D435 도 쓴다
+            if not t['_arm_values']['shape']:problems[i].append('shape_needs_arm_tag')
             if t['shape']=='cylinder' and t['pose']=='lying':problems[i].append('lying_cylinder')
             errors+=[f'{name}:{p}' for p in problems[i]]
             if t['id'] is not None:ids.setdefault(t['id'],[]).append(i)

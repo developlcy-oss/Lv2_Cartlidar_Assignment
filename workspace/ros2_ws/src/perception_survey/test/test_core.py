@@ -146,3 +146,16 @@ def test_revisit_refused_after_finish(tmp_path):
     with pytest.raises(ValueError):s.revisit()
     for value in [-1,1.5,True]:
         with pytest.raises(ValueError):Survey(max_revisits=value)
+
+def test_shape_from_d435_only_does_not_complete():
+    # 팔 태그 관측이 색 · ID · 자세만 주고 모양을 모를 때, D435 표가 모여도 모양은 확정하지 않는다(실물 앞 D435 직육면체→원기둥 오류)
+    s=Survey()
+    for frame in range(2):
+        for box,(x,y) in enumerate(BOX_CENTERS):
+            for side in (-1,1):
+                tid=2*box+(side+1)//2;o={'x':x+side*.04,'y':y,'color':'red' if tid%2 else 'green','confidence':.95}
+                assert s.observe(dict(o,id=tid,pose='standing',camera='arm'),10.+frame)
+                assert s.observe(dict(o,id=-1,shape='cylinder',camera='front_d435'),10.+frame)
+    r=s.snapshot()
+    assert not r['complete'] and r['slots'][0]['shape']=='cylinder'
+    assert 'shape_needs_arm_tag' in r['slots'][0]['problems'] and len(r['revisit'])==12
