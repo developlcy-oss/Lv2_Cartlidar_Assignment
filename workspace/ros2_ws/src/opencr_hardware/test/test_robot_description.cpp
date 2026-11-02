@@ -216,6 +216,11 @@ TEST(RobotDescription, RobotUrdfProvidesFramesUsedByOtherNodes)
   EXPECT_NEAR(optical.rpy[0], -M_PI / 2, 1e-5);
   EXPECT_NEAR(optical.rpy[1], 0.0, 1e-5);
   EXPECT_NEAR(optical.rpy[2], -M_PI / 2, 1e-5);
+  // OpenCR 보드는 바로 놓여 있다 (2026-11-02 확인). roll 이 π 면 ekf 의 회전 속도 부호가 뒤집혀 odom 이 반대로 돈다
+  ASSERT_EQ(joints.count("imu_link_joint"), 1u);
+  EXPECT_EQ(joints.at("imu_link_joint").parent, "base_link");
+  EXPECT_NEAR(joints.at("imu_link_joint").rpy[0], 0.0, 1e-5);
+  EXPECT_NEAR(joints.at("imu_link_joint").rpy[1], 0.0, 1e-5);
   // ★ 적용 필요: TFmini 는 차체 1층 플레이트에 장착 (2026-10-28 확인) — URDF 를 옮기면
   //   EXPECT_EQ(joints.at("tfmini_link_joint").parent, "base_link") 를 켠다.
   // ★ C: realsense2_camera 의 TF 뿌리 <camera_name>_link 가 URDF 에 없다 (camera_front_link · camera_rear_link 로 되어 있음).

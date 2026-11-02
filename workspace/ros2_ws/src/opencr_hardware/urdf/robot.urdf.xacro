@@ -68,9 +68,11 @@
       <origin xyz="${xyz}" rpy="${rpy}"/>
     </joint>
   </xacro:macro>
-  <!-- OpenCR 내장 IMU (주행 보드): urdfv2 imu_link — 하판 아래에 뒤집어 단 보드 축 (z 아래). ekf 가 이 TF 로 yaw rate 를 base_link 로 돌린다.
-       뒤집어 장착 실물 확인 (2026-10-26). 위에서 봐서 반시계로 돌리면 /imu/data angular_velocity.z 는 음수 (보드 z 가 아래) -->
-  <xacro:fixed_link name="imu_link"          parent="base_link" xyz="0 0 -0.0192" rpy="3.141593 0 1.570796"/>
+  <!-- OpenCR 내장 IMU (주행 보드, 2층으로 쌓은 OpenCR 중 아래 보드 하나만 쓴다). ekf 가 이 TF 로 yaw rate 를 base_link 로 돌린다.
+       보드는 바로 놓여 있다 (보드 z 위, 2026-11-02 확인) → rpy 0. 위에서 봐서 반시계로 돌리면 /imu/data angular_velocity.z 는 양수.
+       위치는 waffle_4wd_description imu_joint (B 모델 base_link 기준 0.0095 0 0.0202, 그 base_link 는 바닥 위 6.75 mm) 를
+       바닥 높이로 맞춰 옮긴 값: 바닥 위 26.95 mm − 이 파일 base_link 바닥 위 56.25 mm = −0.0293 -->
+  <xacro:fixed_link name="imu_link"          parent="base_link" xyz="0.0095 0 -0.0293" rpy="0 0 0"/>
   <!-- ★ 적용 필요: LDS-03 은 뒤집어 장착 → roll π (front rpy "3.141593 0 0" · rear "3.141593 0 3.141593").
        근거: USD waffle_4wd_usd_261027_1711 lidar_*_scan roll 180°, urdfv2 lds03_* 같음. 미적용이면 스캔 좌우가 뒤집힌다 (docs/frames_tf.md) -->
   <xacro:fixed_link name="laser_front"       parent="base_link" xyz="0.15 0 0.08" rpy="0 0 0"/>
