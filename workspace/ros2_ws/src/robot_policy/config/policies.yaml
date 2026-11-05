@@ -28,8 +28,9 @@ slalom_v1:
 # 박스 위 퍽을 집게 45° 로 집기 (Isaac Waffle-TopPick-Direct, 등록 = urdf_and_usd/policy/manipulator/policies/registry.json).
 #   학습 toppick_env.py _get_observations 와 같은 순서 · 단위 · 좌표 (base_link, m, rad). 모두 필수 (valid 칸 없음 → obs_dim 36 그대로)
 #   행동 tcp_delta(4): 앞 3 = 잡는 점 변위 [-1, 1] x 0.005 m → control/arm_diff_ik (감쇠 최소제곱 IK, 자세 = 45° · 닫는 축 J1 접선),
-#   4 번째 > 0 벌림 0.010 · ≤ 0 닫기 −0.0075 (gripper_left_joint 값). manipulator_node 연결 (관측 조립) 은 아직 — 연결 전까지는 로드돼도
-#   skill 로 안 씀 (노드가 joint_target(6) 만 받음 → toppick_tilt 는 고정 IK 동작)
+#   4 번째 > 0 벌림 0.010 · ≤ 0 닫기 −0.0075 (gripper_left_joint 값, manipulator.yaml toppick_rl.finger_m_at_* 로 gripper_roll rad 에 대응).
+#   쓰려면 manipulator.yaml skill.policies 에 toppick_tilt 를 넣고 skill.enabled true (bringup skill_enabled:=true, ONNX Runtime 빌드).
+#   그러면 같은 이름 skill 이 고정 IK 동작 대신 이 정책 (manipulator_node tcp_delta, 관측 = control/toppick_obs.hpp). 기본은 고정 IK
 toppick_tilt:
   model: models/toppick_tilt.onnx
   rate_hz: 30
