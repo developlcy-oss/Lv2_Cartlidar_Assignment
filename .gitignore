@@ -60,6 +60,10 @@ opencr_firmware/build/
 *.onnx
 *.pt
 *.pth
+# 예외: 등록한 배포 정책 (작음, register_policy.py · policies/registry.json)
+!workspace/urdf_and_usd/policy/manipulator/policies/*.pt
+!workspace/urdf_and_usd/policy/manipulator/policies/*.onnx
+!workspace/ros2_ws/src/robot_policy/config/models/*.onnx
 results/
 
 # 로그 · 기록

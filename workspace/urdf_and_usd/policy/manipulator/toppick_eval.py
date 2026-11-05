@@ -1,8 +1,9 @@
 """위에서 집기 `Waffle-TopPick-Direct` 실제 과제 평가 (창 없이, 먼 시작만): 대마다 첫 에피소드 결과 (1 s 세워 들기 + 옆 퍽 그대로, 넘어짐) 를
 배치 (무작위 · 실제 A · B · C, #78) · 기울임 / 수직 · 상자 / 원기둥 퍽별로 셈.
 
-    ./run_rl.sh toppick_eval [환경 수] [--seed N] [--layout mix|rand|A|B|C] [--latch 0~1]
+    ./run_rl.sh toppick_eval [환경 수] [--seed N] [--layout mix|rand|A|B|C] [--latch 0~1] [--out 결과.json]
 기본 policies/toppick_latest.pt, 256 대. 체크포인트를 고를 때와 보고할 때 시드를 다르게 (#71).
+결과는 --out JSON (기본 toppick_eval.json) -> run_rl.sh 가 record_md.py 로 학습기록_자동.md 에 한 줄.
 """
 import argparse, os, sys
 from isaaclab.app import AppLauncher
@@ -13,10 +14,11 @@ ap.add_argument("--seed", type=int, default=1, help="평가 시드 (학습 · �
 ap.add_argument("--layout", default="mix", choices=["mix", "rand", "A", "B", "C"], help="mix = 환경 설정 비율, 그 밖은 그 배치만")
 ap.add_argument("--latch", type=float, default=None, help="인식 좌표 고정 비율 (기본 = 환경 설정)")
 ap.add_argument("--dr", default="all", help="물리 무작위화: all · none · 뺄 것만 -friction,-gains,-mass,-delay,-obs_noise (절제 실험)")
+ap.add_argument("--out", default=None, help="결과 JSON (기본 toppick_eval.json)")
 AppLauncher.add_app_launcher_args(ap); a = ap.parse_args(); a.headless = True
 app = AppLauncher(a).app
 RL = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, RL)
-import gymnasium as gym, torch
+import gymnasium as gym, json, time, torch
 import waffle_isaac  # noqa
 from waffle_isaac.toppick_env import LAYOUTS
 from waffle_isaac.toppick_env_cfg import WaffleTopPickEnvCfg, set_dr
@@ -56,4 +58,13 @@ print("[Eval] 정책", path, "| 시드", a.seed, "| 배치", a.layout, "| 무작
 print(f"[Eval] 성공 전체 {s(torch.ones_like(ok))} | " + " ".join(f"{k} {s(lay == i)}" for i, k in enumerate(LAYOUTS)))
 print(f"[Eval] 기울임 {s(tilted)} 수직 {s(~tilted)} | 기울임·상자 {s(tilted & box)} 기울임·원기둥 {s(tilted & ~box)} | 좌표 고정 {s(latched)} 따라감 {s(~latched)}")
 print(f"[Eval] 넘어짐 {int(topple.sum())} | 옆 퍽 넘어짐·밀림 {int(nb_bad.sum())} | 팔-상자 닿은 스텝 평균 {armbox.mean().item():.1f} | 최대 들림 mm 중앙값 {maxlift.median().item()*1000:.0f}")
+def g(m): return dict(ok=int(ok[m].sum()), n=int(m.sum()), pct=round(ok[m].float().mean().item() * 100, 1)) if m.any() else None
+groups = {k: g(lay == i) for i, k in enumerate(LAYOUTS)}
+groups.update(tilt=g(tilted), vertical=g(~tilted), box=g(box), cyl=g(~box), tilt_box=g(tilted & box), tilt_cyl=g(tilted & ~box), latched=g(latched), follow=g(~latched))
+out = a.out or os.path.join(RL, "toppick_eval.json")
+json.dump(dict(summary=dict(policy=os.path.relpath(os.path.abspath(path), RL), seed=a.seed, layout=a.layout, dr=a.dr, latch=a.latch, num_envs=n,
+                            success=g(torch.ones_like(ok)), toppled=int(topple.sum()), neighbor_bad=int(nb_bad.sum()),
+                            arm_box_steps_mean=round(armbox.mean().item(), 2), max_lift_mm_median=round(maxlift.median().item() * 1000, 1),
+                            date=time.strftime("%Y-%m-%d %H:%M")), groups=groups), open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+print("[Eval] 결과", out)
 env.close(); app.close()

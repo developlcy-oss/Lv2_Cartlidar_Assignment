@@ -2,9 +2,13 @@
 # waffle_4wd 매니퓰레이터 강화 학습 실행기 (팀 공유본 isaac/ 의 로봇 설정을 씀). Docker 컨테이너 isaac-lab-base 안에서, 또는 Isaac Lab 이 있는 PC 에서.
 # 창이 필요한 것 (*_play) 만 창으로, 나머지는 창 없이. 학습 중에는 창을 띄우지 말 것 (GPU 8 GB 부족).
 # B안 팔레트 (2026-11-02): 위에서 집기 + 고정 궤적 놓기
-#   ./run_rl.sh toppick [환경 수] [반복]       위에서 집기 학습 -> logs/rsl_rl/waffle_toppick/
+#   ./run_rl.sh toppick [환경 수] [반복] [--checkpoint 경로]  위에서 집기 학습 -> logs/rsl_rl/waffle_toppick/ (--checkpoint 면 이어서)
 #   ./run_rl.sh toppick_play [환경 수]         위에서 집기 최근 체크포인트를 창으로
 #   ./run_rl.sh toppick_eval [환경 수] [--seed N] [--layout mix|rand|A|B|C] [--dr all|none|-friction,...]  위에서 집기 평가 (policies/toppick_latest.pt, 배치별, 무작위화 절제)
+#   ./run_rl.sh chain_eval [대 수] [--seed N] ...  집기 정책 -> 칸 궤적 이어서 평가 (칸별 성공률 · 손 안 어긋남, chain_pallet_eval.json)
+#   ./run_rl.sh chain_eval_play [대 수]        위 것을 창으로 (12 대 = 칸마다 1 대)
+#   ./run_rl.sh register <체크포인트|실행 폴더> <이름> [--latest] [--ros toppick_tilt] [--eval a.json ...]  정책 등록 (policies/, registry.json)
+#   ./run_rl.sh record <train|toppick|chain|register> <대상>  학습기록_자동.md 에 한 줄 (위 명령들은 끝나면 알아서 부름)
 #   ./run_rl.sh pallet_check                   팔레트 놓기 고정 궤적 확인 (칸 12 x 원기둥 · 상자, pallet_place_check.json). 궤적은 python3 pallet_traj.py
 #   ./run_rl.sh pallet_check_play [대 수]      위 것을 창으로
 #   ./run_rl.sh pallet_drop                    팔 없이 퍽만 칸에 떨어뜨려 팔레트 충돌 형상 확인
@@ -45,11 +49,21 @@ export_latest() {   # $1 = 과제, $2 = 실험 이름: 가장 최근 학습의 e
   fi
 }
 
+record() { "${PY[@]}" "$HERE/record_md.py" "$@" || echo "[run_rl] 학습기록_자동.md 기록 실패 (결과는 그대로)"; }
+out_arg() {   # 인자에 --out 이 있으면 그 값, 없으면 $1 (기본 결과 파일)
+  local def="$1"; shift; local prev=""
+  for x in "$@"; do [ "$prev" = "--out" ] && def="$x"; prev="$x"; done; echo "$def"
+}
+
 pol() { [ -f "$HERE/policies/$1" ] && echo "--checkpoint $HERE/policies/$1" || echo "--checkpoint latest"; }
 case "${1:-}" in
-  toppick) "${PY[@]}" "$HERE/train.py" --task Waffle-TopPick-Direct --num_envs "${2:-256}" --max_iterations "${3:-300}" --viz none ;;
+  toppick) "${PY[@]}" "$HERE/train.py" --task Waffle-TopPick-Direct --num_envs "${2:-256}" --max_iterations "${3:-300}" --viz none "${@:4}"; record train waffle_toppick ;;
   toppick_play) env -u HEADLESS "${PY[@]}" "$HERE/play.py" --task Waffle-TopPick-Direct --num_envs "${2:-16}" --checkpoint latest --viz kit ;;
-  toppick_eval) "${PY[@]}" "$HERE/toppick_eval.py" --num_envs "${2:-256}" "${@:3}" ;;
+  toppick_eval) "${PY[@]}" "$HERE/toppick_eval.py" --num_envs "${2:-256}" "${@:3}" && record toppick "$(out_arg "$HERE/toppick_eval.json" "${@:3}")" ;;
+  chain_eval) "${PY[@]}" "$HERE/chain_pallet_eval.py" --num_envs "${2:-192}" "${@:3}" && record chain "$(out_arg "$HERE/chain_pallet_eval.json" "${@:3}")" ;;
+  chain_eval_play) env -u HEADLESS "${PY[@]}" "$HERE/chain_pallet_eval.py" --gui --num_envs "${2:-12}" --out "$HERE/chain_pallet_eval_play.json" "${@:3}" ;;
+  register) "${PY[@]}" "$HERE/register_policy.py" "${@:2}" ;;
+  record) record "${@:2}" ;;
   pallet_check) "${PY[@]}" "$HERE/pallet_place_check.py" ;;
   pallet_check_play) env -u HEADLESS "${PY[@]}" "$HERE/pallet_place_check.py" --gui --num_envs "${2:-4}" ;;
   pallet_drop) "${PY[@]}" "$HERE/pallet_place_check.py" --drop ;;
@@ -70,5 +84,5 @@ case "${1:-}" in
   chain_play_rl) env -u HEADLESS "${PY[@]}" "$HERE/chain_play.py" --num_envs "${2:-4}" --gui --viz kit ;;
   chain_eval_rl) "${PY[@]}" "$HERE/chain_play.py" --num_envs "${2:-64}" ;;
   store_check) "${PY[@]}" "$HERE/store_check.py" ;;
-  *) sed -n 2,27p "$0"; exit 2 ;;
+  *) sed -n 2,31p "$0"; exit 2 ;;
 esac

@@ -76,6 +76,8 @@ from isaaclab.sim import SimulationCfg  # noqa: E402
 from isaaclab.utils import configclass  # noqa: E402
 from isaaclab.utils.math import quat_apply, quat_apply_inverse, quat_from_matrix  # noqa: E402
 
+from pallet_timeline import PHASE_OF, PHASES, SEGS, Speeds, parse_row_speed  # noqa: E402  (chain_pallet_eval.py 와 같은 궤적)
+from pallet_timeline import seg_speed as _seg_speed, timeline as _timeline  # noqa: E402
 from waffle_isaac.dice2_cfg import PUCK_H, puck_cfg  # noqa: E402
 from waffle_isaac.robot_cfg import (  # noqa: E402
     ARM_JOINTS, ARM_LINKS_REGEX, BODY_LINK, EE_BODY, FINGER_CLOSE, FINGER_LINKS_REGEX, FINGER_RELEASED,
@@ -194,48 +196,20 @@ class PalletCheckEnv(DirectRLEnv):
         return [names[i] for i in f.argmax(dim=1).tolist()]
 
 
-PHASES = ["grip", "carry", "place", "release", "after"]
-PHASE_OF = {"rotate": 1, "carry": 1, "place": 2, "release": 3, "retract": 4, "return": 4, "rotate_back": 4}
-SEGS = list(PHASE_OF)
-
-
 ROLL_PI = {tuple(int(v) for v in x.split(":")) for x in args_cli.roll_pi.split(",") if x}
-ROW_SPEED = {int(x.split(":")[0]): float(x.split(":")[1]) for x in args_cli.row_speed.split(",") if x}
+ROW_SPEED = parse_row_speed(args_cli.row_speed)
+SPEEDS = Speeds(args_cli.speed, args_cli.tilt_speed, ROW_SPEED, args_cli.empty_speed)
 OUT = args_cli.out or os.path.join(HERE, "pallet_unload_check.json" if args_cli.unload else "pallet_place_check.json")
 
 
 def seg_speed(slot, held):
-    """[rad/s] 쥔 구간 = --row_speed (그 열) > --tilt_speed (기울인 칸) > --speed, 빈 집게 구간 = --empty_speed (있으면)."""
-    if not held and args_cli.empty_speed:
-        return args_cli.empty_speed
-    if slot["row"] in ROW_SPEED:
-        return ROW_SPEED[slot["row"]]
-    if slot.get("tilt_deg") and args_cli.tilt_speed:
-        return args_cli.tilt_speed
-    return args_cli.speed
+    """[rad/s] 쥔 구간 = --row_speed (그 열) > --tilt_speed (기울인 칸) > --speed, 빈 집게 구간 = --empty_speed (있으면). 식은 pallet_timeline."""
+    return _seg_speed(slot, held, SPEEDS)
 
 
 def timeline(slot, dt):
-    """칸 궤적 -> 물리 스텝마다 (팔 목표 5, 손가락 hold/open, 단계) 목록. 관절 공간 직선, 속도 한도.
-    --roll_pi 칸: 손목 롤 (joint5) 을 rotate 동안 0 -> π (집게 몸이 J1 쪽을 봄, 닫는 축은 접선 그대로), rotate_back 동안 π -> 0."""
-    roll = math.copysign(math.pi, slot["j1_yaw"]) if (slot["row"], slot["index"]) in ROLL_PI else 0.0
-    out, prev = [], list(slot.get("q_front", Q_FRONT))
-    for sg in slot["segments"]:
-        ph = PHASE_OF[sg["name"]]
-        g = 0 if sg["gripper"] == "hold" else 1
-        speed = seg_speed(slot, g == 0)
-        nq = len(sg["q"])
-        for iq, q in enumerate(sg["q"]):
-            f = (iq + 1) / nq
-            q = list(q[:4]) + [roll * (f if sg["name"] == "rotate" else (1 - f) if sg["name"] == "rotate_back" else 1.0)]
-            n = max(1, int(math.ceil(max(abs(a - b) for a, b in zip(q, prev)) / (speed * dt))))
-            for k in range(1, n + 1):
-                out.append(([p + (a - p) * k / n for a, p in zip(q, prev)], g, ph, SEGS.index(sg["name"])))
-            prev = q
-        dwell = {"place": 0.3, "release": 0.6}.get(sg["name"], 0.0)
-        out += [(list(prev), g, ph, SEGS.index(sg["name"]))] * int(dwell / dt)
-    out += [(list(prev), 1, 4, len(SEGS) - 1)] * int(1.0 / dt)
-    return out
+    """칸 궤적 -> 물리 스텝마다 (팔 목표 5, 손가락 hold/open, 단계, 구간) 목록 (pallet_timeline.timeline, --roll_pi 칸은 손목 롤 180°)."""
+    return _timeline(slot, dt, SPEEDS, Q_FRONT, roll_pi=(slot["row"], slot["index"]) in ROLL_PI)
 
 
 UNLOAD_PHASES = ["-", "approach", "grip", "lift", "carry"]

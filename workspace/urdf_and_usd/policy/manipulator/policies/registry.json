@@ -1,0 +1,72 @@
+{
+ "note": "등록한 정책 목록 (register_policy.py 가 씀). latest = 평가 스크립트 기본값",
+ "policies": [
+  {
+   "name": "toppick_prev_20261105",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_prev_20261105.pt",
+   "sha256": "30687cbaf68c8575",
+   "registered": "2026-11-05 11:17",
+   "note": "register_policy.py 이전 latest 를 보관 (출처는 정책_학습기록.md)",
+   "latest": false
+  },
+  {
+   "name": "toppick_TP3",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_TP3.pt",
+   "onnx": "policies/toppick_TP3.onnx",
+   "sha256": "26b165a63ad62a5b",
+   "source": "logs/rsl_rl/waffle_toppick/2026-11-04_20-46-45/model_10500.pt",
+   "iteration": 10500,
+   "obs_dim": 36,
+   "action_dim": 4,
+   "hidden": [
+    256,
+    128,
+    64
+   ],
+   "activation": "elu",
+   "latest": true,
+   "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
+   "evals": [
+    {
+     "file": "toppick_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "all",
+     "num_envs": 256,
+     "success": {
+      "ok": 133,
+      "n": 256,
+      "pct": 52.0
+     }
+    },
+    {
+     "file": "chain_pallet_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "-friction",
+     "num_envs": 192,
+     "chain": {
+      "ok": 30,
+      "n": 192,
+      "pct": 15.6
+     },
+     "pick": {
+      "ok": 81,
+      "n": 192,
+      "pct": 42.2
+     },
+     "place_given_pick": {
+      "ok": 30,
+      "n": 81,
+      "pct": 37.0
+     }
+    }
+   ],
+   "note": "15000 회차 중 시드 1 최고 (후보 6000~14999), 표준편차 폭주 전",
+   "git": "20f02cc",
+   "registered": "2026-11-05 11:19"
+  }
+ ]
+}

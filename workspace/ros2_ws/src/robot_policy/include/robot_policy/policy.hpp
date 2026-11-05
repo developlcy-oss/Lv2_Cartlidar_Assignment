@@ -3,6 +3,7 @@
 //   ObservationBuilder  observation 순서대로 float 벡터. 필수 = [값...], 선택 = [값..., valid] (무효면 fill + 0)
 //                       시작 시 obs_dim 과 배치 길이 비교 → 다르면 로드 실패
 //   ActionMapper        출력 → 관절 목표(rad) 또는 속도(m/s, rad/s), 범위 clamp
+//                       tcp_delta(4) = 잡는 점 변위 x · y · z [-1, 1] (x cart_scale m) + 집게 (> 0 벌림) → control/arm_diff_ik.hpp 가 관절 목표로
 //   PolicyRunner        .onnx 로드 · run(obs) (ONNX Runtime CPU, USE_ONNXRUNTIME 일 때만)
 //   PolicyLibrary       노드 시작 시 모든 정책 로드 — 실행 중 로드 없음, GPU 안 씀
 #pragma once
@@ -33,7 +34,7 @@ struct PolicySpec
   double rate_hz = 20.0;
   int obs_dim = 0;
   std::vector<ObsItem> observation;
-  std::string action_kind;     // joint_target · base_twist
+  std::string action_kind;     // joint_target · base_twist · tcp_delta
   int action_dim = 0;
   std::vector<float> action_low, action_high;   // clamp (없으면 kind 기본값 → 노드 한계로 다시 clamp)
   bool finish_on_timeout = false;   // true: goal.timeout 까지 돌면 성공 (예: 정해진 시간 동안 하는 주행)

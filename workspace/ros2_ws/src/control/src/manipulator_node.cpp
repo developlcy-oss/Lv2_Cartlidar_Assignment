@@ -32,6 +32,11 @@
 //     place_<L>_<dx>_<dy>_tilt        쥔 퍽을 장소 L 의 3×3 칸 (dx, dy = m1 · 0 · p1) 에 45° 로 놓기.
 //                                    칸 좌표 = mission_planner config/approach_poses.yaml cells (지도) → TF 로 팔 기준
 //     place_at:<frame>:<x>:<y>:<z>   쥔 퍽을 칸 좌표 (frame 기준 x, y, 윗면 높이 z) 에 놓기 — perception place_box 칸 (#74)
+// - 강화학습 집기 (policies.yaml action tcp_delta(4), 예 toppick_tilt = Isaac Waffle-TopPick-Direct): 관측 36 = toppick_obs.hpp,
+//   행동 = 잡는 점 변위 → arm_diff_ik.hpp (학습과 같은 감쇠 최소제곱 IK) → /arm_controller/joint_trajectory 스트리밍 (rate_hz).
+//   퍽 = 직전 target_look 값 (없으면 /perception/pucks target_index) 을 시작 때 fixed_frame 에 고정, 옆 퍽 · 모양은 같은 /perception/pucks.
+//   그리퍼는 gripper.mode arm_joint 만 (6 번째 칸, 학습 손가락 m ↔ gripper_roll rad 선형 대응 toppick_rl.finger_m_at_*).
+//   성공 = 손가락이 쥔 범위 + 잡는 점이 처음 퍽 잡는 높이보다 toppick_rl.success_lift 위로 success_hold 동안 (학습 성공과 같은 뜻)
 // - 결과를 콜백 안에서 기다리지 않는다. 각 단계는 이전 단계의 result 콜백에서 이어진다
 //
 // callback group
@@ -67,6 +72,7 @@
 #include "ament_index_cpp/get_package_share_path.hpp"
 #include "control/arm_ik.hpp"
 #include "control/sag_comp.hpp"
+#include "control/toppick_obs.hpp"
 #include "control/target_look_pose.hpp"
 #include "robot_interfaces/action/arm_pose.hpp"
 #include "robot_interfaces/action/execute_skill.hpp"
@@ -254,6 +260,8 @@ private:
     std::copy(offsets.begin(), offsets.end(), ik.joint_offsets.begin());
     std::copy(signs.begin(), signs.end(), ik.joint_signs.begin());
     ik_ = std::make_unique<ArmIK>(ik);
+    ik_signs_ = ik.joint_signs;     // 강화학습 집기: 측정 → 모델 관절 (q_model = (q − offset) / sign)
+    ik_offsets_ = ik.joint_offsets;
     // 앞에서부터 순서대로 시도하는 집게 pitch 후보 (rad, 위로 +, -pi/4 = 45° 아래, -pi/2 = 바로 아래)
     approach_pitches_ = declare_parameter<std::vector<double>>(
       "ik.approach_pitches", {-M_PI_4, -M_PI_2, -M_PI / 3.0});
@@ -421,6 +429,24 @@ private:
     // 정책 목표의 한 tick 변화량 ≤ max_joint_velocity / rate_hz (arm.max_joint_velocity 와 별개, 학습 환경 한계와 맞출 것)
     skill_max_joint_vel_ = declare_parameter<double>("skill.max_joint_velocity", 0.5);
 
+    // 강화학습 집기 (action tcp_delta(4), toppick_obs.hpp · arm_diff_ik.hpp). 값은 Isaac toppick_env_cfg 와 같게
+    rl_frame_ = declare_parameter<std::string>("toppick_rl.base_frame", "base_link");   // 학습 관측 좌표 (arm_diff_ik 기구 기준)
+    rl_grip_.rad_open = gripper_open_;
+    rl_grip_.rad_close = gripper_close_;
+    rl_grip_.m_open = declare_parameter<double>("toppick_rl.finger_m_at_open", 0.020);    // ★ 실측 전 가정 (URDF 손가락 한계)
+    rl_grip_.m_close = declare_parameter<double>("toppick_rl.finger_m_at_close", -0.011);
+    rl_open_m_ = declare_parameter<double>("toppick_rl.open_m", 0.010);        // 행동 > 0 (gripper_open, 61.6 mm)
+    rl_closed_m_ = declare_parameter<double>("toppick_rl.closed_m", -0.0075);  // 행동 ≤ 0 (gripper_closed)
+    rl_grasp_lo_ = declare_parameter<double>("toppick_rl.grasp_finger_min", -0.010);   // 쥔 손가락 범위 (FINGER_GRASP_RANGE)
+    rl_grasp_hi_ = declare_parameter<double>("toppick_rl.grasp_finger_max", -0.003);
+    rl_grasp_dz_ = declare_parameter<double>("toppick_rl.grasp_dz", 0.015);           // 잡는 점 = 퍽 중심 + 이 높이
+    rl_success_lift_ = declare_parameter<double>("toppick_rl.success_lift", 0.03);
+    rl_success_hold_ = declare_parameter<double>("toppick_rl.success_hold", 1.0);
+    rl_nb_match_ = declare_parameter<double>("toppick_rl.neighbor_distance", 0.12);   // 같은 상자 옆 퍽 (퍽 간격 0.08)
+    rl_self_match_ = declare_parameter<double>("toppick_rl.target_match", 0.03);      // 목표와 같은 퍽으로 볼 거리 (모양 찾기)
+    rl_default_box_ = declare_parameter<bool>("toppick_rl.default_is_box", false);    // 모양을 모를 때
+    rl_max_joint_vel_ = declare_parameter<double>("toppick_rl.max_joint_velocity", 2.0);   // 안전 상한 (학습은 앞섬 ±0.25 rad 만)
+
     validateParameters(signs);
     loadPolicies();
     loadPallet();
@@ -501,6 +527,26 @@ private:
         continue;
       }
       const auto & spec = p->spec;
+      if (spec.action_kind == "tcp_delta") {   // 강화학습 집기: 관측 = toppick_obs 이름 · 크기, 모두 필수
+        bool ok = spec.action_dim == 4;
+        for (const auto & o : spec.observation) {
+          const auto it = topPickObservationSizes().find(o.name);
+          ok &= it != topPickObservationSizes().end() && it->second == o.size && o.required;
+        }
+        if (!ok) {
+          RCLCPP_ERROR(get_logger(), "skill '%s': tcp_delta(4) needs toppick_obs observations (all required)", name.c_str());
+          continue;
+        }
+        if (gripper_mode_ != GripperMode::ARM_JOINT) {
+          RCLCPP_ERROR(get_logger(), "skill '%s': tcp_delta needs gripper.mode arm_joint", name.c_str());
+          continue;
+        }
+        skill_ready_.insert(name);
+        tcp_skills_.insert(name);
+        RCLCPP_INFO(get_logger(), "skill '%s' loaded (%s, %.0f Hz, tcp_delta + diff IK)", name.c_str(), spec.model.c_str(),
+          spec.rate_hz);
+        continue;
+      }
       if (spec.action_kind != "joint_target" || spec.action_dim != static_cast<int>(joint_names_.size())) {
         RCLCPP_ERROR(get_logger(), "skill '%s': action must be joint_target(6)", name.c_str());
         continue;
@@ -666,6 +712,10 @@ private:
     const size_t n = std::min(msg->name.size(), msg->position.size());
     for (size_t i = 0; i < n; ++i) {
       joint_pos_[msg->name[i]] = msg->position[i];
+    }
+    const size_t nv = std::min(msg->name.size(), msg->velocity.size());
+    for (size_t i = 0; i < nv; ++i) {
+      joint_vel_[msg->name[i]] = msg->velocity[i];
     }
     joint_rx_ = now();
   }
@@ -942,6 +992,7 @@ private:
     pose_gh_.reset();
     pick_gh_.reset();
     skill_gh_.reset();
+    rl_.reset();
     // 타이머 콜백 안에서 끝날 수 있으므로 파괴하지 않고 멈추기만 한다 (다음 startSkill에서 교체)
     if (skill_timer_) {skill_timer_->cancel();}
     ++job_id_;
@@ -1585,6 +1636,7 @@ private:
     active_policy_ = policies_.find(gh->get_goal()->policy);   // accept 때 skill_ready_로 확인함
     skill_rate_ = active_policy_->spec.rate_hz;
     skill_last_cmd_.reset();   // 첫 tick 에 현재 관절각으로 초기화
+    if (tcp_skills_.count(gh->get_goal()->policy) && !startTopPickRl()) {return;}
     const uint64_t id = job_id_;
     skill_timer_ = rclcpp::create_timer(
       this, get_clock(), rclcpp::Duration::from_seconds(1.0 / skill_rate_),
@@ -1606,6 +1658,10 @@ private:
     const auto q = currentJoints();
     if (!q) {
       finishSkill(false, "no recent /joint_states for arm joints");
+      return;
+    }
+    if (rl_) {
+      topPickRlTick(*q, elapsed);
       return;
     }
     // 관측: policies.yaml 순서 · 배치 (required 무효 → abort, 선택 무효 → fill + valid 0)
@@ -1647,6 +1703,169 @@ private:
     jt.points.push_back(point);
     jt_pub_->publish(jt);
 
+    auto fb = std::make_shared<ExecuteSkill::Feedback>();
+    fb->progress = static_cast<float>(std::clamp(elapsed / skill_timeout_, 0.0, 1.0));
+    skill_gh_->publish_feedback(fb);
+  }
+
+  // ------------------------------------------------------------------ 강화학습 집기 (tcp_delta)
+  // 시작: 퍽 목표 · 옆 퍽 · 모양을 정해 fixed_frame_ 에 고정 (학습: 인식 좌표를 시작 값으로 고정 70 %, #82)
+  bool startTopPickRl()
+  {
+    PuckArray::ConstSharedPtr pucks;
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      if (last_pucks_ && measuredAfter(last_pucks_->header.stamp, now() - rclcpp::Duration::from_seconds(stale_timeout_))) {
+        pucks = last_pucks_;
+      }
+    }
+    std::vector<std::pair<Eigen::Vector3d, uint8_t>> seen;   // fixed_frame_ 의 퍽 중심, 모양
+    if (pucks) {
+      try {
+        const auto tf = tf_buffer_->lookupTransform(fixed_frame_, pucks->header.frame_id, tf2::TimePointZero);
+        for (const auto & pk : pucks->pucks) {
+          geometry_msgs::msg::Pose a;
+          tf2::doTransform(pk.pose, a, tf);
+          seen.emplace_back(Eigen::Vector3d(a.position.x, a.position.y, a.position.z), pk.shape);
+        }
+      } catch (const tf2::TransformException & e) {
+        RCLCPP_WARN(get_logger(), "toppick_rl: TF %s -> %s: %s", pucks->header.frame_id.c_str(), fixed_frame_.c_str(), e.what());
+      }
+    }
+    std::optional<Eigen::Vector3d> target;
+    std::string from;
+    if (target_look_latch_ && target_look_latch_->header.frame_id == fixed_frame_ &&
+      (now() - target_look_latch_time_).seconds() <= toppick_latch_max_age_)
+    {
+      const auto & p = target_look_latch_->pose.position;
+      target = Eigen::Vector3d(p.x, p.y, p.z);
+      from = "target_look";
+    } else if (pucks && pucks->target_index >= 0 && static_cast<size_t>(pucks->target_index) < seen.size()) {
+      target = seen[pucks->target_index].first;
+      from = "/perception/pucks target";
+    }
+    target_look_latch_.reset();   // 한 번만 씀
+    if (!target) {
+      finishSkill(false, "toppick_rl: no puck target (target_look or /perception/pucks)");
+      return false;
+    }
+    TopPickRun r;
+    r.puck = *target;
+    r.is_box = rl_default_box_;
+    double self_d = rl_self_match_, nb_d = rl_nb_match_;
+    for (const auto & [p, shape] : seen) {
+      const double d = std::hypot(p.x() - target->x(), p.y() - target->y());
+      if (d <= self_d && shape != Puck::SHAPE_UNKNOWN) {
+        self_d = d;
+        r.is_box = shape == Puck::SHAPE_CUBOID;
+      } else if (d > rl_self_match_ && d < nb_d) {
+        nb_d = d;
+        r.neighbor = p;
+      }
+    }
+    rl_ = r;
+    RCLCPP_INFO(get_logger(), "toppick_rl: puck (%.3f, %.3f, %.3f) %s from %s, %s, neighbor %s", target->x(), target->y(),
+      target->z(), fixed_frame_.c_str(), from.c_str(), r.is_box ? "box" : "cylinder", r.neighbor ? "yes" : "none");
+    return true;
+  }
+
+  // 한 tick: 관측 36 → 정책 → 잡는 점 변위 → 감쇠 최소제곱 IK → 6 관절 목표 (6 번째 = 그리퍼) 스트리밍
+  void topPickRlTick(const std::vector<double> & q, double elapsed)
+  {
+    auto & r = *rl_;
+    Eigen::Vector3d puck_b, nb_b;
+    try {
+      const auto tf = tf_buffer_->lookupTransform(rl_frame_, fixed_frame_, tf2::TimePointZero);
+      auto to_b = [&tf](const Eigen::Vector3d & p) {
+          geometry_msgs::msg::Point a, b;
+          a.x = p.x();
+          a.y = p.y();
+          a.z = p.z();
+          tf2::doTransform(a, b, tf);
+          return Eigen::Vector3d(b.x, b.y, b.z);
+        };
+      puck_b = to_b(r.puck);
+      if (r.neighbor) {nb_b = to_b(*r.neighbor);}
+    } catch (const tf2::TransformException & e) {
+      finishSkill(false, std::string("toppick_rl: TF ") + fixed_frame_ + " -> " + rl_frame_ + ": " + e.what());
+      return;
+    }
+    TopPickState s;
+    std::optional<Joints5> qd_meas = Joints5{};
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      for (size_t k = 0; k < 5; ++k) {
+        const auto it = joint_vel_.find(joint_names_[k]);
+        if (it == joint_vel_.end()) {qd_meas.reset(); break;}
+        (*qd_meas)[k] = it->second / ik_signs_[k];
+      }
+    }
+    for (size_t k = 0; k < 5; ++k) {s.q[k] = (q[k] - ik_offsets_[k]) / ik_signs_[k];}
+    const rclcpp::Time t = now();
+    if (qd_meas) {
+      s.qd = *qd_meas;
+    } else if (r.q_prev) {   // /joint_states 에 속도가 없으면 차분
+      const double dt = std::max((t - r.t_prev).seconds(), 1e-3);
+      for (size_t k = 0; k < 5; ++k) {s.qd[k] = (s.q[k] - (*r.q_prev)[k]) / dt;}
+    }
+    r.q_prev = s.q;
+    r.t_prev = t;
+    s.finger_m = rl_grip_.toMeters(q[5]);
+    s.puck = puck_b;
+    if (r.neighbor) {s.neighbor = nb_b;}
+    s.is_box = r.is_box;
+    s.prev_action = r.prev_action;
+    s.tilted = true;
+
+    robot_policy::ObsValues values;
+    for (auto & kv : topPickObservation(diff_ik_, s)) {values[kv.first] = kv.second;}
+    const auto & spec = active_policy_->spec;
+    std::vector<float> obs, raw;
+    std::string err;
+    if (!robot_policy::ObservationBuilder(spec).build(values, obs, err)) {
+      finishSkill(false, "toppick_rl: observation invalid: " + err);
+      return;
+    }
+    if (!active_policy_->runner->run(obs, raw)) {finishSkill(false, "policy inference failed"); return;}
+    auto a = robot_policy::ActionMapper(spec).map(raw);
+    for (auto & v : a) {v = std::clamp(v, -1.f, 1.f);}   // 학습: actions.clamp(-1, 1)
+    const Joints5 tgt = diff_ik_.applyAction(r.target ? *r.target : s.q, s.q, Eigen::Vector3d(a[0], a[1], a[2]), s.tilted);
+    r.target = tgt;
+    r.prev_action = {a[0], a[1], a[2], a[3]};
+
+    if (!skill_last_cmd_) {skill_last_cmd_ = q;}
+    const double max_step = rl_max_joint_vel_ / skill_rate_;
+    std::vector<double> cmd(joint_names_.size());
+    for (size_t k = 0; k < 5; ++k) {
+      const double c = std::clamp(ik_signs_[k] * tgt[k] + ik_offsets_[k], lower_[k], upper_[k]);
+      cmd[k] = std::clamp(c, (*skill_last_cmd_)[k] - max_step, (*skill_last_cmd_)[k] + max_step);
+    }
+    const double grip = std::clamp(rl_grip_.toRad(a[3] > 0.f ? rl_open_m_ : rl_closed_m_),
+      std::min(gripper_open_, gripper_close_), std::max(gripper_open_, gripper_close_));
+    cmd[5] = std::clamp(grip, lower_[5], upper_[5]);
+    gripper_cmd_ = cmd[5];
+    skill_last_cmd_ = cmd;
+    last_sent_ = cmd;
+    trajectory_msgs::msg::JointTrajectory jt;
+    jt.joint_names = joint_names_;
+    trajectory_msgs::msg::JointTrajectoryPoint point;
+    point.positions = cmd;
+    point.time_from_start = rclcpp::Duration::from_seconds(skill_horizon_ / skill_rate_);
+    jt.points.push_back(point);
+    jt_pub_->publish(jt);
+
+    // 성공 판정 (학습: 퍽을 success_lift 위로 success_hold 동안). 실물은 쥔 퍽 높이를 못 재므로 잡는 점 높이 · 손가락으로
+    const double lift = diff_ik_.forward(s.q).tcp.z() - (puck_b.z() + rl_grasp_dz_);
+    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f;
+    r.hold = held ? r.hold + 1.0 / skill_rate_ : 0.0;
+    if (r.hold >= rl_success_hold_) {
+      grasped_ = true;
+      char buf[160];
+      std::snprintf(buf, sizeof(buf), "grasped by policy (lift %.3f m, finger %.4f m = %.3f rad, %.1f s)", lift, s.finger_m,
+        q[5], elapsed);
+      finishSkill(true, buf);
+      return;
+    }
     auto fb = std::make_shared<ExecuteSkill::Feedback>();
     fb->progress = static_cast<float>(std::clamp(elapsed / skill_timeout_, 0.0, 1.0));
     skill_gh_->publish_feedback(fb);
@@ -2284,6 +2503,27 @@ private:
   robot_policy::PolicyLibrary policies_;
   std::set<std::string> skill_ready_;   // 로드 · 형식 확인을 통과한 정책만 (없으면 execute_skill 거절)
   robot_policy::LoadedPolicy * active_policy_{nullptr};
+  // 강화학습 집기 (tcp_delta)
+  struct TopPickRun
+  {
+    Eigen::Vector3d puck{Eigen::Vector3d::Zero()};   // fixed_frame_ (시작 때 고정)
+    std::optional<Eigen::Vector3d> neighbor;         // fixed_frame_
+    bool is_box{false};
+    std::array<float, 4> prev_action{0.f, 0.f, 0.f, 1.f};   // 학습 리셋 값
+    std::optional<Joints5> target;                   // 직전 IK 관절 목표 (모델 값)
+    std::optional<Joints5> q_prev;                   // 속도 차분용
+    rclcpp::Time t_prev{0, 0, RCL_ROS_TIME};
+    double hold{0.0};                                // 성공 조건 유지 시간 (s)
+  };
+  std::set<std::string> tcp_skills_;
+  std::optional<TopPickRun> rl_;
+  ArmDiffIK diff_ik_;
+  GripperMap rl_grip_;
+  std::array<double, 5> ik_signs_{1.0, 1.0, 1.0, 1.0, 1.0}, ik_offsets_{};
+  std::string rl_frame_{"base_link"};
+  double rl_open_m_{0.010}, rl_closed_m_{-0.0075}, rl_grasp_lo_{-0.010}, rl_grasp_hi_{-0.003}, rl_grasp_dz_{0.015};
+  double rl_success_lift_{0.03}, rl_success_hold_{1.0}, rl_nb_match_{0.12}, rl_self_match_{0.03}, rl_max_joint_vel_{2.0};
+  bool rl_default_box_{false};
   bool correction_enabled_{true}, correction_required_{true};
   int correction_max_iter_{5};
   double offset_gain_{1.0}, lateral_tol_{0.005}, range_tol_{0.01}, target_range_{0.13};
@@ -2311,6 +2551,7 @@ private:
   sensor_msgs::msg::Range::ConstSharedPtr last_range_;
   PuckArray::ConstSharedPtr last_pucks_;
   std::map<std::string, double> joint_pos_;
+  std::map<std::string, double> joint_vel_;   // /joint_states velocity (있을 때, 강화학습 집기 관측)
   rclcpp::Time joint_rx_{0, 0, RCL_ROS_TIME};
 
   // 작업 상태 (job_cb_group_ 전용)

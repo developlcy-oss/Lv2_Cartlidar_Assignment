@@ -28,6 +28,10 @@ TEST(Policy, ParsesShippedYamlAndChecksObsDim)
   EXPECT_EQ(p.action_dim, 6);
   EXPECT_EQ(specs["slalom_v1"].obs_dim, 367);
   EXPECT_NE(p.model.find("models/pick_cup_v1.onnx"), std::string::npos);
+  ASSERT_EQ(specs.count("toppick_tilt"), 1u);   // Isaac TopPick (관측 36, 잡는 점 변위 + 집게)
+  EXPECT_EQ(layout_dim(specs["toppick_tilt"]), 36);
+  EXPECT_EQ(specs["toppick_tilt"].action_kind, "tcp_delta");
+  EXPECT_EQ(specs["toppick_tilt"].action_dim, 4);
 }
 
 TEST(Policy, RejectsObsDimMismatch)

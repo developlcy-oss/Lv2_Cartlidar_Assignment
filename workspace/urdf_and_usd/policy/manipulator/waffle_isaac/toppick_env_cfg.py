@@ -27,6 +27,11 @@ gap 0.5 ~ 4 cm (주행이 상자 앞에 바짝 세움), 가로 ±4 cm, 요 무�
   인식: 치우침 ±perc_bias, perc_latch_prob 비율은 시작 좌표를 에피소드 내내 고정 (관찰 자세에서 재고, 45° 집는 동안 팔 카메라가 퍽을 못 봄 #82).
   옆 퍽 없음 = 관측 옆 퍽 − 퍽 (26 · 27) 을 NB_ABSENT 로 (배포도 같은 값).
   성공 = 1 s 세워 들기 + 옆 퍽이 서 있고 success_nb_move 안 (#71).
+
+**손 안 가운데 쥐기 (2026-11-05, TP4)**: 이어 평가 (chain_pallet_eval.py, TP3) 에서 쥔 퍽이 기대 자리 (잡는 점 − 15 mm) 에서 집게 축 4.4 · 옆 5.9 mm
+  (중앙값, 인식 치우침 0 이어도 같음) 벗어나 칸 넣기가 37 % -> 4 mm 안이면 78 %. 이전 판정은 잡기 2 cm · 들기 3 cm · 퍽 기울기 18° 까지 성공이었음.
+  -> 쥔 동안 가운데 보상 (rew_center, tanh 폭 center_tol) · 퍽 기울기 벌점 (rew_hand_tilt, rad), 성공에 center_tol · success_upright 추가.
+  쥔 동안 = 손가락이 쥔 범위 + 잡는 점 - 목표 near_dist 안. 관측 36 · 행동 4 그대로 (TP3 에서 이어 학습).
 """
 
 from __future__ import annotations
@@ -212,6 +217,8 @@ class WaffleTopPickEnvCfg(DirectRLEnvCfg):
     success_lift = 0.03
     success_hold_s = 1.0
     tilt_ok_cos = 0.95  # 기울임 모드 성공: 집게 방향 · 목표 방향 (약 18° 안)
+    center_tol = 0.004  # [m] 성공: 쥔 퍽 중심 - 기대 자리 (= 잡는 점 − 15 mm, 칸 넣기 78 % 구간). 보상 tanh 폭도 이 값 (TP4)
+    success_upright = 0.996  # 성공: 퍽 축 기울기 5° 안 (칸 넣기 판정과 같음, TP4. upright_min 0.95 는 들기 · 넘어짐 판정용 그대로)
     upright_min = 0.95
     topple_cos = 0.7
     fall_drop = 0.02
@@ -228,6 +235,8 @@ class WaffleTopPickEnvCfg(DirectRLEnvCfg):
     rew_lifted = 6.0
     rew_lift_height = 10.0
     rew_puck_tilt = -2.0
+    rew_center = 4.0  # 쥔 동안 (1 − tanh(쥔 자리 오차 / center_tol)) (TP4)
+    rew_hand_tilt = -4.0  # 쥔 동안 퍽 축 기울기 [rad] (5° = −0.35, TP4)
     rew_arm_box = -2.0
     rew_body_box = -20.0
     rew_base_move = -10.0

@@ -242,6 +242,8 @@ class WaffleTopPickEnv(DirectRLEnv):
         up = self.puck_up()
         tilt = self.base_tilt()
         fing = self.robot.data.joint_pos.torch[:, self._gl[0]]
+        holding = (dist < c.near_dist) & (fing > c.grasp_finger_range[0]) & (fing < c.grasp_finger_range[1])  # 쥔 동안 (가운데 · 기울기 보상, TP4)
+        hand_tilt = torch.acos(up.clamp(-1.0, 1.0))
         grasped = (dist < c.grasp_dist) & (fing > c.grasp_finger_range[0]) & (fing < c.grasp_finger_range[1]) & (tilt < c.grasp_tilt_max) & (up > 0.9)
         lifted = (lift > c.lift_min) & near & (up > c.upright_min)
         height = (torch.clamp(lift, 0.0, c.lift_goal) - torch.clamp(lift - c.lift_goal, min=0.0)) / c.lift_goal * near.float()
@@ -264,6 +266,8 @@ class WaffleTopPickEnv(DirectRLEnv):
             "lifted": c.rew_lifted * lifted.float(),
             "lift_height": c.rew_lift_height * height,
             "puck_tilt": c.rew_puck_tilt * (1 - up) * close,
+            "center": c.rew_center * holding.float() * (1 - torch.tanh(dist / c.center_tol)),
+            "hand_tilt": c.rew_hand_tilt * holding.float() * hand_tilt,
             "arm_box": c.rew_arm_box * arm_box.float(),
             "body_box": c.rew_body_box * body_box.float(),
             "base_move": c.rew_base_move * (base_move > c.base_move_max).float(),
@@ -276,6 +280,7 @@ class WaffleTopPickEnv(DirectRLEnv):
             "fall": c.rew_fall * self._fell().float(),
         })
         held = (lift > c.success_lift) & near & (up > c.upright_min) & (down > c.tilt_ok_cos) & nb_ok   # 옆 퍽도 그대로 (#71)
+        held &= (dist < c.center_tol) & (up > c.success_upright)  # 손 안 가운데 · 세워 쥠 (TP4)
         self.hold = torch.where(held, self.hold + 1, torch.zeros_like(self.hold))
         self.succeeded |= self.hold >= int(c.success_hold_s / (c.sim.dt * c.decimation))
         self.max_lift = torch.maximum(self.max_lift, lift * near.float())
@@ -286,6 +291,9 @@ class WaffleTopPickEnv(DirectRLEnv):
         log["Metrics/roll_align"] = roll_ok.mean().item()
         log["Metrics/grasped_ratio"] = grasped.float().mean().item()
         log["Metrics/lifted_ratio"] = lifted.float().mean().item()
+        if holding.any():
+            log["Metrics/hand_center_mm"] = dist[holding].mean().item() * 1000  # 쥔 동안 손 안 어긋남 (TP4)
+            log["Metrics/hand_tilt_deg"] = math.degrees(hand_tilt[holding].mean().item())
         log["Metrics/toppled_ratio"] = toppled.float().mean().item()
         log["Metrics/neighbor_toppled_ratio"] = nb_toppled.float().mean().item()
         log["Metrics/arm_box_contact_ratio"] = arm_box.float().mean().item()
