@@ -30,8 +30,8 @@ find_package(ament_index_cpp REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)   # pallet_place_traj.json · approach_poses.yaml 읽기
 find_package(yaml-cpp REQUIRED)
 
-# 순수 C++ (ROS 없음): IK
-add_library(arm_ik STATIC src/arm_ik.cpp)
+# 순수 C++ (ROS 없음): IK (해석적 arm_ik + 강화학습 TopPick 행동용 감쇠 최소제곱 arm_diff_ik)
+add_library(arm_ik STATIC src/arm_ik.cpp src/arm_diff_ik.cpp src/toppick_obs.cpp)
 set_target_properties(arm_ik PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(arm_ik PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
@@ -65,7 +65,7 @@ ament_export_include_directories(include/${PROJECT_NAME})
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   ament_add_gtest(test_control_logic test/test_fsm.cpp test/test_align.cpp test/test_ik.cpp test/test_turn.cpp
-    test/test_target_look_pose.cpp test/test_sag_comp.cpp)
+    test/test_target_look_pose.cpp test/test_sag_comp.cpp test/test_diff_ik.cpp test/test_toppick_obs.cpp)
   target_link_libraries(test_control_logic arm_ik)
   # manipulator.yaml 한계 · 자세 · 팔레트 궤적 = URDF 한계 (#83)
   ament_add_gtest(test_config_limits test/test_config_limits.cpp)

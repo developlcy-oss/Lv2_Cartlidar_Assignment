@@ -6,6 +6,8 @@ isaac/usd/**/.asset-transformer-*/
 isaac/rl/logs/
 policy/manipulator/logs/
 *.log
+# 평가 결과 원본 (매번 다시 생김, 요약은 학습기록_자동.md · 정책_학습기록.md)
+policy/manipulator/chain_pallet_eval*.json
 # AI 도구 메모 (팀 결정 2026-10-26: 저장소에 올리지 않음)
 AGENTS.md
 CLAUDE.md

@@ -24,3 +24,31 @@ slalom_v1:
   finish_on_timeout: true        # 단계의 timeout(초) 동안 주행하면 성공
   action_low: [-0.3, -1.5]
   action_high: [0.3, 1.5]
+
+# 박스 위 퍽을 집게 45° 로 집기 (Isaac Waffle-TopPick-Direct, 등록 = urdf_and_usd/policy/manipulator/policies/registry.json).
+#   학습 toppick_env.py _get_observations 와 같은 순서 · 단위 · 좌표 (base_link, m, rad). 모두 필수 (valid 칸 없음 → obs_dim 36 그대로)
+#   행동 tcp_delta(4): 앞 3 = 잡는 점 변위 [-1, 1] x 0.005 m → control/arm_diff_ik (감쇠 최소제곱 IK, 자세 = 45° · 닫는 축 J1 접선),
+#   4 번째 > 0 벌림 0.010 · ≤ 0 닫기 −0.0075 (gripper_left_joint 값, manipulator.yaml toppick_rl.finger_m_at_* 로 gripper_roll rad 에 대응).
+#   쓰려면 manipulator.yaml skill.policies 에 toppick_tilt 를 넣고 skill.enabled true (bringup skill_enabled:=true, ONNX Runtime 빌드).
+#   그러면 같은 이름 skill 이 고정 IK 동작 대신 이 정책 (manipulator_node tcp_delta, 관측 = control/toppick_obs.hpp). 기본은 고정 IK
+toppick_tilt:
+  model: models/toppick_tilt.onnx
+  rate_hz: 30
+  obs_dim: 36
+  observation:
+    - {name: joint_pos_rel, size: 5, required: true}      # joint1~5 − READY_POSE [0, 0.48, −0.76, 1.84, 0] (기울임 모드도 이 기준)
+    - {name: joint_vel, size: 5, required: true}          # rad/s
+    - {name: finger_pos, size: 1, required: true}         # gripper_left_joint (m, 벌림 mm = 41.6 + 2000 x 값)
+    - {name: puck_pos, size: 3, required: true}           # 인식 퍽 중심 (base_link). target_look 이 잰 값 고정 (학습 70 % 고정)
+    - {name: grasp_pos, size: 3, required: true}          # 잡는 점 = gripper_roll_link + (0.14, 0, 0) (FK, arm_diff_ik forward)
+    - {name: puck_minus_grasp, size: 3, required: true}
+    - {name: approach_axis, size: 3, required: true}      # gripper_roll_link +x (base_link)
+    - {name: close_axis, size: 3, required: true}         # gripper_roll_link +y
+    - {name: neighbor_rel, size: 2, required: true}       # 옆 퍽 − 퍽 (x, y). 옆 퍽 없음 = (0.0, 0.5) (NB_ABSENT)
+    - {name: is_box, size: 1, required: true}             # 상자 모양 퍽 1, 원기둥 0
+    - {name: roll_cos_sin, size: 2, required: true}       # 닫는 축 − J1 접선 각 (arm_diff_ik rollError) 의 cos · sin
+    - {name: prev_action, size: 4, required: true}        # 직전 정책 출력 ([-1, 1] 자른 값, 첫 스텝 (0, 0, 0, 1))
+    - {name: tilted, size: 1, required: true}             # 기울임 모드 1 (지금은 늘 1)
+  action: tcp_delta(4)
+  action_low: [-1.0, -1.0, -1.0, -1.0]
+  action_high: [1.0, 1.0, 1.0, 1.0]

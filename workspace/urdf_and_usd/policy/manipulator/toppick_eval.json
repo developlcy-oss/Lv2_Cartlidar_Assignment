@@ -1,0 +1,78 @@
+{
+ "summary": {
+  "policy": "policies/toppick_latest.pt",
+  "seed": 2,
+  "layout": "mix",
+  "dr": "all",
+  "latch": null,
+  "num_envs": 256,
+  "success": {
+   "ok": 133,
+   "n": 256,
+   "pct": 52.0
+  },
+  "toppled": 54,
+  "neighbor_bad": 30,
+  "arm_box_steps_mean": 0.2,
+  "max_lift_mm_median": 45.1,
+  "date": "2026-11-05 11:17"
+ },
+ "groups": {
+  "rand": {
+   "ok": 59,
+   "n": 133,
+   "pct": 44.4
+  },
+  "A": {
+   "ok": 31,
+   "n": 48,
+   "pct": 64.6
+  },
+  "B": {
+   "ok": 28,
+   "n": 52,
+   "pct": 53.8
+  },
+  "C": {
+   "ok": 15,
+   "n": 23,
+   "pct": 65.2
+  },
+  "tilt": {
+   "ok": 133,
+   "n": 256,
+   "pct": 52.0
+  },
+  "vertical": null,
+  "box": {
+   "ok": 69,
+   "n": 130,
+   "pct": 53.1
+  },
+  "cyl": {
+   "ok": 64,
+   "n": 126,
+   "pct": 50.8
+  },
+  "tilt_box": {
+   "ok": 69,
+   "n": 130,
+   "pct": 53.1
+  },
+  "tilt_cyl": {
+   "ok": 64,
+   "n": 126,
+   "pct": 50.8
+  },
+  "latched": {
+   "ok": 90,
+   "n": 189,
+   "pct": 47.6
+  },
+  "follow": {
+   "ok": 43,
+   "n": 67,
+   "pct": 64.2
+  }
+ }
+}

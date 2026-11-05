@@ -10,6 +10,14 @@
 #   use_sensors:=false — 카메라 · 라이다 드라이버를 띄우지 않는다 (sim:=true 면 기본 false: Isaac 브리지가 같은 토픽을 냄)
 #   use_tfmini:=false — TFmini(박스 거리) · obstacle_stop 을 띄우지 않고 twist_mux obstacle lock 도 뺀다 (TFmini 가 없는데 lock 이 있으면 늘 잠김)
 #
+#   미션 전체 (주사위 기억 로봇, plan 모드):
+#   ros2 launch bringup bringup.launch.py mission_source:=plan use_localization:=true
+#     mission_source:=plan — mission_node 에 mission_plan.yaml 을 덧씌우고 mission_planner_node(계획기)도 띄운다 (use_planner 기본 = plan 일 때)
+#                            측량 결과 = 계획기 등록표가 같은 파일이 되게 pucks_file 하나로 둘 다 준다 (mission survey.pucks_out = planner pucks_file)
+#                            mission/mission_bringup.launch.py 를 같이 띄우지 말 것 (mission_node 가 둘이 됨)
+#     use_localization:=true — localization.launch.py (지도 · scan 합치기 · loc_monitor). use_loc_lock 기본도 이것을 따른다
+#                            Nav2 는 아직 저장소에 없어 따로 띄운다 (#114). 그 전까지 AMCL 이 필요하면 use_amcl_node:=true
+#
 # ① ros2_control_node · ② base_container : opencr_hardware/base_bringup.launch.py
 # ⑦ perception_container                  : perception/perception.launch.py
 # ⑧ control_container (component_container_mt) — MissionNode(mission) · DriveNode · ManipulatorNode(control) ·
@@ -18,9 +26,10 @@
 #    같은 프로세스 · intra-process 통신 · 노드마다 MutuallyExclusive 콜백 그룹 → 바퀴 · 팔 · 판단 콜백이 병렬
 # ⑥ ekf (use_ekf) — 바퀴 vx + 회전 중심 옆 이동 vy (odom_icr, #92) + IMU yaw rate
 # 센서 드라이버 (use_sensors) : bringup/sensors.launch.py — D435 두 대 · 팔 Arducam · LDS-03 두 대 (TFmini 는 위 ⑧)
-# nav2 · slam_toolbox 는 기존 패키지 launch 로 따로 (nav2 체인 마지막 출력만 /cmd_vel_nav)
+# 위치 추정 (use_localization) : localization/localization.launch.py · 계획기 (use_planner) : mission_planner/planner.launch.py
+# nav2 는 기존 패키지 launch 로 따로 (nav2 체인 마지막 출력만 /cmd_vel_nav)
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -37,6 +46,8 @@ def generate_launch_description():
     mis = FindPackageShare('mission')
     pol = FindPackageShare('robot_policy')
     me = FindPackageShare('bringup')
+    loc = FindPackageShare('localization')
+    mpl = FindPackageShare('mission_planner')
     ipc = [{'use_intra_process_comms': True}]
     # 모든 노드가 같은 시계를 쓰게: 시뮬레이션이면 /clock (영상 · 라이다 stamp 가 시뮬레이션 시각이라 300 ms 규칙에 필요)
     sim = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
@@ -46,13 +57,21 @@ def generate_launch_description():
     # 카메라 없이 (use_perception:=false) 띄우면 뒤 D435 도 없음 → drive_node 후진 확인 끔 (켜 두면 값 없음 = 후진 막힘, #84)
     rear_camera = {'scan.rear_camera': ParameterValue(LaunchConfiguration('use_perception'), value_type=bool)}
 
-    control_container = ComposableNodeContainer(
+    def control_container(context):
+        source = LaunchConfiguration('mission_source').perform(context)
+        if source not in ('tag', 'plan'):
+            raise RuntimeError(f'mission_source 는 tag 또는 plan: {source}')
+        mission_params = [PathJoinSubstitution([mis, 'config', 'mission.yaml']),
+                          PathJoinSubstitution([mis, 'config', 'mission_table.yaml'])]
+        if source == 'plan':   # mission_bringup.launch.py source:=plan 과 같은 덧씌우기 + 측량 결과 경로 = 계획기 pucks_file
+            mission_params += [PathJoinSubstitution([mis, 'config', 'mission_plan.yaml']),
+                               {'survey.pucks_out': LaunchConfiguration('pucks_file')}]
+        return [ComposableNodeContainer(
         name='control_container', namespace='', package='rclcpp_components',
         executable='component_container_mt', output='screen',
         composable_node_descriptions=[
             ComposableNode(package='mission', plugin='mission::MissionNode', name='mission_node',
-                           parameters=[PathJoinSubstitution([mis, 'config', 'mission.yaml']),
-                                       PathJoinSubstitution([mis, 'config', 'mission_table.yaml']), sim], extra_arguments=ipc),
+                           parameters=mission_params + [sim], extra_arguments=ipc),
             ComposableNode(package='control', plugin='control::DriveNode', name='drive_node',
                            parameters=[geometry, PathJoinSubstitution([ctl, 'config', 'drive.yaml']), skill, rear_camera, sim], extra_arguments=ipc),
             ComposableNode(package='control', plugin='control::ManipulatorNode', name='manipulator_node',
@@ -63,7 +82,7 @@ def generate_launch_description():
             ComposableNode(package='perception', plugin='perception::ObstacleStopNode', name='obstacle_stop',
                            parameters=[PathJoinSubstitution([per, 'config', 'lidar.yaml']), sim], extra_arguments=ipc,
                            condition=IfCondition(LaunchConfiguration('use_tfmini'))),
-        ])
+        ])]
 
     return LaunchDescription([
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
@@ -73,8 +92,21 @@ def generate_launch_description():
         DeclareLaunchArgument('use_perception', default_value='true', description='⑦ 카메라 3대 · 검출'),
         DeclareLaunchArgument('use_tfmini', default_value='true',
                               description='1층 TFmini(박스 거리) · obstacle_stop · twist_mux obstacle lock. 시뮬레이션 · TFmini 없음은 false'),
-        DeclareLaunchArgument('use_loc_lock', default_value='false',
-                              description='twist_mux 위치 잃음 lock (/localization/lock, #93). localization 패키지를 같이 띄울 때만 true'),
+        DeclareLaunchArgument('mission_source', default_value='tag',
+                              description='tag (미션표 mission_table.yaml) | plan (주사위 기억 로봇: mission_plan.yaml + 계획기)'),
+        DeclareLaunchArgument('use_planner',
+                              default_value=PythonExpression(["'true' if '", LaunchConfiguration('mission_source'), "' == 'plan' else 'false'"]),
+                              description='mission_planner_node (계획기). 기본: mission_source:=plan 이면 true'),
+        DeclareLaunchArgument('pucks_file', default_value='/tmp/mission_log/pucks_survey.yaml',
+                              description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 측량을 끄면 미리 만든 등록표'),
+        DeclareLaunchArgument('planner_mode', default_value='per_location', description='계획기 mode: per_location | single_load'),
+        DeclareLaunchArgument('use_localization', default_value='false',
+                              description='localization.launch.py (지도 · scan 합치기 · loc_monitor). Nav2 는 따로 (#114)'),
+        DeclareLaunchArgument('localization', default_value='amcl', description='위치 추정 방식: amcl | carto (localization.launch.py)'),
+        DeclareLaunchArgument('use_amcl_node', default_value='false',
+                              description='AMCL 노드를 localization 쪽에서 띄움 (Nav2 launch 가 없을 때)'),
+        DeclareLaunchArgument('use_loc_lock', default_value=LaunchConfiguration('use_localization'),
+                              description='twist_mux 위치 잃음 lock (/localization/lock, #93). 기본 = use_localization'),
         DeclareLaunchArgument('use_ekf', default_value='true', description='⑥ robot_localization ekf + odom_icr (#92)'),
         DeclareLaunchArgument('use_sensors',
                               default_value=PythonExpression(["'false' if '", LaunchConfiguration('sim'), "'.lower() == 'true' else 'true'"]),
@@ -107,7 +139,19 @@ def generate_launch_description():
                               'front_serial': LaunchConfiguration('front_serial'),
                               'rear_serial': LaunchConfiguration('rear_serial')}.items(),
             condition=IfCondition(LaunchConfiguration('use_sensors'))),
-        control_container,
+        OpaqueFunction(function=control_container),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([loc, 'launch', 'localization.launch.py'])),
+            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
+                              'localization': LaunchConfiguration('localization'),
+                              'use_amcl_node': LaunchConfiguration('use_amcl_node')}.items(),
+            condition=IfCondition(LaunchConfiguration('use_localization'))),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([mpl, 'launch', 'planner.launch.py'])),
+            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
+                              'pucks_file': LaunchConfiguration('pucks_file'),
+                              'mode': LaunchConfiguration('planner_mode')}.items(),
+            condition=IfCondition(LaunchConfiguration('use_planner'))),
         # ⑥ /odom + IMU ω → /odom_icr (vy = −icr_x·ω, 스키드 회전 중심 옆 이동, #92) → ekf odom0
         Node(package='bringup', executable='odom_icr.py', name='odom_icr', output='screen',
              parameters=[geometry, sim], condition=IfCondition(LaunchConfiguration('use_ekf'))),

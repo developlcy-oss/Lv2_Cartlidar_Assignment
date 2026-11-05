@@ -17,7 +17,7 @@ bool parse_action(const std::string & s, std::string & kind, int & dim)
   if (!std::regex_match(s, m, re)) {return false;}
   kind = m[1];
   dim = std::stoi(m[2]);
-  return (kind == "joint_target" || kind == "base_twist") && dim > 0;
+  return (kind == "joint_target" || kind == "base_twist" || kind == "tcp_delta") && dim > 0;
 }
 
 int layout_dim(const PolicySpec & s)
@@ -74,7 +74,7 @@ bool load_specs(const std::string & yaml_path, std::map<std::string, PolicySpec>
         s.observation.push_back(it);
       }
       if (!parse_action(n["action"].as<std::string>(), s.action_kind, s.action_dim)) {
-        err = s.name + ": action 형식은 joint_target(N) 또는 base_twist(2)";
+        err = s.name + ": action 형식은 joint_target(N) · base_twist(2) · tcp_delta(4)";
         return false;
       }
       s.finish_on_timeout = n["finish_on_timeout"] ? n["finish_on_timeout"].as<bool>() : false;

@@ -65,10 +65,22 @@ class WaffleSidePickPPORunnerCfg(WafflePickPPORunnerCfg):
 
 
 @configclass
+class ClampedGaussianCfg(RslRlMLPModelCfg.GaussianDistributionCfg):
+    """표준편차 범위를 둔 가우시안 (rsl_rl GaussianDistribution std_range). TP3 학습 (2026-11-04) 은 9000 반복 뒤 표준편차 0.65 -> 3.4 로 폭주."""
+
+    std_range: tuple = (0.05, 0.8)
+
+
+@configclass
 class WaffleTopPickPPORunnerCfg(WaffleSidePickPPORunnerCfg):
-    """위에서 집기 (관측 36 = 35 + 기울임 모드, 행동 4 = 잡는 점 변위 + 집게). 옆에서 집기 N8 과 같은 탐색 설정 (직교 행동)."""
+    """위에서 집기 (관측 36 = 35 + 기울임 모드, 행동 4 = 잡는 점 변위 + 집게). 옆에서 집기 N8 과 같은 탐색 설정 (직교 행동).
+    TP4 (2026-11-05) 부터 표준편차 상한 0.8 (학습 중 행동 잡음이 커지면 정밀 쥐기를 못 배움)."""
 
     experiment_name = "waffle_toppick"
+    actor = RslRlMLPModelCfg(
+        hidden_dims=[256, 128, 64], activation="elu", obs_normalization=True,
+        distribution_cfg=ClampedGaussianCfg(init_std=0.5),
+    )
 
 
 @configclass
