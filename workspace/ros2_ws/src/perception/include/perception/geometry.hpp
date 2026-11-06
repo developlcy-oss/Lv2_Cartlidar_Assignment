@@ -68,4 +68,10 @@ inline cv::Vec3d image_offset(const cv::Rect2f & box, cv::Size size)
     box.width / static_cast<double>(size.width)};
 }
 
+// arm_offset x · y: 화면 중심 대비 값(image_offset) → 정렬 기준점 대비 값. 기준점은 영상 폭 · 높이 비 (0.5, 0.5 = 화면 중심)
+inline cv::Vec2d align_offset(double x, double y, double point_u, double point_v)
+{
+  return {x - (2.0 * point_u - 1.0), y - (2.0 * point_v - 1.0)};
+}
+
 }  // namespace perception

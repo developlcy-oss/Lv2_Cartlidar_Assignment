@@ -42,7 +42,7 @@ TEST(ArmPlane, RayPlaneRecoversProjectedPoint)
   const cv::Vec3d t(0, 0, 0.4);
   for (double pitch : {0.5, 0.9, 1.3}) {
     const cv::Matx33d R = look_down(pitch);
-    for (const cv::Vec3d p : {cv::Vec3d(0.3, 0.05, 0.03), cv::Vec3d(0.25, -0.08, 0.015), cv::Vec3d(0.45, 0.0, 0.10)}) {
+    for (const cv::Vec3d & p : {cv::Vec3d(0.3, 0.05, 0.03), cv::Vec3d(0.25, -0.08, 0.015), cv::Vec3d(0.45, 0.0, 0.10)}) {
       const cv::Point2d px = project(R, t, p);
       const auto q = ray_plane(K, px.x, px.y, R, t, p[2]);
       ASSERT_TRUE(q) << pitch;
