@@ -20,6 +20,25 @@ ros-lyrical-realsense2-camera
 ros-lyrical-usb-cam
 # LDS-03 × 2 (1층 천장에 거꾸로 장착)
 ros-lyrical-coin-d4-driver
+# ---------------------------------------------------------------- 로봇 전체 (bringup · 제어 · 주행 · 위치 추정)
+# 모터 · 컨트롤러 (opencr_hardware)
+ros-lyrical-ros2-control
+ros-lyrical-ros2-controllers
+ros-lyrical-xacro
+python3-serial
+# 조이스틱 · 속도 명령 고르기
+ros-lyrical-joy
+ros-lyrical-joy-teleop
+ros-lyrical-teleop-twist-joy
+ros-lyrical-twist-mux
+# EKF · Nav2 · AMCL
+ros-lyrical-robot-localization
+ros-lyrical-navigation2
+ros-lyrical-cartographer-ros-msgs
+# perception 빌드 (바코드 · 카메라 확인)
+libzbar-dev
+liblapack-dev
+v4l-utils
 # ---------------------------------------------------------------- 모의 시험 스크립트 (perception/scripts)
 python3-opencv
 python3-numpy
