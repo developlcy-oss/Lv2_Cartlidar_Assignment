@@ -3,8 +3,8 @@
 //   찾기: barcode_compare <장면 목록> <라벨 그림> [키=값 ...] [--planes]   (키 = BarcodeLocatorConfig 이름, 예: thr=0.7)
 //     장면 목록 한 줄: <이름> <컬러 png> <깊이 npy(float32, m)> fx fy cx cy <T_base_cam 16 개(행 순서)>
 //     출력(표준 출력) 한 줄: {"name": …, "ms": 걸린 시간, "dets": [{"kind", "center", "score", "theta", "px", …}], "planes": [...]}
-//   읽기: barcode_compare --read <영상 목록> [배율 [감마 [최소 quality]]]   (한 줄: <이름> <영상 png>; 기본 1 · 2 · 4)
-//     출력 한 줄: {"name": …, "ms": …, "symbols": [...], "ok": …, "text": …}
+//   읽기: barcode_compare --read <영상 목록> [배율 [감마 [최소 quality]]] [label.<이름>=값 ...]   (한 줄: <이름> <영상 png>; 기본 1 · 2 · 4, 라벨 찾기 끔)
+//     출력 한 줄: {"name": …, "ms": …, "symbols": [...], "ok": …, "text": …, "label": 라벨 길에서 결정, "labels": 라벨 후보 수}
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -97,9 +97,10 @@ double ms_since(std::chrono::steady_clock::time_point t0)
   return std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
 }
 
-int run_read(const char * list_path, double scale, double gamma, int qmin)
+int run_read(const char * list_path, double scale, double gamma, int qmin, const perception::BarcodeLabelConfig & label)
 {
   perception::BarcodeReader reader(scale, gamma, qmin);
+  reader.set_label(label);
   std::ifstream list(list_path);
   std::string line;
   while (std::getline(list, line)) {
@@ -114,7 +115,8 @@ int run_read(const char * list_path, double scale, double gamma, int qmin)
     std::ostringstream o;
     o << "{\"name\": " << quote(name) << ", \"ms\": " << ms_since(t0) << ", \"symbols\": [";
     for (size_t i = 0; i < r.symbols.size(); ++i) {o << (i ? ", " : "") << quote(r.symbols[i]);}
-    o << "], \"dropped\": " << r.dropped << ", \"ok\": " << (r.ok ? "true" : "false") << ", \"text\": " << quote(r.text) << "}";
+    o << "], \"dropped\": " << r.dropped << ", \"ok\": " << (r.ok ? "true" : "false") << ", \"text\": " << quote(r.text)
+      << ", \"label\": " << (r.label ? "true" : "false") << ", \"labels\": " << r.labels << "}";
     std::cout << o.str() << std::endl;
   }
   return 0;
@@ -131,8 +133,32 @@ std::string num(double x)
 
 int main(int argc, char ** argv)
 {
-  if (argc >= 3 && argc <= 6 && std::string(argv[1]) == "--read") {
-    return run_read(argv[2], argc > 3 ? std::stod(argv[3]) : 1.0, argc > 4 ? std::stod(argv[4]) : 2.0, argc > 5 ? std::stoi(argv[5]) : 4);
+  if (argc >= 3 && std::string(argv[1]) == "--read") {
+    // 숫자 인자(배율 · 감마 · 최소 quality) 뒤에 label.<이름>=값 (BarcodeLabelConfig, label.enabled=1 로 라벨 찾기 켬)
+    std::vector<double> num_args;
+    perception::BarcodeLabelConfig lc;
+    for (int a = 3; a < argc; ++a) {
+      const std::string s = argv[a];
+      const auto eq = s.find('=');
+      if (eq == std::string::npos) {num_args.push_back(std::stod(s)); continue;}
+      const std::string k = s.substr(0, eq);
+      const double v = std::stod(s.substr(eq + 1));
+      if (k == "label.enabled") {lc.enabled = v != 0;}
+      else if (k == "label.rel") {lc.rel = v;}
+      else if (k == "label.min_area") {lc.min_area = v;}
+      else if (k == "label.max_area") {lc.max_area = v;}
+      else if (k == "label.ar_min") {lc.ar_min = v;}
+      else if (k == "label.ar_max") {lc.ar_max = v;}
+      else if (k == "label.fill_min") {lc.fill_min = v;}
+      else if (k == "label.max_labels") {lc.max_labels = static_cast<int>(v);}
+      else if (k == "label.pad") {lc.pad = v;}
+      else if (k == "label.gamma") {lc.gamma = v;}
+      else if (k == "label.bar_blur") {lc.bar_blur = v;}
+      else {std::cerr << "모르는 인자: " << s << "\n"; return 2;}
+    }
+    if (num_args.size() > 3) {std::cerr << "숫자 인자는 배율 · 감마 · 최소 quality 셋까지\n"; return 2;}
+    return run_read(argv[2], num_args.size() > 0 ? num_args[0] : 1.0, num_args.size() > 1 ? num_args[1] : 2.0,
+      num_args.size() > 2 ? static_cast<int>(num_args[2]) : 4, lc);
   }
   if (argc < 3) {
     std::cerr << "사용: barcode_compare <장면 목록> <라벨 그림> [키=값 ...]\n";
