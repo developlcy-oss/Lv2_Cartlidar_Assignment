@@ -8,6 +8,7 @@
 // - 병렬은 센서와 무관한 동작만 (navigate 중 팔 STOW). 정렬은 팔 동작이 끝난 뒤
 // - 실패 · 타임아웃: 진행 중 goal 전부 cancel → 단계별 max_retries회 재시도 후 FAILED
 //   pick 실패 · 빈손은 직전 search부터, skill 실패는 fallback 단계로 대체 (한 번)
+//   skill manipulator toppick_tilt 실패는 바로 앞 target_look 부터 (퍽 위치를 다시 재야 같은 퍽을 집음, #69)
 // - /e_stop=true 또는 opencr 진단 ERROR: goal 전부 cancel → PAUSED. 자동 재개 없음, /mission/start로 재개
 // - 결과를 콜백 안에서 기다리지 않는다. 각 결과는 result 콜백에서 처리한다
 //
@@ -1736,10 +1737,23 @@ private:
       for (size_t i = failed; i-- > 0;) {
         if (steps_[i].type == "search") {target = i; break;}
       }
+    } else if (isArmSkill(s, "toppick_tilt")) {
+      // toppick_tilt 실패 (빈손 · 정책 시간 초과 등) 는 바로 앞 target_look 부터: manipulator 는 target_look 이 잰 퍽 위치를
+      //   한 번만 쓰므로 (집기 시작 때 지움) 다시 재야 같은 퍽을 집는다 (#69). 사이에 주행 · 정렬이 끼면 찾지 않음
+      for (size_t i = failed; i-- > 0;) {
+        if (steps_[i].type != "skill") {break;}
+        if (isArmSkill(steps_[i], "target_look:")) {target = i; break;}
+      }
     }
     RCLCPP_INFO(get_logger(), "retry %d/%d -> [%zu] %s in %.1fs", count, max_retries_, target,
       steps_[target].text.c_str(), retry_delay_);
     scheduleRetry(target);
+  }
+
+  // manipulator skill 이름이 prefix 로 시작하는지 ("toppick_tilt" · "target_look:")
+  static bool isArmSkill(const Step & s, const std::string & prefix)
+  {
+    return s.type == "skill" && s.args.size() >= 2 && s.args[0] == "manipulator" && s.args[1].rfind(prefix, 0) == 0;
   }
 
   void scheduleRetry(size_t idx)
