@@ -41,6 +41,7 @@ perception_node:
                                 #   E2 경기장 판정 Arducam 0.5 m 안 @0.6 0.871 · 0.952(D 0.749 · 0.871), 아직 0.95 미달
                                 #   클래스 수가 주 검출기와 다르면 시작하지 않음(class_names 를 같이 씀), 못 열면 WARN 뒤 주 검출기
       detect_width: 640        # ARM_ALIGN 검출 해상도 (줄여서 15 Hz 확보, 오차는 정규화 값이라 해상도와 무관)
+      align_point: [0.5, 0.5]  # ★ arm_offset 의 0 이 되는 화면 자리 (영상 폭 · 높이 비, #14). 지금은 화면 중심. 실물 해상도(#119) · 보정 뒤 정렬 거리에서 재어 넣음
       engine_merge_iou: 0.7     # ★ detector main(YOLO)일 때: 같은 색 · 이 IoU 이상 겹친 박스는 점수 높은 하나만 (같은 퍽에 클래스만 다른 박스). 0 이면 끔
       lock_gate: 0.25           # ★ ARM_ALIGN 목표 유지(arm_target_lock.hpp): 따라가기 문턱 상한. 거리는 x 단위(화면 반폭, 세로는 × 높이/폭)
       lock_seed_gate: 0.10      # ★ 처음 잠글 때 · 놓친 뒤 다시 잡을 때 D435 목표 투영점에서 이 안만 (넘으면 그 장은 잡지 않음)

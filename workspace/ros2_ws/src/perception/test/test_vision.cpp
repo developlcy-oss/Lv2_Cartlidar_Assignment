@@ -131,6 +131,18 @@ TEST(Geometry, MedianDepthIgnoresHoles)
   EXPECT_TRUE(std::isnan(median_depth(d, {5, 5}, 2, 0.001, 0.15, 4.0)));
 }
 
+// 정렬 기준점: 기본(화면 중심)은 값이 그대로, 기준점이 아래로 가면 y 만 바뀌고 그 자리에서 0
+TEST(Geometry, AlignOffset)
+{
+  const auto same = align_offset(0.25, -0.5, 0.5, 0.5);
+  EXPECT_DOUBLE_EQ(same[0], 0.25);
+  EXPECT_DOUBLE_EQ(same[1], -0.5);
+  const double y_at_row_400 = 400.0 / 240.0 - 1.0;   // 640 × 480 세로 400 px 의 중심 대비 값
+  const auto at_point = align_offset(0.0, y_at_row_400, 0.5, 400.0 / 480.0);
+  EXPECT_DOUBLE_EQ(at_point[0], 0.0);
+  EXPECT_NEAR(at_point[1], 0.0, 1e-12);
+}
+
 TEST(Geometry, ImageOffset)
 {
   const auto o = image_offset(cv::Rect2f(600, 300, 80, 120), {1280, 720});

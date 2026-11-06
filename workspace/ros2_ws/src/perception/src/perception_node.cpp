@@ -13,7 +13,7 @@
 //   영상 시각 규칙: 같은·과거 stamp(재전송)는 버린다. 1 s 넘게 뒤로 가면 시각 재시작으로 보고 추적 상태를 초기화한다
 //   SEARCH_* : 검출 → (색 검출기면) 덩어리를 깊이가 끊긴 곳에서 나눔 → 조각 깊이 중앙값 → 컬러 광학 좌표 3D
 //              → TF 로 base_link · odom → TargetTracker → object_pose
-//   ARM_ALIGN: camera_info 로 왜곡 보정한 영상을 detect_width 로 줄여 검출 → 화면 중심 대비 arm_offset
+//   ARM_ALIGN: camera_info 로 왜곡 보정한 영상을 detect_width 로 줄여 검출 → 정렬 기준점(arm.align_point, 기본 화면 중심) 대비 arm_offset
 //              목표 퍽 하나를 잠가 유지한다(arm_target_lock.hpp): 처음에는 D435 추적 목표를 팔 영상에 투영한 점에 가까운 것,
 //              그 뒤에는 같은 색 · 직전 자리(또는 한 장 앞 예측) 근처, 박스 폭에 비례한 문턱 안만.
 //              놓치면 offset_valid = false (다른 퍽으로 넘어가지 않음)
@@ -59,6 +59,7 @@
 #include <memory>
 #include <mutex>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -233,6 +234,14 @@ public:
     depth_win_ = static_cast<int>(declare_parameter("depth.window", 3));
     depth_tol_ns_ = static_cast<int64_t>(declare_parameter("depth.sync_tol_s", 0.02) * 1e9);
     detect_w_ = static_cast<int>(declare_parameter("arm.detect_width", 640));
+    {
+      const auto point = declare_parameter("arm.align_point", std::vector<double>{0.5, 0.5});
+      if (point.size() != 2 || point[0] < 0.0 || point[0] > 1.0 || point[1] < 0.0 || point[1] > 1.0) {
+        throw std::runtime_error("arm.align_point 은 [폭 비, 높이 비] 이고 0~1 이어야 함");
+      }
+      align_u_ = point[0];
+      align_v_ = point[1];
+    }
     ArmLockConfig alc;
     alc.gate = declare_parameter("arm.lock_gate", alc.gate);
     alc.size_ratio = declare_parameter("arm.lock_size_ratio", alc.size_ratio);
@@ -1660,8 +1669,9 @@ private:
       }
       if (b >= 0) {
         r.offset_valid = true;
-        r.arm_offset.x = boxes[b].x;
-        r.arm_offset.y = boxes[b].y;
+        const cv::Vec2d offset = align_offset(boxes[b].x, boxes[b].y, align_u_, align_v_);   // boxes 는 화면 중심 기준 그대로 둠 (잠금 · 평면 교차)
+        r.arm_offset.x = offset[0];
+        r.arm_offset.y = offset[1];
         r.arm_offset.z = boxes[b].w;
         if (!r.object_found) {r.confidence = dets[idx[b]].score;}
         // 화면 가장자리에 잘린 박스는 중심이 퍽 중심에서 밀려(A1 모의 잘린 장 중앙 12 · 최대 18 mm) 평면 교차를 내지 않는다
@@ -1937,6 +1947,7 @@ private:
   std::string base_frame_, odom_frame_;
   double depth_min_, depth_max_, frame_max_age_;
   int depth_win_, detect_w_, target_class_;
+  double align_u_ = 0.5, align_v_ = 0.5;   // 정렬 기준점 (영상 폭 · 높이 비, arm.align_point)
   std::vector<std::string> class_names_;   // 엔진 클래스 번호 → 이름 (TensorRT 일 때만, puck_class.hpp)
   int64_t depth_tol_ns_;
   double size_min_m_ = 0.015, size_max_m_ = 0.09;
