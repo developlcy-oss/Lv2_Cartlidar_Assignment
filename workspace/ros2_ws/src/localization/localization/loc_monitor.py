@@ -3,6 +3,7 @@
 /localization/lock(std_msgs/Bool, 같은 QoS): OK · SUSPECT 가 아니면 true — twist_mux lock 입력용.
 감지: ① 스캔–지도 잔차(추정 자세 map→base_link 에서 두 라이다 끝점의 거리장 값, res_mode) > res_thr 가 suspect_s 이어지면 SUSPECT, lost_s 이어지면 LOST
       ② 위치 추정 자세(pose_topic) 증분과 EKF odom 증분 차 > jump_xy 또는 jump_yaw → LOST ③ pose_topic 이 gap_s 넘게 끊김 → LOST.
+      단 amcl 은 odom 변화가 정확히 0 이면 /amcl_pose 를 내지 않으므로, map → odom TF 시각이 계속 바뀌는 동안은 끊김으로 보지 않는다(map_odom_alive).
 대응: OK · SUSPECT 가 아니면 명령 게이트(gate_in → gate_out, gate_in 이 none 이면 끔)가 속도 0 을 냄(20 Hz). LOST → RECOVERING(작업 스레드):
       마지막 정상 자세 ∘ (그 뒤 odom 이동) 둘레 근처 탐색 → 받아들이지 못하면 지도 전체 탐색. 받아들임 = 점수 ≤ accept_score 이고
       '다른 자리' 2등이 없거나 2등 − 1등 ≥ ambiguity_margin. 받아들이면 다시 넣기 → CONFIRM
@@ -92,6 +93,8 @@ class LocMonitor(Node):
         self.lock = threading.Lock()
         self.lost_lock = threading.Lock()      # lost() 가 여러 콜백 스레드에서 동시에 불려 작업 스레드를 두 번 만들지 않게
         self.t_start = None
+        self.mo_stamp, self.mo_change_t = None, None   # map → odom TF 의 마지막 시각과 그것이 바뀐 때(map_odom_alive)
+        self.gap_logged = False
         self.worker = None
         self.log_f = open(g('event_log'), 'a') if g('event_log') not in ('', 'none') else None
         latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
@@ -250,6 +253,7 @@ class LocMonitor(Node):
 
     def on_tracked(self, m):
         self.last_tracked_rx = self.now_s()
+        self.gap_logged = False
         st = Time.from_msg(m.header.stamp)
         odom = self.lookup(self.g('odom_frame'), self.g('base_frame'), st)
         q = m.pose.pose if self.backend == 'amcl' else m.pose
@@ -270,13 +274,32 @@ class LocMonitor(Node):
         if now <= 0.0:                                         # 모의 시계 전
             return
         self.t_start = self.t_start or now
+        alive = self.map_odom_alive(now)
         if self.state in OK_STATES and self.last_tracked_rx is not None and now - self.last_tracked_rx > self.g('gap_s'):
-            self.lost('gap', gap_s=round(now - self.last_tracked_rx, 2))
+            if not alive:
+                self.lost('gap', gap_s=round(now - self.last_tracked_rx, 2))
+            elif not self.gap_logged:
+                self.gap_logged = True
+                self.event('gap_alive', gap_s=round(now - self.last_tracked_rx, 2))
         if self.state in OK_STATES and self.last_tracked_rx is None and now - self.t_start > self.g('startup_grace_s'):
             self.lost('no_tracked_pose', after_s=round(now - self.t_start, 2))   # 시작 뒤 한 번도 안 옴
         if self.state == 'CONFIRM' and now - self.confirm_since > self.g('confirm_timeout_s'):
             self.event('confirm_timeout')
             self.lost('confirm_timeout')
+
+    def map_odom_alive(self, now):
+        """amcl 이 살아 있는지. amcl 은 pose 를 안 낼 때도 스캔마다 map → odom 을 새 시각으로 다시 내므로, 그 시각이 gap_s 안에 바뀌었으면 살아 있다.
+        carto 는 pose 가 끊기지 않으므로 늘 False(pose 끊김 = 잃음). 기다리지 않는다."""
+        if self.backend != 'amcl':
+            return False
+        try:
+            st = self.buf.lookup_transform(self.g('mission_frame'), self.g('odom_frame'), Time()).header.stamp
+        except tf2_ros.TransformException:
+            return False
+        st = (st.sec, st.nanosec)
+        if st != self.mo_stamp:
+            self.mo_stamp, self.mo_change_t = st, now
+        return now - self.mo_change_t <= self.g('gap_s')
 
     def report(self):
         w, self.res_win = self.res_win, []
