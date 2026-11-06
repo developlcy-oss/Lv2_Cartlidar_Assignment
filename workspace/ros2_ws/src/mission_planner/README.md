@@ -98,6 +98,11 @@ skill 거절 → 재시도 2 번 뒤 FAILED, 미등록 바코드 → 바로 FAIL
 장소 상자 재기 (#73, 2026-11-04, mock 이 상자를 2 cm · 5° 밀고 돌려 odom 으로 냄, map -> odom 10°): L1 · L2 · L3 마다 첫 pallet_unload 앞 measure_box 1 번,
 place_<L>_* 12 개 → place_at:odom (손 계산과 같음), check_dice 3 번 odom 칸 → DONE. --box_fail (측정 실패) → 지도 좌표 그대로 DONE.
 
+Gazebo 주행 연동 (`test/gazebo_mission.sh`, 2026-11-06): 주행만 진짜 (Gazebo 경기장 · Nav2 + AMCL · drive_node), 팔 · 인식 · 정렬 · 회전은 `mock_robot.py --real_nav`.
+Q1 예제 105 단계 중 **[88] 에서 FAILED** (sim 약 470 s): goto 14 번 도착 (AMCL 추정 기준 xy 35 ~ 89 mm, 대부분 42 ~ 55 mm = goal checker 0.05, yaw 1 ~ 5°),
+재시도로 넘은 것 2 번 ([14] B3:N "Goal was in lethal cost" 1 회). **B3:N (2.936, 5.939) → L3 접근 (3.67, 4.669) 이 (3.42, 5.94) 에서 갇힘**
+(Controller patience exceeded, spin · backup 복구도 Collision Ahead) → 재시도 2 번 뒤 FAILED (#135).
+
 ## 남은 것 · 주의
 
 - `placement.csv` 가 나오면 문제 파일로 옮겨 계획을 다시 돌릴 것. 경기장 설치 실측이 발제 좌표와 다르면 SDF (generate_world.py) 를 고치고 `mission_make_maps`.

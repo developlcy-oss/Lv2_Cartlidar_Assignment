@@ -73,7 +73,8 @@ Eigen::Vector3d ArmIK::forward(const ArmJoints & q_cmd) const
 double ArmIK::forwardPitch(const ArmJoints & q_cmd) const
 {
   const ArmJoints q = toModel(q_cmd);
-  return -(q[1] + q[2] + q[3]);
+  const double p = -(q[1] + q[2] + q[3]);
+  return std::atan2(std::sin(p), std::cos(p));   // (−π, π] — 관절 합이 2π 다른 해도 같은 집게 방향 (#110)
 }
 
 Eigen::Vector3d ArmIK::approachDirection(double yaw, double pitch)

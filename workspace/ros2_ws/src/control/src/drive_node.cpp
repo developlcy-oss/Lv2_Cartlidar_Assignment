@@ -1,5 +1,7 @@
 // DriveNode (Controller 팀) — 바퀴 명령 주체는 이 노드 하나 (/cmd_vel_drive → twist_mux priority 50)
 //   /drive/navigate      목표가 현재 위치와 xy_goal_tolerance 이내면 yaw 차이만큼 nav2 spin, 아니면 navigate_to_pose
+//                        navigate.loc_gate (#121, control/loc_gate.hpp): /localization/status 가 OK 일 때만 보내고,
+//                        진행 중 위치를 잃었다 OK 로 돌아오면 같은 목표를 다시 보냄 (잃은 동안 Nav2 가 실패해도 기다렸다 다시)
 //   /drive/align         goal 수신 뒤 첫 새 result 의 ARM_ALIGN 비트로 모드를 정하고 끝까지 유지
 //                        정밀: arm_offset → 회전, /tfmini/range (1층 TFmini → 박스 앞면, BoxRangeFilter) → 전후 (20 Hz)
 //                        정밀 동안 obstacle_stop 정지 거리를 "목표 − align.box_stop_margin" 으로 낮추고 (파라미터 approach_stop_m)
@@ -27,6 +29,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "control/align_controller.hpp"
+#include "control/loc_gate.hpp"
 #include "control/turn_skill.hpp"
 #include "robot_interfaces/srv/set_perception_mode.hpp"
 #include "robot_interfaces/action/align_base.hpp"
@@ -104,6 +107,13 @@ public:
     spin_time_ = declare_parameter("navigate.spin_time_allowance", 15.0);
     map_frame_ = declare_parameter("frames.map", std::string("map"));
     base_frame_ = declare_parameter("frames.base", std::string("base_link"));
+    LocGateParams lg;
+    lg.enabled = declare_parameter("navigate.loc_gate.enabled", lg.enabled);
+    lg.wait_s = declare_parameter("navigate.loc_gate.wait_s", lg.wait_s);
+    lg.stale_s = declare_parameter("navigate.loc_gate.stale_s", lg.stale_s);
+    lg.start_states = declare_parameter("navigate.loc_gate.start_states", lg.start_states);
+    lg.run_states = declare_parameter("navigate.loc_gate.run_states", lg.run_states);
+    loc_gate_ = LocGate(lg);
     nav_action_name_ = declare_parameter("nav2_action", std::string("navigate_to_pose"));
     spin_action_name_ = declare_parameter("spin_action", std::string("spin"));
     skill_enabled_ = declare_parameter("skill.enabled", false);
@@ -151,6 +161,10 @@ public:
         [this](sensor_msgs::msg::LaserScan::ConstSharedPtr m) {scan_ = m;}, so);
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(names::ODOM_FILTERED, 10,
         [this](nav_msgs::msg::Odometry::ConstSharedPtr m) {odom_ = m;}, so);
+    if (lg.enabled) {
+      loc_sub_ = create_subscription<std_msgs::msg::String>(names::LOCALIZATION_STATUS, rclcpp::QoS(1).transient_local(),
+          [this](std_msgs::msg::String::ConstSharedPtr m) {loc_gate_.status(m->data, now().seconds());}, so);
+    }
     if (rear_camera_) {
       rear_sub_ = create_subscription<std_msgs::msg::Bool>(names::PERCEPTION_REAR_OBSTACLE, qos::latched_state(),
           [this](std_msgs::msg::Bool::ConstSharedPtr m) {rear_ = m->data; rear_rx_ = now();}, so);
@@ -279,8 +293,19 @@ private:
     preempt_all("새 /drive/navigate goal 로 대체");
     ref_yaw_.reset();   // turn_* 기준 방향은 다음 FINE 정렬 성공으로 다시 정함
     nav_gh_ = gh;
+    if (!loc_gate_.begin(now().seconds())) {   // 위치 추정 OK 를 기다렸다 tick 이 보냄 (#121)
+      RCLCPP_WARN(get_logger(), "navigate: 위치 추정 %s → OK 기다림 (최대 %.0f s)",
+        loc_gate_.describe(now().seconds()).c_str(), loc_gate_.params().wait_s);
+      return;
+    }
+    dispatch_nav();
+  }
+
+  // nav_gh_ 의 목표를 Nav2 로 보냄 (가까우면 spin)
+  void dispatch_nav()
+  {
     const uint64_t gen = ++nav_gen_;
-    const auto & goal = *gh->get_goal();
+    const auto & goal = *nav_gh_->get_goal();
     const std::string frame = goal.pose.header.frame_id.empty() ? map_frame_ : goal.pose.header.frame_id;
     auto cur = current_pose(frame);
     if (cur) {
@@ -324,7 +349,13 @@ private:
     opts.result_callback = [this, gen](const rclcpp_action::ClientGoalHandle<Nav>::WrappedResult & res) {
         if (gen != nav_gen_) {return;}
         nav2_handle_.reset();
-        finish_nav(res.code == rclcpp_action::ResultCode::SUCCEEDED, "navigate_to_pose");
+        const bool ok = res.code == rclcpp_action::ResultCode::SUCCEEDED;
+        if (!ok && loc_gate_.onNavFailed(now().seconds())) {   // 위치를 잃은 동안 끝남 → OK 되면 다시 (#121)
+          RCLCPP_WARN(get_logger(), "navigate_to_pose 실패 (위치 추정 %s) → OK 되면 같은 목표 다시",
+            loc_gate_.describe(now().seconds()).c_str());
+          return;
+        }
+        finish_nav(ok, "navigate_to_pose");
       };
     nav_client_->async_send_goal(goal, opts);
   }
@@ -332,6 +363,7 @@ private:
   void cancel_nav2()
   {
     ++nav_gen_;
+    loc_gate_.reset();
     if (nav2_handle_) {nav_client_->async_cancel_goal(nav2_handle_); nav2_handle_.reset();}
     if (spin_handle_) {spin_client_->async_cancel_goal(spin_handle_); spin_handle_.reset();}
   }
@@ -646,7 +678,29 @@ private:
       cancel_nav2();
       end(nav_gh_, false, std::make_shared<Nav::Result>(), true);
     }
+    if (nav_gh_) {tick_loc_gate();}
     if (align_gh_) {tick_align();}
+  }
+
+  void tick_loc_gate()
+  {
+    const double t = now().seconds();
+    switch (loc_gate_.tick(t, static_cast<bool>(nav2_handle_))) {
+      case LocGate::Action::SEND:
+        RCLCPP_INFO(get_logger(), "navigate: 위치 추정 OK → 목표 보냄");
+        dispatch_nav();
+        break;
+      case LocGate::Action::RESEND:
+        RCLCPP_WARN(get_logger(), "navigate: 위치를 다시 찾음 → 같은 목표 다시 보냄 (낡은 경로 버림)");
+        cancel_nav2();
+        dispatch_nav();
+        break;
+      case LocGate::Action::FAIL:
+        finish_nav(false, "위치 추정 OK 기다림 시간 초과 (" + loc_gate_.describe(t) + ")");
+        break;
+      case LocGate::Action::NONE:
+        break;
+    }
   }
 
   // 파라미터
@@ -656,6 +710,7 @@ private:
   int scan_bins_;
   std::string map_frame_, base_frame_, nav_action_name_, spin_action_name_;
   AlignController fine_;
+  LocGate loc_gate_;
   CoarseAlign coarse_;
   robot_policy::PolicyLibrary policies_;
 
@@ -700,6 +755,7 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Range>::SharedPtr box_sub_;
   rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr scan_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr loc_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr rear_sub_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr rear_reason_sub_;
   rclcpp_action::Client<Nav>::SharedPtr nav_client_;
