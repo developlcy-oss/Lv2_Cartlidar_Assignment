@@ -163,11 +163,21 @@ def lin(a, b, step):
 
 
 def main():
+    global GRASP_DZ, BOTTOM, PLACE_GAP  # --grasp_dz · --place_gap 으로 바꿈 (Arm.ik_down 도 이 전역을 씀)
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=OUT)
     ap.add_argument("--tilt_deg", type=float, default=TILT_DEG)
     ap.add_argument("--tilt_slots", default=TILT_SLOTS, help="집게를 기울여 놓을 칸 '열:칸,...' ('' = 모두 수직)")
+    ap.add_argument("--grasp_dz", type=float, default=GRASP_DZ,
+                    help="[m] 잡는 점 = 퍽 중심 + 이 높이 (기본 0.015). 퍽 윗부분 잡기 시험 (2026-11-05): 45° 집게의 손가락 패드 띠 (집게 x 0.121 ~ 0.158, "
+                         "폭 ±7 mm) 는 퍽 옆면과 잡는 점 높이 ±10 mm 에서 닿음 -> 0.020 이면 퍽 중심 +10 ~ +30 mm (윗면 가장자리) 까지. 학습 · ROS 와 같은 값이어야 함")
+    ap.add_argument("--place_gap", type=float, default=PLACE_GAP,
+                    help="[m] 놓을 때 퍽 바닥 = 칸 바닥 + 이 높이 (기본 0.001). 손 안 어긋남 측정 (2026-11-05): 퍽이 손 안에서 기대보다 위면 6 mm 도 24/24, "
+                         "아래면 3 mm 에서 반 실패 -> 놓는 높이를 올려 아래쪽 여유를 둠")
     a = ap.parse_args()
+    PLACE_GAP = a.place_gap
+    GRASP_DZ = a.grasp_dz
+    BOTTOM = TCP[0] + GRASP_DZ + PUCK_H / 2
     tilt_set = {tuple(int(v) for v in x.split(":")) for x in a.tilt_slots.split(",") if x}
     arm = Arm(URDF)
     S = yaml.safe_load(open(SLOTS, encoding="utf-8"))
@@ -179,7 +189,12 @@ def main():
 
     # 앞 운반 자세
     q_front, e, tl = arm.ik_down(at(PIVOT_R, 0.0, PIVOT_Z), 0.0, None, off=BOTTOM)
-    assert e < 1e-3 and tl < MAX_TILT, (e, tl)
+    n_slots = len(S["slots"])
+    if len(tilt_set) >= n_slots:  # 모든 칸 기울임: 수직 앞 운반 자세는 쓰지 않음 (칸마다 q_front). 잡는 점이 높으면 수직은 TCP 0.20 m 한계로 기욺
+        if not (e < 1e-3 and tl < MAX_TILT):
+            print(f"경고: 수직 앞 운반 자세 오차 {e * 1000:.2f} mm 기울기 {math.degrees(tl):.1f}° (모든 칸 기울임이라 쓰지 않음)")
+    else:
+        assert e < 1e-3 and tl < MAX_TILT, (e, tl)
     q_front_t, e, tl = arm.ik_down(at(PIVOT_R, 0.0, PIVOT_Z), 0.0, None, off=BOTTOM, tilt=math.radians(a.tilt_deg))
     assert e < 1e-3 and tl < MAX_TILT, ("기울인 앞 운반 자세", e, tl)
     q_front_v = q_front

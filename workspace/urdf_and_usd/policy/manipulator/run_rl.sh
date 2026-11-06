@@ -54,13 +54,19 @@ out_arg() {   # 인자에 --out 이 있으면 그 값, 없으면 $1 (기본 결�
   local def="$1"; shift; local prev=""
   for x in "$@"; do [ "$prev" = "--out" ] && def="$x"; prev="$x"; done; echo "$def"
 }
+eval_rec() {   # $1 = 기록 종류, $2 = 기본 결과 파일, 나머지 = 실행 명령. 결과 파일이 이번 실행에서 새로 써졌을 때만 기록 (Isaac 은 예외로 죽어도 종료 코드 0)
+  local kind="$1" def="$2"; shift 2
+  local stamp out; stamp=$(mktemp); "$@"; out=$(out_arg "$def" "$@")
+  if [ "$out" -nt "$stamp" ]; then rm -f "$stamp"; record "$kind" "$out"
+  else rm -f "$stamp"; echo "[run_rl] $out 이 이번 실행에서 안 써짐 (평가 실패?) -> 학습기록_자동.md 기록 안 함"; return 1; fi
+}
 
 pol() { [ -f "$HERE/policies/$1" ] && echo "--checkpoint $HERE/policies/$1" || echo "--checkpoint latest"; }
 case "${1:-}" in
   toppick) "${PY[@]}" "$HERE/train.py" --task Waffle-TopPick-Direct --num_envs "${2:-256}" --max_iterations "${3:-300}" --viz none "${@:4}"; record train waffle_toppick ;;
   toppick_play) env -u HEADLESS "${PY[@]}" "$HERE/play.py" --task Waffle-TopPick-Direct --num_envs "${2:-16}" --checkpoint latest --viz kit ;;
-  toppick_eval) "${PY[@]}" "$HERE/toppick_eval.py" --num_envs "${2:-256}" "${@:3}" && record toppick "$(out_arg "$HERE/toppick_eval.json" "${@:3}")" ;;
-  chain_eval) "${PY[@]}" "$HERE/chain_pallet_eval.py" --num_envs "${2:-192}" "${@:3}" && record chain "$(out_arg "$HERE/chain_pallet_eval.json" "${@:3}")" ;;
+  toppick_eval) eval_rec toppick "$HERE/toppick_eval.json" "${PY[@]}" "$HERE/toppick_eval.py" --num_envs "${2:-256}" "${@:3}" ;;
+  chain_eval) eval_rec chain "$HERE/chain_pallet_eval.json" "${PY[@]}" "$HERE/chain_pallet_eval.py" --num_envs "${2:-192}" "${@:3}" ;;
   chain_eval_play) env -u HEADLESS "${PY[@]}" "$HERE/chain_pallet_eval.py" --gui --num_envs "${2:-12}" --out "$HERE/chain_pallet_eval_play.json" "${@:3}" ;;
   register) "${PY[@]}" "$HERE/register_policy.py" "${@:2}" ;;
   record) record "${@:2}" ;;

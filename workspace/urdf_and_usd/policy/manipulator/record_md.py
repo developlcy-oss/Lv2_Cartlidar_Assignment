@@ -81,7 +81,8 @@ def train(arg):
     ev = yaml.unsafe_load(open(os.path.join(run, "params", "env.yaml"), encoding="utf-8"))
     task = json.load(open(os.path.join(run, "run.json"))).get("task", "-") if os.path.isfile(os.path.join(run, "run.json")) else "-"
     ms = sorted(int(m) for m in re.findall(r"model_(\d+)\.pt", " ".join(os.listdir(run))))
-    resume = f"{ag.get('load_run')}/{ag.get('load_checkpoint')}" if ag.get("resume") else "처음부터"
+    lc = str(ag.get("load_checkpoint") or "")
+    resume = (os.path.relpath(lc, HERE) if os.path.isabs(lc) else f"{ag.get('load_run')}/{lc}") if (ag.get("resume") or os.path.isabs(lc)) else "처음부터"
     m = dict(sr=None, by=None, lift=None, nb=None, rew=None, std=None, dur=None)
     warn = []
     try:

@@ -4,8 +4,10 @@ toppick_eval.py (집기만) 와 pallet_place_check.py (퍽을 손에 넣어 주�
 칸에 들어가는지 확인 (정책_학습기록 4.15 절 "남은 것: 집기 -> 앞 운반 자세 -> 놓기 이어서").
 
 대마다 (대 i -> 칸 i % 12, 칸 순서 = pallet_place_traj.json slots = 채우는 순서):
-  1. 집기 (정책): TopPick 환경 그대로 에피소드 1 번 (6 s, 학습과 같은 배치 · 인식 · 무작위화). 성공 = 환경 판정 (1 s 세워 들기 + 옆 퍽 그대로)
-     + 끝에 아직 쥐고 있음. 실패한 대는 여기서 끝 (집기 실패로 셈).
+  1. 집기 (정책): TopPick 환경 그대로 에피소드 1 번 (6 s, 학습과 같은 배치 · 인식 · 무작위화). 넘기는 대 = 물리 판정 (--gate physical, 기본):
+     6 s 끝에 쥐고 (손 안 15 mm 안) 들고 (lift_min 위) 세워 (upright_min) 있고 옆 퍽 그대로 + 중간 종료 없음 — 환경 성공 기준과 무관해
+     성공 기준이 다른 회차 (TP3 느슨 · TP4 손 안 4 mm) 를 같은 잣대로 비교. --gate env = 환경 성공 + 끝에 쥠 (2026-11-05 첫 판).
+     넘기지 못한 대는 여기서 끝 (집기 실패로 셈).
   2. 넘겨받기: 정책 끝 자세에서 칸의 앞 운반 자세 (q_front, 12칸 모두 45° 판) 까지 관절 직선 (--transit_speed), 쥔 채.
      처짐 보정 (목표 = 계획 + bias, bias += ki · dt · (계획 − 측정), ROS sag_comp 와 같은 식) 은 넘겨받는 순간부터 켬,
      q_front 에서 --settle 동안 머묾 (ROS manipulator_node 의 sag.settle_time 과 같음).
@@ -51,6 +53,7 @@ ap.add_argument("--tilt_speed", type=float, default=0.8)
 ap.add_argument("--row_speed", default="3:0.4")
 ap.add_argument("--empty_speed", type=float, default=0.8)
 ap.add_argument("--grip_close", type=float, default=None, help="넘겨받은 뒤 손가락 목표 (기본 = 정책과 같은 환경 gripper_closed −0.0075)")
+ap.add_argument("--gate", default="physical", choices=["physical", "env"], help="칸 궤적으로 넘길 대: physical = 끝에 쥐고 들고 세움, env = 환경 성공 + 끝에 쥠")
 ap.add_argument("--gui", action="store_true")
 ap.add_argument("--out", default=None, help="결과 JSON (기본 chain_pallet_eval.json)")
 AppLauncher.add_app_launcher_args(ap)
@@ -84,6 +87,7 @@ BODY = "{ENV_REGEX_NS}/Robot/" + BODY_LINK
 
 # ---- 환경 설정 (TopPick 그대로 + 접촉 센서 · 퍽 재질) ----
 cfg = WaffleTopPickEnvCfg()
+assert abs(cfg.grasp_dz - GRASP_DZ) < 1e-9, f"잡는 높이가 다름: 학습 grasp_dz {cfg.grasp_dz} vs 궤적 {GRASP_DZ} (pallet_traj.py --grasp_dz 와 toppick_env_cfg 를 같게)"
 cfg.scene.num_envs = a.num_envs
 cfg.seed = a.seed
 cfg.near_start_prob = 0.0
@@ -170,9 +174,10 @@ def main():
         done |= term | trunc
     ok |= u.succeeded & ~done
     off_h, tilt_h, face_h, e_h = in_hand()
-    holding = (~done) & (torch.linalg.norm(e_h, dim=1) < 0.015) & (u.lift() > cfg.lift_min)
-    picked = ok & holding
-    print(f"[Chain] 집기 {int(picked.sum())}/{n} (환경 성공 {int(ok.sum())}, 끝에 놓침 {int((ok & ~holding).sum())}) {time.time() - t0:.0f} s", flush=True)
+    holding = (~done) & (torch.linalg.norm(e_h, dim=1) < 0.015) & (u.lift() > cfg.lift_min) & (u.puck_up() > cfg.upright_min) & u.nb_ok()
+    picked = (ok & holding) if a.gate == "env" else holding
+    print(f"[Chain] 집기 {int(picked.sum())}/{n} (넘김 {a.gate} | 환경 성공 {int(ok.sum())}, 끝에 쥐고 듦 {int(holding.sum())}, "
+          f"성공했다 놓침 {int((ok & ~holding).sum())}) {time.time() - t0:.0f} s", flush=True)
 
     # ---- 2 ~ 3. 넘겨받기 + 칸 궤적 (계획을 대마다 만들어 (n, T, 5) 로) ----
     q_meas = u.robot.data.joint_pos.torch[:, u._arm].clone()
@@ -295,7 +300,7 @@ def main():
         return "<1mm" if e < 1 else "1-3mm" if e < 3 else ">=3mm"
     by_hand = {b: rate([x for x in pk if hand_bin(x) == b]) for b in ("<1mm", "1-3mm", ">=3mm")}
     stages = {k: sum(1 for x in res if x["stage"] == k) for k in ("pick_fail", "transit_drop", "carry_slip", "not_seated", "seated")}
-    summary = dict(policy=os.path.relpath(path, HERE), seed=a.seed, layout=a.layout, dr=a.dr, num_envs=n, puck_mu=a.puck_mu,
+    summary = dict(policy=os.path.relpath(path, HERE), gate=a.gate, pick_env_success=int(ok.sum()), seed=a.seed, layout=a.layout, dr=a.dr, num_envs=n, puck_mu=a.puck_mu,
                    ki=a.ki, transit_speed=a.transit_speed, settle_s=a.settle, speeds=dict(speed=a.speed, tilt=a.tilt_speed, row=a.row_speed, empty=a.empty_speed),
                    chain=rate(res), pick=rate(res, "picked"), place_given_pick=rate(pk), stages=stages,
                    by_shape={sh: rate([x for x in res if x["shape"] == sh]) for sh in ("cyl", "box")},

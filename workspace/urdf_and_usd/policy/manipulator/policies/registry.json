@@ -26,7 +26,7 @@
     64
    ],
    "activation": "elu",
-   "latest": true,
+   "latest": false,
    "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
    "evals": [
     {
@@ -67,6 +67,64 @@
    "note": "15000 회차 중 시드 1 최고 (후보 6000~14999), 표준편차 폭주 전",
    "git": "20f02cc",
    "registered": "2026-11-05 11:19"
+  },
+  {
+   "name": "toppick_TP5",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_TP5.pt",
+   "onnx": "policies/toppick_TP5.onnx",
+   "sha256": "748558b4ec0568cc",
+   "source": "logs/rsl_rl/waffle_toppick/2026-11-05_13-34-43/model_37000.pt",
+   "iteration": 37000,
+   "obs_dim": 36,
+   "action_dim": 4,
+   "hidden": [
+    256,
+    128,
+    64
+   ],
+   "activation": "elu",
+   "latest": true,
+   "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
+   "evals": [
+    {
+     "file": "toppick_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "all",
+     "num_envs": 256,
+     "success": {
+      "ok": 144,
+      "n": 256,
+      "pct": 56.2
+     }
+    },
+    {
+     "file": "chain_pallet_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "-friction",
+     "num_envs": 192,
+     "chain": {
+      "ok": 29,
+      "n": 192,
+      "pct": 15.1
+     },
+     "pick": {
+      "ok": 93,
+      "n": 192,
+      "pct": 48.4
+     },
+     "place_given_pick": {
+      "ok": 29,
+      "n": 93,
+      "pct": 31.2
+     }
+    }
+   ],
+   "note": "TP3 이어 50000 반복(2026-11-05_13-34-43) 중 37000. 이어평가 시드1 35/192(18.2%), 시드2 29~30/192(15.1~15.6%); TP3 시드1 17, 시드2 28. 물리 집기 49% (TP3 36~43%)",
+   "git": "a1dbebb",
+   "registered": "2026-11-06 09:51"
   }
  ]
 }
