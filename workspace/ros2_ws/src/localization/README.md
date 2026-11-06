@@ -55,6 +55,8 @@ ros2 launch localization localization.launch.py localization:=carto      # Carto
   실물에서는 실물 미로로 SLAM 을 다시 해 지도와 맞춤 값을 바꿔 넣는다(launch 인자 `carto_state` · `map` · `loc_map` · `align_*` · `start_*`).
 - `start_x/y/yaw` 는 **base_link** 의 출발 자세다. 기본값 (0.69365, 0.95, π) = 차체 외곽 가운데를 출발 구역 가운데 (0.734, 0.95) 에 놓을 때의 base_link
   (B안 외곽 x −0.2135 ~ +0.1328 → base_link 가 외곽 가운데보다 0.04035 m 앞, −X 를 봄). mission_planner HOME · 팀 Isaac 장면(make_maze_scene.py)과 같은 자리. 차체 외곽이 바뀌면 다시 계산한다.
+- `/map`(`map`) 과 loc_monitor 지도(`loc_map`) 는 같은 세계의 지도로 함께 바꾼다. 기본 `slam_walls*` 는 Isaac `maze.usda` 세계 전용이고, 발제 도면 SDF(Gazebo · `scenes/dice_mission.usda`)와는 동 · 북 벽이 7~10 cm(최대 0.14 m) 다르다.
+  `map:=` 만 바꾸면 AMCL 과 loc_monitor 가 다른 지도를 봐서 거짓 LOST 가 나고 FAILED 로 끝날 수 있다(Gazebo 모의: 잔차 중앙 0.021 → 0.077 m). SDF 세계는 `map:=` · `loc_map:=` 모두 `mission_planner/maps/map_amcl.yaml`, `objects_map:=` 는 `map_nav.yaml`.
 - `objects.yaml` 은 발제 배치(모의 seed 1)의 고정 물체다.
 - `loc_res_thr` 0.034 m 는 모의 정상 주행 잔차 최대(0.0337 m)에 맞춘 값이라 실물에서 SUSPECT 가 잦을 수 있다. 실물 정상 주행 기록으로 다시 정한다.
 
