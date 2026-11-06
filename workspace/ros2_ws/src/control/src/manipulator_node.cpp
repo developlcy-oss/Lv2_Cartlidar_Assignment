@@ -22,6 +22,11 @@
 //     target_look:<frame>:<x>:<y>:<z>  퍽 예상 중심을 팔 카메라로 내려다보는 타겟체크자세 (target_look_pose.hpp 로 계산) → 머문 뒤
 //                                    /perception/pucks 에서 예상 자리 (target_look.match_distance 안) 퍽을 재서 odom 에 붙잡음 (#82).
 //                                    팔 카메라 퍽 우선, target_look.arm_wait 뒤에는 D435 퍽도. 45° 집기 중에는 팔 카메라가 퍽을 못 봄
+//     box_look:<frame>:<x>:<y>:<z>     장소 3×3 칸 (중심 x, y · 상자 윗면 z) 을 팔 카메라로 위에서 내려다보는 자세로 이동 (#65,
+//                                    mission verify). target_look 과 같은 자세 계산 (target_look_pose.hpp), 시선 · 거리만 box_look.*.
+//                                    퍽은 재지 않는다 (칸 판정은 perception check_dice). 인지 모의: 윗면 약 0.20 m 위 · 거의 수직
+//     barcode_look:<frame>:<x>:<y>:<z> 벽의 바코드 라벨 중심을 팔 카메라로 거의 수평으로 보는 자세로 이동 (#65, mission observe).
+//                                    출발 자세에서 라벨까지 J1 0.60 m 라 카메라는 약 0.3 m 가 가장 가까움 (인지: 0.3 m 에서 읽음)
 //     toppick_tilt                   박스 위 퍽을 집게 45° 로 집기 (pick 과 같은 과정, 기울기만 toppick.pitch).
 //                                    목표 = 직전 target_look 이 잰 위치, 없으면 ② 추적 위치. ① 정밀 정렬 결과 · 미세 보정은
 //                                    toppick.use_alignment 일 때만 (45° 는 집게 축이 퍽을 보지 않아 기본 끔, #82)
@@ -209,13 +214,14 @@ private:
   enum class PickStep { PLAN, PREGRASP, CORRECT_WAIT, CORRECT_MOVE, OPEN, FINAL, CLOSE, CLOSE_WAIT, LIFT, TASK, TARGET_LOOK_WAIT };
   enum class GripperMode { ARM_JOINT, ACTION, NONE };
   // 미션 skill 종류 (execute_skill 이름)
-  enum class Task { NONE, TARGET_LOOK, TOPPICK, PALLET_LOAD, PALLET_UNLOAD, PLACE };
+  enum class Task { NONE, TARGET_LOOK, LOOK, TOPPICK, PALLET_LOAD, PALLET_UNLOAD, PLACE };
   struct TaskSkill
   {
     Task kind{Task::NONE};
     int row{0}, index{0};                 // pallet_*: 열 1~3 · 칸 0~3
     std::string place, cell;              // place_<L>_<dx>_<dy>: 장소 · "dx,dy" (-1 · 0 · 1)
-    std::string frame;                    // place_at · target_look: 좌표 frame
+    std::string frame;                    // place_at · target_look · box_look · barcode_look: 좌표 frame
+    std::string look;                     // LOOK: "box_look" · "barcode_look"
     double x{0.0}, y{0.0}, z{0.0};        // place_at: 칸 중심 · 윗면 높이 / target_look: 퍽 예상 중심
   };
   // pallet_place_traj.json 의 칸 하나: 구간 (이름 · 그리퍼 hold/open · 경유 관절각 5개)
@@ -326,6 +332,10 @@ private:
       {0.17, 0.16, 0.18, 0.15, 0.19, 0.20, 0.21, 0.22});
     target_look_.min_clearance = declare_parameter<double>("target_look.min_clearance", target_look_.min_clearance);
     target_look_settle_ = declare_parameter<double>("target_look.settle_time", 0.3);
+    // box_look · barcode_look (#65): 카메라 장착은 target_look 과 같고, 시선 (광축이 수평 아래로 이루는 각) · 거리 후보만 다름
+    look_params_["box_look"] = lookParams("box_look", {90.0, 85.0, 80.0, 75.0, 70.0}, {0.20, 0.22, 0.18, 0.24, 0.26}, 0.04);
+    look_params_["barcode_look"] = lookParams("barcode_look", {0.0, 5.0, -5.0, 10.0, -10.0, 15.0, -15.0},
+        {0.25, 0.28, 0.30, 0.32, 0.35, 0.40}, -1.0);
     target_look_arm_wait_ = declare_parameter<double>("target_look.arm_wait", 1.0);
     target_look_timeout_ = declare_parameter<double>("target_look.timeout", 3.0);
     target_look_match_ = declare_parameter<double>("target_look.match_distance", 0.04);
@@ -622,6 +632,12 @@ private:
     requireNonNegative("target_look.arm_wait", target_look_arm_wait_);
     requirePositive("target_look.timeout", target_look_timeout_);
     requirePositive("target_look.match_distance", target_look_match_);
+    for (const auto & [name, lp] : look_params_) {
+      if (lp.view_angles.empty() || lp.distances.empty()) {
+        throw std::invalid_argument(name + ".view_angles_deg and " + name + ".distances must not be empty");
+      }
+      for (double d : lp.distances) {requirePositive(name + ".distances", d);}
+    }
     requireNonNegative("pick.grasp_z_offset", grasp_z_offset_);
     requirePositive("pallet.speed", pallet_speed_);
     requirePositive("pallet.row3_hold_speed", pallet_row3_hold_speed_);
@@ -1888,7 +1904,7 @@ private:
 
   // ------------------------------------------------------------------ 미션 skill (execute_skill 이름)
   // "toppick_tilt" · "pallet_load_3_1_tilt" · "pallet_unload_2_0_tilt" · "place_L1_m1_p1_tilt" · "place_at:odom:x:y:z" ·
-  // "target_look:base_footprint:x:y:z"
+  // "target_look:base_footprint:x:y:z" · "box_look:map:x:y:z" · "barcode_look:map:x:y:z"
   static std::optional<TaskSkill> parseTaskSkill(const std::string & name)
   {
     TaskSkill t;
@@ -1903,11 +1919,14 @@ private:
         while (std::getline(in, tok, sep)) {out.push_back(tok);}
         return out;
       };
-    if (name.rfind("place_at:", 0) == 0 || name.rfind("target_look:", 0) == 0) {
-      const auto f = parts(name, ':');   // place_at | target_look : frame : x : y : z
+    if (name.rfind("place_at:", 0) == 0 || name.rfind("target_look:", 0) == 0 || name.rfind("box_look:", 0) == 0 ||
+      name.rfind("barcode_look:", 0) == 0)
+    {
+      const auto f = parts(name, ':');   // place_at | target_look | box_look | barcode_look : frame : x : y : z
       if (f.size() != 5 || f[1].empty()) {return std::nullopt;}
       try {
-        t.kind = f[0] == "target_look" ? Task::TARGET_LOOK : Task::PLACE;
+        t.kind = f[0] == "target_look" ? Task::TARGET_LOOK : f[0] == "place_at" ? Task::PLACE : Task::LOOK;
+        t.look = f[0];
         t.frame = f[1];
         t.x = std::stod(f[2]);
         t.y = std::stod(f[3]);
@@ -1945,6 +1964,9 @@ private:
     switch (t.kind) {
       case Task::TARGET_LOOK:
         startTargetLook(t);
+        return;
+      case Task::LOOK:
+        startLook(t);
         return;
       case Task::TOPPICK: {
           geometry_msgs::msg::PoseStamped target;   // 비면 ② 추적 위치 (use_alignment 면 ① 먼저)
@@ -2302,6 +2324,70 @@ private:
       });
   }
 
+  // ------------------------------------------------------------------ box_look · barcode_look (#65)
+  // <name>.view_angles_deg · distances · min_clearance (카메라 장착은 target_look.*)
+  TargetLookParams lookParams(
+    const std::string & name, const std::vector<double> & angles_deg, const std::vector<double> & distances,
+    double min_clearance)
+  {
+    TargetLookParams lp = target_look_;
+    lp.view_angles.clear();
+    for (double d : declare_parameter<std::vector<double>>(name + ".view_angles_deg", angles_deg)) {
+      lp.view_angles.push_back(d * M_PI / 180.0);
+    }
+    lp.distances = declare_parameter<std::vector<double>>(name + ".distances", distances);
+    lp.min_clearance = declare_parameter<double>(name + ".min_clearance", min_clearance);
+    return lp;
+  }
+
+  // 보는 점 (t.frame 의 x, y, z) 을 카메라 광축이 지나는 자세 중 관절 한계 안의 첫 후보로 이동하고 끝 (재는 것은 perception)
+  void startLook(const TaskSkill & t)
+  {
+    step_ = PickStep::TASK;
+    object_yaw_valid_ = false;   // solveArm 손목 roll = 기본값
+    geometry_msgs::msg::PointStamped src, arm;
+    src.header.frame_id = t.frame;
+    src.header.stamp = rclcpp::Time(0, 0, RCL_ROS_TIME);
+    src.point.x = t.x;
+    src.point.y = t.y;
+    src.point.z = t.z;
+    try {
+      arm = tf_buffer_->transform(src, base_frame_);
+    } catch (const tf2::TransformException & e) {
+      finishSkill(false, t.look + ": TF " + t.frame + " -> " + base_frame_ + ": " + e.what());
+      return;
+    }
+    const Eigen::Vector3d aim(arm.point.x, arm.point.y, arm.point.z);
+    const auto current = currentJoints();
+    if (!current) {
+      finishSkill(false, "no recent /joint_states for arm joints");
+      return;
+    }
+    std::optional<std::vector<double>> q;
+    TargetLookCandidate used{};
+    for (const auto & c : targetLookCandidates(aim, look_params_.at(t.look))) {
+      q = solveArm(c.tool, c.pitch, *current);
+      if (q) {
+        used = c;
+        break;
+      }
+    }
+    char buf[200];
+    if (!q) {
+      std::snprintf(buf, sizeof(buf), "%s: no pose within joint limits for point (%.3f, %.3f, %.3f) in %s, J1 distance %.3f m",
+        t.look.c_str(), aim.x(), aim.y(), aim.z(), base_frame_.c_str(), std::hypot(aim.x(), aim.y()));
+      finishSkill(false, buf);
+      return;
+    }
+    std::snprintf(buf, sizeof(buf), "%s: camera %.0f deg down at %.2f m from (%.3f, %.3f, %.3f) in %s", t.look.c_str(),
+      used.view_angle * 180.0 / M_PI, used.distance, aim.x(), aim.y(), aim.z(), base_frame_.c_str());
+    RCLCPP_INFO(get_logger(), "%s", buf);
+    const std::string done = buf;
+    sendArm(*q, trajDuration(*current, *q, min_duration_), [this, done](bool ok, const std::string & msg) {
+        finishSkill(ok, ok ? done : "look move: " + msg);
+      });
+  }
+
   // ------------------------------------------------------------------ target_look (#82)
   // 퍽 예상 중심 → 팔 카메라가 퍽 윗면을 내려다보는 자세 (target_look_pose.hpp) → TARGET_LOOK_WAIT (targetLookTick 이 /perception/pucks 로 잼)
   void startTargetLook(const TaskSkill & t)
@@ -2469,6 +2555,7 @@ private:
   bool toppick_use_alignment_{false};
   double toppick_latch_max_age_{30.0};
   TargetLookParams target_look_;
+  std::map<std::string, TargetLookParams> look_params_;   // box_look · barcode_look (#65)
   double target_look_settle_{0.3}, target_look_arm_wait_{1.0}, target_look_timeout_{3.0}, target_look_match_{0.04};
   std::string pallet_file_;
   double pallet_speed_{0.8}, pallet_row3_hold_speed_{0.4};
