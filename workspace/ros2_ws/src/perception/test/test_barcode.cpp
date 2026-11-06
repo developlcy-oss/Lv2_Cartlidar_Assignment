@@ -273,3 +273,108 @@ TEST(BarcodeReader, RotatedJpegKeepsChecksumAndDecision)
     EXPECT_EQ(result.text, "P2-01") << angle;
   }
 }
+
+namespace
+{
+constexpr double NOISE_SIGMA = 45.0;   // 막대 속 잡음. 30~60 이 '끄면 못 읽음 · 켜면 읽음'
+// 실물 라벨 흉내: 라벨 그림의 막대 부분 + 좁은 흰 여백(막대 폭의 4 %)을 무늬 있는 회색 바닥(카펫) 위에 원근 · 회전으로 붙임.
+//   막대는 진한 회색(약 90), 바닥은 100~200 잡음을 흐린 것 (2026-11-05 Arducam 실물 장과 비슷한 대비)
+cv::Mat real_like_scene(const cv::Mat & tex_gray, const std::vector<cv::Point2f> & where, uint64_t seed)
+{
+  cv::Mat bw;
+  cv::threshold(tex_gray, bw, 128, 255, cv::THRESH_BINARY_INV);
+  const cv::Rect bars = cv::boundingRect(bw);   // 막대(검은 칸) 범위. 아래 글자까지 들어가도 된다
+  cv::Mat lab = tex_gray(bars).clone();
+  const int m = std::max(2, bars.width / 25);
+  cv::copyMakeBorder(lab, lab, m, m, m, m, cv::BORDER_CONSTANT, cv::Scalar(255));
+  lab.setTo(cv::Scalar(90), lab < 128);
+  cv::Mat floor(720, 1280, CV_8U);
+  cv::RNG rng(seed);
+  rng.fill(floor, cv::RNG::UNIFORM, 100, 200);
+  cv::GaussianBlur(floor, floor, cv::Size(5, 5), 0);
+  const std::vector<cv::Point2f> src = {{0.f, 0.f}, {float(lab.cols), 0.f}, {float(lab.cols), float(lab.rows)}, {0.f, float(lab.rows)}};
+  const cv::Mat H = cv::getPerspectiveTransform(src, where);
+  cv::Mat warped, mask;
+  cv::warpPerspective(lab, warped, H, floor.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(0));
+  cv::warpPerspective(cv::Mat(lab.size(), CV_8U, cv::Scalar(255)), mask, H, floor.size(), cv::INTER_NEAREST);
+  warped.copyTo(floor, mask);
+  return floor;
+}
+}  // namespace
+
+TEST(BarcodeReader, LabelPathReadsNarrowMarginOnTexturedFloor)
+{
+  const cv::Mat t1 = cv::imread(TEX, cv::IMREAD_GRAYSCALE);
+  ASSERT_FALSE(t1.empty());
+  BarcodeLabelConfig lc;
+  lc.enabled = true;
+  BarcodeReader r;
+  r.set_label(lc);
+  // 비스듬한 원근 (긴 변 약 430 px, 약 6° 돌고 한쪽이 조금 좁음)
+  const cv::Mat scene = real_like_scene(t1, {{650.f, 330.f}, {1085.f, 372.f}, {1078.f, 495.f}, {655.f, 470.f}}, 7);
+  const auto res = r.read(scene);
+  EXPECT_TRUE(res.ok);
+  EXPECT_EQ(res.text, "P2-01");
+  EXPECT_TRUE(res.label);
+  EXPECT_GE(res.labels, 1);
+  // 거의 거꾸로(약 160°) 놓인 라벨도 (꼭짓점 순서만 바뀜)
+  const cv::Mat flipped = real_like_scene(t1, {{1080.f, 470.f}, {660.f, 380.f}, {680.f, 270.f}, {1095.f, 350.f}}, 8);
+  EXPECT_EQ(r.read(flipped).text, "P2-01");
+}
+
+TEST(BarcodeReader, LabelPathBarBlurReadsNoisyBars)
+{
+  const cv::Mat t1 = cv::imread(TEX, cv::IMREAD_GRAYSCALE);
+  ASSERT_FALSE(t1.empty());
+  // 막대 속 잡음 흉내: 라벨의 어두운 칸에만 가우시안 잡음 (흰 종이 · 바닥은 그대로). 평평한 원근
+  const cv::Mat scene = real_like_scene(t1, {{650.f, 330.f}, {1085.f, 372.f}, {1078.f, 495.f}, {655.f, 470.f}}, 7);
+  cv::Mat noise(scene.size(), CV_16S), noisy;
+  cv::RNG rng(11);
+  rng.fill(noise, cv::RNG::NORMAL, 0, NOISE_SIGMA);
+  cv::Mat wide;
+  scene.convertTo(wide, CV_16S);
+  cv::add(wide, noise, wide, scene < 95);
+  wide.convertTo(noisy, CV_8U);
+  BarcodeLabelConfig lc;
+  lc.enabled = true;
+  lc.bar_blur = 0.0;
+  BarcodeReader off;
+  off.set_label(lc);
+  EXPECT_FALSE(off.read(noisy).ok);
+  lc.bar_blur = 0.13;
+  BarcodeReader on;
+  on.set_label(lc);
+  const auto res = on.read(noisy);
+  EXPECT_TRUE(res.ok);
+  EXPECT_EQ(res.text, "P2-01");
+  EXPECT_TRUE(res.label);
+}
+
+TEST(BarcodeReader, LabelPathKeepsSafetyRules)
+{
+  const cv::Mat t1 = cv::imread(TEX, cv::IMREAD_GRAYSCALE), t2 = cv::imread(TEX2, cv::IMREAD_GRAYSCALE);
+  ASSERT_FALSE(t2.empty());
+  BarcodeLabelConfig lc;
+  lc.enabled = true;
+  BarcodeReader r;
+  r.set_label(lc);
+  // 다른 문자열 라벨 둘이 한 화면 → 못 읽음 (라벨 길에서도 문자열이 둘이면 거부)
+  cv::Mat a = real_like_scene(t1, {{100.f, 200.f}, {520.f, 200.f}, {520.f, 330.f}, {100.f, 330.f}}, 9);
+  const cv::Mat b = real_like_scene(t2, {{700.f, 400.f}, {1120.f, 400.f}, {1120.f, 530.f}, {700.f, 530.f}}, 10);
+  cv::Mat both = a.clone();
+  b(cv::Rect(640, 0, 640, 720)).copyTo(both(cv::Rect(640, 0, 640, 720)));
+  const auto two = r.read(both);
+  EXPECT_FALSE(two.ok);
+  EXPECT_GE(two.symbols.size(), 2u);
+  // 라벨 없는 바닥 · 흰 종이만 → 못 읽음, 기호 없음
+  cv::Mat floor(720, 1280, CV_8U);
+  cv::RNG rng(11);
+  rng.fill(floor, cv::RNG::UNIFORM, 100, 200);
+  cv::rectangle(floor, cv::Rect(500, 300, 300, 80), cv::Scalar(245), cv::FILLED);
+  const auto none = r.read(floor);
+  EXPECT_FALSE(none.ok);
+  EXPECT_TRUE(none.symbols.empty());
+  // 꺼 두면(기본) 예전 그대로: 라벨 길을 쓰지 않음
+  BarcodeReader off;
+  EXPECT_FALSE(off.read(a).label);
+}
