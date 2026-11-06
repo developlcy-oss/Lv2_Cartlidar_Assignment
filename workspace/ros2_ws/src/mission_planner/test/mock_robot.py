@@ -7,13 +7,18 @@
   - /perception/place_box/measure (#73): 마지막 navigate 목표에서 가까운 장소 L 의 지도 칸 중심을 --box_shift 만큼 밀고 --box_rot 만큼 돌린
     상자를 odom 기준 /perception/place_box · /status 로 냄 (map -> odom 정적 TF = --odom_offset). --box_fail 이면 ok false
 끝에 기록을 --out JSON 으로 씀 (/mission/status 가 DONE · FAILED 가 되면).
+--real_nav: 주행은 진짜 (drive_node /drive/navigate → Nav2, Gazebo 등). /drive/navigate 서버 · map -> odom 정적 TF 를 내지 않고,
+  이동 기록은 map -> base_link TF 로 (navigate 목표 대신 도착 자세), 장소 상자 측정도 그 TF · map -> odom TF 로.
+  drive_node 의 /drive/align · /drive/execute_skill 은 다른 이름으로 remap 해 두고 이 mock 이 받는다 (정렬 · 회전은 가짜).
 """
 import argparse
+import sys
 import json
 import threading
 import time
 
 import rclpy
+import rclpy.time
 from nav2_msgs.action import NavigateToPose
 from rclpy.action import ActionServer
 from rclpy.callback_groups import ReentrantCallbackGroup
@@ -26,7 +31,7 @@ from robot_interfaces.srv import CheckDice, SetPerceptionMode
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from std_msgs.msg import Bool, String
 from std_srvs.srv import Trigger
-from tf2_ros import StaticTransformBroadcaster
+from tf2_ros import Buffer, StaticTransformBroadcaster, TransformListener
 import math
 import os
 import yaml
@@ -52,7 +57,8 @@ class Mock(Node):
                 return r
             ActionServer(self, typ, name, cb, callback_group=cg)
 
-        server("navigate", NavigateToPose, "/drive/navigate", lambda g: NavigateToPose.Result())
+        if not a.real_nav:
+            server("navigate", NavigateToPose, "/drive/navigate", lambda g: NavigateToPose.Result())
         server("align", AlignBase, "/drive/align", lambda g: AlignBase.Result(success=True))
         server("drive_skill", ExecuteSkill, "/drive/execute_skill",
                lambda g: None if (a.reject and g.policy.startswith(a.reject)) else ExecuteSkill.Result(success=True))
@@ -71,14 +77,11 @@ class Mock(Node):
         table = yaml.safe_load(open(ap_file, encoding="utf-8"))
         self.places = {L: (table[L]["cells"]["0,0"]["x"], table[L]["cells"]["0,0"]["y"], table[L]["stage"]) for L in ("L1", "L2", "L3")}
         self.odom_off = [float(v) for v in a.odom_offset.split(",")]   # map -> odom (x, y, yaw deg)
+        self.tf_buf = Buffer()
+        self.tf_listener = TransformListener(self.tf_buf, self)
         self.tf_pub = StaticTransformBroadcaster(self)
-        t = TransformStamped()
-        t.header.stamp = self.get_clock().now().to_msg()
-        t.header.frame_id, t.child_frame_id = "map", "odom"
-        t.transform.translation.x, t.transform.translation.y = self.odom_off[0], self.odom_off[1]
-        yo = math.radians(self.odom_off[2])
-        t.transform.rotation.z, t.transform.rotation.w = math.sin(yo / 2), math.cos(yo / 2)
-        self.tf_pub.sendTransform(t)
+        if not a.real_nav:
+            self.send_odom_tf()
         q = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
         self.sig_pub = self.create_publisher(SignalSequence, "/perception/signal", q)
         self.bar_pub = self.create_publisher(Barcode, "/perception/barcode", q)
@@ -89,6 +92,26 @@ class Mock(Node):
         self.t_mode = {}
         self.final = None
         self.steps_seen = []
+        self.last_step = None
+
+    def send_odom_tf(self):
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id, t.child_frame_id = "map", "odom"
+        t.transform.translation.x, t.transform.translation.y = self.odom_off[0], self.odom_off[1]
+        yo = math.radians(self.odom_off[2])
+        t.transform.rotation.z, t.transform.rotation.w = math.sin(yo / 2), math.cos(yo / 2)
+        self.tf_pub.sendTransform(t)
+
+    def lookup(self, parent, child):
+        """TF parent -> child (x, y, yaw). 없으면 None."""
+        try:
+            t = self.tf_buf.lookup_transform(parent, child, rclpy.time.Time())
+        except Exception:  # noqa: BLE001
+            return None
+        r = t.transform.rotation
+        return (t.transform.translation.x, t.transform.translation.y,
+                math.atan2(2 * (r.w * r.z + r.x * r.y), 1 - 2 * (r.y * r.y + r.z * r.z)))
 
     def describe(self, kind, g):
         if kind == "navigate":
@@ -123,6 +146,15 @@ class Mock(Node):
 
     def on_place_box(self, req, res):
         nav = self.log["navigate"][-1] if self.log["navigate"] else [0.0, 0.0, 0.0]
+        if self.a.real_nav:   # 지금 로봇 자리 (map) 에서 가까운 장소, 상자는 진짜 map -> odom 으로
+            here = self.lookup("map", "base_link")
+            mo = self.lookup("map", "odom")
+            if here is None or mo is None:
+                self.pb_status_pub.publish(String(data='{"ok": false, "why": "mock: TF 없음"}'))
+                res.success, res.message = True, "mock measure (no TF)"
+                return res
+            nav = list(here)
+            self.odom_off = [mo[0], mo[1], math.degrees(mo[2])]
         L = min(self.places, key=lambda k: math.hypot(self.places[k][2][0] - nav[0], self.places[k][2][1] - nav[1]))
         if self.a.box_fail:
             self.log["place_box"].append(dict(place=L, ok=False))
@@ -159,6 +191,13 @@ class Mock(Node):
     def on_status(self, m):
         if m.step_name and (not self.steps_seen or self.steps_seen[-1] != (m.step_index, m.step_name)):
             self.steps_seen.append((m.step_index, m.step_name))
+            if self.a.real_nav:   # 단계가 바뀔 때 로봇 자리 (진짜 주행 도착 확인용)
+                prev = self.last_step
+                self.last_step = m.step_name
+                if prev and prev.startswith("goto"):
+                    here = self.lookup("map", "base_link")
+                    self.log["navigate"].append(dict(step=prev, at=[round(v, 4) for v in here] if here else None,
+                                                     t=round(time.time(), 1)))
         if m.state in (MissionStatus.DONE, MissionStatus.FAILED) and self.final is None:
             self.final = dict(state="DONE" if m.state == MissionStatus.DONE else "FAILED", reason=m.reason, step=m.step_name)
 
@@ -176,9 +215,10 @@ def main():
     ap.add_argument("--box_shift", default="0.02,-0.01", help="장소 상자를 지도 칸에서 민 거리 dx,dy [m]")
     ap.add_argument("--box_rot", type=float, default=5.0, help="장소 상자 요 [deg]")
     ap.add_argument("--box_fail", action="store_true", help="place_box 측정 실패 (ok false)")
-    ap.add_argument("--odom_offset", default="0.3,-0.2,10", help="map -> odom 정적 TF x,y,yaw[deg]")
-    a = ap.parse_args()
-    rclpy.init()
+    ap.add_argument("--odom_offset", default="0.3,-0.2,10", help="map -> odom 정적 TF x,y,yaw[deg] (--real_nav 면 안 냄)")
+    ap.add_argument("--real_nav", action="store_true", help="주행은 진짜 drive_node · Nav2 (/drive/navigate 서버 · 정적 TF 안 냄)")
+    a, ros_args = ap.parse_known_args()
+    rclpy.init(args=[sys.argv[0]] + ros_args)
     n = Mock(a)
     ex = MultiThreadedExecutor(num_threads=8)
     ex.add_node(n)

@@ -19,6 +19,7 @@ inline constexpr const char * TFMINI_RANGE = "/tfmini/range";      // tfmini_nod
 inline constexpr const char * OBSTACLE_STOP = "/perception/obstacle_stop";
 inline constexpr const char * PERCEPTION_REAR_OBSTACLE = "/perception/rear_obstacle";                // rear_obstacle: 뒤 D435 깊이, true = 뒤 통로 막힘 (#84)
 inline constexpr const char * PERCEPTION_REAR_OBSTACLE_REASON = "/perception/rear_obstacle/reason";
+inline constexpr const char * LOCALIZATION_STATUS = "/localization/status";   // loc_monitor: OK · SUSPECT · LOST · RECOVERING · CONFIRM · FAILED (#121)
 inline constexpr const char * SCAN = "/scan";
 inline constexpr const char * ODOM_FILTERED = "/odometry/filtered";
 inline constexpr const char * CMD_VEL_DRIVE = "/cmd_vel_drive";

@@ -42,7 +42,7 @@ controller_server:
     general_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
       stateful: true
-      xy_goal_tolerance: 0.05            # ★ Gazebo 2026-11-04: 0.025 면 마지막 옆 2 ~ 3 cm 를 못 메워 실패 (최근접 2.9 cm). 정밀 위치는 drive align. drive.yaml 은 0.025 (Controller 알림)
+      xy_goal_tolerance: 0.05            # ★ Gazebo 2026-11-04: 0.025 면 마지막 옆 2 ~ 3 cm 를 못 메워 실패 (최근접 2.9 cm). 정밀 위치는 drive align. drive.yaml navigate.xy_goal_tolerance 도 0.05 (#114)
       yaw_goal_tolerance: 0.1            # ★ 약 6°. 정밀 방향은 도착 뒤 drive align · spin
     PathHandler:
       plugin: "nav2_controller::FeasiblePathHandler"

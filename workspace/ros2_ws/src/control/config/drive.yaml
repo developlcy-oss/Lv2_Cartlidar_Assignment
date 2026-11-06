@@ -4,8 +4,17 @@ drive_node:
     spin_action: spin
     stale_s: 0.3                   # result · /tfmini/range · /scan · odom 300 ms 규칙
     navigate:
-      xy_goal_tolerance: 0.025     # 이 안의 목표는 nav2 spin 으로. nav2 goal checker xy_goal_tolerance 와 같게 (인지 Nav2 설정 0.025, 이슈 #31)
+      xy_goal_tolerance: 0.05      # 이 안의 목표는 nav2 spin 으로. navigation/config/nav2_params.yaml goal checker xy_goal_tolerance 와 같게
+                                   # (Gazebo 2026-11-04: 0.025 면 마지막 옆 2 ~ 3 cm 를 못 메워 실패, #114). 정밀 위치는 align COARSE · FINE
       spin_time_allowance: 15.0
+      # 위치 추정 상태로 목표 막기 (#121, include/control/loc_gate.hpp). loc_monitor (/localization/status) 가 없는 실행은 false
+      #   (bringup 은 use_loc_gate 인자로 덮어씀, 기본 = use_loc_lock)
+      loc_gate:
+        enabled: true
+        wait_s: 60.0               # 보내기 전 · 잃은 동안 Nav2 실패 뒤 OK 를 기다리는 최대 시간 (인지 모의 도구와 같음)
+        stale_s: 1.0               # 상태를 이만큼 못 받으면 나쁜 상태 (loc_monitor 10 Hz)
+        start_states: ["OK"]       # 이 상태에서만 목표를 보냄 · 다시 보냄
+        run_states: ["OK", "SUSPECT"]   # 진행 중 이 밖으로 나가면 "잃음" (twist_mux 잠금과 같은 기준, loc_monitor OK_STATES)
     base:
       front_offset: 0.1328         # base_link → 차체 앞 끝 x ★ B안 상판 앞 끝 (make_maze_scene BODY_X, TFmini 렌즈 x 0.130, 계획기 poses.FRONT). 실측값이 있으면 그 값 (#31)
     align:
