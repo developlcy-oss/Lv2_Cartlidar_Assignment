@@ -10,6 +10,11 @@
 //   pick 실패 · 빈손은 직전 search부터, skill 실패는 fallback 단계로 대체 (한 번)
 //   skill manipulator toppick_tilt 실패는 바로 앞 target_look 부터 (퍽 위치를 다시 재야 같은 퍽을 집음, #69)
 // - /e_stop=true 또는 opencr 진단 ERROR: goal 전부 cancel → PAUSED. 자동 재개 없음, /mission/start로 재개
+// - 위치 추정 (localization loc_monitor /localization/status, #93 #111): OK · SUSPECT 가 아니면 (위치 잃음) twist_mux 가 Nav2 만
+//   막으므로, Nav2 를 쓰는 단계 (goto · navigate · read_tag/search 제자리 회전) 는 goal 을 둔 채 기다리고 그 시간을 단계
+//   timeout 에 세지 않는다 (다시 찾으면 Nav2 가 이어서 감). localization.max_lost_s 를 넘기거나 FAILED 면 PAUSED
+//   (위치를 바로잡고 /mission/start 로 그 단계부터). 다른 단계 (정렬 · 팔) 는 잠금에 안 걸려 그대로 진행.
+//   status 를 한 번도 못 받았으면 (localization 을 안 띄운 실행) 이 처리는 하지 않는다
 // - 결과를 콜백 안에서 기다리지 않는다. 각 결과는 result 콜백에서 처리한다
 //
 // 단계 문법 (mission_table.yaml의 missions.tag_<id> 문자열 배열)
@@ -107,6 +112,7 @@
 #include "robot_interfaces/srv/set_perception_mode.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "tf2/utils.hpp"
 #include "yaml-cpp/yaml.h"
@@ -163,6 +169,15 @@ public:
       "/diagnostics", rclcpp::QoS(10),
       [this](diagnostic_msgs::msg::DiagnosticArray::ConstSharedPtr msg) {onDiagnostics(msg);},
       sub_opt);
+    // 계약: Reliable + TransientLocal (loc_monitor 가 바뀔 때 · 10 Hz). 늦게 떠도 마지막 상태를 받는다
+    if (!loc_status_topic_.empty()) {
+      loc_sub_ = create_subscription<std_msgs::msg::String>(
+        loc_status_topic_, rclcpp::QoS(1).reliable().transient_local(),
+        [this](std_msgs::msg::String::ConstSharedPtr msg) {
+          std::lock_guard<std::mutex> lock(sensor_mutex_);
+          loc_status_ = msg->data;
+        }, sub_opt);
+    }
     if (plan_mode_) {
       // plan 모드: 신호 · 바코드 (계약: Reliable, depth 1)
       signal_sub_ = create_subscription<SignalSequence>(
@@ -350,6 +365,10 @@ private:
     diag_prefix_ = declare_parameter<std::string>("diagnostics.name_prefix", "opencr/");
     diag_timeout_ = declare_parameter<double>("diagnostics.timeout", 3.0);
 
+    // 위치 추정 상태 (#111). 빈 문자열 = 보지 않음. max_lost_s = Nav2 단계에서 위치를 잃은 채 기다리는 시간 상한
+    loc_status_topic_ = declare_parameter<std::string>("localization.status_topic", "/localization/status");
+    loc_max_lost_ = declare_parameter<double>("localization.max_lost_s", 90.0);
+
     // plan 모드 (주사위 기억 로봇): tag 대신 observe → plan (mission_planner_node) 으로 단계를 받는다
     const auto source = declare_parameter<std::string>("mission_source", "tag");
     if (source != "tag" && source != "plan") {throw std::invalid_argument("mission_source must be tag or plan");}
@@ -492,6 +511,7 @@ private:
     if (!(skill_default_timeout_ > 0.0) || skill_timeout_margin_ < 0.0) {
       throw std::invalid_argument("skill.default_timeout must be > 0, skill.timeout_margin >= 0");
     }
+    if (!(loc_max_lost_ > 0.0)) {throw std::invalid_argument("localization.max_lost_s must be > 0");}
     if (!std::isfinite(diag_timeout_) || diag_timeout_ < 0.0) {
       throw std::invalid_argument("diagnostics.timeout must be >= 0 (0 = off)");
     }
@@ -771,6 +791,9 @@ private:
   // ------------------------------------------------------------------ tick (10Hz)
   void onTick()
   {
+    const rclcpp::Time t_now = now();
+    const double dt = last_tick_.nanoseconds() == 0 ? 0.0 : (t_now - last_tick_).seconds();
+    last_tick_ = t_now;
     // 안전: E-stop · 진단 오류면 즉시 PAUSED (자동 재개 없음)
     if (run_ == Run::RUNNING) {
       const std::string why = safetyReason();
@@ -791,6 +814,7 @@ private:
           RCLCPP_INFO(get_logger(), "mission resume at step %zu (%s)", step_idx_, currentStepName().c_str());
           run_ = Run::RUNNING;
           reason_.clear();
+          loc_waiting_ = false;   // 재개하면 위치 잃음 대기 시간을 처음부터 센다
           retry_count_.clear();
           enterStep(step_idx_);
         } else {
@@ -807,6 +831,8 @@ private:
       return;
     }
     if (retry_pending_) {return;}
+
+    if (waitForLocalization(dt)) {return;}
 
     const double limit = stepTimeout();
     if ((now() - step_start_).seconds() > limit) {
@@ -832,6 +858,53 @@ private:
     } else if (s.type == "wait") {
       if (now() >= wait_until_) {stepSucceeded();}
     }
+  }
+
+  // 위치를 잃은 동안 Nav2 단계면 true (그 tick 은 아무것도 안 함): 단계 시간을 dt 만큼 미루고, 너무 길거나 FAILED 면 PAUSED.
+  //   상태가 바뀔 때마다 로그 · status reason 에 남긴다
+  bool waitForLocalization(double dt)
+  {
+    std::string loc;
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      loc = loc_status_;
+    }
+    if (loc != loc_logged_) {
+      if (!loc.empty() && run_ == Run::RUNNING) {
+        RCLCPP_INFO(get_logger(), "localization %s -> %s", loc_logged_.empty() ? "-" : loc_logged_.c_str(), loc.c_str());
+        logEvent("localization", "\"status\": \"" + escape(loc) + "\", \"step_name\": \"" + escape(currentStepName()) + "\"");
+      }
+      loc_logged_ = loc;
+    }
+    const bool lost = !loc.empty() && loc != "OK" && loc != "SUSPECT";
+    const auto & s = steps_[step_idx_];
+    const bool nav_step = s.type == "goto" || s.type == "navigate" ||
+      ((s.type == "read_tag" || s.type == "search") && rotating_);
+    if (!lost || !nav_step) {
+      if (loc_waiting_) {
+        loc_waiting_ = false;
+        reason_.clear();
+        RCLCPP_INFO(get_logger(), "localization %s -> continue [%zu] %s", loc.c_str(), step_idx_, s.text.c_str());
+        publishStatus();
+      }
+      return false;
+    }
+    if (!loc_waiting_) {
+      loc_waiting_ = true;
+      loc_lost_since_ = now();
+      reason_ = "waiting: localization " + loc + " (Nav2 locked)";
+      RCLCPP_WARN(get_logger(), "[%zu] %s: %s", step_idx_, s.text.c_str(), reason_.c_str());
+      publishStatus();
+    }
+    const double lost_s = (now() - loc_lost_since_).seconds();
+    if (loc == "FAILED" || lost_s > loc_max_lost_) {
+      loc_waiting_ = false;
+      pause("localization " + loc + " for " + std::to_string(static_cast<int>(lost_s)) +
+        " s — fix the pose, then /mission/start");
+      return true;
+    }
+    step_start_ = step_start_ + rclcpp::Duration::from_seconds(dt);   // 기다린 시간은 단계 timeout 에 세지 않음
+    return true;
   }
 
   double stepTimeout() const
@@ -2062,6 +2135,7 @@ private:
   rclcpp::Subscription<PerceptionResult>::SharedPtr result_sub_;
   rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr estop_sub_;
   rclcpp::Subscription<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr loc_sub_;
   rclcpp::Subscription<SignalSequence>::SharedPtr signal_sub_;
   rclcpp::Subscription<Barcode>::SharedPtr barcode_sub_;
   rclcpp::Subscription<TaskMarker>::SharedPtr marker_sub_;
@@ -2097,6 +2171,7 @@ private:
   TaskMarker::ConstSharedPtr last_marker_;
   rclcpp::Time marker_rx_{0, 0, RCL_ROS_TIME};
   std::atomic<bool> estop_active_{false};
+  std::string loc_status_;                  // /localization/status 마지막 값 (빈 문자열 = 못 받음)
 
   // 상태 (mission_cb_group_ 전용)
   std::atomic<bool> start_requested_{false};
@@ -2118,6 +2193,11 @@ private:
   bool retry_pending_{false};
   size_t retry_idx_{0};
   rclcpp::Time retry_at_{0, 0, RCL_ROS_TIME};
+  // 위치 잃음 대기 (#111)
+  std::string loc_status_topic_, loc_logged_;
+  double loc_max_lost_{90.0};
+  bool loc_waiting_{false};
+  rclcpp::Time loc_lost_since_{0, 0, RCL_ROS_TIME}, last_tick_{0, 0, RCL_ROS_TIME};
   rclcpp::Time wait_until_{0, 0, RCL_ROS_TIME};
   bool dice_pending_{false};
 };
