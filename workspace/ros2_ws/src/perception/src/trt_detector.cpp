@@ -17,6 +17,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include "perception/detector.hpp"
+#include "perception/engine_hash.hpp"
 #include "perception/yolo_postprocess.hpp"
 
 namespace perception
@@ -52,6 +53,16 @@ public:
     std::ifstream f(c.engine_path, std::ios::binary);
     if (!f) {info = "엔진 파일을 열 수 없음: " + c.engine_path; return false;}
     std::vector<char> blob((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    // 엔진 옆 <엔진>.sha256(sha256sum 출력)이 있으면 대조한다. 변조된 엔진은 TensorRT 가 읽어 들여도 검출을 못 한다
+    std::string hash_note = "해시 파일 없음(검사 안 함)";
+    if (std::ifstream hf(c.engine_path + ".sha256"); hf) {
+      const std::string text((std::istreambuf_iterator<char>(hf)), std::istreambuf_iterator<char>());
+      const std::string want = parse_sha256_file(text);
+      if (want.empty()) {info = "엔진 해시 파일 형식이 틀림: " + c.engine_path + ".sha256"; return false;}
+      const std::string got = sha256_hex(blob.data(), blob.size());
+      if (got != want) {info = "엔진 해시 불일치: 파일 " + got.substr(0, 16) + " · 기대 " + want.substr(0, 16); return false;}
+      hash_note = "해시 일치 " + got.substr(0, 16);
+    }
     runtime_.reset(nvinfer1::createInferRuntime(logger_));
     if (!runtime_) {info = "createInferRuntime 실패"; return false;}
     engine_.reset(runtime_->deserializeCudaEngine(blob.data(), blob.size()));
@@ -95,7 +106,7 @@ public:
     ctx_->setTensorAddress(in_name_.c_str(), d_in_);
     ctx_->setTensorAddress(out_name_.c_str(), d_out_);
     info = "TensorRT " + c.engine_path + " (입력 " + std::to_string(in_w_) + "×" + std::to_string(in_h_) +
-      ", 클래스 " + std::to_string(out_c_ - 4) + ")";
+      ", 클래스 " + std::to_string(out_c_ - 4) + ")" + " · " + hash_note;
     return true;
   }
 
