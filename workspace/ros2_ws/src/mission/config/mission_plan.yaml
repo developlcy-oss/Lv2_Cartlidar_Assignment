@@ -14,10 +14,16 @@ mission_node:
       check_marker: 10.0         # 놓기 전 장소 태그 확인
       measure_box: 15.0          # 장소 상자 재기 (팔 자세 + 재기 약 1.5 s)
     observe:
-      arm_pose: TAG_VIEW         # ★ 바코드 (80, 650, 450 mm) 를 팔 카메라로 읽을 자세 — manipulator 와 맞출 것
+      # 바코드 읽기 (#65): manipulator barcode_look skill 이 observe.barcode_point 를 팔 카메라로 거의 수평으로 봄.
+      #   출발 자세에서 라벨까지 J1 0.60 m 라 카메라 약 0.3 m 가 가장 가까움 (인지: 0.3 m 에서 읽음). 이름 자세를 쓰려면 그 이름으로
+      arm_pose: barcode_look
+      barcode_point: [0.08, 0.65, 0.45]   # 바코드 라벨 중심 (map = 발제 좌표, (80, 650, 450) mm, +X 를 봄)
       max_cycles: 4              # 신호 묶음이 반복됨 (12 회 → 3 s 꺼짐 → 다시). 이만큼 보고도 같은 순서 2 번이 안 나오면 안전 정지
     verify:
-      arm_pose: TAG_VIEW         # ★ 팔 카메라로 장소 3 x 3 칸을 위에서 보는 자세 (CheckDice: READ_TAG 켜고 위에서 볼 때 부름)
+      # 장소 3 x 3 칸 보기 (#65): manipulator box_look skill 이 verify 줄의 칸 중심 · 윗면을 위에서 내려다봄 (바로 아래 · 0.20 m 우선).
+      #   대기 자리 (면 0.45 m) 에서는 팔이 닿지 않아, 정렬 없이 오는 verify 앞에는 approach approach_distance 를 끼움
+      arm_pose: box_look
+      approach_distance: 0.13    # FINE (TFmini 렌즈 → 면, >= 0.13). 0 = 끼우지 않음
       mode: READ_TAG+SEARCH_FRONT
       settle_s: 2.0              # 모드를 켠 뒤 퍽 목록이 모일 때까지
       tolerance: 0.0             # 0 = perception 설정값 (발제 기준 10 mm)

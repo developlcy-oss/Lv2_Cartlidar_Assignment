@@ -25,6 +25,8 @@
 //
 // plan 모드 (mission_source: plan, 주사위 기억 로봇 발제 v5) — 시작 단계가 tag 대신 observe → plan
 //   observe                       팔 observe.arm_pose → READ_SIGNAL | READ_BARCODE → /perception/signal CONFIRMED +
+//                                 (arm_pose = barcode_look 이면 /manipulator/execute_skill barcode_look:<map>:observe.barcode_point,
+//                                  팔 카메라가 바코드 라벨을 약 0.3 m 에서 봄 #65. 신호등은 앞 D435)
 //                                 /perception/barcode READ(read_ok) 둘 다 받으면 성공. MISMATCH 면 안전 정지 (다시 보여주기 없음)
 //   plan                          /mission_planner/plan (std_srvs/Trigger) → message 의 단계 문장 (줄바꿈) 을 뒤에 붙임.
 //                                 실패 (풀 수 없음 · 미등록 바코드 등) 면 재시도 없이 FAILED (발제: 오류 기록 후 안전 정지)
@@ -32,6 +34,9 @@
 //   pick_target <x> <y> <z>       pick 과 같고 /manipulator/pick target = 지도 좌표 퍽 중심
 //   verify <L> <cx> <cy> <z> <expect9> <yellow_shape>
 //                                 팔 verify.arm_pose → verify.mode → verify.settle_s 기다림 → /perception/check_dice.
+//                                 (arm_pose = box_look 이면 execute_skill box_look:<map>:cx:cy:z — 장소 칸 중심을 위에서 내려다봄 #65)
+//                                 계획기 단계에서 마지막 goto 뒤 approach 없이 verify 가 오면 그 앞에 approach verify.approach_distance 를
+//                                 끼운다 (대기 자리 면 0.45 m 에서는 장소 중심이 J1 0.59 m 라 팔 카메라가 위에서 볼 수 없음)
 //                                 칸 = (cx, cy) ± 0.06 격자 (행 우선, 위 줄 +Y 부터, 줄 안은 -X 부터), expect9 = 칸마다 0 빈칸 · 1 R · 2 G · 3 Y.
 //                                 결과는 로그 (log_dir/mission_log.jsonl) 에 남기고, 틀려도 verify.stop_on_fail=false 면 계속 (복귀 점수)
 //   wait <s>                      제자리 대기 (복귀 후 정지 등)
@@ -354,6 +359,10 @@ private:
     timeout_["verify"] = declare_parameter<double>("timeout.verify", 40.0);
     observe_arm_pose_ = declare_parameter<std::string>("observe.arm_pose", "TAG_VIEW");
     verify_arm_pose_ = declare_parameter<std::string>("verify.arm_pose", "TAG_VIEW");
+    // #65: observe.arm_pose = barcode_look 이면 이 점 (map = 발제 좌표, 바코드 라벨 중심 (80, 650, 450) mm) 을 팔 카메라로 봄
+    barcode_point_ = declare_parameter<std::vector<double>>("observe.barcode_point", {0.08, 0.65, 0.45});
+    // #65: verify 앞에 정렬이 없으면 끼울 approach 거리 (FINE, >= 0.13). 0 = 끼우지 않음
+    verify_approach_ = declare_parameter<double>("verify.approach_distance", 0.13);
     // 신호 묶음을 이만큼 (점멸 수가 맞는 것) 보고도 확정이 안 되면 안전 정지. 한 묶음 약 26 s (12 x 2 s + 3 s 텀 - 1 s)
     observe_max_cycles_ = declare_parameter<int>("observe.max_cycles", 4);
     verify_mode_text_ = declare_parameter<std::string>("verify.mode", "READ_TAG+SEARCH_FRONT");
@@ -510,6 +519,10 @@ private:
       if (observe_max_cycles_ < 2) {throw std::invalid_argument("observe.max_cycles must be >= 2 (CONFIRMED needs 2)");}
       if (marker_ids_.size() != 3) {throw std::invalid_argument("marker.ids must be [L1, L2, L3] tag ids");}
       if (!(verify_marker_wait_ >= 0.0)) {throw std::invalid_argument("verify.marker_wait_s must be >= 0");}
+      if (barcode_point_.size() != 3) {throw std::invalid_argument("observe.barcode_point must be [x, y, z]");}
+      if (verify_approach_ != 0.0 && !(verify_approach_ >= 0.13)) {
+        throw std::invalid_argument("verify.approach_distance must be 0 (off) or >= 0.13 (TFmini FINE)");
+      }
       if (!parseModeNames(verify_mode_text_)) {throw std::invalid_argument("verify.mode: names joined by '+'");}
       if (!(verify_settle_ >= 0.0) || !(verify_tolerance_ >= 0.0)) {
         throw std::invalid_argument("verify.settle_s · verify.tolerance must be >= 0");
@@ -945,7 +958,13 @@ private:
       // ① 팔 자세 → ② 모드 → ③ tick 에서 확인 (sequenced)
       drive_done_ = true;
       dice_pending_ = false;
-      sendArmPose(s.type == "observe" ? observe_arm_pose_ : verify_arm_pose_);
+      if (s.type == "observe" && observe_arm_pose_ == "barcode_look") {
+        sendLook("barcode_look", barcode_point_[0], barcode_point_[1], barcode_point_[2]);
+      } else if (s.type == "verify" && verify_arm_pose_ == "box_look") {
+        sendLook("box_look", std::stod(s.args[1]), std::stod(s.args[2]), std::stod(s.args[3]));
+      } else {
+        sendArmPose(s.type == "observe" ? observe_arm_pose_ : verify_arm_pose_);
+      }
     } else if (s.type == "plan") {
       requestPlan();
     } else if (s.type == "survey_start") {
@@ -1471,6 +1490,43 @@ private:
     stepSucceeded();
   }
 
+  // #65: verify 는 팔 카메라로 장소를 위에서 봐야 해서 정렬 (FINE) 자리에서 한다. 계획기는 다시 들르는 장소에서
+  //   goto (대기 자리) 바로 뒤에 verify 를 내므로, 마지막 goto · navigate 뒤 approach 가 없으면 verify 앞에 approach 를 끼운다
+  int insertVerifyApproach(std::vector<Step> & steps) const
+  {
+    if (verify_approach_ <= 0.0) {return 0;}
+    std::ostringstream line;
+    line << "approach " << verify_approach_;
+    int inserted = 0;
+    bool approached = false;   // plan 직전 = 출발 자리 (정렬 안 함)
+    for (size_t i = 0; i < steps.size(); ++i) {
+      const auto & t = steps[i].type;
+      if (t == "goto" || t == "navigate") {
+        approached = false;
+      } else if (t == "approach") {
+        approached = true;
+      } else if (t == "verify" && !approached) {
+        steps.insert(steps.begin() + static_cast<std::ptrdiff_t>(i), parseStep(line.str()));
+        approached = true;
+        ++inserted;
+        ++i;
+      }
+    }
+    return inserted;
+  }
+
+  // #65: 팔 카메라로 지도 좌표 점을 보는 manipulator skill (box_look · barcode_look). 결과는 팔 결과로 (sequenced → advancePhase)
+  void sendLook(const std::string & look, double x, double y, double z)
+  {
+    std::ostringstream name;
+    name << std::fixed << std::setprecision(4) << look << ":" << map_frame_ << ":" << x << ":" << y << ":" << z;
+    Step st;
+    st.type = "skill";
+    st.args = {"manipulator", name.str()};
+    st.text = "skill manipulator " + name.str();
+    sendSkill(st);
+  }
+
   void requestPlan()
   {
     if (!plan_client_->service_is_ready()) {failStep(plan_service_ + " not ready"); return;}
@@ -1499,6 +1555,10 @@ private:
           return;
         }
         if (added.empty()) {finish(Run::FAILED, "plan returned no steps"); return;}
+        const int inserted = insertVerifyApproach(added);
+        if (inserted > 0) {
+          RCLCPP_INFO(get_logger(), "plan: approach %.2f m inserted before %d verify step(s)", verify_approach_, inserted);
+        }
         RCLCPP_INFO(get_logger(), "plan -> %zu step(s)", added.size());
         logEvent("plan", "\"ok\": true, \"steps\": " + std::to_string(added.size()));
         steps_.resize(step_idx_ + 1);
@@ -1937,6 +1997,8 @@ private:
   double diag_timeout_{3.0};
   bool plan_mode_{false};
   std::string plan_service_, observe_arm_pose_, verify_arm_pose_, verify_mode_text_, log_dir_;
+  std::vector<double> barcode_point_;
+  double verify_approach_{0.13};
   double verify_settle_{2.0}, verify_tolerance_{0.0};
   bool verify_stop_on_fail_{false};
   std::vector<int64_t> marker_ids_;
