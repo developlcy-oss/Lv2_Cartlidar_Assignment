@@ -245,8 +245,9 @@ class WaffleTopPickEnv(DirectRLEnv):
         holding = (dist < c.near_dist) & (fing > c.grasp_finger_range[0]) & (fing < c.grasp_finger_range[1])  # 쥔 동안 (가운데 · 기울기 보상, TP4)
         hand_tilt = torch.acos(up.clamp(-1.0, 1.0))
         grasped = (dist < c.grasp_dist) & (fing > c.grasp_finger_range[0]) & (fing < c.grasp_finger_range[1]) & (tilt < c.grasp_tilt_max) & (up > 0.9)
-        lifted = (lift > c.lift_min) & near & (up > c.upright_min)
-        height = (torch.clamp(lift, 0.0, c.lift_goal) - torch.clamp(lift - c.lift_goal, min=0.0)) / c.lift_goal * near.float()
+        held_near = dist < c.hold_dist  # 손 안 15 mm 안 (TP6)
+        lifted = (lift > c.lift_min) & held_near & (up > c.upright_min)
+        height = (torch.clamp(lift, 0.0, c.lift_goal) - torch.clamp(lift - c.lift_goal, min=0.0)) / c.lift_goal * held_near.float()
         xy = self._obj("puckN").data.root_pos_w.torch[:, :2]
         moved = torch.linalg.norm(xy - self.nb_prev, dim=1) * (~self.nb_absent).float()
         self.nb_prev = xy.clone()
@@ -279,8 +280,9 @@ class WaffleTopPickEnv(DirectRLEnv):
             "base_tilt": c.rew_base_tilt * tilt,
             "fall": c.rew_fall * self._fell().float(),
         })
-        held = (lift > c.success_lift) & near & (up > c.upright_min) & (down > c.tilt_ok_cos) & nb_ok   # 옆 퍽도 그대로 (#71)
-        held &= (dist < c.center_tol) & (up > c.success_upright)  # 손 안 가운데 · 세워 쥠 (TP4)
+        held = (lift > c.success_lift) & held_near & (up > c.upright_min) & (down > c.tilt_ok_cos) & nb_ok   # 옆 퍽도 그대로 (#71)
+        if c.strict_success:
+            held &= (dist < c.center_tol) & (up > c.success_upright)  # 손 안 가운데 · 세워 쥠 (TP4)
         self.hold = torch.where(held, self.hold + 1, torch.zeros_like(self.hold))
         self.succeeded |= self.hold >= int(c.success_hold_s / (c.sim.dt * c.decimation))
         self.max_lift = torch.maximum(self.max_lift, lift * near.float())

@@ -187,19 +187,37 @@ def j1_dist(pose: Pose, wx, wy):
     return math.hypot(px - J1_X, py), px - J1_X, py
 
 
-def make_approaches(solids, gap=0.02, standoffs=(0.45, 0.35, 0.30), margin=0.05):
-    """접근 자세표 (solids = 주행 높이 장애물). stage 는 외곽 + margin 이 비어야 함, 막히면 standoff 를 줄여 다시.
+STANDOFFS = tuple(round(0.45 - 0.01 * k, 2) for k in range(16))  # 0.45, 0.44, …, 0.30
+ROTATE_MARGIN = 0.005  # [m] stage 에서 제자리 한 바퀴 돌 때 외곽 여유 (Nav2 RotationShim 이 도착 · 출발 때 stage 에서 돎)
+
+
+def rotate_clear(solids, pose: Pose, margin=ROTATE_MARGIN, step_deg=10):
+    """pose 자리에서 제자리 한 바퀴 (base_link 둘레) 돌아도 외곽 + margin 이 안 닿음."""
+    return all(footprint_clear(solids, Pose(pose.x, pose.y, pose.yaw + math.radians(d)), margin) for d in range(0, 360, step_deg))
+
+
+def make_approaches(solids, gap=0.02, standoffs=STANDOFFS, margin=0.05):
+    """접근 자세표 (solids = 주행 높이 장애물). stage = 외곽 + margin 이 비고 그 자리에서 제자리 한 바퀴 돌 수 있는 (rotate_clear)
+    가장 큰 standoff (0.45 부터 0.01 m 씩 줄임). 돌 수 있는 자리가 없으면 외곽만 보는 가장 큰 standoff (note 에 남김).
+    왜 (#135): 좁은 통로 (B3 · B4 · B5 북쪽, 기둥 받침 ~ 북쪽 벽 0.551 m) 의 stage 가 통로 가운데에서 멀면 돌아선 뒤 차체 옆이
+    기둥에 붙어 Nav2 가 기둥 옆에서 꺾다 갇힘. B3:N → L3 Gazebo (2026-11-06): standoff 0.35 (기둥 옆 21 mm) · 0.37 (41 mm) 실패,
+    0.40 (71 mm, 제자리 회전 여유 8 mm) 2 / 2 도착. 회전 여유를 크게 잡으면 (0.03 → 0.37) 기둥 옆 여유가 모자라 0.005 로 둠.
     final 은 대상 면에 gap 만큼 붙으므로 대상 물체는 빼고 margin 0.01 로 판정 (final 이 막히면 ok False)."""
     out = {}
 
     def best(key, kind, target, face_dir, face_dist, extra, gap=gap):
         fin = pose_facing(target, face_dir, face_dist, gap)
         fin_ok = footprint_clear(solids, fin, margin=min(0.01, gap / 2))
-        for so in standoffs:
-            st = pose_facing(target, face_dir, face_dist, so)
-            if footprint_clear(solids, st, margin=margin):
-                extra = dict(extra, gap=gap, final_clearance=round(clearance(solids, fin), 3), stage_clearance=round(clearance(solids, st), 3))
-                return Approach(key, kind, fin, st, so, fin_ok, "" if fin_ok else "final 외곽이 막힘", extra)
+        fits = [(so, pose_facing(target, face_dir, face_dist, so)) for so in standoffs]
+        fits = [(so, st) for so, st in fits if footprint_clear(solids, st, margin=margin)]
+        rot = [(so, st) for so, st in fits if rotate_clear(solids, st)]
+        for so, st in (rot or fits)[:1]:
+            extra = dict(extra, gap=gap, final_clearance=round(clearance(solids, fin), 3), stage_clearance=round(clearance(solids, st), 3),
+                         stage_rotate=bool(rot))
+            note = "" if fin_ok else "final 외곽이 막힘"
+            if not rot:
+                note = (note + "; " if note else "") + f"stage 에서 제자리 회전 여유 {ROTATE_MARGIN} 없음"
+            return Approach(key, kind, fin, st, so, fin_ok, note, extra)
         return Approach(key, kind, fin, pose_facing(target, face_dir, face_dist, standoffs[-1]), standoffs[-1], False,
                         "stage 외곽이 막힘 (standoff 를 줄여도)", extra)
 

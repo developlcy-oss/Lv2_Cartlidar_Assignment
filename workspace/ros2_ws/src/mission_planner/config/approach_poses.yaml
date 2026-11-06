@@ -12,12 +12,13 @@ B1:S:
   - 1.5708
   stage:
   - 1.468
-  - 0.3647
+  - 0.3147
   - 1.5708
-  standoff: 0.35
+  standoff: 0.4
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.12
+  stage_clearance: 0.07
+  stage_rotate: true
   box: 1
   side: S
   inline: false
@@ -49,6 +50,7 @@ B1:N:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
+  stage_rotate: true
   box: 1
   side: N
   inline: false
@@ -79,6 +81,7 @@ B2:S:
   gap: 0.1272
   final_clearance: 0.125
   stage_clearance: 0.165
+  stage_rotate: true
   box: 2
   side: S
   inline: false
@@ -137,6 +140,7 @@ B3:S:
   gap: 0.1272
   final_clearance: 0.125
   stage_clearance: 0.165
+  stage_rotate: true
   box: 3
   side: S
   inline: false
@@ -162,12 +166,13 @@ B3:N:
   - -1.5708
   stage:
   - 2.936
-  - 5.9393
+  - 5.9893
   - -1.5708
-  standoff: 0.35
+  standoff: 0.4
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.12
+  stage_clearance: 0.07
+  stage_rotate: true
   box: 3
   side: N
   inline: false
@@ -199,6 +204,7 @@ B4:S:
   gap: 0.1272
   final_clearance: 0.125
   stage_clearance: 0.165
+  stage_rotate: true
   box: 4
   side: S
   inline: false
@@ -224,12 +230,13 @@ B4:N:
   - -1.5708
   stage:
   - 0.734
-  - 5.9393
+  - 5.9893
   - -1.5708
-  standoff: 0.35
+  standoff: 0.4
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.12
+  stage_clearance: 0.07
+  stage_rotate: true
   box: 4
   side: N
   inline: false
@@ -261,6 +268,7 @@ B5:S:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
+  stage_rotate: true
   box: 5
   side: S
   inline: false
@@ -285,12 +293,13 @@ B5:N:
   - -1.5708
   stage:
   - 2.202
-  - 5.9393
+  - 5.9893
   - -1.5708
-  standoff: 0.35
+  standoff: 0.4
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.12
+  stage_clearance: 0.07
+  stage_rotate: true
   box: 5
   side: N
   inline: false
@@ -349,6 +358,7 @@ B6:N:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
+  stage_rotate: true
   box: 6
   side: N
   inline: false
@@ -379,6 +389,7 @@ B6:W:
   gap: 0.1272
   final_clearance: 0.125
   stage_clearance: 0.165
+  stage_rotate: true
   box: 6
   side: W
   inline: true
@@ -436,6 +447,7 @@ L1:
   gap: 0.1272
   final_clearance: 0.125
   stage_clearance: 0.165
+  stage_rotate: true
   tag: 12
   cells:
     -1,-1:
@@ -517,6 +529,7 @@ L2:
   gap: 0.1272
   final_clearance: 0.125
   stage_clearance: 0.2
+  stage_rotate: true
   tag: 13
   cells:
     -1,-1:
@@ -598,6 +611,7 @@ L3:
   gap: 0.1272
   final_clearance: 0.125
   stage_clearance: 0.165
+  stage_rotate: true
   tag: 14
   cells:
     -1,-1:

@@ -87,7 +87,8 @@ def export(m, obs_dim, pt_path, onnx_path):
         diff = 0.0
         for k in range(8):  # 배치 1 로 내보냈을 수 있어 한 줄씩 (ROS 도 한 줄씩)
             out = torch.from_numpy(s.run(None, {s.get_inputs()[0].name: x[k:k + 1].numpy()})[0])
-            diff = max(diff, float((out - ref[k:k + 1]).abs().max()))
+            r = ref[k:k + 1]   # 상대 차: 범위 밖 무작위 관측에선 출력이 수천이라 float32 반올림만으로 절대 차가 1e-4 를 넘음
+            diff = max(diff, float(((out - r).abs() / (r.abs() + 1.0)).max()))
     except ImportError:
         pass
     return diff
@@ -114,7 +115,7 @@ def main():
     os.makedirs(POL, exist_ok=True)
     pt, ox = os.path.join(POL, a.name + ".pt"), os.path.join(POL, a.name + ".onnx")
     diff = export(m, od, pt, ox)
-    print(f"[Register] {ckpt} (반복 {it}) -> {pt}, {ox} | 관측 {od} 행동 {ad} 숨은 층 {hidden} {act} | ONNX-TorchScript 최대 차 {diff}")
+    print(f"[Register] {ckpt} (반복 {it}) -> {pt}, {ox} | 관측 {od} 행동 {ad} 숨은 층 {hidden} {act} | ONNX-TorchScript 최대 상대 차 {diff}")
     if diff is not None and diff > 1e-4:
         sys.exit("ONNX 와 TorchScript 출력이 다름 -> 등록 중지")
 

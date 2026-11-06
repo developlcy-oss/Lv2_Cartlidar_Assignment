@@ -56,6 +56,8 @@ parser.add_argument("--row_speed", default="3:0.4", help="[rad/s] 열별 쥔 구
 parser.add_argument("--empty_speed", type=float, default=0.8, help="[rad/s] 퍽을 쥐지 않은 구간 (놓은 뒤 retract · return · rotate_back, 빼기 전 다가가기) 속도. 0 이면 쥔 구간과 같음")
 parser.add_argument("--unload", action="store_true", help="빼기 확인: 칸에 앉힌 퍽을 궤적 거꾸로 꺼내 봄 (기본 결과 pallet_unload_check.json)")
 parser.add_argument("--out", default=None, help="결과 JSON (기본 pallet_place_check.json, --unload 면 pallet_unload_check.json)")
+parser.add_argument("--hand_offset", default="", help="[mm] 쥔 퍽을 기대 자리에서 일부러 옮겨 쥐어 줌 '집게축:옆,...' (집게 x · z, 예 0:0,3:0,-3:0,0:3). "
+                    "묶음마다 칸 12 x 원기둥 · 상자 = 24 대 (--num_envs 무시). 손 안 어긋남 허용치 측정 (2026-11-05, 이어 평가 넘겨받을 때 중앙값 5 ~ 6 mm)")
 AppLauncher.add_app_launcher_args(parser)
 args_cli = parser.parse_args()
 args_cli.headless = not args_cli.gui
@@ -198,6 +200,7 @@ class PalletCheckEnv(DirectRLEnv):
 
 ROLL_PI = {tuple(int(v) for v in x.split(":")) for x in args_cli.roll_pi.split(",") if x}
 ROW_SPEED = parse_row_speed(args_cli.row_speed)
+HAND_OFFSETS = [tuple(float(v) for v in x.split(":")) for x in args_cli.hand_offset.split(",") if x]
 SPEEDS = Speeds(args_cli.speed, args_cli.tilt_speed, ROW_SPEED, args_cli.empty_speed)
 OUT = args_cli.out or os.path.join(HERE, "pallet_unload_check.json" if args_cli.unload else "pallet_place_check.json")
 
@@ -361,7 +364,7 @@ def drop_test(u, case, is_box, ids):
 
 def main():
     cfg = PalletCheckEnvCfg()
-    cfg.scene.num_envs = args_cli.num_envs
+    cfg.scene.num_envs = 2 * len(TRAJ["slots"]) * len(HAND_OFFSETS) if HAND_OFFSETS else args_cli.num_envs
     env = PalletCheckEnv(cfg)
     env.reset()
     u, dev, n, dt = env, env.device, env.num_envs, env.physics_dt
@@ -373,6 +376,8 @@ def main():
     slots = TRAJ["slots"]
     case = [(slots[i % len(slots)], "box" if (i // len(slots)) % 2 else "cyl") for i in range(n)]
     is_box = torch.tensor([c[1] == "box" for c in case], device=dev)
+    blk = 2 * len(slots)  # --hand_offset 묶음 = 칸 x 모양
+    hoff = torch.tensor([HAND_OFFSETS[i // blk] if HAND_OFFSETS else (0.0, 0.0) for i in range(n)], device=dev) / 1000.0  # (n, 2) 집게 x · z [m]
 
     def step(k_force=None, acc=None):
         u._apply_action()
@@ -432,7 +437,7 @@ def main():
             u.arm_target[:] = q_start + bias
         step()
     p, ex, ey, ez = ee_frame()
-    center = exp_center(p, ex)
+    center = exp_center(p, ex) + ex * hoff[:, :1] + ez * hoff[:, 1:]  # --hand_offset (없으면 0)
     up = puck_up(ex)
     R = torch.stack((torch.cross(ey, up, dim=1), ey, up), dim=2)  # 퍽 y = 닫는 축, 퍽 z = 위, 퍽 x = y x z (수직이면 집게 z = 반경 방향)
     pose = torch.cat((center, quat_from_matrix(R)), dim=1)
@@ -466,7 +471,8 @@ def main():
     fing0 = u.robot.data.joint_pos.torch[:, u._gl[0]].clone()
     pe, ex, _, _ = ee_frame()
     pc0, _ = puck_pose()
-    off0 = torch.linalg.norm(pc0 - exp_center(pe, ex), dim=1)
+    e0 = pc0 - exp_center(pe, ex)  # 쥔 직후 손 안 어긋남 (미끄럼은 이것 대비 변화)
+    off0 = torch.linalg.norm(e0, dim=1)
     print(f"[PalletCheck] 쥔 직후: 손가락 왼 {[round(v, 4) for v in fing0.tolist()]} 오른 {[round(v, 4) for v in u.robot.data.joint_pos.torch[:, u._gr[0]].tolist()]} 퍽-손가락 가운데 mm {[round(v * 1000, 1) for v in off0.tolist()]}", flush=True)
 
     # 2 ~ 3. 궤적
@@ -507,7 +513,7 @@ def main():
         if held.any():
             pe, ex, _, _ = ee_frame()
             pc, _ = puck_pose()
-            slip = torch.where(held, torch.maximum(slip, torch.linalg.norm(pc - exp_center(pe, ex), dim=1)), slip)
+            slip = torch.where(held, torch.maximum(slip, torch.linalg.norm(pc - exp_center(pe, ex) - e0, dim=1)), slip)
         if t % 240 == 0:
             print(f"[PalletCheck] t={t * dt:5.1f} s 단계 {[PHASES[int(v)] for v in ph[:min(n, 12)].tolist()]}", flush=True)
 
@@ -527,7 +533,8 @@ def main():
         yaw = math.degrees(math.atan2(float(pxb[i, 1]), float(pxb[i, 0])))
         face = ((yaw - s["theta_deg"] + 45.0) % 90.0) - 45.0
         ok = dxy < 0.003 and abs(dz) < 0.003 and tilt < 5.0 and float(slip[i]) < 0.015
-        r = dict(slot=f"{s['row']}열 {s['index']}", puck_shape=shape, seated=ok, xy_err_mm=round(dxy * 1000, 1), bottom_above_floor_mm=round(dz * 1000, 1),
+        r = dict(slot=f"{s['row']}열 {s['index']}", puck_shape=shape, seated=ok, hand_offset_mm=[round(float(v) * 1000, 1) for v in hoff[i]],
+                 hand_after_grip_mm=round(float(off0[i]) * 1000, 1), xy_err_mm=round(dxy * 1000, 1), bottom_above_floor_mm=round(dz * 1000, 1),
                  tilt_deg=round(tilt, 1), box_face_err_deg=round(face, 1) if shape == "box" else None, max_slip_mm=round(float(slip[i]) * 1000, 1),
                  duration_s=round(len(tl[i]) * dt, 1),
                  max_force_N={k: {PHASES[j]: round(float(fmax[k][i, j]), 1) for j in range(1, len(PHASES))} for k in fmax}, first_contact=first[i])
@@ -542,6 +549,16 @@ def main():
                    row_speed=ROW_SPEED, empty_speed=args_cli.empty_speed, duration_s_per_slot={r["slot"]: r["duration_s"] for r in res[:len(TRAJ["slots"])]},
                    grip_close=FINGER_CLOSE, settle_ki=args_cli.settle_ki,
                    arm_body_max_N=round(float(fmax["arm"].max()), 1), finger_body_max_N=round(float(fmax["finger"].max()), 1))
+    if HAND_OFFSETS:  # 어긋남별 앉음 (원기둥 · 상자)
+        summary["grasp_dz"] = TRAJ["grasp_dz"]
+        summary["by_hand_offset"] = {}
+        for k, ho in enumerate(HAND_OFFSETS):
+            rr = res[k * blk:(k + 1) * blk]
+            c = sum(x["seated"] for x in rr if x["puck_shape"] == "cyl")
+            b = sum(x["seated"] for x in rr if x["puck_shape"] == "box")
+            summary["by_hand_offset"][f"{ho[0]:g}:{ho[1]:g}"] = dict(seated=c + b, total=len(rr), cyl=c, box=b,
+                                                                      finger_body_max_N=round(max(max(x["max_force_N"]["finger"].values()) for x in rr), 1))
+            print(f"[PalletCheck] 손 안 어긋남 집게축 {ho[0]:+g} 옆 {ho[1]:+g} mm: 앉음 {c + b}/{len(rr)} (원기둥 {c} · 상자 {b})", flush=True)
     print(f"[PalletCheck] 요약 {summary}", flush=True)
     json.dump(dict(summary=summary, traj_max_tilt_deg=TRAJ.get("max_tilt_deg"), results=res), open(OUT, "w", encoding="utf-8"),
               ensure_ascii=False, indent=1)
