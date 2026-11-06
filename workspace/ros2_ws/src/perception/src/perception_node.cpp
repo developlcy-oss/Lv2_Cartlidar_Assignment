@@ -319,6 +319,11 @@ public:
     }
     marker_ = std::make_unique<TagDetector>(declare_parameter("marker.family", std::string("DICT_4X4_50")),
         declare_parameter("marker.size", 0.10));
+    // 팔 1280 × 720 영상은 이 폭으로 줄여 찾음 (tag_detector.hpp set_max_width). D435 640 폭은 그대로. 0 = 끔
+    tag_->set_max_width(static_cast<int>(declare_parameter("tag.detect_max_width", static_cast<int64_t>(0))));
+    marker_->set_max_width(static_cast<int>(declare_parameter("marker.detect_max_width", static_cast<int64_t>(0))));
+    tag_->set_texture_pass(declare_parameter("tag.texture_pass", false));
+    marker_->set_texture_pass(declare_parameter("marker.texture_pass", false));
     for (auto id : declare_parameter<std::vector<int64_t>>("marker.ids", std::vector<int64_t>{})) {
       marker_ids_.push_back(static_cast<int>(id));
     }

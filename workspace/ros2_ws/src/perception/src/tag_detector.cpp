@@ -35,6 +35,16 @@ TagDetector::TagDetector(const std::string & family, double tag_size_m, double g
 
 namespace
 {
+// 무늬 거르기 문턱 (큰 창 · 큰 상수): 약한 바닥 무늬는 빠지고 검은 태그 ↔ 흰 종이 경계만 남는다
+template<typename Params>
+void set_texture_params(Params & p)
+{
+  p.adaptiveThreshWinSizeMin = 23;
+  p.adaptiveThreshWinSizeMax = 63;
+  p.adaptiveThreshWinSizeStep = 20;
+  p.adaptiveThreshConstant = 35;
+}
+
 // 태그 z 축(면에서 바깥)이 카메라 쪽을 향하는지. t 는 카메라 → 태그 중심
 bool facing(const cv::Vec3d & rvec, const cv::Vec3d & tvec)
 {
@@ -86,6 +96,14 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
   if (!ok_ || bgr.empty()) {return out;}
   cv::Mat gray;
   cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
+  const cv::Mat full_gray = gray;   // 원래 크기 (줄였을 때 꼭짓점 다듬기)
+  double down = 1.0;
+  if (max_width_ > 0 && gray.cols > max_width_) {
+    down = static_cast<double>(max_width_) / gray.cols;
+    cv::Mat small;
+    cv::resize(full_gray, small, cv::Size(), down, down, cv::INTER_AREA);
+    gray = small;
+  }
   // AprilTag 은 두 방식으로 찾아 번호별로 합친다: CORNER_REFINE_APRILTAG(AprilTag 사각형 찾기)와
   // CORNER_REFINE_SUBPIX(윤곽 찾기)가 놓치는 태그가 서로 달라서(2026-10-23 합성 영상 144조건: 113 · 102 → 합쳐서 128).
   // 같은 면의 중복만 합치고 같은 번호의 다른 면은 보존한다. Aruco 마커는 SUBPIX 한 번
@@ -95,17 +113,19 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
   bool keep_cand = true;
   double coord_scale = 1.0;
   cv::Point2f coord_offset(0.f, 0.f);
-  auto run = [&](int method) {
+  auto run = [&](int method, bool texture = false) {
       std::vector<int> ii;
       std::vector<std::vector<cv::Point2f>> cc, rejected;
 #if ROBOT_ARUCO_NEW
       cv::aruco::DetectorParameters p;
       p.cornerRefinementMethod = method;
+      if (texture) {set_texture_params(p);}
       cv::aruco::ArucoDetector det(cv::aruco::getPredefinedDictionary(dict_id_), p);
       det.detectMarkers(gray, cc, ii, rejected);
 #else
       auto p = cv::aruco::DetectorParameters::create();
       p->cornerRefinementMethod = method;
+      if (texture) {set_texture_params(*p);}
       cv::aruco::detectMarkers(gray, cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p, rejected);
 #endif
       for (size_t k = 0; k < ii.size(); ++k) {
@@ -134,6 +154,12 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
   } else {
     run(cv::aruco::CORNER_REFINE_APRILTAG);
     run(cv::aruco::CORNER_REFINE_SUBPIX);
+  }
+  if (texture_pass_ && down < 1.0) {
+    // 무늬 거르기 문턱으로 한 번 더 (같은 번호 · 같은 자리는 run 이 합침). 후보는 2배 재해독에 넘기지 않음
+    keep_cand = false;
+    run(cv::aruco::CORNER_REFINE_SUBPIX, true);
+    keep_cand = true;
   }
   if(gamma_>0 && gamma_!=1.0) {
     const cv::Mat original=gray;cv::Mat adjusted;cv::Mat lut(1,256,CV_8U);
@@ -198,6 +224,48 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
       coord_offset = cv::Point2f(0.f,0.f);
     }
     gray = orig;
+  }
+  if (down < 1.0 && !corners.empty()) {
+    // 줄인 영상의 꼭짓점 → 원래 크기 (화소 중심 기준). 그 둘레(긴 변의 반 여백)만 원래 영상에서 같은 두 방식으로 다시 찾아
+    //   같은 번호 · 같은 자리(가운데 차 ≤ 긴 변의 1/4)면 원래 크기 꼭짓점으로 바꾼다 (자세 정확도는 원래 크기 그대로)
+    const cv::Rect whole(0, 0, full_gray.cols, full_gray.rows);
+    for (size_t i = 0; i < corners.size(); ++i) {
+      auto & q = corners[i];
+      for (auto & point : q) {point = (point + cv::Point2f(.5f, .5f)) * static_cast<float>(1.0 / down) - cv::Point2f(.5f, .5f);}
+      const cv::Rect bb = cv::boundingRect(q);
+      const int m = std::max(bb.width, bb.height) / 2 + 2;
+      const cv::Rect roi = (bb + cv::Size(2 * m, 2 * m) - cv::Point(m, m)) & whole;
+      if (roi.area() <= 0) {continue;}
+      cv::Point2f c0(0.f, 0.f);
+      for (const auto & point : q) {c0 += point * .25f;}
+      const double gate = .25 * std::max(bb.width, bb.height);
+      // 차례: AprilTag · 윤곽 · (켰으면) 무늬 거르기 윤곽. 여기서도 무늬가 붙는 태그는 마지막 것으로 꼭짓점을 다듬는다
+      for (int attempt = 0; attempt < (texture_pass_ ? 3 : 2); ++attempt) {
+        if (aruco_ && attempt == 0) {continue;}
+        const int method = attempt == 0 ? static_cast<int>(cv::aruco::CORNER_REFINE_APRILTAG) : static_cast<int>(cv::aruco::CORNER_REFINE_SUBPIX);
+        std::vector<int> ii;
+        std::vector<std::vector<cv::Point2f>> cc;
+#if ROBOT_ARUCO_NEW
+        cv::aruco::DetectorParameters p;
+        p.cornerRefinementMethod = method;
+        if (attempt == 2) {set_texture_params(p);}
+        cv::aruco::ArucoDetector(cv::aruco::getPredefinedDictionary(dict_id_), p).detectMarkers(full_gray(roi), cc, ii);
+#else
+        auto p = cv::aruco::DetectorParameters::create();
+        p->cornerRefinementMethod = method;
+        if (attempt == 2) {set_texture_params(*p);}
+        cv::aruco::detectMarkers(full_gray(roi), cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p);
+#endif
+        bool done = false;
+        for (size_t k = 0; k < ii.size() && !done; ++k) {
+          if (ii[k] != ids[i]) {continue;}
+          cv::Point2f c1(0.f, 0.f);
+          for (auto & point : cc[k]) {point += cv::Point2f(roi.tl()); c1 += point * .25f;}
+          if (cv::norm(c1 - c0) <= gate) {q = cc[k]; done = true;}
+        }
+        if (done) {break;}
+      }
+    }
   }
   const double h = size_ / 2.0;
   // aruco 모서리 순서: 왼쪽 위 · 오른쪽 위 · 오른쪽 아래 · 왼쪽 아래 (태그 평면 z = 0)

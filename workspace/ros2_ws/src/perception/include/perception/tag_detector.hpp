@@ -31,6 +31,14 @@ public:
   //         Aruco(과제 마커): "DICT_4X4_50" · "DICT_4X4_100" · "DICT_5X5_50" · "DICT_6X6_50"
   TagDetector(const std::string & family, double tag_size_m, double gamma = 1.0, bool upscale_all = false);
   bool ok() const {return ok_;}
+  // 폭이 이보다 큰 영상은 이 폭으로 줄여 찾고, 꼭짓점은 원래 영상에서 다시 다듬는다(0 = 줄이지 않음).
+  //   팔 Arducam 1280 × 720 에서 전체 장 검출이 Jetson 한 장 약 0.23 s(못 찾은 장은 2배 확대 재검출까지 약 0.8 s)라
+  //   예전 팔 영상 크기(640 폭)로 줄여 같은 처리량으로 돌린다 (2026-11-05 실물 표본)
+  void set_max_width(int w) {max_width_ = w;}
+  // 줄인 영상에서 '무늬 거르기' 문턱(큰 창 · 큰 상수)으로 한 번 더 찾는다. 줄이지 않는 영상(D435)에는 쓰지 않는다.
+  //   흰 여백이 좁으면 카펫 같은 바닥 무늬의 윤곽이 태그 테두리에 붙어 사각형을 못 찾는다. 상수를 키우면 약한 무늬가 빠진다
+  //   (실물 장소 태그 2026-11-06, 261106_0917_real_judge2)
+  void set_texture_pass(bool on) {texture_pass_ = on;}
   // K · D 가 비어 있으면 자세 추정 없이 id 만
   std::vector<TagDetection> detect(const cv::Mat & bgr, const cv::Mat & K, const cv::Mat & D) const;
 
@@ -41,6 +49,8 @@ private:
   bool upscale_all_ = false;
   bool ok_ = false;
   bool aruco_ = false;
+  int max_width_ = 0;
+  bool texture_pass_ = false;
 };
 
 }  // namespace perception
