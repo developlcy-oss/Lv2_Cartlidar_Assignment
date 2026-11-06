@@ -113,6 +113,7 @@ perception_node:
       #   경기장 판정(커튼 내림 · 노출 80/128, @0.6, YOLO 쪽 Jetson): 앞 0.974 · 0.990, 뒤 0.979 · 0.998 (E2 0.954 · 0.987, 0.9485 · 0.998)
       #   전 엔진 E2 480 · 384 FP16(315b0608… · 15d8bb9c…) · D(58df0823… · e22717e8…)는 같은 폴더. Jetson L4T R39.2.1 · TensorRT 10.16.2
       #   JetPack · TensorRT 를 바꾸면 같은 ONNX 로 다시 만든다
+      #   엔진 옆 <엔진>.sha256(sha256sum 출력)이 있으면 대조한다. 다르면 그 엔진을 쓰지 않는다(detector: 색 검출기로, arm: 주 검출기로). 파일이 없으면 검사하지 않는다
       #   파일이 없거나 열 수 없으면(예: PC 모의) 색 검출기로 대신하고 WARN 을 남긴다(type: auto)
       score_threshold: 0.3      # 색 검출 점수 = 0.5·채움 + 0.5·가로세로비. 퍽 끝면(태그 때문에 채움 약 0.44)도 0.7 이상
       nms_threshold: 0.45       # TensorRT(YOLO11n) 겹침 제거(클래스마다). YOLO 판정 · Jetson 동등성 검사와 같은 값(Ultralytics 기본값 0.7 아님)
