@@ -125,6 +125,10 @@ manipulator_node:
       target_match: 0.03         # 목표와 같은 퍽으로 볼 거리 (모양)
       default_is_box: false      # 모양을 모를 때
       max_joint_velocity: 2.0    # rad/s, 안전 상한 (학습은 앞섬 ±0.25 rad 만 제한)
+      # 정책 전에 옮길 학습 시작 자세 (Isaac toppick_env_cfg READY_TILT, 모델 관절값 joint1~5) + 그리퍼 벌림 (open_m). [] = 옮기지 않음
+      #   학습은 매 에피소드를 이 자세 (± 0.12 rad 잡음) 에서 시작 → target_look 자세에서 바로 돌리면 학습에 없던 상태 (#69)
+      start_pose: [0.0, -0.462, 0.771, 0.476, 0.0]
+      max_duration: 12.0         # s, 정책을 돌리는 시간 상한 (학습 에피소드 6 s). 넘으면 실패 → mission 이 target_look 부터 다시
     # target_look:<frame>:<x>:<y>:<z> 타겟체크자세 (#82, include/control/target_look_pose.hpp). 집기 전 팔 카메라로 퍽 윗면을 내려다봄
     #   카메라를 퍽 윗면에서 distances 만큼, 광축이 수평 아래 view_angles_deg 로 — 관절 한계 안에서 풀리는 첫 (거리, 각)
     #   인지 #82 타겟체크자세 4 개 (A · B · C앞 · C뒤) 는 모두 약 70° · 0.15~0.21 m (test_target_look_pose 가 같은 카메라 모형인지 확인)

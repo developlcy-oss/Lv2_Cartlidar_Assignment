@@ -40,6 +40,7 @@
 // - 강화학습 집기 (policies.yaml action tcp_delta(4), 예 toppick_tilt = Isaac Waffle-TopPick-Direct): 관측 36 = toppick_obs.hpp,
 //   행동 = 잡는 점 변위 → arm_diff_ik.hpp (학습과 같은 감쇠 최소제곱 IK) → /arm_controller/joint_trajectory 스트리밍 (rate_hz).
 //   퍽 = 직전 target_look 값 (없으면 /perception/pucks target_index) 을 시작 때 fixed_frame 에 고정, 옆 퍽 · 모양은 같은 /perception/pucks.
+//   정책 전에 학습 시작 자세 (toppick_rl.start_pose = READY_TILT) · 그리퍼 벌림으로 옮기고, toppick_rl.max_duration 안에 못 쥐면 실패.
 //   그리퍼는 gripper.mode arm_joint 만 (6 번째 칸, 학습 손가락 m ↔ gripper_roll rad 선형 대응 toppick_rl.finger_m_at_*).
 //   성공 = 손가락이 쥔 범위 + 잡는 점이 처음 퍽 잡는 높이보다 toppick_rl.success_lift 위로 success_hold 동안 (학습 성공과 같은 뜻)
 // - 결과를 콜백 안에서 기다리지 않는다. 각 단계는 이전 단계의 result 콜백에서 이어진다
@@ -456,6 +457,11 @@ private:
     rl_self_match_ = declare_parameter<double>("toppick_rl.target_match", 0.03);      // 목표와 같은 퍽으로 볼 거리 (모양 찾기)
     rl_default_box_ = declare_parameter<bool>("toppick_rl.default_is_box", false);    // 모양을 모를 때
     rl_max_joint_vel_ = declare_parameter<double>("toppick_rl.max_joint_velocity", 2.0);   // 안전 상한 (학습은 앞섬 ±0.25 rad 만)
+    // 학습 에피소드 시작 자세 = READY_TILT (toppick_env_cfg, 집게 45°, 모델 관절값) + 그리퍼 벌림. 정책은 여기서 시작한 것만 배웠으므로
+    //   직전 자세 (target_look 등) 에서 바로 돌리지 않고 먼저 이 자세로 옮긴다 (#69). 빈 배열 = 옮기지 않음
+    rl_start_pose_ = declare_parameter<std::vector<double>>("toppick_rl.start_pose", {0.0, -0.462, 0.771, 0.476, 0.0});
+    // 정책을 돌리는 시간 상한 (학습 에피소드 6 s). 넘으면 실패 → mission 이 target_look 부터 다시 (goal timeout 보다 먼저 끝냄)
+    rl_max_duration_ = declare_parameter<double>("toppick_rl.max_duration", 12.0);
 
     validateParameters(signs);
     loadPolicies();
@@ -624,6 +630,10 @@ private:
     requirePositive("gripper.grasp_margin", grasp_margin_);
     requirePositive("toppick.approach_distance", toppick_approach_);
     requirePositive("toppick.latch_max_age", toppick_latch_max_age_);
+    if (!rl_start_pose_.empty() && rl_start_pose_.size() != 5) {
+      throw std::invalid_argument("toppick_rl.start_pose must be [joint1..joint5] (model values) or empty");
+    }
+    requirePositive("toppick_rl.max_duration", rl_max_duration_);
     if (target_look_.view_angles.empty() || target_look_.distances.empty()) {
       throw std::invalid_argument("target_look.view_angles_deg and target_look.distances must not be empty");
     }
@@ -1652,11 +1662,52 @@ private:
     active_policy_ = policies_.find(gh->get_goal()->policy);   // accept 때 skill_ready_로 확인함
     skill_rate_ = active_policy_->spec.rate_hz;
     skill_last_cmd_.reset();   // 첫 tick 에 현재 관절각으로 초기화
-    if (tcp_skills_.count(gh->get_goal()->policy) && !startTopPickRl()) {return;}
+    if (tcp_skills_.count(gh->get_goal()->policy)) {
+      if (!startTopPickRl()) {return;}
+      moveToRlStart([this]() {startSkillTimer();});   // 학습 시작 자세 · 그리퍼 벌림 뒤 정책 시작
+      return;
+    }
+    startSkillTimer();
+  }
+
+  void startSkillTimer()
+  {
     const uint64_t id = job_id_;
+    if (rl_) {rl_->t_start = now();}
     skill_timer_ = rclcpp::create_timer(
       this, get_clock(), rclcpp::Duration::from_seconds(1.0 / skill_rate_),
       [this, id]() {if (id == job_id_) {skillTick();}}, job_cb_group_);
+  }
+
+  // 강화학습 집기 시작 자세 (toppick_rl.start_pose, 모델 관절값 → 명령값) 로, 그리퍼는 학습 시작 벌림 (toppick_rl.open_m)
+  void moveToRlStart(std::function<void()> then)
+  {
+    const auto current = currentJoints();
+    if (!current) {
+      finishSkill(false, "no recent /joint_states for arm joints");
+      return;
+    }
+    const double grip = std::clamp(rl_grip_.toRad(rl_open_m_), lower_[5], upper_[5]);
+    gripper_cmd_ = grip;
+    if (rl_start_pose_.empty()) {
+      then();
+      return;
+    }
+    std::vector<double> q(joint_names_.size());
+    for (size_t k = 0; k < 5; ++k) {q[k] = ik_signs_[k] * rl_start_pose_[k] + ik_offsets_[k];}
+    q[5] = grip;
+    if (!withinLimits(q)) {
+      finishSkill(false, "toppick_rl.start_pose outside joint limits");
+      return;
+    }
+    RCLCPP_INFO(get_logger(), "toppick_rl: move to start pose (READY_TILT) before policy");
+    sendArm(q, trajDuration(*current, q, min_duration_), [this, then](bool ok, const std::string & msg) {
+        if (!ok) {
+          finishSkill(false, "toppick_rl start pose: " + msg);
+          return;
+        }
+        then();
+      });
   }
 
   void skillTick()
@@ -1789,6 +1840,10 @@ private:
   void topPickRlTick(const std::vector<double> & q, double elapsed)
   {
     auto & r = *rl_;
+    if ((now() - r.t_start).seconds() > rl_max_duration_) {
+      finishSkill(false, "toppick_rl: not grasped within toppick_rl.max_duration " + std::to_string(rl_max_duration_) + " s");
+      return;
+    }
     Eigen::Vector3d puck_b, nb_b;
     try {
       const auto tf = tf_buffer_->lookupTransform(rl_frame_, fixed_frame_, tf2::TimePointZero);
@@ -2601,6 +2656,7 @@ private:
     std::optional<Joints5> q_prev;                   // 속도 차분용
     rclcpp::Time t_prev{0, 0, RCL_ROS_TIME};
     double hold{0.0};                                // 성공 조건 유지 시간 (s)
+    rclcpp::Time t_start{0, 0, RCL_ROS_TIME};        // 정책 시작 (시작 자세 도착) 시각
   };
   std::set<std::string> tcp_skills_;
   std::optional<TopPickRun> rl_;
@@ -2611,6 +2667,8 @@ private:
   double rl_open_m_{0.010}, rl_closed_m_{-0.0075}, rl_grasp_lo_{-0.010}, rl_grasp_hi_{-0.003}, rl_grasp_dz_{0.015};
   double rl_success_lift_{0.03}, rl_success_hold_{1.0}, rl_nb_match_{0.12}, rl_self_match_{0.03}, rl_max_joint_vel_{2.0};
   bool rl_default_box_{false};
+  std::vector<double> rl_start_pose_;
+  double rl_max_duration_{12.0};
   bool correction_enabled_{true}, correction_required_{true};
   int correction_max_iter_{5};
   double offset_gain_{1.0}, lateral_tol_{0.005}, range_tol_{0.01}, target_range_{0.13};
