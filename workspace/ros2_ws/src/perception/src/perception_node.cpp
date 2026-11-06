@@ -319,6 +319,11 @@ public:
     }
     marker_ = std::make_unique<TagDetector>(declare_parameter("marker.family", std::string("DICT_4X4_50")),
         declare_parameter("marker.size", 0.10));
+    // 팔 1280 × 720 영상은 이 폭으로 줄여 찾음 (tag_detector.hpp set_max_width). D435 640 폭은 그대로. 0 = 끔
+    tag_->set_max_width(static_cast<int>(declare_parameter("tag.detect_max_width", static_cast<int64_t>(0))));
+    marker_->set_max_width(static_cast<int>(declare_parameter("marker.detect_max_width", static_cast<int64_t>(0))));
+    tag_->set_texture_pass(declare_parameter("tag.texture_pass", false));
+    marker_->set_texture_pass(declare_parameter("marker.texture_pass", false));
     for (auto id : declare_parameter<std::vector<int64_t>>("marker.ids", std::vector<int64_t>{})) {
       marker_ids_.push_back(static_cast<int>(id));
     }
@@ -399,6 +404,21 @@ public:
     bc_locator_ = std::make_unique<BarcodeLocator>(bcc, tex);
     const double rs = declare_parameter("barcode.read_scale", 1.0), rg = declare_parameter("barcode.read_gamma", 2.0);
     bc_reader_ = std::make_unique<BarcodeReader>(rs, rg, static_cast<int>(declare_parameter("barcode.read_min_quality", 4)));
+    {   // 라벨 찾기(실물 팔 카메라: 흰 여백이 좁은 라벨). barcode_reader.hpp BarcodeLabelConfig
+      BarcodeLabelConfig lc;
+      lc.enabled = declare_parameter("barcode.read_label.enabled", lc.enabled);
+      lc.rel = declare_parameter("barcode.read_label.rel", lc.rel);
+      lc.min_area = declare_parameter("barcode.read_label.min_area", lc.min_area);
+      lc.max_area = declare_parameter("barcode.read_label.max_area", lc.max_area);
+      lc.ar_min = declare_parameter("barcode.read_label.ar_min", lc.ar_min);
+      lc.ar_max = declare_parameter("barcode.read_label.ar_max", lc.ar_max);
+      lc.fill_min = declare_parameter("barcode.read_label.fill_min", lc.fill_min);
+      lc.max_labels = static_cast<int>(declare_parameter("barcode.read_label.max_labels", static_cast<int64_t>(lc.max_labels)));
+      lc.pad = declare_parameter("barcode.read_label.pad", lc.pad);
+      lc.gamma = declare_parameter("barcode.read_label.gamma", lc.gamma);
+      lc.bar_blur = declare_parameter("barcode.read_label.bar_blur", lc.bar_blur);
+      bc_reader_->set_label(lc);
+    }
     bc_cam_ = declare_parameter("barcode.camera", std::string("front")) == "rear" ? &rear_ : &front_;
     bc_frames_ = std::max(1, static_cast<int>(declare_parameter("barcode.depth_frames", 5)));
     bc_min_valid_ = static_cast<int>(declare_parameter("barcode.depth_min_valid", 0));

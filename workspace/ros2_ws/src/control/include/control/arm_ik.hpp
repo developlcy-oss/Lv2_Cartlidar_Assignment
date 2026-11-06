@@ -45,7 +45,7 @@ public:
   // 관절 명령값 → 집게 끝 위치 (arm_base_link)
   Eigen::Vector3d forward(const ArmJoints & q_cmd) const;
 
-  // 관절 명령값 → 집게 pitch (위로 +, (−π, π] 로 접음)
+  // 관절 명령값 → 집게 pitch (위로 +, (-pi, pi])
   double forwardPitch(const ArmJoints & q_cmd) const;
 
   // 집게 축 방향 단위 벡터 (yaw = joint1 방향, pitch 위로 +)

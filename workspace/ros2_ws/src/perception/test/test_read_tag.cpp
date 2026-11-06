@@ -1,6 +1,8 @@
 // READ_TAG 퍽 태그 · 장소 태그 고르기 시험 (read_tag.hpp). 정면 합성 영상
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include <opencv2/core/version.hpp>
 #include <opencv2/imgproc.hpp>
 #if (CV_VERSION_MAJOR > 4) || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7)
@@ -91,4 +93,68 @@ TEST(ReadTag, PlaceTagReadWithItsOwnSize)
   ASSERT_TRUE(best->pose_valid);
   EXPECT_NEAR(best->tvec[2], Z, 0.01);
   EXPECT_NEAR(pucks[0].tvec[2], Z, 0.01);   // 퍽 태그는 퍽 크기로 그대로
+}
+
+// 팔 1280 × 720 을 640 폭으로 줄여 찾기 (TagDetector::set_max_width): 같은 번호를 찾고, 꼭짓점 · 자세는 원래 크기 검출과 같다
+TEST(ReadTag, MaxWidthKeepsIdsAndCorners)
+{
+  cv::Mat g(720, 1280, CV_8U, cv::Scalar(200)), img;
+  draw_tag(g, 4, 0.016, 400, 300);    // 퍽 태그 16 mm → 48 px
+  draw_tag(g, 13, 0.048, 900, 420);   // 장소 태그 48 mm → 144 px
+  cv::cvtColor(g, img, cv::COLOR_GRAY2BGR);
+  const TagDetector full("tag36h11", 0.016);
+  TagDetector small("tag36h11", 0.016);
+  small.set_max_width(640);
+  const auto a = full.detect(img, K(), cv::Mat()), b = small.detect(img, K(), cv::Mat());
+  ASSERT_EQ(a.size(), 2u);
+  ASSERT_EQ(b.size(), 2u);
+  for (const auto & tb : b) {
+    const auto it = std::find_if(a.begin(), a.end(), [&](const TagDetection & t) {return t.id == tb.id;});
+    ASSERT_NE(it, a.end());
+    for (int k = 0; k < 4; ++k) {EXPECT_LT(cv::norm(it->corners[k] - tb.corners[k]), 0.05) << "id " << tb.id << " 꼭짓점 " << k;}
+    ASSERT_TRUE(tb.pose_valid);
+    EXPECT_LT(cv::norm(it->tvec - tb.tvec), 1e-4);
+  }
+  // 폭이 기준 이하면 줄이지 않음 (D435 640 × 480)
+  cv::Mat d435g(480, 640, CV_8U, cv::Scalar(200)), d435;
+  draw_tag(d435g, 2, 0.016, 320, 240);
+  cv::cvtColor(d435g, d435, cv::COLOR_GRAY2BGR);
+  EXPECT_EQ(small.detect(d435, K(), cv::Mat()).size(), 1u);
+}
+
+// 흰 여백 없는 태그가 무늬 있는 바닥에 놓임 (실물 장소 태그의 좁은 여백이 극단으로 간 경우): 끄면 못 찾고 켜면 찾음. 줄이지 않는 영상은 그대로
+TEST(ReadTag, TexturePassFindsNarrowMarginTagOnTexturedFloor)
+{
+  cv::Mat floor(720, 1280, CV_8U);
+  cv::RNG rng(5);
+  rng.fill(floor, cv::RNG::UNIFORM, 30, 180);
+  cv::Mat small_floor;   // 약 4 px 크기의 거친 무늬 (카펫 털)
+  cv::resize(floor, small_floor, cv::Size(), 0.25, 0.25, cv::INTER_NEAREST);
+  cv::resize(small_floor, floor, floor.size(), 0, 0, cv::INTER_LINEAR);
+  cv::Mat m;
+#if (CV_VERSION_MAJOR > 4) || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7)
+  cv::aruco::generateImageMarker(cv::aruco::getPredefinedDictionary(cv::aruco::DICT_APRILTAG_36h11), 14, 320, m);
+#else
+  cv::aruco::drawMarker(cv::aruco::getPredefinedDictionary(cv::aruco::DICT_APRILTAG_36h11), 14, 320, m);
+#endif
+  m.setTo(cv::Scalar(30), m < 128);
+  const std::vector<cv::Point2f> src = {{0.f, 0.f}, {float(m.cols), 0.f}, {float(m.cols), float(m.rows)}, {0.f, float(m.rows)}};
+  const std::vector<cv::Point2f> dst = {{560.f, 120.f}, {860.f, 200.f}, {790.f, 500.f}, {490.f, 420.f}};
+  const cv::Mat H = cv::getPerspectiveTransform(src, dst);
+  cv::Mat warped, mask, img;
+  cv::warpPerspective(m, warped, H, floor.size(), cv::INTER_LINEAR);
+  cv::warpPerspective(cv::Mat(m.size(), CV_8U, cv::Scalar(255)), mask, H, floor.size(), cv::INTER_NEAREST);
+  warped.copyTo(floor, mask);
+  cv::cvtColor(floor, img, cv::COLOR_GRAY2BGR);
+  TagDetector off("tag36h11", 0.048), on("tag36h11", 0.048), d435("tag36h11", 0.048);
+  off.set_max_width(640);
+  on.set_max_width(640);
+  on.set_texture_pass(true);
+  d435.set_texture_pass(true);   // 줄이지 않으면 이 문턱을 쓰지 않음
+  const auto a = off.detect(img, K(), cv::Mat()), b = on.detect(img, K(), cv::Mat());
+  ASSERT_EQ(b.size(), 1u);
+  EXPECT_EQ(b[0].id, 14);
+  EXPECT_TRUE(a.empty());
+  cv::Mat blank(480, 640, CV_8UC3, cv::Scalar(120, 120, 120));
+  EXPECT_TRUE(d435.detect(blank, K(), cv::Mat()).empty());
 }
