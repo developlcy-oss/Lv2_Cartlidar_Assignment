@@ -16,8 +16,7 @@ libopencv-contrib-dev
 # ---------------------------------------------------------------- 실물 센서 드라이버
 # RealSense D435 × 2 (상단 앞·뒤)
 ros-lyrical-realsense2-camera
-# Arducam B0200 (팔 끝, USB UVC)
-ros-lyrical-usb-cam
+# Arducam B0200 (팔 끝, USB UVC): 드라이버는 perception/scripts/arm_camera_node.py (python3-opencv)
 # LDS-03 × 2 (1층 천장에 거꾸로 장착)
 ros-lyrical-coin-d4-driver
 # ---------------------------------------------------------------- 로봇 전체 (bringup · 제어 · 주행 · 위치 추정)
