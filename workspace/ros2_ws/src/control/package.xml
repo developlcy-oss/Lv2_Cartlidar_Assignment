@@ -33,6 +33,7 @@
 
   <exec_depend>perception</exec_depend>
   <exec_depend>mission_planner</exec_depend>   <!-- place_<L>_* 칸 좌표표 (config/approach_poses.yaml) -->
+  <exec_depend>rclpy</exec_depend>   <!-- scripts/pick_visible_puck.py -->
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
 

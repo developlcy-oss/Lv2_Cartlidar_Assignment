@@ -60,6 +60,8 @@ target_link_libraries(drive_node PUBLIC robot_policy::robot_policy)
 install(TARGETS arm_ik ARCHIVE DESTINATION lib)
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 install(DIRECTORY config launch DESTINATION share/${PROJECT_NAME})
+# 실물 시험 도구: 지금 보이는 퍽 집기 (ros2 run control pick_visible_puck.py)
+install(PROGRAMS scripts/pick_visible_puck.py DESTINATION lib/${PROJECT_NAME})
 ament_export_include_directories(include/${PROJECT_NAME})
 
 if(BUILD_TESTING)
