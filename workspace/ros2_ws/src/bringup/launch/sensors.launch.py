@@ -1,4 +1,4 @@
-# 센서 드라이버 (실물): 앞 · 뒤 D435 (realsense2_camera) · 팔 Arducam (usb_cam) · 앞 · 뒤 LDS-03 (coin_d4_driver)
+# 센서 드라이버 (실물): 앞 · 뒤 D435 (realsense2_camera) · 팔 Arducam (perception arm_camera_node.py) · 앞 · 뒤 LDS-03 (coin_d4_driver)
 #
 #   ros2 launch bringup sensors.launch.py front_serial:=<앞 D435 시리얼> rear_serial:=<뒤 D435 시리얼>
 #   ros2 launch bringup sensors.launch.py use_lidar:=false          # 하나씩 끄기: use_d435 · use_arm_camera · use_lidar
@@ -10,7 +10,7 @@
 #   Arducam /arm_camera/image_raw · camera_info, frame_id arm_camera_optical_frame (URDF)
 #   LDS-03 /scan_front · /scan_rear, frame_id laser_front · laser_rear (URDF, roll π 로 뒤집어 단 것을 반영 → 드라이버 reverse 는 끔)
 #
-# 드라이버 패키지가 없으면 그 센서만 경고하고 건너뛴다 (realsense2_camera · usb_cam · coin_d4_driver 는 apt / 소스로 따로 설치).
+# 드라이버 패키지가 없으면 그 센서만 경고하고 건너뛴다 (realsense2_camera · coin_d4_driver 는 apt / 소스로 따로 설치).
 # ★ = 실물에서 확인할 값: D435 시리얼 두 개, Arducam 보정 파일 (camera_info_url), /dev/arm_cam · /dev/lidar_* (perception/udev/99-sensors.rules)
 from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 from launch import LaunchDescription
@@ -71,23 +71,21 @@ def launch_setup(context):
             missing('realsense2_camera', 'D435 두 대')
 
     if as_bool(lc['use_arm_camera']):
-        if installed('usb_cam'):
+        if installed('perception'):
             # 이름공간 arm_camera → /arm_camera/image_raw · /arm_camera/camera_info
+            # usb_cam 0.8.1 은 1280x720 MJPG 에서 세그폴트 → OpenCV 드라이버를 쓴다 (#119)
             actions.append(Node(
-                package='usb_cam', executable='usb_cam_node_exe', name='arm_camera_driver', namespace='arm_camera',
+                package='perception', executable='arm_camera_node.py', name='arm_camera_driver', namespace='arm_camera',
                 output='screen',
                 parameters=[{
-                    'video_device': lc['arm_device'],
-                    'framerate': 30.0,
-                    'image_width': 640, 'image_height': 480,   # perception 팔 카메라 640x480 (이슈 #14 기준점도 이 크기)
-                    'pixel_format': 'mjpeg2rgb',
-                    'io_method': 'mmap',
+                    'device': lc['arm_device'],
+                    'fps': 30.0,
+                    'width': 1280, 'height': 720,   # 640x480 은 실물 화면에 줄이 생기고, YOLO 팔 판정도 이 크기 (#119)
                     'frame_id': 'arm_camera_optical_frame',
-                    'camera_name': 'arm_camera',
                     'camera_info_url': lc['arm_camera_info_url'],   # ★ 비우면 보정 없이 (perception 은 태그 id 만)
                 }, sim]))
         else:
-            missing('usb_cam', '팔 Arducam')
+            missing('perception', '팔 Arducam')
 
     if as_bool(lc['use_lidar']):
         if installed('coin_d4_driver'):
@@ -118,10 +116,10 @@ def generate_launch_description():
         DeclareLaunchArgument('rgb_exposure', default_value='80',
                               description='★ D435 RGB 노출 (0.1 ms 단위, 80 = 8 ms ≈ 조명 120 Hz 한 주기). 경기장 조명에서 다시 고름'),
         DeclareLaunchArgument('rgb_gain', default_value='128', description='★ D435 RGB gain'),
-        DeclareLaunchArgument('use_arm_camera', default_value='true', description='팔 Arducam (usb_cam)'),
+        DeclareLaunchArgument('use_arm_camera', default_value='true', description='팔 Arducam (perception arm_camera_node.py)'),
         DeclareLaunchArgument('arm_device', default_value='/dev/arm_cam', description='perception/udev/99-sensors.rules 이름'),
         DeclareLaunchArgument('arm_camera_info_url', default_value='',
-                              description='★ Arducam 보정 파일 (file:///... 또는 package://...). 비우면 보정 없음'),
+                              description='★ Arducam 보정 파일 (file:///...). 비우면 보정 없음'),
         DeclareLaunchArgument('use_lidar', default_value='true', description='앞 · 뒤 LDS-03 (coin_d4_driver)'),
         DeclareLaunchArgument('lidar_front_port', default_value='/dev/lidar_front'),
         DeclareLaunchArgument('lidar_rear_port', default_value='/dev/lidar_rear'),

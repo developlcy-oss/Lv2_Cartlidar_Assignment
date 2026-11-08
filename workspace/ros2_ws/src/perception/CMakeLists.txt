@@ -96,6 +96,7 @@ rclcpp_components_register_node(perception_rear PLUGIN "perception::RearObstacle
 install(TARGETS perception_detector perception_barcode perception_node perception_lidar perception_rear
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
 install(TARGETS barcode_compare place_box_check RUNTIME DESTINATION lib/${PROJECT_NAME})
+install(PROGRAMS scripts/arm_camera_node.py DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 install(DIRECTORY config launch udev data DESTINATION share/${PROJECT_NAME})
 
