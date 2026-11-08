@@ -243,6 +243,10 @@ class WaffleTopPickEnv(DirectRLEnv):
         tilt = self.base_tilt()
         fing = self.robot.data.joint_pos.torch[:, self._gl[0]]
         holding = (dist < c.near_dist) & (fing > c.grasp_finger_range[0]) & (fing < c.grasp_finger_range[1])  # 쥔 동안 (가운데 · 기울기 보상, TP4)
+        e = tgt - g  # 손 안 어긋남 (chain_pallet_eval in_hand 와 같은 양)
+        gz = quat_apply(self.robot.data.body_link_quat_w.torch[:, self._ee], self._ez)
+        radial = ((e * appr).sum(1) + (e * gz).sum(1)) / math.sqrt(2.0)  # 운반 자세 반경 (+ = J1 에서 먼 쪽, TP8)
+        rad_err = torch.clamp((radial - c.radial_goal).abs() - c.radial_band, min=0.0)
         hand_tilt = torch.acos(up.clamp(-1.0, 1.0))
         grasped = (dist < c.grasp_dist) & (fing > c.grasp_finger_range[0]) & (fing < c.grasp_finger_range[1]) & (tilt < c.grasp_tilt_max) & (up > 0.9)
         held_near = dist < c.hold_dist  # 손 안 15 mm 안 (TP6)
@@ -269,6 +273,7 @@ class WaffleTopPickEnv(DirectRLEnv):
             "puck_tilt": c.rew_puck_tilt * (1 - up) * close,
             "center": c.rew_center * holding.float() * (1 - torch.tanh(dist / c.center_tol)),
             "hand_tilt": c.rew_hand_tilt * holding.float() * hand_tilt,
+            "radial": c.rew_radial * holding.float() * (1 - torch.tanh(rad_err / c.radial_scale)),
             "arm_box": c.rew_arm_box * arm_box.float(),
             "body_box": c.rew_body_box * body_box.float(),
             "base_move": c.rew_base_move * (base_move > c.base_move_max).float(),
@@ -296,6 +301,8 @@ class WaffleTopPickEnv(DirectRLEnv):
         if holding.any():
             log["Metrics/hand_center_mm"] = dist[holding].mean().item() * 1000  # 쥔 동안 손 안 어긋남 (TP4)
             log["Metrics/hand_tilt_deg"] = math.degrees(hand_tilt[holding].mean().item())
+            log["Metrics/hand_radial_mm"] = radial[holding].mean().item() * 1000
+            log["Metrics/hand_radial_ok"] = ((radial[holding] - c.radial_goal).abs() < 0.004).float().mean().item()  # −7 ~ +1 mm
         log["Metrics/toppled_ratio"] = toppled.float().mean().item()
         log["Metrics/neighbor_toppled_ratio"] = nb_toppled.float().mean().item()
         log["Metrics/arm_box_contact_ratio"] = arm_box.float().mean().item()

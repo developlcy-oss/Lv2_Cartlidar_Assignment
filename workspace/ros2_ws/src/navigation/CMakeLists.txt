@@ -3,6 +3,6 @@ project(navigation)
 
 find_package(ament_cmake REQUIRED)
 
-install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
+install(DIRECTORY launch config behavior_trees DESTINATION share/${PROJECT_NAME})
 
 ament_package()

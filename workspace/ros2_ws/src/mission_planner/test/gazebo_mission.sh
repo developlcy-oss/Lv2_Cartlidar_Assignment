@@ -24,6 +24,10 @@ MIS=$(ros2 pkg prefix mission)/share/mission/config
 CTL=$(ros2 pkg prefix control)/share/control/config
 MPL=$(ros2 pkg prefix mission_planner)/share/mission_planner/config
 export GZ_IP=127.0.0.1   # Gazebo 통신을 이 PC 안으로 (샌드박스 · 다른 PC 와 섞이지 않게)
+# ROS 2 통신도 이 PC 안으로. 유선 · 무선 · tailscale 이 함께 켜진 PC 에서 SUBNET 이면 Nav2 lifecycle 응답이
+#   사라져 bringup 이 멈춤 (2026-11-08, 2 번 연속 → LOCALHOST 로 정상). 다른 값이 필요하면 SIM_DISCOVERY_RANGE=SUBNET.
+#   시험 중 다른 터미널에서 토픽을 보려면 그 터미널도 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
+export ROS_AUTOMATIC_DISCOVERY_RANGE=${SIM_DISCOVERY_RANGE:-LOCALHOST}
 rm -rf "$OUT"; mkdir -p "$OUT/log"
 # 노드 이름 키 (drive_node:) 가 있는 yaml 값은 -p 보다 우선이라 덮어쓸 값도 yaml 로
 cat > "$OUT/drive_sim.yaml" <<'YAML'
