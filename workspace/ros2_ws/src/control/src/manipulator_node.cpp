@@ -44,6 +44,8 @@
 //   그리퍼는 gripper.mode arm_joint 만 (6 번째 칸, 학습 손가락 m ↔ gripper_roll rad 선형 대응 toppick_rl.finger_m_at_*).
 //   성공 = 손가락이 쥔 범위 + 잡는 점이 처음 퍽 잡는 높이보다 toppick_rl.success_lift 위로 success_hold 동안 (학습 성공과 같은 뜻)
 // - 결과를 콜백 안에서 기다리지 않는다. 각 단계는 이전 단계의 result 콜백에서 이어진다
+// - 켜질 때 정리 (startup.*, startup_stow.hpp): arm_controller 가 준비되고 팔 HOLD 가 풀리면 (/diagnostics opencr/motors
+//   arm_hold 0 = 리셋 버튼 REARM 뒤) 한 번, 팔을 접고 → 허리를 돌려 startup.pose (STOW) 로 천천히. 그 전에 goal 을 받으면 하지 않음
 //
 // callback group
 // - job_cb_group_: Action 서버 · 클라이언트 · tick 타이머. 작업 상태는 이 그룹에서만 바뀐다 (락 불필요)
@@ -69,6 +71,8 @@
 #include "action_msgs/srv/cancel_goal.hpp"
 #include "control_msgs/action/follow_joint_trajectory.hpp"
 #include "control_msgs/action/parallel_gripper_command.hpp"
+#include "diagnostic_msgs/msg/diagnostic_array.hpp"
+#include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "geometry_msgs/msg/vector3_stamped.hpp"
@@ -78,6 +82,7 @@
 #include "ament_index_cpp/get_package_share_path.hpp"
 #include "control/arm_ik.hpp"
 #include "control/sag_comp.hpp"
+#include "control/startup_stow.hpp"
 #include "control/toppick_obs.hpp"
 #include "control/target_look_pose.hpp"
 #include "robot_interfaces/action/arm_pose.hpp"
@@ -157,6 +162,10 @@ public:
         last_pucks_ = msg;
       }, sub_opt);
 
+    diag_sub_ = create_subscription<diagnostic_msgs::msg::DiagnosticArray>(   // 켜질 때 정리: 팔 HOLD · E-stop
+      "/diagnostics", rclcpp::QoS(10),
+      [this](diagnostic_msgs::msg::DiagnosticArray::ConstSharedPtr msg) {onDiagnostics(msg);}, sub_opt);
+
     // --- Action 클라이언트 ---
     arm_client_ = rclcpp_action::create_client<FollowJT>(this, "/arm_controller/follow_joint_trajectory", job_cb_group_);
     gripper_client_ = rclcpp_action::create_client<GripperCmd>(this, "/gripper_controller/gripper_cmd", job_cb_group_);
@@ -169,6 +178,7 @@ public:
           RCLCPP_WARN(get_logger(), "pose: unknown name '%s' -> reject", goal->name.c_str());
           return rclcpp_action::GoalResponse::REJECT;
         }
+        if (startupMoving("pose")) {return rclcpp_action::GoalResponse::REJECT;}
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<PoseGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -177,7 +187,8 @@ public:
 
     pick_server_ = rclcpp_action::create_server<Pick>(
       this, "/manipulator/pick",
-      [](const rclcpp_action::GoalUUID &, std::shared_ptr<const Pick::Goal>) {
+      [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Pick::Goal>) {
+        if (startupMoving("pick")) {return rclcpp_action::GoalResponse::REJECT;}
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<PickGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -193,6 +204,7 @@ public:
             "policies.yaml · ONNX Runtime) -> reject", goal->policy.c_str());
           return rclcpp_action::GoalResponse::REJECT;
         }
+        if (startupMoving("execute_skill")) {return rclcpp_action::GoalResponse::REJECT;}
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<SkillGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -211,7 +223,7 @@ public:
   }
 
 private:
-  enum class Job { NONE, POSE, PICK, SKILL };
+  enum class Job { NONE, POSE, PICK, SKILL, STARTUP };   // STARTUP = 켜질 때 정리 자세 (action goal 없음)
   enum class PickStep { PLAN, PREGRASP, CORRECT_WAIT, CORRECT_MOVE, OPEN, FINAL, CLOSE, CLOSE_WAIT, LIFT, TASK, TARGET_LOOK_WAIT };
   enum class GripperMode { ARM_JOINT, ACTION, NONE };
   // 미션 skill 종류 (execute_skill 이름)
@@ -609,6 +621,27 @@ private:
       }
     }
 
+    // 켜질 때 정리 자세 (startup_stow.hpp). 팔 HOLD 가 풀린 뒤 (/diagnostics opencr/motors arm_hold 0) 한 번, 묶음 순서로 천천히
+    startup_pose_ = declare_parameter<std::string>("startup.pose", "STOW");
+    const auto stages = declare_parameter<std::vector<std::string>>("startup.stages", {"2,3,4,5,6", "1"});
+    startup_vel_ = declare_parameter<double>("startup.max_joint_velocity", 0.2);
+    startup_skip_tol_ = declare_parameter<double>("startup.skip_tolerance", 0.05);
+    startup_diag_wait_ = declare_parameter<double>("startup.diag_wait", 5.0);
+    startup_warn_after_ = declare_parameter<double>("startup.warn_after", 15.0);
+    if (!startup_pose_.empty()) {
+      if (poses_.count(startup_pose_) == 0) {
+        throw std::invalid_argument("startup.pose '" + startup_pose_ + "' is not in poses.names (빈 문자열 = 끔)");
+      }
+      if (!withinLimits(poses_.at(startup_pose_))) {
+        throw std::invalid_argument("startup.pose '" + startup_pose_ + "' exceeds joint limits");
+      }
+      startup_stages_ = parseStartupStages(stages, joint_names_.size());
+    }
+    requirePositive("startup.max_joint_velocity", startup_vel_);
+    requirePositive("startup.skip_tolerance", startup_skip_tol_);
+    requireNonNegative("startup.diag_wait", startup_diag_wait_);
+    requirePositive("startup.warn_after", startup_warn_after_);
+
     requirePositive("arm.max_joint_velocity", max_joint_vel_);
     requirePositive("arm.min_duration", min_duration_);
     requirePositive("arm.joint_state_timeout", joint_state_timeout_);
@@ -746,6 +779,26 @@ private:
     joint_rx_ = now();
   }
 
+  // opencr_hardware 진단 (이름 opencr/…): motors 의 arm_hold (펌웨어 팔 HOLD) · estop 잠김. 켜질 때 정리가 HOLD 가 풀린 뒤에만
+  //   움직이게 쓴다 — HOLD 중 보낸 명령은 펌웨어가 무시하다가 REARM 순간 그 자리로 한 번에 튄다
+  void onDiagnostics(diagnostic_msgs::msg::DiagnosticArray::ConstSharedPtr msg)
+  {
+    using diagnostic_msgs::msg::DiagnosticStatus;
+    std::lock_guard<std::mutex> lock(sensor_mutex_);
+    for (const auto & s : msg->status) {
+      if (s.name == "opencr/motors") {
+        for (const auto & kv : s.values) {
+          if (kv.key == "arm_hold") {
+            diag_arm_hold_ = kv.value != "0";
+            diag_rx_ = now();
+          }
+        }
+      } else if (s.name == "opencr/estop") {
+        diag_estop_ = s.level != DiagnosticStatus::OK;
+      }
+    }
+  }
+
   // /joint_states = IK 시작값 · 궤적 시간 계산 기준
   std::optional<std::vector<double>> currentJoints()
   {
@@ -756,7 +809,8 @@ private:
     std::vector<double> q;
     for (const auto & name : joint_names_) {
       auto it = joint_pos_.find(name);
-      if (it == joint_pos_.end()) {
+      // NaN = 하드웨어가 활성화되지 않음 (joint_state_broadcaster 가 값 없이 냄)
+      if (it == joint_pos_.end() || !std::isfinite(it->second)) {
         return std::nullopt;
       }
       q.push_back(it->second);
@@ -1027,6 +1081,7 @@ private:
   // 새 goal이 오면 이전 작업은 abort (팔 명령 주체는 하나, 작업도 한 번에 하나)
   void preemptCurrent()
   {
+    startup_done_ = true;   // goal 을 받음 = 운용자가 팔을 쓰는 중 → 켜질 때 정리는 하지 않는다 (정리 중 goal 은 거절됨)
     if (job_ == Job::POSE && pose_gh_->is_active()) {
       RCLCPP_WARN(get_logger(), "pose '%s' preempted by new goal", pose_name_.c_str());
       auto result = std::make_shared<ArmPose::Result>();
@@ -1081,6 +1136,120 @@ private:
       gripper_wait_ = nullptr;
       next();
     }
+    startupTick();
+  }
+
+  // ------------------------------------------------------------------ 켜질 때 정리 자세 (startup.*, startup_stow.hpp)
+  // 조건: arm_controller 준비 · /joint_states (NaN 아님) · 팔 HOLD 와 E-stop 해제 (opencr 진단). 진단이 startup.diag_wait 동안
+  //   한 번도 안 오면 (시뮬레이션 · mock) HOLD 확인 없이 진행. 정리 전에 pose · pick · skill goal 을 받으면 운용자가 쓰는
+  //   중이라 보고 정리를 하지 않는다. 정리 중에 오는 goal 은 거절, HOLD · E-stop 이 걸리면 멈추고 풀린 뒤 다시 판단
+  bool startupMoving(const char * what)
+  {
+    if (job_ != Job::STARTUP) {return false;}
+    RCLCPP_WARN(get_logger(), "%s: arm is moving to startup pose '%s' -> reject (retry after it finishes)",
+      what, startup_pose_.c_str());
+    return true;
+  }
+
+  // 펌웨어 팔 HOLD 또는 E-stop 잠김. 진단이 오다가 끊겨도 (3 s) 모름 = 잡힘으로 본다
+  bool armHeld()
+  {
+    std::lock_guard<std::mutex> lock(sensor_mutex_);
+    if (diag_rx_.nanoseconds() == 0) {return false;}
+    return diag_arm_hold_ || diag_estop_ || (now() - diag_rx_).seconds() > 3.0;
+  }
+
+  void startupTick()
+  {
+    if (startup_done_ || startup_pose_.empty()) {return;}
+    const auto t = now();
+    if (job_ == Job::STARTUP) {
+      if (armHeld()) {
+        RCLCPP_WARN(get_logger(), "startup: arm HOLD / E-stop -> stop, retry after release");
+        endJob();
+      }
+      return;
+    }
+    if (job_ != Job::NONE || t < startup_retry_at_) {return;}
+    if (startup_wait_since_.nanoseconds() == 0) {startup_wait_since_ = t;}
+    const bool warn = (t - startup_wait_since_).seconds() > startup_warn_after_;
+
+    const auto current = currentJoints();
+    if (!current || !arm_client_->action_server_is_ready()) {
+      startup_diag_since_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
+      if (warn) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 10000,
+          "startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, "
+          "a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)");
+      }
+      return;
+    }
+    bool seen = false;
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      seen = diag_rx_.nanoseconds() != 0;
+    }
+    if (seen) {
+      if (armHeld()) {
+        RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 10000,
+          "startup: waiting for arm HOLD / E-stop release (reset button = REARM) before moving to '%s'",
+          startup_pose_.c_str());
+        return;
+      }
+    } else {
+      if (startup_diag_since_.nanoseconds() == 0) {startup_diag_since_ = t;}
+      if ((t - startup_diag_since_).seconds() < startup_diag_wait_) {return;}
+      RCLCPP_WARN(get_logger(), "startup: no opencr diagnostics for %.1f s -> moving without HOLD check (simulation?)",
+        startup_diag_wait_);
+    }
+    job_ = Job::STARTUP;
+    startup_stage_ = 0;
+    RCLCPP_INFO(get_logger(), "startup: moving arm to '%s' (%zu stages, %.2f rad/s)",
+      startup_pose_.c_str(), startup_stages_.size(), startup_vel_);
+    runStartupStage();
+  }
+
+  void runStartupStage()
+  {
+    const auto current = currentJoints();
+    if (!current) {
+      failStartup("no recent /joint_states for arm joints");
+      return;
+    }
+    const auto & pose = poses_.at(startup_pose_);
+    while (startup_stage_ < startup_stages_.size() &&
+      !startupStageNeeded(*current, pose, startup_stages_[startup_stage_], startup_skip_tol_))
+    {
+      ++startup_stage_;
+    }
+    if (startup_stage_ >= startup_stages_.size()) {
+      RCLCPP_INFO(get_logger(), "startup: arm at '%s'", startup_pose_.c_str());
+      startup_done_ = true;
+      endJob();
+      return;
+    }
+    const auto & stage = startup_stages_[startup_stage_];
+    const auto target = startupStageTarget(*current, pose, stage, lower_, upper_);
+    if (gripper_mode_ == GripperMode::ARM_JOINT && std::count(stage.begin(), stage.end(), size_t{5})) {
+      gripper_cmd_ = target[5];   // 이후 팔 궤적이 이 그리퍼 값을 이어 감
+    }
+    const double duration = startupStageDuration(*current, target, startup_vel_, min_duration_);
+    RCLCPP_INFO(get_logger(), "startup: stage %zu/%zu (%.1f s)", startup_stage_ + 1, startup_stages_.size(), duration);
+    sendArm(target, duration, [this](bool ok, const std::string & msg) {
+        if (!ok) {
+          failStartup(msg);
+          return;
+        }
+        ++startup_stage_;
+        runStartupStage();
+      });
+  }
+
+  void failStartup(const std::string & msg)
+  {
+    RCLCPP_WARN(get_logger(), "startup: failed (%s) -> retry in 5 s", msg.c_str());
+    endJob();
+    startup_retry_at_ = now() + rclcpp::Duration::from_seconds(5.0);
   }
 
   // ① 정밀 정렬 결과 · 미세 보정 (집게 축 기준 측정) 을 쓰는 집기인지: /manipulator/pick 은 늘, toppick_tilt 는 설정 (#82)
@@ -1131,6 +1300,7 @@ private:
   {
     auto result = std::make_shared<ArmPose::Result>();
     result->success = ok;
+    result->message = msg;
     if (ok) {
       RCLCPP_INFO(get_logger(), "pose '%s' done", pose_name_.c_str());
       pose_gh_->succeed(result);
@@ -2673,6 +2843,9 @@ private:
   int correction_max_iter_{5};
   double offset_gain_{1.0}, lateral_tol_{0.005}, range_tol_{0.01}, target_range_{0.13};
   double max_step_{0.02}, correction_min_duration_{0.3}, settle_time_{0.2}, wait_timeout_{1.0};
+  std::string startup_pose_{"STOW"};                  // 빈 문자열 = 켜질 때 정리 끔
+  std::vector<std::vector<size_t>> startup_stages_;   // 관절 칸 묶음 순서
+  double startup_vel_{0.2}, startup_skip_tol_{0.05}, startup_diag_wait_{5.0}, startup_warn_after_{15.0};
 
   // ROS 인터페이스
   rclcpp::CallbackGroup::SharedPtr job_cb_group_, sensor_cb_group_;
@@ -2682,6 +2855,7 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::Range>::SharedPtr range_sub_;
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_sub_;
   rclcpp::Subscription<PuckArray>::SharedPtr pucks_sub_;
+  rclcpp::Subscription<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_sub_;
   rclcpp_action::Client<FollowJT>::SharedPtr arm_client_;
   rclcpp_action::Client<GripperCmd>::SharedPtr gripper_client_;
   rclcpp_action::Server<ArmPose>::SharedPtr pose_server_;
@@ -2698,6 +2872,8 @@ private:
   std::map<std::string, double> joint_pos_;
   std::map<std::string, double> joint_vel_;   // /joint_states velocity (있을 때, 강화학습 집기 관측)
   rclcpp::Time joint_rx_{0, 0, RCL_ROS_TIME};
+  bool diag_arm_hold_{false}, diag_estop_{false};   // opencr 진단 (onDiagnostics)
+  rclcpp::Time diag_rx_{0, 0, RCL_ROS_TIME};        // 마지막 opencr/motors 수신 (0 = 아직 없음)
 
   // 작업 상태 (job_cb_group_ 전용)
   Job job_{Job::NONE};
@@ -2728,6 +2904,10 @@ private:
   bool object_yaw_valid_{false};
   int correction_iter_{0};
   rclcpp::Time wait_since_{0, 0, RCL_ROS_TIME};
+  bool startup_done_{false};                          // 켜질 때 정리를 마쳤거나 goal 을 받아 건너뜀
+  size_t startup_stage_{0};
+  rclcpp::Time startup_wait_since_{0, 0, RCL_ROS_TIME}, startup_diag_since_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time startup_retry_at_{0, 0, RCL_ROS_TIME};
 };
 
 }  // namespace control

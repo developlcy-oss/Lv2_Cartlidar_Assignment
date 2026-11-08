@@ -17,13 +17,18 @@
     </joint>
   </xacro:macro>
 
-  <xacro:macro name="opencr_arm_joint" params="name slot lower upper">
+  <!-- lower · upper = 펌웨어 명령 범위 (fw_min · fw_max — 하드웨어가 보내기 전에 이 범위로 자름).
+       command_interface min/max = 그보다 margin 넓게: ros2_control 은 이 값으로 관절 한계를 정하고 (URDF <limit> 보다 좁으면 이쪽),
+       측정 위치가 한계 밖이면 arm_controller 활성화를 거부한다. 전원을 끈 동안 팔이 처져 범위를 조금 넘어도 켜지게 하는 여유 -->
+  <xacro:macro name="opencr_arm_joint" params="name slot lower upper margin:=0.0">
     <joint name="${name}">
       <param name="role">arm</param>
       <param name="slot">${slot}</param>
+      <param name="fw_min">${lower}</param>
+      <param name="fw_max">${upper}</param>
       <command_interface name="position">
-        <param name="min">${lower}</param>
-        <param name="max">${upper}</param>
+        <param name="min">${lower - margin}</param>
+        <param name="max">${upper + margin}</param>
       </command_interface>
       <state_interface name="position"/>
       <state_interface name="velocity"/>
@@ -37,7 +42,7 @@
        opencr = 실물 OpenCR 2대 · mock = mock_components (장치 없이, 명령이 곧 상태) ·
        isaac = Isaac Sim — TopicBasedSystem 이 관절 상태 · 명령을 토픽으로 주고받는다 (브리지 workspace/tools/isaac_sim).
        gazebo 는 3단계 (LCY 모델과 플러그인 선택 합의 후) -->
-  <xacro:macro name="opencr_ros2_control" params="name:=OpenCRSystem ports:=/dev/ttyACM0,/dev/ttyACM1 wheel_count:=4 use_gripper:=false joy_required:=true wheel_gear:=1.0 backend:=opencr">
+  <xacro:macro name="opencr_ros2_control" params="name:=OpenCRSystem ports:=/dev/ttyACM0,/dev/ttyACM1 wheel_count:=4 use_gripper:=false joy_required:=true wheel_gear:=1.0 backend:=opencr arm_margin:=0.0">
     <xacro:if value="${backend not in ['opencr', 'mock', 'isaac']}">
       ${xacro.fatal("backend 는 opencr · mock · isaac: " + backend)}
     </xacro:if>
@@ -89,13 +94,14 @@
       <!-- 관절 한계 (rad): 호스트가 명령을 이 범위로 자른다. 펌웨어 config.h ARM_MIN/MAX_RAD 안이어야 한다 —
            펌웨어는 범위 밖 CMD 를 통째로 거부 (test_robot_description 이 확인). 2026-10-27 arm_bench 이식으로 펌웨어 범위와 같게.
            6 번째 칸 (gripper_roll) = 실물 그리퍼 개폐 모터 (ID 15): 열림 1550 tick (-0.76 rad) · 닫힘 2650 tick (+0.92 rad),
-           막히면 펌웨어 GripGuard 가 약하게 쥠. manipulator.yaml 의 joint_limits 와도 맞출 것 ★ -->
-      <xacro:opencr_arm_joint name="joint1"       slot="0" lower="-3.14159" upper="3.14159"/>
-      <xacro:opencr_arm_joint name="joint2"       slot="1" lower="-2.14"    upper="1.6"/>
-      <xacro:opencr_arm_joint name="joint3"       slot="2" lower="-1.6"     upper="1.6"/>
-      <xacro:opencr_arm_joint name="joint4"       slot="3" lower="-1.92"    upper="2.0"/>
-      <xacro:opencr_arm_joint name="joint5"       slot="4" lower="-2.8"     upper="2.8"/>
-      <xacro:opencr_arm_joint name="gripper_roll" slot="5" lower="-0.7946"  upper="0.9541"/>
+           막히면 펌웨어 GripGuard 가 약하게 쥠. manipulator.yaml 의 joint_limits 와도 맞출 것 ★
+           arm_margin = ros2_control 관절 한계 여유 (robot.urdf.xacro arm_state_margin, 위 opencr_arm_joint 설명) -->
+      <xacro:opencr_arm_joint name="joint1"       slot="0" lower="-3.14159" upper="3.14159" margin="${arm_margin}"/>
+      <xacro:opencr_arm_joint name="joint2"       slot="1" lower="-2.14"    upper="1.6"     margin="${arm_margin}"/>
+      <xacro:opencr_arm_joint name="joint3"       slot="2" lower="-1.6"     upper="1.6"     margin="${arm_margin}"/>
+      <xacro:opencr_arm_joint name="joint4"       slot="3" lower="-1.92"    upper="2.0"     margin="${arm_margin}"/>
+      <xacro:opencr_arm_joint name="joint5"       slot="4" lower="-2.8"     upper="2.8"     margin="${arm_margin}"/>
+      <xacro:opencr_arm_joint name="gripper_roll" slot="5" lower="-0.7946"  upper="0.9541"  margin="${arm_margin}"/>
 
       <xacro:if value="${use_gripper}">
         <!-- 그리퍼 개폐 액추에이터 미정 — 정해지면 펌웨어 GRIPPER_ID 와 함께 켬 ★ -->

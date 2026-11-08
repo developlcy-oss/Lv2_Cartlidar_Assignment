@@ -51,7 +51,7 @@ private:
     std::string name;
     Role role;
     int slot;            // WHEEL 0~5 · ARM 0~5 · GRIPPER 0
-    double lo = -std::numeric_limits<double>::infinity();   // 팔 명령 한계 (URDF command_interface min/max)
+    double lo = -std::numeric_limits<double>::infinity();   // 팔 명령 한계 = 펌웨어 범위 (관절 파라미터 fw_min/fw_max)
     double hi = std::numeric_limits<double>::infinity();
   };
 

@@ -108,10 +108,14 @@ hi::CallbackReturn OpenCRHardware::on_init(const hi::HardwareComponentInterfaceP
         RCLCPP_FATAL(get_logger(), "팔 관절 %s 는 position 명령 하나만 가져야 함", j.name.c_str());
         return CallbackReturn::ERROR;
       }
-      // URDF command_interface min/max — 펌웨어는 범위 밖 CMD 를 통째로 거부하므로 보내기 전에 자른다
+      // 펌웨어 명령 범위 — 펌웨어는 범위 밖 CMD 를 통째로 거부하므로 보내기 전에 자른다.
+      //   관절 파라미터 fw_min/fw_max (opencr.ros2_control.xacro). 없으면 command_interface min/max.
+      //   command_interface 는 ros2_control 관절 한계라 처짐 여유 (arm_margin) 만큼 넓을 수 있어 펌웨어 범위로 쓰지 않는다
       const auto & ci = j.command_interfaces[0];
-      if (!ci.min.empty()) {m.lo = std::stod(ci.min);}
-      if (!ci.max.empty()) {m.hi = std::stod(ci.max);}
+      const std::string fw_min = param_or(j.parameters, "fw_min", ci.min);
+      const std::string fw_max = param_or(j.parameters, "fw_max", ci.max);
+      if (!fw_min.empty()) {m.lo = std::stod(fw_min);}
+      if (!fw_max.empty()) {m.hi = std::stod(fw_max);}
     } else if (role == "gripper") {
       m.role = Role::GRIPPER;
       m.slot = 0;

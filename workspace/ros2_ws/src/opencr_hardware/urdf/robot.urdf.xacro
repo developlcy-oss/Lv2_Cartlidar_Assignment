@@ -92,6 +92,10 @@
   <xacro:fixed_link name="arm_base_link"     parent="base_link" xyz="0.096 0 0.1135" rpy="0 0 0"/>
 
   <!-- 팔 (joint1 요 · joint2~4 피치 · joint5 손목 롤 · gripper_roll) — 길이는 manipulator.yaml 과 같게 ★ -->
+  <!-- 팔 관절 한계 여유 (rad): 전원을 끈 동안 팔이 무게로 처져 펌웨어 범위를 조금 넘어도 arm_controller 가 켜지게 한다.
+       ros2_control 관절 한계 = 펌웨어 범위 ± 이 값 (URDF <limit> 와 command_interface min/max 둘 다). 펌웨어로 가는 명령은
+       하드웨어가 여전히 펌웨어 범위로 자르고, manipulator.yaml 한계 (= 아래 lower · upper) 도 그대로라 명령 범위는 바뀌지 않는다 -->
+  <xacro:property name="arm_state_margin" value="0.3"/>
   <xacro:macro name="arm_joint" params="name parent child xyz axis lower upper">
     <link name="${child}"/>
     <joint name="${name}" type="revolute">
@@ -99,7 +103,7 @@
       <child link="${child}"/>
       <origin xyz="${xyz}" rpy="0 0 0"/>
       <axis xyz="${axis}"/>
-      <limit lower="${lower}" upper="${upper}" effort="4.1" velocity="4.8"/>
+      <limit lower="${lower - arm_state_margin}" upper="${upper + arm_state_margin}" effort="4.1" velocity="4.8"/>
     </joint>
   </xacro:macro>
   <!-- 팔 관절 한계 = 펌웨어 config.h ARM_MIN/MAX_RAD (2026-10-27 arm_bench 이식: 대기 자세 A안 · J1 ±180° · 그리퍼 다시 결합).
@@ -123,5 +127,6 @@
   <xacro:fixed_link name="tool_link"       parent="gripper_roll_link" xyz="0.086 0 0" rpy="0 0 0"/>
 
   <xacro:opencr_ros2_control ports="$(arg ports)" wheel_count="${wheel_count}" use_gripper="$(arg use_gripper)"
-                             joy_required="$(arg joy_required)" wheel_gear="${wheel_gear}" backend="$(arg backend)"/>
+                             joy_required="$(arg joy_required)" wheel_gear="${wheel_gear}" backend="$(arg backend)"
+                             arm_margin="${arm_state_margin}"/>
 </robot>

@@ -146,7 +146,8 @@ TEST(RobotDescription, Ros2ControlMatchesFirmwareAndControllers)
   }
   EXPECT_EQ(names.size(), expect.size());
 
-  // 팔 명령 자르기 한계 (command_interface min/max) ⊆ 펌웨어 config.h ARM_MIN/MAX_RAD ∩ URDF <limit>
+  // 팔 명령 자르기 한계 (관절 파라미터 fw_min/fw_max, 하드웨어가 보내기 전에 자름) ⊆ 펌웨어 config.h ARM_MIN/MAX_RAD.
+  // ros2_control 관절 한계 (command_interface min/max) = 그보다 처짐 여유만큼 넓고 ⊆ URDF <limit>
   const auto fw_min = fw_range("ARM_MIN_RAD"), fw_max = fw_range("ARM_MAX_RAD");
   ASSERT_EQ(fw_min.size(), 6u);
   ASSERT_EQ(fw_max.size(), 6u);
@@ -154,14 +155,18 @@ TEST(RobotDescription, Ros2ControlMatchesFirmwareAndControllers)
     if (j.parameters.at("role") != "arm") {continue;}
     const int k = std::stoi(j.parameters.at("slot"));
     ASSERT_EQ(j.command_interfaces.size(), 1u) << j.name;
+    ASSERT_TRUE(j.parameters.count("fw_min") && j.parameters.count("fw_max")) << j.name << " 에 fw_min/fw_max 없음";
+    const double flo = std::stod(j.parameters.at("fw_min")), fhi = std::stod(j.parameters.at("fw_max"));
+    EXPECT_GE(flo, fw_min[k] - 1e-6) << j.name << " 명령 하한이 펌웨어 범위 밖";
+    EXPECT_LE(fhi, fw_max[k] + 1e-6) << j.name << " 명령 상한이 펌웨어 범위 밖";
     const double lo = std::stod(j.command_interfaces[0].min), hi = std::stod(j.command_interfaces[0].max);
-    EXPECT_GE(lo, fw_min[k] - 1e-6) << j.name << " 명령 하한이 펌웨어 범위 밖";
-    EXPECT_LE(hi, fw_max[k] + 1e-6) << j.name << " 명령 상한이 펌웨어 범위 밖";
+    EXPECT_LT(lo, flo) << j.name << " ros2_control 하한에 처짐 여유 없음";
+    EXPECT_GT(hi, fhi) << j.name << " ros2_control 상한에 처짐 여유 없음";
     std::smatch m;
     ASSERT_TRUE(std::regex_search(urdf, m, std::regex("<joint name=\"" + j.name + R"re(" type=[^>]*>[\s\S]*?<limit[^>]*lower="([^"]+)"[^>]*upper="([^"]+)")re")))
       << j.name << " 의 URDF <limit> 없음";
-    EXPECT_GE(lo, std::stod(m[1]) - 1e-6) << j.name << " 명령 하한이 URDF 보다 넓음";
-    EXPECT_LE(hi, std::stod(m[2]) + 1e-6) << j.name << " 명령 상한이 URDF 보다 넓음";
+    EXPECT_GE(lo, std::stod(m[1]) - 1e-6) << j.name << " ros2_control 하한이 URDF 보다 넓음";
+    EXPECT_LE(hi, std::stod(m[2]) + 1e-6) << j.name << " ros2_control 상한이 URDF 보다 넓음";
   }
   ASSERT_EQ(hw.sensors.size(), 1u);
   EXPECT_EQ(hw.sensors[0].name, "imu");
