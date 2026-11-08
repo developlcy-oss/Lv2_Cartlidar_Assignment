@@ -54,6 +54,11 @@ out_arg() {   # 인자에 --out 이 있으면 그 값, 없으면 $1 (기본 결�
   local def="$1"; shift; local prev=""
   for x in "$@"; do [ "$prev" = "--out" ] && def="$x"; prev="$x"; done; echo "$def"
 }
+ckpt_ok() {   # 인자 중 --checkpoint 값이 있으면 파일이 있어야 함 (없으면 빈 실행 폴더만 생기고 끝남)
+  local prev=""; for x in "$@"; do
+    if [ "$prev" = "--checkpoint" ] && [ "$x" != "latest" ] && [ ! -f "$x" ]; then echo "[run_rl] 체크포인트 없음: $x"; return 1; fi
+    prev="$x"; done
+}
 eval_rec() {   # $1 = 기록 종류, $2 = 기본 결과 파일, 나머지 = 실행 명령. 결과 파일이 이번 실행에서 새로 써졌을 때만 기록 (Isaac 은 예외로 죽어도 종료 코드 0)
   local kind="$1" def="$2"; shift 2
   local stamp out; stamp=$(mktemp); "$@"; out=$(out_arg "$def" "$@")
@@ -63,7 +68,7 @@ eval_rec() {   # $1 = 기록 종류, $2 = 기본 결과 파일, 나머지 = 실�
 
 pol() { [ -f "$HERE/policies/$1" ] && echo "--checkpoint $HERE/policies/$1" || echo "--checkpoint latest"; }
 case "${1:-}" in
-  toppick) "${PY[@]}" "$HERE/train.py" --task Waffle-TopPick-Direct --num_envs "${2:-256}" --max_iterations "${3:-300}" --viz none "${@:4}"; record train waffle_toppick ;;
+  toppick) ckpt_ok "${@:4}" || exit 1; "${PY[@]}" "$HERE/train.py" --task Waffle-TopPick-Direct --num_envs "${2:-256}" --max_iterations "${3:-300}" --viz none "${@:4}"; record train waffle_toppick ;;
   toppick_play) env -u HEADLESS "${PY[@]}" "$HERE/play.py" --task Waffle-TopPick-Direct --num_envs "${2:-16}" --checkpoint latest --viz kit ;;
   toppick_eval) eval_rec toppick "$HERE/toppick_eval.json" "${PY[@]}" "$HERE/toppick_eval.py" --num_envs "${2:-256}" "${@:3}" ;;
   chain_eval) eval_rec chain "$HERE/chain_pallet_eval.json" "${PY[@]}" "$HERE/chain_pallet_eval.py" --num_envs "${2:-192}" "${@:3}" ;;

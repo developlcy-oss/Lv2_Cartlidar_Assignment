@@ -222,6 +222,9 @@ class WaffleTopPickEnvCfg(DirectRLEnvCfg):
     tilt_ok_cos = 0.95  # 기울임 모드 성공: 집게 방향 · 목표 방향 (약 18° 안)
     strict_success = False  # True: 성공에 center_tol · success_upright 추가 (TP4)
     center_tol = 0.004  # [m] 성공: 쥔 퍽 중심 - 기대 자리 (= 잡는 점 − 15 mm, 칸 넣기 78 % 구간). 보상 tanh 폭도 이 값 (TP4)
+    radial_goal = -0.003  # [m] 손 안 반경 목표 (TP8). r = (집게 축 + 옆)/√2, + = J1 에서 먼 쪽. 43300 이어평가: −6 ~ −1 mm 넣기 26/36, ≥ +4 0/30, ≤ −10 0/17 (미끄럼)
+    radial_band = 0.002  # [m] 목표 ± 이 안은 보상 최대 (−5 ~ −1 mm)
+    radial_scale = 0.006  # [m] 띠 밖 tanh 폭 (TP4 는 4 mm 폭에 평균 12 mm 라 기울기 0)
     success_upright = 0.996  # 성공: 퍽 축 기울기 5° 안 (칸 넣기 판정과 같음, TP4. upright_min 0.95 는 들기 · 넘어짐 판정용 그대로)
     upright_min = 0.95
     topple_cos = 0.7
@@ -241,6 +244,7 @@ class WaffleTopPickEnvCfg(DirectRLEnvCfg):
     rew_puck_tilt = -2.0
     rew_center = 0.0  # TP4 4.0. 쥔 동안 (1 − tanh(쥔 자리 오차 / center_tol)) (TP4)
     rew_hand_tilt = 0.0  # TP4 -4.0. 쥔 동안 퍽 축 기울기 [rad] (5° = −0.35, TP4)
+    rew_radial = 5.0  # TP8. 쥔 동안 (1 − tanh(max(|r − radial_goal| − band, 0) / scale))
     rew_arm_box = -2.0
     rew_body_box = -20.0
     rew_base_move = -10.0

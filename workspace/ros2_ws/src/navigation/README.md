@@ -63,7 +63,7 @@ behavior_server (spin · backup · wait) ──┴→ /nav2/cmd_vel_raw → velo
 | `local_costmap` · `global_costmap` | 정적 층 2 장(`/map` 벽, `/map_objects` 라이다에 안 보이는 물체) + `/scan_merged` + inflation 0.30 ★ | footprint = B안 외곽(앞 0.1328 · 뒤 −0.2135 · 반폭 0.1676) ★ |
 | `behavior_server` | spin · backup · wait (기본 BT 와 drive_node 가 쓰는 것) | 최소 회전 0.3 rad/s ★ |
 | `velocity_smoother` · `collision_monitor` | MPPI 와 같은 한계 / 차체가 1.2 s 안에 닿을 속도면 줄임 | |
-| `bt_navigator` | 기본 BT `navigate_to_pose_w_replanning_and_recovery.xml` | 플러그인 이름(GridBased · FollowPath · general_goal_checker · progress_checker · PathHandler)을 바꾸지 말 것 |
+| `bt_navigator` | 기본 BT 복사본 `behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml` (플래너 복구 조건에 목표 · 시작 칸 막힘 205 · 206 추가, #135) | 플러그인 이름(GridBased · FollowPath · general_goal_checker · progress_checker · PathHandler)을 바꾸지 말 것 |
 
 Gazebo 시험(2026-11-04)에서 기본값에서 바꾼 것과 이유:
 

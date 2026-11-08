@@ -98,10 +98,11 @@ skill 거절 → 재시도 2 번 뒤 FAILED, 미등록 바코드 → 바로 FAIL
 장소 상자 재기 (#73, 2026-11-04, mock 이 상자를 2 cm · 5° 밀고 돌려 odom 으로 냄, map -> odom 10°): L1 · L2 · L3 마다 첫 pallet_unload 앞 measure_box 1 번,
 place_<L>_* 12 개 → place_at:odom (손 계산과 같음), check_dice 3 번 odom 칸 → DONE. --box_fail (측정 실패) → 지도 좌표 그대로 DONE.
 
-Gazebo 주행 연동 (`test/gazebo_mission.sh`, 2026-11-06): 주행만 진짜 (Gazebo 경기장 · Nav2 + AMCL · drive_node), 팔 · 인식 · 정렬 · 회전은 `mock_robot.py --real_nav`.
-Q1 예제 105 단계 중 **[88] 에서 FAILED** (sim 약 470 s): goto 14 번 도착 (AMCL 추정 기준 xy 35 ~ 89 mm, 대부분 42 ~ 55 mm = goal checker 0.05, yaw 1 ~ 5°),
-재시도로 넘은 것 2 번 ([14] B3:N "Goal was in lethal cost" 1 회). **B3:N (2.936, 5.939) → L3 접근 (3.67, 4.669) 이 (3.42, 5.94) 에서 갇힘**
-(Controller patience exceeded, spin · backup 복구도 Collision Ahead) → 재시도 2 번 뒤 FAILED (#135).
+Gazebo 주행 연동 (`test/gazebo_mission.sh`, 2026-11-07): 주행만 진짜 (Gazebo 경기장 · Nav2 + AMCL · drive_node), 팔 · 인식 · 정렬 · 회전은 `mock_robot.py --real_nav`.
+Q1 예제 105 단계 **DONE** (sim 약 455 s): goto 18 번 모두 도착 (AMCL 추정 기준 xy 31 ~ 112 mm, 중앙값 48 mm, yaw 최대 5.3°),
+재시도 1 번 ([14] 첫 시도 "Goal was in lethal cost").
+지난번 (2026-11-06) 에는 B3:N → L3 접근이 북쪽 통로 기둥 옆에서 갇혀 [88] 에서 FAILED. 대기 자리 standoff 0.35 → 0.40 으로 해결 (#135).
+남은 여유는 작음: 기둥 옆 71 mm, 제자리 회전 8 mm. 실제 회전 중심 확인 전 (#49).
 
 ## 남은 것 · 주의
 

@@ -84,7 +84,7 @@
     64
    ],
    "activation": "elu",
-   "latest": true,
+   "latest": false,
    "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
    "evals": [
     {
@@ -125,6 +125,122 @@
    "note": "TP3 이어 50000 반복(2026-11-05_13-34-43) 중 37000. 이어평가 시드1 35/192(18.2%), 시드2 29~30/192(15.1~15.6%); TP3 시드1 17, 시드2 28. 물리 집기 49% (TP3 36~43%)",
    "git": "a1dbebb",
    "registered": "2026-11-06 09:51"
+  },
+  {
+   "name": "toppick_TP7",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_TP7.pt",
+   "onnx": "policies/toppick_TP7.onnx",
+   "sha256": "37e9290256e2cd38",
+   "source": "logs/rsl_rl/waffle_toppick/2026-11-07_18-26-18/model_43300.pt",
+   "iteration": 43300,
+   "obs_dim": 36,
+   "action_dim": 4,
+   "hidden": [
+    256,
+    128,
+    64
+   ],
+   "activation": "elu",
+   "latest": false,
+   "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
+   "evals": [
+    {
+     "file": "toppick_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "all",
+     "num_envs": 256,
+     "success": {
+      "ok": 138,
+      "n": 256,
+      "pct": 53.9
+     }
+    },
+    {
+     "file": "chain_pallet_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "-friction",
+     "num_envs": 192,
+     "chain": {
+      "ok": 35,
+      "n": 192,
+      "pct": 18.2
+     },
+     "pick": {
+      "ok": 112,
+      "n": 192,
+      "pct": 58.3
+     },
+     "place_given_pick": {
+      "ok": 35,
+      "n": 112,
+      "pct": 31.2
+     }
+    }
+   ],
+   "note": "실패, latest 아님 (2026-11-08 TP6 로 되돌림). 41750 에서 표준편차 상한 0.4 로 2000 반복 (2026-11-07_18-26-18) 중 43300. 이어평가 시드2 35 · 19/192 (평균 27, TP6 평균 47)",
+   "git": "8ef8d4f",
+   "registered": "2026-11-07 20:20"
+  },
+  {
+   "name": "toppick_TP6",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_TP6.pt",
+   "onnx": "policies/toppick_TP6.onnx",
+   "sha256": "752e3277963fc4a2",
+   "source": "logs/rsl_rl/waffle_toppick/2026-11-06_10-47-23/model_38500.pt",
+   "iteration": 38500,
+   "obs_dim": 36,
+   "action_dim": 4,
+   "hidden": [
+    256,
+    128,
+    64
+   ],
+   "activation": "elu",
+   "latest": true,
+   "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
+   "evals": [
+    {
+     "file": "toppick_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "all",
+     "num_envs": 256,
+     "success": {
+      "ok": 147,
+      "n": 256,
+      "pct": 57.4
+     }
+    },
+    {
+     "file": "../../../../../../../../tmp/claude-1000/-home-pa8-git-Lv2-Cartlidar-Assignment/42e4e7a7-1996-44bf-8fd8-4c80a8cac9a7/scratchpad/cand/rep_TP6.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "-friction",
+     "num_envs": 192,
+     "chain": {
+      "ok": 53,
+      "n": 192,
+      "pct": 27.6
+     },
+     "pick": {
+      "ok": 107,
+      "n": 192,
+      "pct": 55.7
+     },
+     "place_given_pick": {
+      "ok": 53,
+      "n": 107,
+      "pct": 49.5
+     }
+    }
+   ],
+   "note": "2026-11-08 latest 복원 (TP7 43300 이 이어평가 평균 27/192 로 나빠서). 이어평가 시드2 47 · 41 · 53/192 (같은 시드 반복 편차 ±15). 물리 집기 56 %",
+   "git": "8ef8d4f",
+   "registered": "2026-11-08 17:33"
   }
  ]
 }
