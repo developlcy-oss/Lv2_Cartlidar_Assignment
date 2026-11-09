@@ -18,8 +18,9 @@
 #     use_localization:=true — localization.launch.py (지도 · scan 합치기 · loc_monitor). use_loc_lock · use_loc_gate 기본도 이것을 따른다
 #     use_nav2:=true        — navigation/navigation.launch.py (Smac 2D · RotationShim + MPPI → /cmd_vel_nav) 를 use_localization:=false 로.
 #                            위치 추정은 위 localization 하나만 (둘 다 띄우면 /map · loc_monitor 가 두 번, #116). use_amcl_node 기본 = use_nav2
-#     지도: map:= objects_map:= loc_map:= 를 이 launch 에 주면 localization 까지 그대로 간다. Isaac · Gazebo 경기장 (발제 SDF) 은
-#           mission_planner/maps (map_amcl · map_nav) 를 써야 함 — 기본 SLAM 지도는 SDF 와 7 ~ 15 cm 다름 (#116). AMCL 과 loc_monitor 는 같은 지도로
+#     지도: 기본 = 발제 도면 SDF 지도 mission_planner/maps (map · loc_map = map_amcl, objects_map = map_nav). 실물 · Isaac · Gazebo 공통.
+#           localization 기본 SLAM 지도 (slam_walls*, Isaac 미로) 는 SDF 와 7 ~ 15 cm 다름 (#116). 바꿀 때는 map:= objects_map:= loc_map:= 를 함께
+#           (AMCL 과 loc_monitor 는 같은 지도로). localization:=carto 면 carto_state 와 같은 세계의 지도를 줄 것
 #
 # ① ros2_control_node · ② base_container : opencr_hardware/base_bringup.launch.py
 # ⑦ perception_container                  : perception/perception.launch.py
@@ -112,6 +113,12 @@ def generate_launch_description():
         DeclareLaunchArgument('localization', default_value='amcl', description='위치 추정 방식: amcl | carto (localization.launch.py)'),
         DeclareLaunchArgument('use_nav2', default_value='false',
                               description='navigation.launch.py (Nav2, use_localization:=false 로). 위치 추정은 use_localization 하나'),
+        DeclareLaunchArgument('map', default_value=PathJoinSubstitution([mpl, 'maps', 'map_amcl.yaml']),
+                              description='/map (AMCL · costmap 벽): 발제 도면 SDF 지도. localization 기본 SLAM 지도는 SDF 와 7 ~ 15 cm 다름 (#116)'),
+        DeclareLaunchArgument('objects_map', default_value=PathJoinSubstitution([mpl, 'maps', 'map_nav.yaml']),
+                              description='/map_objects (costmap: 벽 + 라이다에 안 보이는 상자 · 받침대): 발제 도면 SDF 지도'),
+        DeclareLaunchArgument('loc_map', default_value=LaunchConfiguration('map'),
+                              description='loc_monitor 잔차 · 탐색 지도 (기본 = map). AMCL 과 같은 지도여야 거짓 LOST 가 없음'),
         DeclareLaunchArgument('use_amcl_node', default_value=LaunchConfiguration('use_nav2'),
                               description='AMCL 노드를 localization 쪽에서 띄움. 기본 = use_nav2 (Nav2 의 map → odom)'),
         DeclareLaunchArgument('use_loc_lock', default_value=LaunchConfiguration('use_localization'),
@@ -155,7 +162,10 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(PathJoinSubstitution([loc, 'launch', 'localization.launch.py'])),
             launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
                               'localization': LaunchConfiguration('localization'),
-                              'use_amcl_node': LaunchConfiguration('use_amcl_node')}.items(),
+                              'use_amcl_node': LaunchConfiguration('use_amcl_node'),
+                              'map': LaunchConfiguration('map'),
+                              'objects_map': LaunchConfiguration('objects_map'),
+                              'loc_map': LaunchConfiguration('loc_map')}.items(),
             condition=IfCondition(LaunchConfiguration('use_localization'))),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution([nav, 'launch', 'navigation.launch.py'])),
