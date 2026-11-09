@@ -201,7 +201,8 @@ public:
         rcl_action_server_get_default_options(), cbg_);
     align_server_ = rclcpp_action::create_server<Align>(this, names::DRIVE_ALIGN,
         [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Align::Goal> g) {
-          if (g->target_distance < min_fine_target_) {
+          // target_distance 는 float32 → 0.13 이 0.12999999 로 와서 같은 값도 거부됨. 1e-4 m 여유로 비교
+          if (g->target_distance < min_fine_target_ - 1e-4) {
             RCLCPP_WARN(get_logger(), "target_distance %.3f < %.2f m — 거부", g->target_distance, min_fine_target_);
             return rclcpp_action::GoalResponse::REJECT;
           }
