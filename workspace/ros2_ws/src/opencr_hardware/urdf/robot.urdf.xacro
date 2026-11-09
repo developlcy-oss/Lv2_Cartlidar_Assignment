@@ -54,8 +54,9 @@
       <child link="${name}_link"/>
       <origin xyz="${x} ${y} ${wheel_z}" rpy="0 0 0"/>
       <axis xyz="0 1 0"/>
-      <!-- XM430-W210 12 V: 3.0 N·m, 무부하 77 rpm (8.063 rad/s) → 바퀴 기준 토크 ÷ 기어비, 속도 × 기어비 -->
-      <limit effort="${3.0 / wheel_gear}" velocity="${8.063421 * wheel_gear}"/>
+      <!-- XM430-W210 11.1 V (3S 배터리 공칭, #15 2026-11-09): 2.7 N·m, 무부하 70 rpm (7.330383 rad/s)
+           → 바퀴 기준 토크 ÷ 기어비, 속도 × 기어비. belt 1.8 N·m · 10.995574 rad/s = Isaac 모델과 같음 -->
+      <limit effort="${2.7 / wheel_gear}" velocity="${7.330383 * wheel_gear}"/>
     </joint>
   </xacro:macro>
   <xacro:wheel name="wheel_left_front"  x="${wheel_x_front}" y="${wheel_y}"/>

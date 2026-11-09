@@ -59,12 +59,8 @@ KNOWN_FRAME_DIFF = {
                               '실기 = D435 infra1 (realsense 드라이버 기준), Isaac = 카메라 가운데 (infra1 은 optical x -0.025)'),
     'top_camera_rear_link': ((0.0, 0.025017, 0.0), '〃 (뒤 카메라, 180° 돌아 있어 부호 반대)'),
 }
-# 알려진 관절 한계 차이: (관절, 항목) -> (실기, Isaac, 이유)
-_WHEEL_WHY = '#15: 실기 = 증속 벨트 (모터 3.0 N·m / 1.5, 8.063 rad/s × 1.5), Isaac = 옛 직결 기준값'
+# 알려진 관절 한계 차이: (관절, 항목) -> (실기, Isaac, 이유). 바퀴는 #15 에서 11.1 V 값으로 통일 (2026-11-09)
 KNOWN_LIMIT_DIFF = {}
-for _w in ('left_front', 'left_rear', 'right_front', 'right_rear'):
-    KNOWN_LIMIT_DIFF[(f'wheel_{_w}_joint', 'effort')] = (2.0, 1.8, _WHEEL_WHY)
-    KNOWN_LIMIT_DIFF[(f'wheel_{_w}_joint', 'velocity')] = (12.0951315, 10.995574, _WHEEL_WHY)
 # 한쪽에만 있는 움직이는 관절
 KNOWN_ONLY_ISAAC = {'gripper_left_joint', 'gripper_right_joint'}   # Isaac 은 손가락 직선 관절, 실기는 gripper_roll 모터 하나
 KNOWN_ONLY_REAL = set()
@@ -370,8 +366,7 @@ SELF_TESTS = {
     'joint2_lower_changed': ('joint2', lambda j: j.find('limit').set('lower', '-2.0'), {'limit'}),
     'arm_camera_pitch_+1deg': ('arm_camera_joint',
                                lambda j: j.find('origin').set('rpy', f'0 {0.261788 + np.radians(1)} 0'), {'frame'}),
-    'wheel_limit_table_stale': ('wheel_left_front_joint', lambda j: j.find('limit').set('effort', '2.0'),
-                                {'limit_known_changed'}),
+    'wheel_effort_changed': ('wheel_left_front_joint', lambda j: j.find('limit').set('effort', '2.0'), {'limit'}),
     'top_camera_front_y_fixed': ('top_camera_front_link_fixed', _shift_origin(1, 0.025024),
                                  {'frame_known_changed'}),
     'wheel_contact_+2mm': ('wheel_right_rear_joint', _shift_origin(1, -2e-3), {'wheel_contact_y'}),

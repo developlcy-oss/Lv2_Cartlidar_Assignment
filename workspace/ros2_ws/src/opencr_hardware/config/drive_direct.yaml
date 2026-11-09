@@ -3,5 +3,5 @@
 diff_drive_controller:
   ros__parameters:
     wheel_separation: 0.2744         # 바퀴 중심 |y| 0.1372 × 2 (URDF drive:=direct 와 같게)
-    linear.x.max_velocity: 0.26
-    linear.x.min_velocity: -0.26
+    linear.x.max_velocity: 0.24     # 바퀴 7.27 rad/s < 11.1 V 무부하 7.33 (#15)
+    linear.x.min_velocity: -0.24

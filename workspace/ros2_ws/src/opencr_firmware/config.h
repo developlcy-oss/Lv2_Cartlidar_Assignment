@@ -60,7 +60,7 @@ static const float   WHEEL_GEAR     = 1.0f;   // 1.0 고정: 펌웨어 CMD · ST
                                               //   (URDF drive 인자 → <param name="wheel_gear">, 2026-10-27). 여기서 바꾸면 두 번 적용됨
 static const int32_t WHEEL_VEL_LIMIT_RAW = 330;   // Goal Velocity 한계 (0.229 rpm 단위) = 75.6 rpm = 모터 7.91 rad/s
                                                   //   바퀴: direct ≈ 0.261 m/s · belt (× 1.5) ≈ 0.39 m/s (12 V)
-                                                  // (URDF velocity 8.06 rad/s = XM430-W210 12 V 무부하 77 rpm 안쪽) ★
+                                                  // (URDF 는 11.1 V 무부하 7.33 rad/s, #15. 이 값이 더 크지만 모터가 먼저 포화되어 실제로는 자르지 않음) ★
                                                   // 모터 EEPROM Velocity Limit (주소 44) 은 이 값 이상이어야 함 — 작으면 부팅 때 이 값으로 올림
 static const uint16_t WHEEL_MODEL = 1030;  // 부팅 점검: 바퀴 XM430-W210 (= 1030, 확정 2026-10-22). W350 이면 1020
 

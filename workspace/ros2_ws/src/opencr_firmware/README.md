@@ -64,7 +64,7 @@ tools/build_firmware.sh wheel --upload /dev/ttyACM0    # 빌드 후 업로드 �
 - `WHEEL_GEAR = 1.0` **고정** — 펌웨어는 모터 축 기준으로 명령 · 상태를 주고받는다. 증속벨트 (1:1.5, 2026-10-27 장착) 같은 기어비는
   호스트 `OpenCRHardware` 가 URDF `wheel_gear` 파라미터로 변환한다 (`drive:=belt|direct`). 여기서 바꾸면 두 번 적용된다.
   `WHEEL_VEL_LIMIT_RAW = 330` (★) = 75.6 rpm = 모터 7.91 rad/s → 바퀴 direct ≈ 0.261 m/s · belt ≈ 0.39 m/s (12 V, 11.1 V 에서 약 0.34)
-  (URDF 바퀴 한계 direct 8.06 · belt 12.09 rad/s 안쪽).
+  (URDF 바퀴 한계는 11.1 V 기준 direct 7.33 · belt 10.996 rad/s, #15).
 - 한계 초과 명령 (D6): 한 바퀴라도 넘으면 **모든 바퀴를 같은 비율로 줄인다** (좌우 속도비 = 회전 반경 유지). 개별 clamp 는 안전망으로 남김.
 - 부팅 때 바퀴 모터 설정을 맞춘다 (`prepareWheelConfig`, 토크 OFF 상태에서 다를 때만 EEPROM 에 씀):
   **Drive Mode bit0 (반전) → 0**, **Velocity Limit (주소 44) < 330 이면 → 330**. 쓴 뒤 다시 읽어 맞지 않으면
