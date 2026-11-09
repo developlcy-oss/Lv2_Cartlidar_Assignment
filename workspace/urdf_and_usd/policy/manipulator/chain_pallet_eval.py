@@ -8,6 +8,13 @@ toppick_eval.py (집기만) 와 pallet_place_check.py (퍽을 손에 넣어 주�
      6 s 끝에 쥐고 (손 안 15 mm 안) 들고 (lift_min 위) 세워 (upright_min) 있고 옆 퍽 그대로 + 중간 종료 없음 — 환경 성공 기준과 무관해
      성공 기준이 다른 회차 (TP3 느슨 · TP4 손 안 4 mm) 를 같은 잣대로 비교. --gate env = 환경 성공 + 끝에 쥠 (2026-11-05 첫 판).
      넘기지 못한 대는 여기서 끝 (집기 실패로 셈).
+  1'. 고정 동작 집기 (--scripted_pick σ, 2026-11-09): 정책 대신 ROS toppick_tilt (approach_mode top) 와 같은 경로. 잡는 점 = 잰 퍽
+     (참값 + σ) + 잡는 높이, J1 에서 먼 쪽 −--regrasp_r. 그 위 5 cm · J1 쪽 3 cm 로 벌린 채 -> 직선으로 내려옴 -> 쥠 -> 5 cm 들기 (약 4.6 s).
+     벌림 50 mm 시드 2: 171/192 (σ 0) · 144 (σ 2 mm), TP8 정책 57. --grip_open 0.0042 = 실물 벌림 50 mm (61.6 mm = 0.010 비례).
+  1b. 다시 쥐기 (--regrasp always | out, 기본 off, 2026-11-09): 처음 퍽 자리 위로 수평 이동 -> 내려놓기 -> 벌림 -> 잰 퍽 자리
+     (참값 + --regrasp_noise σ) + 잡는 높이 − 목표 손 안 반경 (--regrasp_r) 로 옮기기 -> 쥠 -> 3 cm 들기 (약 4.7 s). 팔 이동은 환경 IK
+     (_ik_step) 로 스텝마다 남은 오차의 --regrasp_gain 만. 놓친 대 = regrasp_drop. 대마다 regrasp_diag · drift_mm · in_hand.pick (다시 쥐기 전).
+     TP8 시드 2: 이어서 57 -> 113/192, 측정 σ 1 · 2 · 3 mm 에서 107 · 94 · 84 (정책_학습기록 4.15 절).
   2. 넘겨받기: 정책 끝 자세에서 칸의 앞 운반 자세 (q_front, 12칸 모두 45° 판) 까지 관절 직선 (--transit_speed), 쥔 채.
      처짐 보정 (목표 = 계획 + bias, bias += ki · dt · (계획 − 측정), ROS sag_comp 와 같은 식) 은 넘겨받는 순간부터 켬,
      q_front 에서 --settle 동안 머묾 (ROS manipulator_node 의 sag.settle_time 과 같음).
@@ -54,6 +61,15 @@ ap.add_argument("--row_speed", default="3:0.4")
 ap.add_argument("--empty_speed", type=float, default=0.8)
 ap.add_argument("--grip_close", type=float, default=None, help="넘겨받은 뒤 손가락 목표 (기본 = 정책과 같은 환경 gripper_closed −0.0075)")
 ap.add_argument("--gate", default="physical", choices=["physical", "env"], help="칸 궤적으로 넘길 대: physical = 끝에 쥐고 들고 세움, env = 환경 성공 + 끝에 쥠")
+ap.add_argument("--regrasp", default="off", choices=["off", "always", "out"], help="집은 뒤 다시 쥐기: 상자에 내려놓고 벌려 퍽 자리 (참값 + --regrasp_noise) 로 옮겨 다시 쥠. out = 손 안 반경이 --regrasp_win 밖일 때만")
+ap.add_argument("--regrasp_r", type=float, default=-2.0, help="[mm] 손 안 반경 목표 (다시 쥐기 · 고정 집기 공용, + = J1 에서 먼 쪽, 놓기 확인에서 −4 ~ 0 이 24/24)")
+ap.add_argument("--scripted_pick", type=float, default=None, help="[mm] 주면 정책 대신 고정 동작 집기 (ROS toppick_tilt approach_mode top 과 같은 경로), 값 = 퍽 자리 측정 오차 σ")
+ap.add_argument("--grip_open", type=float, default=None, help="[m] 벌림 손가락 값 (기본 환경 gripper_open 0.010 = 61.6 mm, 실물 50 mm ≈ 0.0042)")
+ap.add_argument("--regrasp_noise", type=float, default=0.0, help="[mm] 퍽 자리 · 손 안 반경 측정 오차 σ (카메라 가정)")
+ap.add_argument("--regrasp_win", default="-5:1", help="[mm] out 모드: 잰 손 안 반경이 이 범위 밖이면 다시 쥠")
+ap.add_argument("--regrasp_time", type=float, default=1.0, help="다시 쥐기 동작 시간 배율 (기본 내려놓기 1 · 벌림 0.5 · 옮기기 1 · 쥠 0.6 · 들기 1 s)")
+ap.add_argument("--regrasp_gain", type=float, default=0.3, help="다시 쥐기 이동: 스텝마다 남은 위치 오차의 이 비율만 IK 로 (1 = 전부 -> 팔이 따라오기 전에 목표가 쌓여 ±4 mm 흔들림)")
+ap.add_argument("--regrasp_home", type=int, default=1, help="1 = 처음 퍽 자리 위로 옮겨 내려놓음 (실물은 집을 때 인식 좌표), 0 = 그 자리에서 내림")
 ap.add_argument("--gui", action="store_true")
 ap.add_argument("--out", default=None, help="결과 JSON (기본 chain_pallet_eval.json)")
 AppLauncher.add_app_launcher_args(ap)
@@ -89,6 +105,8 @@ BODY = "{ENV_REGEX_NS}/Robot/" + BODY_LINK
 cfg = WaffleTopPickEnvCfg()
 assert abs(cfg.grasp_dz - GRASP_DZ) < 1e-9, f"잡는 높이가 다름: 학습 grasp_dz {cfg.grasp_dz} vs 궤적 {GRASP_DZ} (pallet_traj.py --grasp_dz 와 toppick_env_cfg 를 같게)"
 cfg.scene.num_envs = a.num_envs
+if a.grip_open is not None:
+    cfg.gripper_open = a.grip_open
 cfg.seed = a.seed
 cfg.near_start_prob = 0.0
 cfg.tilt_prob = 1.0 if all(s.get("tilt_deg") for s in SLOTS) else cfg.tilt_prob
@@ -164,20 +182,99 @@ def main():
     t0 = time.time()
     obs, _ = env.reset()
     tilted, box, lay, latched = u.tilted.clone(), u.is_box.clone(), u.layout.clone(), u.latched.clone()
+    p_start = u.puck_pos_w().clone()  # 상자 위 처음 퍽 자리 (다시 쥘 때 여기 위로 돌아와 내려놓음)
     done = torch.zeros(n, dtype=torch.bool, device=dev)
     ok = torch.zeros_like(done)
-    for _ in range(int(cfg.episode_length_s / u.step_dt) - 2):
-        with torch.inference_mode():
-            act = pol(obs["policy"])
+    cmd = u.robot.actuators.target_command
+    wheels0 = torch.zeros(n, len(u._wheels), device=dev)
+
+    def ik_move(goal, grip, sec, mask, grip_other):  # 잡는 점 -> goal (30 Hz, 환경 IK · cart_scale · 앞섬 제한 그대로), mask 대만. 나머지 손가락 = grip_other
+        for _ in range(int(sec * a.regrasp_time / u.step_dt)):
+            dp = (goal - u.grasp_w()) * a.regrasp_gain
+            dp = dp * torch.clamp(cfg.cart_scale / torch.linalg.norm(dp, dim=1, keepdim=True).clamp(min=1e-9), max=1.0)
+            dq = u._ik_step(quat_apply_inverse(u.robot.data.root_link_quat_w.torch, dp))
+            q = u.robot.data.joint_pos.torch[:, u._arm]
+            qt = torch.clamp(torch.clamp(u.arm_target + dq, q - cfg.target_lead_max, q + cfg.target_lead_max), u._lo, u._hi)
+            u.arm_target = torch.where(mask[:, None], qt, u.arm_target)
+            g = torch.full((n, 1), grip, device=dev)
+            if grip_other is not None:
+                g = torch.where(mask[:, None], g, grip_other)
+            for _ in range(cfg.decimation):
+                cmd.set_position_index(value=u.arm_target.contiguous(), joint_ids=u._arm)
+                cmd.set_position_index(value=g.expand(-1, 2).contiguous(), joint_ids=u._gl + u._gr)
+                cmd.set_velocity_index(value=wheels0, joint_ids=u._wheels)
+                u.scene.write_data_to_sim()
+                u.sim.step(render=a.gui)
+                u.scene.update(dt)
+
+    if a.scripted_pick is None:
+        for _ in range(int(cfg.episode_length_s / u.step_dt) - 2):
+            with torch.inference_mode():
+                act = pol(obs["policy"])
+            ok |= u.succeeded & ~done
+            obs, _, term, trunc, _ = env.step(act)
+            done |= term | trunc
         ok |= u.succeeded & ~done
-        obs, _, term, trunc, _ = env.step(act)
-        done |= term | trunc
-    ok |= u.succeeded & ~done
+    else:  # 고정 동작 집기 = ROS manipulator_node toppick_tilt (approach_mode top) 와 같은 경로 (2026-11-09)
+        allm = torch.ones(n, dtype=torch.bool, device=dev)
+        up_w = quat_apply(u.robot.data.root_link_quat_w.torch, ez_)
+        qe = u.robot.data.body_link_quat_w.torch[:, u._ee]
+        u_r = (quat_apply(qe, ex_) + quat_apply(qe, ez_)) / math.sqrt(2.0)  # J1 에서 먼 쪽 (45° 에서 수평)
+        meas = u.puck_pos_w() + torch.randn(n, 3, device=dev) * (a.scripted_pick / 1000) * torch.tensor([1.0, 1.0, 0.0], device=dev)
+        gl = meas + up_w * cfg.grasp_dz - u_r * (a.regrasp_r / 1000)  # 잡는 점 (ROS radial_offset 0.002 = 반경 −2 mm)
+        ik_move(gl + up_w * 0.05 - u_r * 0.03, cfg.gripper_open, 1.5, allm, None)  # 접근 위치 (approach_height · approach_inward)
+        ik_move(gl, cfg.gripper_open, 1.5, allm, None)                            # 직선으로 내려옴
+        ik_move(gl, grip_close, 0.6, allm, None)                                  # 쥠
+        ik_move(gl + up_w * 0.05, grip_close, 1.0, allm, None)                    # 들기 (ROS pick.lift_height 5 cm)
+        u.actions[:, -1] = -1.0
     off_h, tilt_h, face_h, e_h = in_hand()
     holding = (~done) & (torch.linalg.norm(e_h, dim=1) < 0.015) & (u.lift() > cfg.lift_min) & (u.puck_up() > cfg.upright_min) & u.nb_ok()
     picked = (ok & holding) if a.gate == "env" else holding
     print(f"[Chain] 집기 {int(picked.sum())}/{n} (넘김 {a.gate} | 환경 성공 {int(ok.sum())}, 끝에 쥐고 듦 {int(holding.sum())}, "
           f"성공했다 놓침 {int((ok & ~holding).sum())}) {time.time() - t0:.0f} s", flush=True)
+    grip_keep = torch.where(u.actions[:, -1:] > 0.0, cfg.gripper_open, cfg.gripper_closed)
+
+    # ---- 1b. 다시 쥐기 (--regrasp): 상자에 내려놓고 벌려 퍽 자리로 옮겨 다시 쥠 ----
+    off_pick, tilt_pick, face_pick = off_h.clone(), tilt_h.clone(), face_h.clone()
+    regr = torch.zeros(n, dtype=torch.bool, device=dev)
+    lost_rg = torch.zeros_like(regr)
+    drift = torch.linalg.norm((u.puck_pos_w() - p_start)[:, :2], dim=1) * 1000  # 집은 뒤 퍽이 처음 자리에서 수평으로 옮겨진 거리 [mm]
+    rg_diag = torch.zeros(n, 5, device=dev)  # 다시 쥐기 진단: 벌린 뒤 퍽 기울기 [°] · 퍽 이동 [mm] (내려놓은 자리에서), 쥐기 직전 잡는 점 − 목표 반경 · 높이 [mm], 끝 들림 [mm]
+    if a.regrasp != "off":
+        t1 = time.time()
+        up_w = quat_apply(u.robot.data.root_link_quat_w.torch, ez_)
+        qe = u.robot.data.body_link_quat_w.torch[:, u._ee]
+        u_r = (quat_apply(qe, ex_) + quat_apply(qe, ez_)) / math.sqrt(2.0)  # 손 안 반경 방향 (+ = J1 에서 먼 쪽, 보상 rew_radial 과 같은 식)
+        r_meas = (e_h * u_r).sum(1) * 1000 + torch.randn(n, device=dev) * a.regrasp_noise
+        lo, hi = map(float, a.regrasp_win.split(":"))
+        regr = picked & (torch.ones_like(picked) if a.regrasp == "always" else (r_meas < lo) | (r_meas > hi))
+
+        def move(goal, grip, sec):  # 다시 쥐는 대만
+            ik_move(goal, grip, sec, regr, grip_keep)
+
+        if a.regrasp_home:  # 처음 퍽 자리 위로 수평 이동 -> 내려놓기 (정책이 든 채 옆으로 옮겨 두면 그대로 내리면 상자 모서리에 걸침)
+            move(u.grasp_w() + (p_start - u.puck_pos_w()) * torch.tensor([1.0, 1.0, 0.0], device=dev), grip_close, 0.6)
+            move(u.grasp_w() + (p_start - u.puck_pos_w()), grip_close, 1.0)
+        else:
+            move(u.grasp_w() - up_w * (u.lift() + 0.001)[:, None], grip_close, 1.0)  # 그 자리에서 내려놓기 (1 mm 더 누름)
+        p_down = u.puck_pos_w().clone()
+        move(u.grasp_w().clone(), cfg.gripper_open, 0.5)                          # 벌림
+        rg_diag[:, 0] = torch.rad2deg(torch.acos(u.puck_up().clamp(-1.0, 1.0)))
+        rg_diag[:, 1] = torch.linalg.norm(u.puck_pos_w() - p_down, dim=1) * 1000
+        noise = torch.randn(n, 3, device=dev) * (a.regrasp_noise / 1000) * torch.tensor([1.0, 1.0, 0.0], device=dev)
+        goal = u.puck_pos_w() + noise + up_w * cfg.grasp_dz - u_r * (a.regrasp_r / 1000)  # 잰 퍽 자리 + 잡는 높이, 손 안 반경 목표만큼
+        move(goal, cfg.gripper_open, 1.0)                                          # 옮기기
+        eg = goal - u.grasp_w()
+        rg_diag[:, 2] = (eg * u_r).sum(1) * 1000
+        rg_diag[:, 3] = (eg * up_w).sum(1) * 1000
+        move(goal, grip_close, 0.6)                                                # 쥠
+        move(goal + up_w * 0.03, grip_close, 1.0)                                  # 3 cm 들기
+        rg_diag[:, 4] = u.lift() * 1000
+        off_h, tilt_h, face_h, e_h = in_hand()
+        held2 = (torch.linalg.norm(e_h, dim=1) < 0.015) & (u.lift() > cfg.lift_min) & (u.puck_up() > cfg.upright_min)
+        lost_rg = regr & ~held2
+        picked = picked & ~lost_rg
+        print(f"[Chain] 다시 쥐기 {int(regr.sum())} 대 ({a.regrasp}, 잡음 {a.regrasp_noise} mm, 목표 반경 {a.regrasp_r} mm) | 놓침 {int(lost_rg.sum())} | {time.time() - t1:.0f} s", flush=True)
 
     # ---- 2 ~ 3. 넘겨받기 + 칸 궤적 (계획을 대마다 만들어 (n, T, 5) 로) ----
     q_meas = u.robot.data.joint_pos.torch[:, u._arm].clone()
@@ -203,11 +300,9 @@ def main():
     t_place = torch.tensor(t_place, device=dev)
     print(f"[Chain] 넘겨받기 + 칸 궤적 {T} 스텝 ({T * dt:.1f} s)", flush=True)
 
-    cmd = u.robot.actuators.target_command
-    wheels0 = torch.zeros(n, len(u._wheels), device=dev)
     bias = torch.zeros(n, 5, device=dev)
     keep = ~picked  # 집기 실패 대: 지금 관절 목표 · 손가락 그대로
-    arm_keep, grip_keep = u.arm_target.clone(), torch.where(u.actions[:, -1:] > 0.0, cfg.gripper_open, cfg.gripper_closed)
+    arm_keep = u.arm_target.clone()
     off_f, tilt_f, face_f = off_h.clone(), tilt_h.clone(), face_h.clone()
     off_p, tilt_p, face_p = off_h.clone(), tilt_h.clone(), face_h.clone()
     slip = torch.zeros(n, device=dev)
@@ -251,9 +346,11 @@ def main():
     for i in range(n):
         s = slot_of[i]
         r = dict(env=i, slot=f"{s['row']}:{s['index']}", shape="box" if bool(box[i]) else "cyl", layout=LAYOUTS[int(lay[i])],
-                 latched=bool(latched[i]), picked=bool(picked[i]), pick_env_success=bool(ok[i]))
+                 latched=bool(latched[i]), picked=bool(picked[i]), pick_env_success=bool(ok[i]), regrasp=bool(regr[i]), drift_mm=round(float(drift[i]), 1))
+        if bool(regr[i]):
+            r["regrasp_diag"] = dict(zip(("puck_tilt_deg", "puck_moved_mm", "goal_radial_mm", "goal_height_mm", "lift_mm"), (round(float(v), 2) for v in rg_diag[i])))
         if not r["picked"]:
-            r["stage"] = "pick_fail"
+            r["stage"] = "regrasp_drop" if bool(lost_rg[i]) else "pick_fail"
             res.append(r)
             continue
         dxy = math.hypot(float(bot[i, 0]) - s["x"], float(bot[i, 1]) - s["y"])
@@ -266,9 +363,10 @@ def main():
                  xy_err_mm=round(dxy * 1000, 1), bottom_above_floor_mm=round(dz * 1000, 1), tilt_deg=round(tilt, 1),
                  box_face_err_deg=round(((yaw - s["theta_deg"] + 45.0) % 90.0) - 45.0, 1) if bool(box[i]) else None,
                  max_slip_mm=round(float(slip[i]) * 1000, 1),
+                 radial_mm=round((float(off_h[i, 1]) + float(off_h[i, 2])) / math.sqrt(2.0), 2),
                  in_hand={k: dict(close_mm=round(float(o[i, 0]), 2), appr_mm=round(float(o[i, 1]), 2), side_mm=round(float(o[i, 2]), 2),
                                   tilt_deg=round(float(tl[i]), 2), face_deg=round(float(fc[i]), 2) if bool(box[i]) else None)
-                          for k, o, tl, fc in (("handover", off_h, tilt_h, face_h), ("q_front", off_f, tilt_f, face_f), ("place", off_p, tilt_p, face_p))},
+                          for k, o, tl, fc in (("pick", off_pick, tilt_pick, face_pick), ("handover", off_h, tilt_h, face_h), ("q_front", off_f, tilt_f, face_f), ("place", off_p, tilt_p, face_p))},
                  max_force_N={k: {PHASES[j]: round(float(fmax[k][i, j]), 1) for j in range(1, len(PHASES))} for k in fmax})
         res.append(r)
 
@@ -299,8 +397,10 @@ def main():
         e = math.hypot(h["close_mm"], h["appr_mm"], h["side_mm"])
         return "<1mm" if e < 1 else "1-3mm" if e < 3 else ">=3mm"
     by_hand = {b: rate([x for x in pk if hand_bin(x) == b]) for b in ("<1mm", "1-3mm", ">=3mm")}
-    stages = {k: sum(1 for x in res if x["stage"] == k) for k in ("pick_fail", "transit_drop", "carry_slip", "not_seated", "seated")}
+    stages = {k: sum(1 for x in res if x["stage"] == k) for k in ("pick_fail", "regrasp_drop", "transit_drop", "carry_slip", "not_seated", "seated")}
     summary = dict(policy=os.path.relpath(path, HERE), gate=a.gate, pick_env_success=int(ok.sum()), seed=a.seed, layout=a.layout, dr=a.dr, num_envs=n, puck_mu=a.puck_mu,
+                   scripted_pick_noise_mm=a.scripted_pick, gripper_open=cfg.gripper_open,
+                   regrasp=dict(mode=a.regrasp, r_mm=a.regrasp_r, noise_mm=a.regrasp_noise, win=a.regrasp_win, n=int(regr.sum()), dropped=int(lost_rg.sum())),
                    ki=a.ki, transit_speed=a.transit_speed, settle_s=a.settle, speeds=dict(speed=a.speed, tilt=a.tilt_speed, row=a.row_speed, empty=a.empty_speed),
                    chain=rate(res), pick=rate(res, "picked"), place_given_pick=rate(pk), stages=stages,
                    by_shape={sh: rate([x for x in res if x["shape"] == sh]) for sh in ("cyl", "box")},

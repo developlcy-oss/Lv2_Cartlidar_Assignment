@@ -200,7 +200,7 @@
     64
    ],
    "activation": "elu",
-   "latest": true,
+   "latest": false,
    "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
    "evals": [
     {
@@ -241,6 +241,64 @@
    "note": "2026-11-08 latest 복원 (TP7 43300 이 이어평가 평균 27/192 로 나빠서). 이어평가 시드2 47 · 41 · 53/192 (같은 시드 반복 편차 ±15). 물리 집기 56 %",
    "git": "8ef8d4f",
    "registered": "2026-11-08 17:33"
+  },
+  {
+   "name": "toppick_TP8",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_TP8.pt",
+   "onnx": "policies/toppick_TP8.onnx",
+   "sha256": "201f9a1a921cdd5e",
+   "source": "logs/rsl_rl/waffle_toppick/2026-11-08_17-33-38/model_40300.pt",
+   "iteration": 40300,
+   "obs_dim": 36,
+   "action_dim": 4,
+   "hidden": [
+    256,
+    128,
+    64
+   ],
+   "activation": "elu",
+   "latest": true,
+   "ros_model": "../../../ros2_ws/src/robot_policy/config/models/toppick_tilt.onnx",
+   "evals": [
+    {
+     "file": "toppick_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "all",
+     "num_envs": 256,
+     "success": {
+      "ok": 150,
+      "n": 256,
+      "pct": 58.6
+     }
+    },
+    {
+     "file": "chain_pallet_eval.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "-friction",
+     "num_envs": 192,
+     "chain": {
+      "ok": 57,
+      "n": 192,
+      "pct": 29.7
+     },
+     "pick": {
+      "ok": 120,
+      "n": 192,
+      "pct": 62.5
+     },
+     "place_given_pick": {
+      "ok": 57,
+      "n": 120,
+      "pct": 47.5
+     }
+    }
+   ],
+   "note": "손 안 반경 보상 (rew_radial 5, 목표 −3 ± 2 mm) 으로 TP6 38500 에서 3000 반복 (2026-11-08_17-33-38) 중 40300. 같은 날 나란히 이어평가 시드1 44 vs TP6 31, 시드2 57 vs 47/192. 반경 −7 ~ +1 mm 비율 46 -> 52 %. 집기 평가 시드2 150/256 (58.6 %, TP6 147)",
+   "git": "ed58996",
+   "registered": "2026-11-09 17:37"
   }
  ]
 }

@@ -1,78 +1,78 @@
 {
  "summary": {
-  "policy": "policies/toppick_TP6.pt",
+  "policy": "../../../../../../../../tmp/claude-1000/-home-pa8-git-Lv2-Cartlidar-Assignment/42e4e7a7-1996-44bf-8fd8-4c80a8cac9a7/scratchpad/tp8/m40300.pt",
   "seed": 2,
   "layout": "mix",
   "dr": "all",
   "latch": null,
   "num_envs": 256,
   "success": {
-   "ok": 147,
+   "ok": 150,
    "n": 256,
-   "pct": 57.4
+   "pct": 58.6
   },
-  "toppled": 43,
-  "neighbor_bad": 28,
-  "arm_box_steps_mean": 0.24,
-  "max_lift_mm_median": 51.9,
-  "date": "2026-11-08 17:33"
+  "toppled": 42,
+  "neighbor_bad": 30,
+  "arm_box_steps_mean": 0.18,
+  "max_lift_mm_median": 50.4,
+  "date": "2026-11-09 17:35"
  },
  "groups": {
   "rand": {
-   "ok": 62,
+   "ok": 68,
    "n": 133,
-   "pct": 46.6
+   "pct": 51.1
   },
   "A": {
-   "ok": 39,
+   "ok": 33,
    "n": 48,
-   "pct": 81.2
+   "pct": 68.8
   },
   "B": {
-   "ok": 32,
+   "ok": 33,
    "n": 52,
-   "pct": 61.5
+   "pct": 63.5
   },
   "C": {
-   "ok": 14,
+   "ok": 16,
    "n": 23,
-   "pct": 60.9
+   "pct": 69.6
   },
   "tilt": {
-   "ok": 147,
+   "ok": 150,
    "n": 256,
-   "pct": 57.4
+   "pct": 58.6
   },
   "vertical": null,
   "box": {
-   "ok": 76,
+   "ok": 80,
    "n": 130,
-   "pct": 58.5
+   "pct": 61.5
   },
   "cyl": {
-   "ok": 71,
+   "ok": 70,
    "n": 126,
-   "pct": 56.3
+   "pct": 55.6
   },
   "tilt_box": {
-   "ok": 76,
+   "ok": 80,
    "n": 130,
-   "pct": 58.5
+   "pct": 61.5
   },
   "tilt_cyl": {
-   "ok": 71,
+   "ok": 70,
    "n": 126,
-   "pct": 56.3
+   "pct": 55.6
   },
   "latched": {
-   "ok": 112,
+   "ok": 114,
    "n": 189,
-   "pct": 59.3
+   "pct": 60.3
   },
   "follow": {
-   "ok": 35,
+   "ok": 36,
    "n": 67,
-   "pct": 52.2
+   "pct": 53.7
   }
  }
 }
