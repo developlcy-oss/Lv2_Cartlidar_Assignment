@@ -7,6 +7,9 @@ YUYV 는 640×480 · 320×240 뿐인데 이 카메라의 4:3 모드는 세로 �
 bringup sensors.launch.py 가 띄운다. 따로 실행:
   ros2 run perception arm_camera_node.py --ros-args -r __ns:=/arm_camera -p device:=/dev/arm_cam
 발행: image_raw (sensor_msgs/Image, bgr8) · camera_info (보정 파일이 없으면 크기만 채운 빈 값)
+
+카메라가 브라켓에 위아래 거꾸로 달려 rotate_180(기본 true)으로 180° 돌려 발행한다. 보정 파일은 돌리기 전 화면 기준이고
+camera_info 는 돌린 화면에 맞춰 바꿔 낸다. 그래서 URDF 광학 프레임 · YOLO · 인지는 바로 선 영상을 그대로 받는다.
 """
 import threading
 import time
@@ -36,12 +39,25 @@ def load_camera_info(path, width, height):
     return info
 
 
+def rotate_info_180(info):
+    """화면을 180° 돌렸을 때의 camera_info 로 바꾼다: u' = W-1-u, v' = H-1-v, 접선 왜곡 p1 · p2 부호 반대(방사 왜곡은 그대로)."""
+    k, p, d = list(info.k), list(info.p), list(info.d)
+    if k[0] > 0.0:                             # 보정 파일이 없으면(0) 주점이 없다
+        k[2], k[5] = info.width - 1 - k[2], info.height - 1 - k[5]
+        p[2], p[6] = info.width - 1 - p[2], info.height - 1 - p[6]
+    if len(d) >= 4:                            # plumb_bob · rational_polynomial 모두 d[2:4] = p1, p2
+        d[2], d[3] = -d[2], -d[3]
+    info.k, info.p, info.d = k, p, d
+    return info
+
+
 class ArmCameraNode(Node):
     def __init__(self):
         super().__init__('arm_camera')
         p = {
             'device': '/dev/arm_cam', 'width': 1280, 'height': 720, 'fps': 30.0,
             'frame_id': 'arm_camera_optical_frame', 'camera_info_url': '', 'reopen_s': 1.0,
+            'rotate_180': True,
         }
         for k, v in p.items():
             self.declare_parameter(k, v)
@@ -51,6 +67,8 @@ class ArmCameraNode(Node):
         self.pub_img = self.create_publisher(Image, 'image_raw', qos)
         self.pub_info = self.create_publisher(CameraInfo, 'camera_info', qos)
         self.info = load_camera_info(self.cfg['camera_info_url'], self.cfg['width'], self.cfg['height'])
+        if self.cfg['rotate_180']:
+            rotate_info_180(self.info)
         self.cap = None
         self.running = True
         self.thread = threading.Thread(target=self.loop, daemon=True)
@@ -89,6 +107,8 @@ class ArmCameraNode(Node):
                 self.cap.release()
                 self.cap = None
                 continue
+            if self.cfg['rotate_180']:
+                frame = cv2.flip(frame, -1)    # 위아래 · 좌우 모두 뒤집기 = 180° 회전
             msg = Image()
             msg.header.stamp, msg.header.frame_id = stamp, self.cfg['frame_id']
             msg.height, msg.width = frame.shape[:2]
