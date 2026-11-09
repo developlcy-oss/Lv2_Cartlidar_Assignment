@@ -1,0 +1,22 @@
+# 팔 Arducam 1280x720 (MJPG) 내부값. 2026-11-09 실측: ChArUco 10x7 68 장, OpenCV calibrateCamera
+# 재투영 RMS 0.203 px (맡겨 둔 장 0.207), fx 표준편차 0.11 %, 화면 덮음 98 % (#143)
+image_width: 1280
+image_height: 720
+camera_name: arm_camera
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [865.4326572, 0, 694.8757499, 0, 865.561246, 359.636803, 0, 0, 1]
+distortion_model: rational_polynomial
+distortion_coefficients:
+  rows: 1
+  cols: 8
+  data: [7.015057401, 21.58684794, -0.0003022761007, 0.0004858712959, 2.668479135, 7.439728992, 24.81589374, 11.50292432]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [865.4326572, 0, 694.8757499, 0, 0, 865.561246, 359.636803, 0, 0, 0, 1, 0]
