@@ -87,6 +87,8 @@ def launch_setup(context):
             actions.append(Node(
                 package='perception', executable='arm_camera_node.py', name='arm_camera_driver', namespace='arm_camera',
                 output='screen',
+                # 1280x720 한 장이 Fast DDS 기본 공유 메모리보다 커서 best effort 구독에서 장이 버려진다 → 이 노드만 키운다
+                additional_env={'FASTDDS_DEFAULT_PROFILES_FILE': get_package_share_directory('perception') + '/config/fastdds_arm_camera.xml'},
                 parameters=[{
                     'device': lc['arm_device'],
                     'fps': 30.0,
