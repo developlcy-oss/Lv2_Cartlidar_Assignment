@@ -4192,11 +4192,11 @@
         <horizontal_fov>1.2735</horizontal_fov>
         <lens>
           <type>gnomonical</type>
-          <intrinsics>   <!-- 실물 보정 (#143 arm_camera_1280x720.yaml), 왜곡은 넣지 않음 (#145) -->
+          <intrinsics>   <!-- 실물 보정 (#143 arm_camera_1280x720.yaml)을 180° 돌려 발행하는 값 (#147), 왜곡은 넣지 않음 (#145) -->
             <fx>865.4327</fx>
             <fy>865.5612</fy>
-            <cx>694.8757</cx>
-            <cy>359.6368</cy>
+            <cx>584.1243</cx>
+            <cy>359.3632</cy>
             <s>0</s>
           </intrinsics>
         </lens>
