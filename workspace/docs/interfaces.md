@@ -24,7 +24,7 @@
 | /perception/arm_range | sensor_msgs/Range | SensorData | perception_node (ARM_ALIGN, `arm.plane`) — 팔 끝(`tool_link`) → 잠근 퍽 **중심** 거리 (팔 카메라 평면 교차). 함께 /perception/arm_target (PointStamped). ★ 위 `/arm_range`(퍽 **표면**)와 다른 토픽 — 이름이 비슷하니 헷갈리지 말 것, 두 값 차이 ≈ 퍽 반지름 | (없음 — 예비 · 검증용) |
 | /tfmini/range | sensor_msgs/Range | SensorData, 50 Hz | tfmini_node (실물) · scan_to_range (Gazebo) — 1층 렌즈(`tfmini_link`) → **퍽이 놓인 박스 앞면** 거리, mm 출력 + 실측 보정 | drive (FINE 정렬 전후), obstacle_stop |
 | /perception/pucks | robot_interfaces/PuckArray | Reliable, depth 1 (`qos::result()`, /perception/result 와 같음) | perception_node | perception_survey, manipulator (target_look 타겟체크자세에서 예상 자리 퍽, #82) |
-| /perception/puck_survey | std_msgs/String (JSON) | Reliable + TransientLocal, depth 1 | perception_survey — B0 박스 6 · 칸 12. 필드 `slots[]`(box, side, x_mm, y_mm, color, shape, pose, id, status …) · `complete` · `errors` · `revisit` · `unconfirmed` · `frame`(발제 원점, mm). `complete` false 면 할당에 쓰지 않음. 자세한 것은 perception_survey/README.md | (mission 연동 미구현 — 계획) |
+| /perception/puck_survey | std_msgs/String (JSON) | Reliable + TransientLocal, depth 1 | perception_survey — B0 박스 6 · 칸 12. 필드 `slots[]`(box, side, x_mm, y_mm, color, shape, pose, id, status …) · `complete` · `errors` · `revisit` · `unconfirmed` · `frame`(발제 원점, mm). `complete` false 면 할당에 쓰지 않음. 자세한 것은 perception_survey/README.md | 모니터링 (mission 은 이 토픽을 구독하지 않고 `/perception/survey/finish` 응답의 완료 파일 경로를 받음, #39 #53) |
 | /perception/signal | robot_interfaces/SignalSequence | Reliable, depth 1 | perception_node (READ_SIGNAL) | mission (plan 모드), mission_planner |
 | /perception/barcode | robot_interfaces/Barcode | Reliable, depth 1 | perception_node (READ_BARCODE) | mission (plan 모드), mission_planner |
 | /perception/task_marker | robot_interfaces/TaskMarker | Reliable, depth 1 | perception_node (READ_MARKER) | (없음) |
@@ -69,7 +69,7 @@
 | /arm_controller/follow_joint_trajectory | Action | control_msgs/FollowJointTrajectory | manipulator | arm_controller |
 | /gripper_controller/gripper_cmd | Action | control_msgs/ParallelGripperCommand | manipulator | gripper_controller |
 | /perception/set_mode | Service | robot_interfaces/SetPerceptionMode | mission | perception |
-| /perception/survey/start · /reset · /finish · /revisit | Service | std_srvs/Trigger | (mission 연동 미구현 — CLI) | perception_survey — 순서: start → `complete` 토픽 → finish 성공. finish 실패면 revisit 로 문제 칸만 다시 |
+| /perception/survey/start · /reset · /finish · /revisit | Service | std_srvs/Trigger | mission (plan 모드 survey 단계: start · finish · revisit, #39 #53) · CLI (reset) | perception_survey — 순서: start → `complete` 토픽 → finish 성공. finish 실패면 revisit 로 문제 칸만 다시 |
 | /mission/start · /mission/stop | Service | std_srvs/Trigger | joy_teleop · CLI | mission |
 | /perception/check_dice | Service | robot_interfaces/CheckDice | mission (plan 모드) | perception |
 | /mission_planner/plan | Service | std_srvs/Trigger | mission (plan 모드, `mission_plan.yaml` service) | mission_planner |
