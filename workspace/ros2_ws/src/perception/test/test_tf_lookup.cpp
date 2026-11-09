@@ -1,6 +1,9 @@
 // 촬영 시각 TF 조회 시험 (tf_lookup.hpp). odom ← base_link 를 0.00 s · 0.05 s 에 넣고 찾는다
 #include <gtest/gtest.h>
 
+#include <chrono>
+#include <thread>
+
 #include "perception/tf_lookup.hpp"
 
 using namespace perception;
@@ -56,4 +59,27 @@ TEST(TfLookup, MissingFrameThrows)
   tf2::BufferCore b;
   fill(b);
   EXPECT_THROW(lookup_near(b, "odom", "arm_camera_optical_frame", at(10.0), 0.1), tf2::TransformException);
+}
+
+// 팔 영상 TF 기다리기: 이미 있으면 바로 true, 기다리는 중에 오면 true, 끝내 안 오면 한도 뒤 false
+TEST(TfLookup, WaitTransformReturnsWhenArrived)
+{
+  using clock = std::chrono::steady_clock;
+  tf2::BufferCore b;
+  fill(b);
+  EXPECT_TRUE(wait_transform(b, "odom", "base_link", at(10.025), 0.0));
+
+  std::thread late([&b]() {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      b.setTransform(tf_at(10.10, 0.2), "test");
+    });
+  const auto t0 = clock::now();
+  EXPECT_TRUE(wait_transform(b, "odom", "base_link", at(10.08), 1.0));
+  EXPECT_LT(std::chrono::duration<double>(clock::now() - t0).count(), 0.5);   // 한도까지 다 쓰지 않음
+  late.join();
+
+  const auto t1 = clock::now();
+  EXPECT_FALSE(wait_transform(b, "odom", "base_link", at(10.50), 0.03));
+  EXPECT_GE(std::chrono::duration<double>(clock::now() - t1).count(), 0.03);
+  EXPECT_FALSE(wait_transform(b, "odom", "base_link", at(10.50), 0.0));   // 0 이면 기다리지 않음
 }

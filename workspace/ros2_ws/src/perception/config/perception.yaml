@@ -9,6 +9,7 @@ perception_node:
     tf_fallback_max_s: 0.1      # [s] 촬영 시각 TF 가 없을 때 가장 최근 TF 를 써도 되는 시각 차. 넘으면 그 영상 위치를 내지 않음
     tf_wait_s: 0.05             # [s] 앞 · 뒤 D435: 촬영 시각 odom → base TF 가 아직 없으면 최근 4 장 중 TF 가 온 장을 쓰고, 이만큼까지 기다림(0 이면 끔). EKF 가 영상보다 늦게 나옴(모의 0.008~0.025 s)
                                 #   (/joint_states 50 Hz 주기 20 ms 의 5 배. 팔 태그 퍽 · 팔 정렬은 이 값과 상관없이 촬영 시각 TF 만 씀)
+    arm_tf_wait_s: 0.025        # [s] 팔 영상: 촬영 시각 TF 가 아직 없으면 이번 처리 주기 안에서 이만큼 기다리고, 그래도 없으면 다음 주기에 다시 봄(0 이면 기다리지 않음). /joint_states 주기 20 ms + 전달 여유
     image_qos: sensor_data      # sensor_data(best effort) | reliable. best effort 구독은 어느 발행자와도 연결된다
     image_qos_depth: 2
     cameras:
