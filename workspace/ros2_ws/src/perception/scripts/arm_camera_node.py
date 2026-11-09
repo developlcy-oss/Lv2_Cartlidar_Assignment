@@ -81,7 +81,7 @@ class ArmCameraNode(Node):
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, c['width'])
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, c['height'])
         cap.set(cv2.CAP_PROP_FPS, c['fps'])
-        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)        # 오래된 장을 쌓지 않음
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 2)        # 1 이면 MJPEG 푸는 동안(약 20 ms) 다음 장을 놓쳐 15 Hz 로 반토막. 2 는 30 Hz 유지, 오래된 장은 쌓지 않음
         if not cap.isOpened():
             cap.release()
             return None
