@@ -70,7 +70,8 @@ IMU_RPY = (0.0, 0.0, 0.0)                                  # 저장소 imu_link 
 CAM_HZ = 30.0
 H_APERTURE = 20.955                                        # USD 카메라 기본 수평 조리개 [mm]
 D435_RES, D435_FX = (480, 640), 615.0                      # 실물 perception 컬러 640x480, HFOV 약 55° (Isaac Lab 3 시험 fx 614.7)
-ARM_RES, ARM_HFOV = (480, 640), 105.0                      # Arducam 640x480 (perception 설정 · 이슈 #14). 대각 120° 어안 -> 핀홀 HFOV 105° 근사 ★ 실물 보정값으로
+ARM_RES, ARM_FX = (720, 1280), 865.43                      # Arducam 1280x720 실물 보정 fx (#143 · #145). 주점은 가운데 (Omniverse 는 aperture offset 없음),
+                                                           # 실물 cx 694.9 (55 px 오른쪽) · 왜곡은 못 넣음
 # 이름 -> (USD 광학 프레임 prim, 토픽 앞부분, frame_id, 깊이)
 CAMS = {"front": ("top_camera_front_color_optical_frame", "/top_camera_front", "top_camera_front_color_optical_frame", True),
         "rear": ("top_camera_rear_color_optical_frame", "/top_camera_rear", "top_camera_rear_color_optical_frame", True),
@@ -177,9 +178,8 @@ class Cameras:
             self.sensors.append((TiledCameraSensor(paths, resolution=D435_RES, annotators=["rgb", "distance_to_image_plane"], tick_rate=CAM_HZ),
                                  self.d435, D435_RES, D435_FX, True))
         if self.arm:
-            fx = ARM_RES[1] / 2 / math.tan(math.radians(ARM_HFOV) / 2)
-            path = add_camera(stage, find_prim(stage, CAMS["arm"][0]), ARM_RES, fx, near=0.02)
-            self.sensors.append((TiledCameraSensor(path, resolution=ARM_RES, annotators=["rgb"], tick_rate=CAM_HZ), ["arm"], ARM_RES, fx, False))
+            path = add_camera(stage, find_prim(stage, CAMS["arm"][0]), ARM_RES, ARM_FX, near=0.02)
+            self.sensors.append((TiledCameraSensor(path, resolution=ARM_RES, annotators=["rgb"], tick_rate=CAM_HZ), ["arm"], ARM_RES, ARM_FX, False))
         self.next_t = 0.0
 
     def start(self, node):

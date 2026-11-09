@@ -97,7 +97,7 @@ cam = S.d435_cfg("{ENV_REGEX_NS}/Robot", "front", "color")                 # rgb
 | IMU | base_link (0.0095, 0, 0.0202) = 아래층 OpenCR 칩 (`imu_link`, 하나뿐) | 100 Hz | 켬 |
 | D435 앞 · 뒤 컬러 + 깊이 | base_link, 컬러 optical frame 그대로 (깊이 = frame 기준, 더할 것 없음) | 640 × 480, 30 Hz, 가로 화각 0.9571 rad, 0.105 ~ 10 m | 끔 |
 | D435 IR 좌 · 우 | base_link, infra1 · infra2 optical frame | 640 × 480, 가로 화각 1.3829 rad (rgb 로 흉내, 패턴 투사 없음) | 끔 |
-| 팔 카메라 | gripper_roll_link | 1280 × 720, 30 Hz, 가로 화각 1.9721 rad (왜곡 없는 바늘구멍), 0.02 ~ 5 m | 끔 |
+| 팔 카메라 | gripper_roll_link | 1280 × 720, 30 Hz, 가로 화각 1.2735 rad = 실물 보정 fx 865.4 (왜곡 없는 바늘구멍, 주점 가운데, #145), 0.02 ~ 5 m | 끔 |
 
 ## 6. 점검 결과 (2026-10-29 261028 판, RTX 5060 Laptop 8 GB, 로봇 1대, 창 없이)
 
