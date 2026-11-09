@@ -263,6 +263,44 @@ TEST(RobotDescription, HardwareFlagsAndCommandLimits)
   }
 }
 
+// 팔 대기 자세 범위 (2026-11-09): 실물 블록에만, 칸 6 개씩, 최소 ≤ 최대, 펌웨어 config.h 범위 안
+// (밖이면 그 자세에서는 켤 수 없음 — 호스트가 명령을 펌웨어 범위로 잘라 REARM 때 튐). tick = 2048 + rad × 4096 / 2π (ARM_DIR +1)
+TEST(RobotDescription, ArmStandbyRangeInsideFirmwareRange)
+{
+  if (!have_xacro()) {GTEST_SKIP() << "xacro 없음 (sudo apt install ros-lyrical-xacro)";}
+  const std::string src = read_file(PKG_DIR "/urdf/robot.urdf.xacro");
+  std::string urdf;
+  ASSERT_TRUE(expand_xacro(src, urdf)) << urdf;   // 기본 = 실물 (opencr)
+  const auto hw = parse_one(urdf);
+  auto ticks = [&](const char * key) {
+      std::vector<int> v;
+      if (!hw.hardware_parameters.count(key)) {return v;}
+      std::stringstream ss(hw.hardware_parameters.at(key));
+      std::string item;
+      while (std::getline(ss, item, ',')) {v.push_back(std::stoi(item));}
+      return v;
+    };
+  const auto mn = ticks("arm_standby_min_tick"), mx = ticks("arm_standby_max_tick");
+  ASSERT_EQ(mn.size(), 6u) << "arm_standby_min_tick 없음 또는 칸 수가 다름 — 빠지면 대기 자세 검사가 꺼짐";
+  ASSERT_EQ(mx.size(), 6u) << "arm_standby_max_tick 없음 또는 칸 수가 다름";
+  const auto fw_min = fw_range("ARM_MIN_RAD"), fw_max = fw_range("ARM_MAX_RAD");
+  ASSERT_EQ(fw_min.size(), 6u);
+  ASSERT_EQ(fw_max.size(), 6u);
+  auto tick = [](double rad) {return 2048.0 + rad * 4096.0 / (2.0 * M_PI);};
+  for (int k = 0; k < 6; ++k) {
+    EXPECT_LE(mn[k], mx[k]) << "칸 " << k;
+    EXPECT_GE(mn[k], tick(fw_min[k]) - 1e-9) << "칸 " << k << " 대기 자세 최소가 펌웨어 범위 밖 (" << tick(fw_min[k]) << " tick)";
+    EXPECT_LE(mx[k], tick(fw_max[k]) + 1e-9) << "칸 " << k << " 대기 자세 최대가 펌웨어 범위 밖 (" << tick(fw_max[k]) << " tick)";
+  }
+  // Isaac · mock 은 이 플러그인이 아니므로 넣지 않음 (모르는 인자)
+  for (const std::string backend : {"mock", "isaac"}) {
+    ASSERT_TRUE(expand_xacro(src, urdf, "backend:=" + backend)) << urdf;
+    const auto other = parse_one(urdf);
+    EXPECT_EQ(other.hardware_parameters.count("arm_standby_min_tick"), 0u) << backend;
+    EXPECT_EQ(other.hardware_parameters.count("arm_standby_max_tick"), 0u) << backend;
+  }
+}
+
 // backend (opencr · mock · isaac): 관절 · 인터페이스 · 한계 강제 여부는 그대로, 하드웨어 플러그인과 IMU 센서만 바뀜
 TEST(RobotDescription, BackendSwapsOnlyHardwarePlugin)
 {

@@ -10,10 +10,12 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <map>
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "hardware_interface/resource_manager.hpp"
 #include "opencr_hardware/opencr_protocol.hpp"
@@ -54,6 +56,11 @@ public:
   {
     std::lock_guard<std::mutex> lk(m_);
     wheel_pos_[slot] = rad;
+  }
+  void set_arm_pos(int slot, float rad)     // STATE 팔 위치 (토크 꺼진 채 손으로 놓은 자세, 대기 자세 시험용)
+  {
+    std::lock_guard<std::mutex> lk(m_);
+    arm_now_[slot] = rad;
   }
   Cmd last_cmd()
   {
@@ -463,6 +470,91 @@ TEST(OpenCRHardware, ListenOnlyActivatesWithoutMotors)
       EXPECT_NE(component_state(rm), "active");
       EXPECT_EQ(wheel.cmd_count_torque_on() + arm.cmd_count_torque_on(), 0);
     }
+  }
+}
+
+// 팔 대기 자세 (2026-11-09): FakeOpenCR 팔 초기 위치 0.3 · 0.4 · … · 0.8 rad = tick 2244 · 2309 · 2374 · 2439 · 2504 · 2570
+// 에 ±30 tick 범위를 준다. 범위 밖이면 활성화 거부 + CMD 0 개 (토크 꺼진 채), 팔 HOLD 면 건너뜀
+static std::string standby_params(const std::string & mn = "2214,2279,2344,2409,2474,2540",
+  const std::string & mx = "2274,2339,2404,2469,2534,2600")
+{
+  return "<param name=\"arm_standby_min_tick\">" + mn + "</param><param name=\"arm_standby_max_tick\">" + mx + "</param>";
+}
+
+TEST(OpenCRHardware, ArmStandbyInRangeActivates)
+{
+  FakeOpenCR wheel(ROLE_WHEEL), arm(ROLE_ARM);
+  auto clock = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+  hardware_interface::ResourceManager rm(make_urdf(wheel.path() + "," + arm.path(), standby_params()), clock,
+    rclcpp::get_logger("rm"), true, 100);
+  ASSERT_EQ(component_state(rm), "active");
+  rm.write(clock->now(), rclcpp::Duration::from_seconds(0.01));
+  std::this_thread::sleep_for(50ms);
+  EXPECT_TRUE(arm.last_cmd().flags & FLAG_TORQUE_ON);
+  EXPECT_NEAR(arm.last_cmd().arm_pos[1], 0.4, 1e-5) << "명령 초기값 = 지금 위치 (그대로)";
+}
+
+TEST(OpenCRHardware, ArmStandbyOutOfRangeRejected)
+{
+  // 칸 1 하나만 0.4 → 0.6 rad (tick 2439, 범위 2279 ~ 2339 밖) · 칸 5 를 아래로 (0.8 → 0.7, tick 2504 < 2540)
+  for (const auto & [slot, rad] : std::map<int, float>{{1, 0.6f}, {5, 0.7f}}) {
+    FakeOpenCR wheel(ROLE_WHEEL), arm(ROLE_ARM);
+    arm.set_arm_pos(slot, rad);
+    auto clock = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+    hardware_interface::ResourceManager rm(make_urdf(wheel.path() + "," + arm.path(), standby_params()), clock,
+      rclcpp::get_logger("rm"), true, 100);
+    EXPECT_NE(component_state(rm), "active") << "칸 " << slot;
+    std::this_thread::sleep_for(50ms);
+    EXPECT_EQ(wheel.cmd_count() + arm.cmd_count(), 0) << "칸 " << slot << ": 거부하면 어떤 CMD 도 (토크 OFF 도) 보내지 않음";
+  }
+}
+
+TEST(OpenCRHardware, ArmStandbyRejectsAccumulatedTurn)
+{
+  // 토크 꺼진 채 손으로 한 바퀴 넘게 돌린 값 (같은 자리지만 tick 이 4096 만큼 쌓임) → 12 V 를 다시 넣을 때까지 거부
+  FakeOpenCR wheel(ROLE_WHEEL), arm(ROLE_ARM);
+  arm.set_arm_pos(0, static_cast<float>(0.3 + 2.0 * M_PI));
+  auto clock = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+  hardware_interface::ResourceManager rm(make_urdf(wheel.path() + "," + arm.path(), standby_params()), clock,
+    rclcpp::get_logger("rm"), true, 100);
+  EXPECT_NE(component_state(rm), "active");
+  EXPECT_EQ(wheel.cmd_count() + arm.cmd_count(), 0);
+}
+
+TEST(OpenCRHardware, ArmStandbySkippedWhenArmHeld)
+{
+  // 토크가 켜진 채 호스트만 다시 켬 = 펌웨어가 팔을 붙잡고 HOLD → 대기 자세가 아니어도 시작 (손으로 옮길 수 없음)
+  FakeOpenCR wheel(ROLE_WHEEL), arm(ROLE_ARM);
+  arm.set_arm_pos(1, 0.6f);
+  arm.set_error_bits(ERR_HOLD);
+  auto clock = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+  hardware_interface::ResourceManager rm(make_urdf(wheel.path() + "," + arm.path(), standby_params()), clock,
+    rclcpp::get_logger("rm"), true, 100);
+  EXPECT_EQ(component_state(rm), "active");
+}
+
+TEST(OpenCRHardware, ArmStandbyParamsRejectTypos)
+{
+  // 하나만 있음 · 개수 다름 · 숫자 아님 · 0~4095 밖 · 최소 > 최대 → 시작 거부 (검사가 몰래 꺼지지 않게)
+  const std::string ok = "2214,2279,2344,2409,2474,2540";
+  const std::vector<std::string> bad = {
+    "<param name=\"arm_standby_min_tick\">" + ok + "</param>",
+    standby_params("2214,2279,2344,2409,2474", "2274,2339,2404,2469,2534"),
+    standby_params("2214,2279,abc,2409,2474,2540"),
+    standby_params("2214,2279,2344,2409,2474,4096", "2274,2339,2404,2469,2534,4100"),
+    standby_params(ok, "2274,2339,2404,2469,2534,2500"),
+  };
+  for (const auto & p : bad) {
+    FakeOpenCR wheel(ROLE_WHEEL), arm(ROLE_ARM);
+    auto clock = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+    bool active = false;
+    try {
+      hardware_interface::ResourceManager rm(make_urdf(wheel.path() + "," + arm.path(), p), clock, rclcpp::get_logger("rm"),
+        true, 100);
+      active = component_state(rm) == "active";
+    } catch (const std::exception &) {}
+    EXPECT_FALSE(active) << p;
+    EXPECT_EQ(wheel.cmd_count_torque_on() + arm.cmd_count_torque_on(), 0) << p;
   }
 }
 
