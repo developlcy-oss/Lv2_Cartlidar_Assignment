@@ -6,7 +6,7 @@
 ## 실행
 
 ```bash
-ros2 launch navigation navigation.launch.py                                     # 실물: AMCL 포함, 출력 /cmd_vel_nav
+ros2 launch navigation navigation.launch.py                                     # 단독: AMCL 포함, 지도 · loc_monitor 는 localization 기본값 (Isaac SLAM 지도). 실물은 아래 "실물 첫 실행"
 ros2 launch navigation navigation.launch.py use_localization:=false            # map → odom · /map 을 다른 곳에서 낼 때
 ros2 launch navigation navigation.launch.py use_collision_monitor:=false       # smoother 가 바로 cmd_vel_out 으로
 ```
@@ -15,6 +15,51 @@ ros2 launch navigation navigation.launch.py use_collision_monitor:=false       #
 - localization 인자(`start_x/y/yaw`, `map`, `use_loc_monitor` 등)는 이 launch 에 그대로 준다. 출발 자세 기본값 = base_link (0.69365, 0.95, π).
 - 목표 보내기: `drive_node` 가 `navigate_to_pose` · `spin` action 을 부른다. 손으로는
   `ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: map}, pose: {position: {x: 0.734, y: 0.2915}, orientation: {w: 1.0}}}}"`
+### 실물 첫 실행 (★ 실물에서 아직 안 돌려 봄, 2026-11-09)
+
+물리 비상정지 버튼은 없다. 조이스틱 E-stop(버튼 6)은 소프트웨어 정지라 첫 주행은 전원 스위치에 손이 닿는 곳에서 한다.
+조이스틱(데드맨 LB 를 누른 채, 우선순위 100)이 Nav2(10)를 덮으므로 이상하면 조이스틱으로 잡는다. 조이스틱이 없으면 E-stop 이 계속 잠겨 바퀴가 안 돈다.
+
+준비
+
+- 로봇을 출발 구역 가운데에 서쪽 벽(−X)을 보게 놓는다. AMCL 은 출발 자세 (0.69365, 0.95, yaw π) 에서 시작한다. 다른 곳이면 `start_x:= start_y:= start_yaw:=`.
+- 켠 뒤 2 s 는 움직이지 않는다. `scan_body_mask` 가 0.5 ~ 1.9 s 정지 스캔으로 차체 가림을 배운다.
+- `/dev/lidar_front` · `/dev/lidar_rear` · `/dev/tfmini` 는 udev 규칙(`perception/udev/99-sensors.rules`)의 시리얼이 아직 자리표시라 안 생긴다.
+  라이다는 `ls -l /dev/serial/by-path/` 의 이름을 `lidar_front_port:=` · `lidar_rear_port:=` 로 준다 (꽂은 USB 구멍 기준. ttyUSB 번호는 켤 때마다 바뀔 수 있음).
+  TFmini 가 없으면 obstacle_stop 이 "입력 없음" 정지를 계속 내서 Nav2 가 막히므로 `use_tfmini:=false` (TFmini 정지 없음, collision_monitor 만 남음).
+
+```bash
+ros2 launch bringup bringup.launch.py use_localization:=true use_nav2:=true \
+  use_loc_monitor:=false use_loc_lock:=false use_loc_gate:=false \
+  use_perception:=false use_d435:=false use_arm_camera:=false use_tfmini:=false \
+  lidar_front_port:=/dev/serial/by-path/<앞> lidar_rear_port:=/dev/serial/by-path/<뒤>
+```
+
+- 지도는 bringup 기본 = 도면 SDF 지도(`mission_planner/maps`, #163).
+- `use_loc_monitor:=false`: 잔차 문턱 0.034 m 는 모의에서 정한 값이라 Gazebo 에서도 거짓 LOST 가 났다(위).
+  끄면 `/localization/status` · `/localization/lock` 이 없으므로 lock(끊겨도 잠김 → Nav2 계속 막힘) · gate(60 s 기다리다 실패, #121)도 같이 끈다.
+- 카메라 3 대는 Nav2 가 안 쓰므로 끈다 (costmap 은 `/scan_merged` 만).
+
+확인 (다른 터미널, 차례로)
+
+```bash
+ros2 topic hz /scan_front ; ros2 topic hz /scan_rear ; ros2 topic hz /scan_merged   # 라이다 두 대 · 합친 것
+ros2 run tf2_ros tf2_echo map base_link        # 출발 자세 근처 (0.69, 0.95, yaw 180°)
+```
+
+1. `lifecycle_manager_navigation ... Managed nodes are active` 를 기다린다.
+2. 조이스틱으로 0.3 m 앞으로 → 반시계로 90° 돌려 보고 `tf2_echo map base_link` 가 같은 쪽으로 따라오는지 본다
+   (x 가 줄고, yaw 180° → −90°). 반대로 가면 멈추고 바퀴 방향 · IMU 부호부터 본다.
+3. 짧은 목표 (남쪽 0.5 m, 남쪽 봄) → 출발 자세로 돌아오기:
+
+```bash
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: map}, pose: {position: {x: 0.734, y: 0.45}, orientation: {z: -0.7071, w: 0.7071}}}}"
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: map}, pose: {position: {x: 0.69365, y: 0.95}, orientation: {z: 1.0, w: 0.0}}}}"
+```
+
+4. 된 뒤 `use_loc_monitor:=true` 만 켜고 (lock · gate 는 false 그대로) 같은 목표를 돌며 `ros2 topic echo /localization/status` 를 본다.
+   거짓 LOST 가 없으면 lock · gate 를 기본(켬)으로 둔다.
+
 
 ### Gazebo 시험 (waffle_4wd_description)
 
@@ -91,4 +136,5 @@ Isaac SLAM 지도로는 3 번째 목표에서 AMCL 이 위치를 잃어 2/12.
 - 차체 외곽(footprint): B안 값. control `front_offset` 0.263 · perception `self_box` 와 다름 → 실측으로 하나로.
 - 회전 중심: 지금은 base_link. #49(−0.079) · #92(−0.0658) 실측 뒤 회전 중심 프레임을 쓸지 정함.
 - 속도(vx 0.2 · wz 1.0) · inflation · 도착 기준은 실물에서 다시 맞춤.
-- 지도: localization 기본 `/map` 은 Isaac 모의 미로 SLAM 지도이고 동쪽이 8 ~ 15 cm 어긋난다(위). 실물은 도면 지도(`mission_planner/maps`)로 먼저 시험하고, 다시 SLAM 하면 루프 닫힘 · 벽 위치를 도면과 비교한다.
+- 지도: 실물 bringup 기본은 도면 SDF 지도(`mission_planner/maps`, #163). localization 단독 기본은 아직 Isaac SLAM 지도(동쪽 8 ~ 15 cm 어긋남, 위). 실물에서 다시 SLAM 하면 루프 닫힘 · 벽 위치를 도면과 비교한다.
+
