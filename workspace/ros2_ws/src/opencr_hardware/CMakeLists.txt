@@ -71,6 +71,11 @@ if(BUILD_TESTING)
     SKIP_LINKING_MAIN_LIBRARIES TIMEOUT 120)
   target_include_directories(test_host_firmware_sil PRIVATE include test/sil ${FIRMWARE_DIR})
   target_link_libraries(test_host_firmware_sil gtest hardware_interface::hardware_interface rclcpp::rclcpp)
+
+  # 실기 URDF <-> Isaac URDF 비교 (#112): 관절 축 직선 · 프레임 FK (팔 3^5 자세) · 한계, 알려진 차이 표, self-test
+  find_package(ament_cmake_pytest REQUIRED)
+  ament_add_pytest_test(test_model_compare test/test_model_compare.py TIMEOUT 60
+    ENV MODEL_COMPARE_JSON=${CMAKE_BINARY_DIR}/test_results/${PROJECT_NAME}/model_compare.json)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
