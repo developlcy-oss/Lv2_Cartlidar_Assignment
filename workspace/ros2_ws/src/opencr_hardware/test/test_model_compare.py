@@ -59,6 +59,10 @@ KNOWN_FRAME_DIFF = {
                               '실기 = D435 infra1 (realsense 드라이버 기준), Isaac = 카메라 가운데 (infra1 은 optical x -0.025)'),
     'top_camera_rear_link': ((0.0, 0.025017, 0.0), '〃 (뒤 카메라, 180° 돌아 있어 부호 반대)'),
 }
+# 알려진 자세 차이: 프레임 -> (Isaac 과 실기 사이 각도 [deg], 이유). 이 각도 그대로일 때만 통과 (차이가 없어져도 실패)
+KNOWN_FRAME_ROT = {
+    'imu_link': (90.0, '실기 OpenCR 은 +y 가 차체 앞 (실기 yaw -90°, 2026-11-09 실물 확인), Isaac IMU 는 차체 축 그대로'),
+}
 # 알려진 관절 한계 차이: (관절, 항목) -> (실기, Isaac, 이유). 바퀴는 #15 에서 11.1 V 값으로 통일 (2026-11-09)
 KNOWN_LIMIT_DIFF = {}
 # 한쪽에만 있는 움직이는 관절
@@ -256,7 +260,7 @@ def compare(real, isaac):
             da = np.degrees(rot_angle(tr[:3, :3], ti[:3, :3]))
             summary['max_frame_pos_mm'][f] = max(summary['max_frame_pos_mm'].get(f, 0.0), dp)
             summary['max_frame_ang_deg'][f] = max(summary['max_frame_ang_deg'].get(f, 0.0), da)
-            if dp > POS_TOL * 1e3 or np.radians(da) > ANG_TOL:
+            if dp > POS_TOL * 1e3 or np.radians(abs(da - KNOWN_FRAME_ROT.get(f, (0.0,))[0])) > ANG_TOL:
                 errors.append(('frame', f, {'q': q, 'pos_mm': round(dp, 3), 'ang_deg': round(da, 3)}))
 
     # 바퀴: Isaac 접지 원통 중심 |y| = 실기 바퀴 관절 |y|
@@ -370,6 +374,7 @@ SELF_TESTS = {
     'top_camera_front_y_fixed': ('top_camera_front_link_fixed', _shift_origin(1, 0.025024),
                                  {'frame_known_changed'}),
     'wheel_contact_+2mm': ('wheel_right_rear_joint', _shift_origin(1, -2e-3), {'wheel_contact_y'}),
+    'imu_yaw_diff_gone': ('imu_joint', lambda j: j.find('origin').set('rpy', '0 0 -1.5707963267948966'), {'frame'}),
 }
 
 
@@ -390,6 +395,7 @@ def report(errors, summary):
         'tol': {'pos_mm': POS_TOL * 1e3, 'ang_deg': float(np.degrees(ANG_TOL))},
         'errors': [{'kind': k, 'target': t, 'detail': v} for k, t, v in errors],
         'known_frame_diff': {f: {'isaac_minus_real_m': d, 'why': w} for f, (d, w) in KNOWN_FRAME_DIFF.items()},
+        'known_frame_rot': {f: {'angle_deg': d, 'why': w} for f, (d, w) in KNOWN_FRAME_ROT.items()},
         'known_limit_diff': {f'{j}.{k}': {'real': a, 'isaac': b, 'why': w}
                              for (j, k), (a, b, w) in KNOWN_LIMIT_DIFF.items()},
         'summary': summary,
