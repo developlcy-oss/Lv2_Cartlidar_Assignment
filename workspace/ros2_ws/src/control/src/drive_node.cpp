@@ -5,8 +5,11 @@
 //   /drive/align         goal 수신 뒤 첫 새 result 의 ARM_ALIGN 비트로 모드를 정하고 끝까지 유지
 //                        정밀: arm_offset → 회전, /tfmini/range (1층 TFmini → 박스 앞면, BoxRangeFilter) → 전후 (20 Hz)
 //                        정밀 동안 obstacle_stop 정지 거리를 "목표 − align.box_stop_margin" 으로 낮추고 (파라미터 approach_stop_m)
-//                        끝나면(성공 · 실패 · 취소 · 선점) 0 으로 되돌린다
+//                        끝날 때(성공 · 실패 · 취소 · 선점) 박스 앞 (TFmini < align.box.park_release_m) 이면 "정차" 로 낮춘 값을 유지하고,
+//                        TFmini 로 물러남을 확인한 뒤 0 으로 되돌린다 (#157, control/box_park.hpp). 정차 중에는 park_refresh_s 마다 다시 보냄
+//                        (바로 되돌리면 0.13 < 평소 0.25 → twist_mux 잠금이 회전 · 후진 · Nav2 를 모두 막아 박스 앞에서 멈춤)
 //                        먼 거리: object_pose(D435, base_link) → 회전 + 전진/후진, 범퍼 기준 거리, /scan 장애물 감시
+//   (#157) /drive/navigate 를 정차 중에 받으면 먼저 곧게 후진 (navigate.backoff.*, 뒤 /scan · 뒤 카메라 확인) → 물러남 확인 뒤 Nav2
 //   /drive/execute_skill 강화학습 정책 (robot_policy, CPU) → 속도
 //                        turn_p<deg> · turn_m<deg> · turn_0 = 직전 FINE 정렬 방향 기준 제자리 회전 (#77, 정책 · skill.enabled 와 상관없음)
 //   result · /tfmini/range · /scan · odom 은 header.stamp 300 ms 지나면 버림. 바퀴 goal 은 한 번에 하나.
@@ -18,6 +21,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "geometry_msgs/msg/twist_stamped.hpp"
@@ -29,6 +33,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "control/align_controller.hpp"
+#include "control/box_park.hpp"
 #include "control/loc_gate.hpp"
 #include "control/turn_skill.hpp"
 #include "robot_interfaces/srv/set_perception_mode.hpp"
@@ -94,6 +99,14 @@ public:
     box_stop_margin_ = declare_parameter("align.box.stop_margin", 0.03);
     box_stop_min_ = declare_parameter("align.box.stop_min", 0.10);
     obstacle_stop_node_ = declare_parameter("align.box.obstacle_stop_node", std::string("/obstacle_stop"));
+    BoxParkConfig pc;
+    pc.release_m = declare_parameter("align.box.park_release_m", pc.release_m);
+    pc.release_count = static_cast<int>(declare_parameter("align.box.park_release_count", pc.release_count));
+    pc.refresh_s = declare_parameter("align.box.park_refresh_s", pc.refresh_s);
+    pc.backoff_speed = declare_parameter("navigate.backoff.speed", pc.backoff_speed);
+    pc.backoff_max_m = declare_parameter("navigate.backoff.max_m", pc.backoff_max_m);
+    pc.backoff_timeout_s = declare_parameter("navigate.backoff.timeout_s", pc.backoff_timeout_s);
+    box_park_ = BoxPark(pc);
     coarse_min_ = declare_parameter("align.coarse_min", 0.3);
     default_tol_ = declare_parameter("align.default_tolerance", 0.01);
     front_offset_ = declare_parameter("base.front_offset", 0.1328);   // base_link → 차체 앞 끝 (B안) ★
@@ -155,6 +168,10 @@ public:
         [this](sensor_msgs::msg::Range::ConstSharedPtr m) {
           const bool ok = std::isfinite(m->range) && m->range >= m->min_range && m->range <= m->max_range;
           box_.push(rclcpp::Time(m->header.stamp, RCL_ROS_TIME).seconds(), ok ? std::optional<double>(m->range) : std::nullopt);
+          if (box_park_.on_range(ok ? std::optional<double>(m->range) : std::nullopt)) {   // 물러남 확인 (#157)
+            RCLCPP_INFO(get_logger(), "박스 앞 정차 해제: TFmini %.3f m — 평소 정지 거리로", m->range);
+            set_box_approach(0.0);
+          }
         }, so);
     obstacle_params_ = std::make_shared<rclcpp::AsyncParametersClient>(this, obstacle_stop_node_);
     scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(names::SCAN, rclcpp::SensorDataQoS(),
@@ -184,7 +201,8 @@ public:
         rcl_action_server_get_default_options(), cbg_);
     align_server_ = rclcpp_action::create_server<Align>(this, names::DRIVE_ALIGN,
         [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Align::Goal> g) {
-          if (g->target_distance < min_fine_target_) {
+          // target_distance 는 float32 → 0.13 이 0.12999999 로 와서 같은 값도 거부됨. 1e-4 m 여유로 비교
+          if (g->target_distance < min_fine_target_ - 1e-4) {
             RCLCPP_WARN(get_logger(), "target_distance %.3f < %.2f m — 거부", g->target_distance, min_fine_target_);
             return rclcpp_action::GoalResponse::REJECT;
           }
@@ -253,7 +271,7 @@ private:
   void preempt_all(const std::string & why)
   {
     if (align_gh_) {
-      set_box_approach(0.0);
+      end_box_approach();
       publish_cmd(0, 0);
       auto r = std::make_shared<Align::Result>();
       r->message = why;
@@ -293,6 +311,12 @@ private:
     preempt_all("새 /drive/navigate goal 로 대체");
     ref_yaw_.reset();   // turn_* 기준 방향은 다음 FINE 정렬 성공으로 다시 정함
     nav_gh_ = gh;
+    if (box_park_.parked()) {start_backoff(); return;}   // 박스 앞이면 먼저 후진 (#157) → tick_backoff 가 begin_nav
+    begin_nav();
+  }
+
+  void begin_nav()
+  {
     if (!loc_gate_.begin(now().seconds())) {   // 위치 추정 OK 를 기다렸다 tick 이 보냄 (#121)
       RCLCPP_WARN(get_logger(), "navigate: 위치 추정 %s → OK 기다림 (최대 %.0f s)",
         loc_gate_.describe(now().seconds()).c_str(), loc_gate_.params().wait_s);
@@ -360,8 +384,63 @@ private:
     nav_client_->async_send_goal(goal, opts);
   }
 
+  // ---------- 박스 앞 정차 중 navigate: 먼저 곧게 후진 (#157) ----------
+  void start_backoff()
+  {
+    backoff_active_ = true;
+    backoff_start_ = now();
+    backoff_from_.reset();
+    const auto & c = box_park_.config();
+    RCLCPP_INFO(get_logger(), "navigate: 박스 앞 정차 중 → 먼저 후진 (%.2f m/s, TFmini %.2f m 이상 확인 또는 최대 %.2f m)",
+      c.backoff_speed, c.release_m, c.backoff_max_m);
+  }
+
+  void tick_backoff()
+  {
+    const auto & c = box_park_.config();
+    const double el = (now() - backoff_start_).seconds();
+    double traveled = 0.0;
+    if (odom_ && fresh(odom_->header.stamp)) {
+      const auto & p = odom_->pose.pose.position;
+      if (!backoff_from_) {backoff_from_ = std::make_pair(p.x, p.y);}
+      traveled = std::hypot(p.x - backoff_from_->first, p.y - backoff_from_->second);
+    }
+    // 뒤 확인 = 정책 주행과 같은 규칙: 뒤 /scan ±scan.half_angle 에 scan.rear_stop, 뒤 카메라 (#84). /scan 이 없으면 기다림
+    const bool scan_ok = scan_ && fresh(scan_->header.stamp);
+    const bool rear_blocked = (!scan_ok && require_scan_) ||
+      (scan_ok && scan_blocked(scan_->ranges, scan_->angle_min, scan_->angle_increment, M_PI, scan_half_, scan_rear_stop_)) ||
+      rear_camera_blocks(-c.backoff_speed, rear_camera_, rear_state());
+    switch (backoff_step(c, box_park_.parked(), traveled, el, rear_blocked)) {
+      case BackoffStep::DRIVE:
+        publish_cmd(-c.backoff_speed, 0.0);
+        return;
+      case BackoffStep::HOLD:
+        publish_cmd(0, 0);
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "후진 대기: 뒤 막힘 (/scan %s, 뒤 카메라 %s)",
+          scan_ok ? "확인" : "없음", rear_why().c_str());
+        return;
+      case BackoffStep::TIMEOUT:
+        publish_cmd(0, 0);
+        backoff_active_ = false;
+        finish_nav(false, "박스 앞 후진 시간 초과 (뒤 막힘 또는 물러남 확인 못 함)");   // 정차는 유지 → mission 재시도 때 다시 후진
+        return;
+      case BackoffStep::MAX_DISTANCE:
+        RCLCPP_WARN(get_logger(), "후진 %.2f m 갔지만 TFmini 로 물러남을 확인 못 함 — 평소 정지 거리로 되돌리고 Nav2", traveled);
+        box_park_.clear();
+        set_box_approach(0.0);
+        break;
+      case BackoffStep::RELEASED:   // TFmini 콜백이 이미 평소 정지 거리로 되돌림
+        break;
+    }
+    publish_cmd(0, 0);
+    backoff_active_ = false;
+    RCLCPP_INFO(get_logger(), "박스 앞 후진 끝 (%.2f m, %.1f s) → Nav2", traveled, el);
+    begin_nav();
+  }
+
   void cancel_nav2()
   {
+    if (backoff_active_) {backoff_active_ = false; publish_cmd(0, 0);}
     ++nav_gen_;
     loc_gate_.reset();
     if (nav2_handle_) {nav_client_->async_cancel_goal(nav2_handle_); nav2_handle_.reset();}
@@ -392,6 +471,24 @@ private:
     align_tol_ = gh->get_goal()->tolerance > 0.0 ? gh->get_goal()->tolerance : default_tol_;
   }
 
+  // 정렬이 끝날 때 (성공 · 실패 · 취소 · 선점) 낮춘 정지 거리 처리 (#157)
+  //   FINE: 박스 앞 (TFmini < park_release_m · 무효) 이면 정차 = 낮춘 값 유지, 멀면 바로 되돌림
+  //   COARSE · 모드 결정 전: 앞서 정차한 값이 있으면 유지 (TFmini 로 물러남을 확인하면 콜백이 되돌림)
+  void end_box_approach()
+  {
+    if (!box_approach_set_) {return;}
+    if (align_mode_ == AlignMode::FINE) {
+      const auto r = box_.value(now().seconds());
+      if (box_park_.on_align_end(now().seconds(), fine_stop_m_, r)) {
+        RCLCPP_INFO(get_logger(), "박스 앞 정차: TFmini %.3f m — 정지 거리 %.3f m 유지 (물러난 뒤 되돌림)", r ? *r : NAN, fine_stop_m_);
+        return;
+      }
+    } else if (box_park_.parked()) {
+      return;
+    }
+    set_box_approach(0.0);
+  }
+
   // obstacle_stop 정지 거리 (0 = 평소로). 응답을 기다리지 않는다 — 실패하면 경고만 (정지 거리가 평소 값이면 박스 앞에서 서서 정렬이 시간 초과)
   void set_box_approach(double stop_m)
   {
@@ -419,7 +516,7 @@ private:
         RCLCPP_WARN(get_logger(), "정밀 정렬 끝 yaw 를 /odometry/filtered 에서 못 읽음 — turn_* 를 쓸 수 없음");
       }
     }
-    set_box_approach(0.0);
+    end_box_approach();
     publish_cmd(0, 0);
     auto r = std::make_shared<Align::Result>();
     r->success = ok;
@@ -432,7 +529,7 @@ private:
   void tick_align()
   {
     if (align_gh_->is_canceling()) {
-      set_box_approach(0.0);
+      end_box_approach();
       publish_cmd(0, 0);
       auto r = std::make_shared<Align::Result>();
       r->message = "취소됨";
@@ -451,7 +548,11 @@ private:
           return;
         }
         last_valid_ = t;
-        if (align_mode_ == AlignMode::FINE) {set_box_approach(box_approach_stop(align_target_, box_stop_margin_, box_stop_min_));}
+        if (align_mode_ == AlignMode::FINE) {
+          box_park_.clear();   // 이 정렬이 낮춘 값을 새로 맡음 (끝날 때 end_box_approach 가 정차 판단)
+          fine_stop_m_ = box_approach_stop(align_target_, box_stop_margin_, box_stop_min_);
+          set_box_approach(fine_stop_m_);
+        }
         RCLCPP_INFO(get_logger(), "align 모드: %s, 목표 %.3f m", align_mode_ == AlignMode::FINE ? "정밀(TFmini 박스 거리)" : "먼 거리(범퍼)",
           align_target_);
       } else if ((t - align_start_).seconds() > mode_wait_s_) {
@@ -678,8 +779,11 @@ private:
       cancel_nav2();
       end(nav_gh_, false, std::make_shared<Nav::Result>(), true);
     }
-    if (nav_gh_) {tick_loc_gate();}
+    if (nav_gh_) {
+      if (backoff_active_) {tick_backoff();} else {tick_loc_gate();}
+    }
     if (align_gh_) {tick_align();}
+    if (box_park_.refresh_due(now().seconds())) {set_box_approach(box_park_.stop_m());}   // 정차 중 다시 보냄 (#157)
   }
 
   void tick_loc_gate()
@@ -721,6 +825,12 @@ private:
   double box_stop_margin_ = 0.03, box_stop_min_ = 0.10;
   std::string obstacle_stop_node_;
   bool box_approach_set_ = false;
+  // 박스 앞 정차 (#157)
+  BoxPark box_park_;
+  double fine_stop_m_ = 0.0;   // 이번 FINE 정렬이 넣은 정지 거리
+  bool backoff_active_ = false;
+  rclcpp::Time backoff_start_{0, 0, RCL_ROS_TIME};
+  std::optional<std::pair<double, double>> backoff_from_;   // 후진 시작 odom (x, y)
   std::shared_ptr<rclcpp::AsyncParametersClient> obstacle_params_;
   sensor_msgs::msg::LaserScan::ConstSharedPtr scan_;
   nav_msgs::msg::Odometry::ConstSharedPtr odom_;
