@@ -8,7 +8,7 @@
 
 > **통신 정의 동기화 (2026-11-03):** [interfaces.md](interfaces.md) · [robot_nodes.html](robot_nodes.html) 을 지금 코드에 맞췄다. 이 검토에 걸리는 것:
 > 영상은 perception 이 SDK 로 직접 열지 않고 **드라이버 토픽**(realsense2_camera · usb_cam, bringup `sensors.launch.py` / 모의는 Isaac 브리지)을 구독한다 ·
-> manipulator 는 `/e_stop` 을 구독하지 않는다(팔은 OpenCRHardware ESTOP → 펌웨어 HOLD) · `/arm/skill_state` · `/arm/safety_state` 는 **발행 코드가 없다** ·
+> manipulator 는 `/e_stop` 을 구독하지 않는다(팔은 OpenCRHardware ESTOP → 펌웨어 HOLD) · `/arm/skill_state` · `/arm/safety_state` 는 지웠다 (#86)
 > plan 모드 mission 이 `/perception/signal` · `/barcode` · `/perception/check_dice` · `/mission_planner/plan` 을 쓴다. 받는 쪽 · 내는 쪽이 없는 토픽은 3절 결정 요청 6~10.
 
 > **저장소 통합 뒤 이름 대응 (2026-10-22)**: 이 검토는 `robot_ws` 시절 작성. 지금 패키지는
@@ -59,7 +59,7 @@
 |---|---|---|
 | 1 | **skill 성공 조건이 문서에 없음** — "타임아웃 시 0 속도 후 abort" 만 있어 정해진 시간 동안 하는 주행(slalom 등)도 항상 실패 | policies.yaml 에 `finish_on_timeout: true` (이번 구현에 넣음, 기본 false = 문서대로). 장기적으로 v1.2 의 success · termination 조건을 명세에. **[2026-11-03] 코드 반영됨** — `robot_policy` `finish_on_timeout` (slalom_v1 = true). 남은 것은 interfaces · 명세 문서화 |
 | 2 | ~~ArmPose result 에 message 없음~~ | **반영 (2026-10-22)**: `string message` 추가. mission 이 pose · pick · align · skill 의 message 를 status.reason 에 붙임 (예: `read_tag 실패: pose TAG_VIEW 실패: 관절 상태 없음`) |
-| 3 | **/arm/skill_state · /arm/safety_state** — 문서 토픽표에 없음 (v1.2 의 모니터링 토픽) | 토픽표에 추가 또는 삭제 결정. ~~지금은 모니터링용으로 남김~~ **[2026-11-03]** 지금은 발행 코드가 없음 (이름 `names.hpp` · 메시지만 정의) → 발행을 구현할지 지울지 결정 |
+| 3 | **/arm/skill_state · /arm/safety_state** — 문서 토픽표에 없음 (v1.2 의 모니터링 토픽) | 토픽표에 추가 또는 삭제 결정. ~~지금은 모니터링용으로 남김~~ **[2026-11-03]** 지금은 발행 코드가 없음 (이름 `names.hpp` · 메시지만 정의) → 발행을 구현할지 지울지 결정 | **[2026-11-09] 삭제 (#86)**: 메시지 · 이름 상수 · 토픽표 행을 지움. 팔 HOLD · E-stop 은 /diagnostics, 미션 진행은 /mission/status
 | 4 | **그리퍼 미정 동안 grasped** — 그리퍼가 없으면 grasped 를 판단할 수 없어 미션이 계속 재시도 | `gripper.assume_grasped_without_gripper: true` (벤치용, 그리퍼 정해지면 false) |
 | 5 | ~~바퀴 수~~ | **4륜 확정 (2026-10-22)**: 기본값 4 그대로. robot_nodes.html 의 6륜 표기(하드웨어 표 · ID 1~6 · command velocity ×6)는 고쳐야 함 |
 | 6 | **`/perception/rear_obstacle` · `/perception/task_marker` 받는 쪽 없음** (2026-11-03) | rear_obstacle 은 drive 후진 판단에 쓸지, task_marker 는 mission 에 연결할지 결정 |

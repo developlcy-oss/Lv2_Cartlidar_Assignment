@@ -51,7 +51,6 @@
 | /e_stop | std_msgs/Bool | Reliable + TransientLocal, 10 Hz | OpenCRHardware (잠금식) · Isaac 브리지 (모의, 항상 false) | twist_mux (lock 0.5 s), mission |
 | /diagnostics | diagnostic_msgs/DiagnosticArray | 기본, 1 Hz + 오류 즉시 | OpenCRHardware (`opencr/link · motors · battery · estop`, hardware_id `opencr`) | mission (opencr/ 만) |
 | /tf · /tf_static | tf2_msgs/TFMessage | 기본 · TransientLocal | slam_toolbox · ekf · robot_state_publisher · realsense2_camera — 규약 [frames_tf.md](frames_tf.md) | 전체 |
-| /arm/skill_state · /arm/safety_state | robot_interfaces/SkillState · SafetyState | TransientLocal | **(발행 노드 없음 — 이름 · 메시지만 정의, manipulator 가 내지 않음)** | 모니터링 — **유지 또는 삭제 결정 필요** |
 | /clock · /isaac_joint_states · /isaac_joint_commands | rosgraph_msgs/Clock · sensor_msgs/JointState | 기본 | Isaac 브리지 (`/clock` · 관절 상태) · TopicBasedSystem (관절 명령) | 모의 전용 (`sim:=true`) |
 
 ## Action · Service
@@ -88,7 +87,6 @@
 | Pick | `grasped` 포함 |
 | ExecuteSkill | |
 | MissionStatus | |
-| SkillState · SafetyState | 모니터링 전용 |
 | TaskMarker | /perception/task_marker (장소 태그) |
 | SignalSequence | /perception/signal (신호등 점멸 순서, CONFIRMED 12개) |
 | Barcode | /perception/barcode (LOCATE 위치 · READ 문자열) |

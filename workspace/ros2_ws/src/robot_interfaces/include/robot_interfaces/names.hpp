@@ -29,8 +29,6 @@ inline constexpr const char * JOY = "/joy";
 inline constexpr const char * E_STOP = "/e_stop";
 inline constexpr const char * DIAGNOSTICS = "/diagnostics";
 inline constexpr const char * MISSION_STATUS = "/mission/status";
-inline constexpr const char * ARM_SKILL_STATE = "/arm/skill_state";
-inline constexpr const char * ARM_SAFETY_STATE = "/arm/safety_state";
 // Action
 inline constexpr const char * DRIVE_NAVIGATE = "/drive/navigate";
 inline constexpr const char * DRIVE_ALIGN = "/drive/align";
