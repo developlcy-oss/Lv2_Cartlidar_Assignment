@@ -86,10 +86,11 @@ arm_camera:                              # Arducam UC-684 B0201, 손목 롤 링�
   frame: arm_camera_optical_frame        # 팀 perception.yaml 은 영상 header frame 을 씀
   topic_prefix: /arm_camera              # image_raw · camera_info (팀 perception.yaml)
   sim:
-    width: 1280                          # 가정 (16:9)
+    width: 1280                          # 실물 보정 해상도 (#143 perception/config/arm_camera_1280x720.yaml)
     height: 720
     update_rate_hz: 30
-    hfov_rad: 1.9721                     # 대각 120° 를 바늘구멍 (왜곡 없음) 16:9 로 바꾼 가로 113.0° (가정)
+    hfov_rad: 1.2735                     # 실물 보정 fx 865.43 px 의 바늘구멍 가로 72.97° (#145). 왜곡 (rational_polynomial 8 개) 은 모의에 못 넣음
+    intrinsics: [865.4327, 865.5612, 694.8757, 359.6368]   # fx fy cx cy [px] (#143 실측). Gazebo 만 씀 (Isaac 은 주점 가운데 · 정사각 화소만)
     clip_m: [0.02, 5.0]
     image_noise_stddev: 0.007
 

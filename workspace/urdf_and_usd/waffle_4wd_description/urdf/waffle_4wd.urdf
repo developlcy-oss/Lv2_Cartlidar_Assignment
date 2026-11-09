@@ -4189,7 +4189,17 @@
       <gz_frame_id>arm_camera_optical_frame</gz_frame_id>
       <camera>
         <camera_info_topic>arm_camera/camera_info</camera_info_topic>
-        <horizontal_fov>1.9721</horizontal_fov>
+        <horizontal_fov>1.2735</horizontal_fov>
+        <lens>
+          <type>gnomonical</type>
+          <intrinsics>   <!-- 실물 보정 (#143 arm_camera_1280x720.yaml), 왜곡은 넣지 않음 (#145) -->
+            <fx>865.4327</fx>
+            <fy>865.5612</fy>
+            <cx>694.8757</cx>
+            <cy>359.6368</cy>
+            <s>0</s>
+          </intrinsics>
+        </lens>
         <image>
           <width>1280</width>
           <height>720</height>
