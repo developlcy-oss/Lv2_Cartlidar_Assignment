@@ -32,6 +32,16 @@ def as_bool(v):
     return v.lower() in ('true', '1', 'yes')
 
 
+def arm_info_url(v):
+    """auto 면 perception 패키지의 Arducam 1280x720 실측 보정 파일 (#143), none 이면 보정 없이, 그 밖의 값은 그 파일.
+    명령줄의 arm_camera_info_url:= (빈 값) 은 ros2 launch 가 받지 않아 none 을 둔다."""
+    if v in ('', 'none'):
+        return ''
+    if v != 'auto':
+        return v
+    return 'file://' + get_package_share_directory('perception') + '/config/arm_camera_1280x720.yaml'
+
+
 def launch_setup(context):
     lc = context.launch_configurations
     sim = {'use_sim_time': as_bool(lc['use_sim_time'])}
@@ -82,7 +92,7 @@ def launch_setup(context):
                     'fps': 30.0,
                     'width': 1280, 'height': 720,   # 640x480 은 실물 화면에 줄이 생기고, YOLO 팔 판정도 이 크기 (#119)
                     'frame_id': 'arm_camera_optical_frame',
-                    'camera_info_url': lc['arm_camera_info_url'],   # ★ 비우면 보정 없이 (perception 은 태그 id 만)
+                    'camera_info_url': arm_info_url(lc['arm_camera_info_url']),   # auto = 실측 보정 (#143). none 이면 보정 없이 (perception 은 태그 id 만)
                 }, sim]))
         else:
             missing('perception', '팔 Arducam')
@@ -118,8 +128,9 @@ def generate_launch_description():
         DeclareLaunchArgument('rgb_gain', default_value='128', description='★ D435 RGB gain'),
         DeclareLaunchArgument('use_arm_camera', default_value='true', description='팔 Arducam (perception arm_camera_node.py)'),
         DeclareLaunchArgument('arm_device', default_value='/dev/arm_cam', description='perception/udev/99-sensors.rules 이름'),
-        DeclareLaunchArgument('arm_camera_info_url', default_value='',
-                              description='★ Arducam 보정 파일 (file:///...). 비우면 보정 없음'),
+        DeclareLaunchArgument('arm_camera_info_url', default_value='auto',
+                              description='Arducam 보정 파일. auto = perception/config/arm_camera_1280x720.yaml (#143 실측), '
+                                          'file:///... = 그 파일, none = 보정 없음'),
         DeclareLaunchArgument('use_lidar', default_value='true', description='앞 · 뒤 LDS-03 (coin_d4_driver)'),
         DeclareLaunchArgument('lidar_front_port', default_value='/dev/lidar_front'),
         DeclareLaunchArgument('lidar_rear_port', default_value='/dev/lidar_rear'),
