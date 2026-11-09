@@ -5,8 +5,8 @@
 
 | Issue | 파트 | 담당 | 열린 날 | 제목 |
 |---|---|---|---|---|
-| #165 |  | WindForce08 | 2026-11-09 | [팔 펌웨어] 실기 확인 M3~M6 (손 확인 · move · 슬라이더 · 퍽 쥐기) |
-| #161 |  | developlcy-oss | 2026-11-09 | [manipulator] joint1 영점이 약 180° 어긋난 것으로 보임 (정면이 약 ±3.2 rad) |
+| #165 | integration | WindForce08 | 2026-11-09 | [팔 펌웨어] 실기 확인 M3~M6 (손 확인 · move · 슬라이더 · 퍽 쥐기) |
+| #161 | integration | developlcy-oss | 2026-11-09 | [manipulator] joint1 영점이 약 180° 어긋난 것으로 보임 (정면이 약 ±3.2 rad) |
 | #160 | mission | **없음** | 2026-11-09 | [mission/drive] 놓기 전 장소 (L1 ~ L3) 접근이 퍽을 찾다가 실패함 — 빈 상자에서 COARSE · FINE 정렬 "물체 놓침" |
 | #157 | mission | **없음** | 2026-11-09 | [drive/perception] 박스 앞 FINE 정렬이 끝나면 TFmini 비상 정지가 다시 걸려 로봇이 못 움직임 (회전 · 후진 · Nav2 모두) |
 | #154 | integration | **없음** | 2026-11-09 | [manipulator] READY · BOX_VIEW 자세에서 팔 카메라가 퍽을 못 봄 (FINE 정렬 · 퍽 조사) |
