@@ -1,4 +1,5 @@
 # 도전 B 고정 시험 6 건 (유효 4 · 불가능 2). 불가능 사례는 소프트웨어 오류 시험용 (공식 출제 아님). ID 와 색은 고정 대응 아님.
+# 순차 선택 (allocate_greedy) 은 V1 · V2 · V3 에서 실패 (greedy_fails), V4 만 성공 — R · G 가 ID 순으로 Y 에 필요한 모양을 먼저 가져감. 제출물: mission_challenge_b
 # pucks 는 "색 모양" 12 개를 ID 0 ~ 11 순서로 (박스 = id // 2 + 1, 자리 = 짝수 -1 · 홀수 +1). c = cylinder, b = box
 cases:
   - name: V1_Q1_오름차순
@@ -6,11 +7,13 @@ cases:
     barcode: P2-01
     pucks: [rc, gb, rb, gc, rc, gc, rb, gb, rc, gc, rb, gb]   # 빨강 6 (c3 b3), 초록 6
     expect: {L1: Y, L2: R, L3: G, y_count: 2}
+    greedy_fails: true          # R 4 = 빨강 0 2 4 6 -> 남은 8 (c) · 10 (b) 섞임
   - name: V2_동률_내림차순        # R4 Y4 G4 -> 내림차순 동률이면 R, Y, G
     signal: RRRRYYYYGGGG
     barcode: P2-02
     pucks: [rc, rc, rb, rb, rc, rb, gc, gc, gb, gb, gc, gb]   # 빨강 6, 초록 6 -> Y 에 빨강 2 · 초록 2 (같은 모양)
     expect: {L1: R, L2: Y, L3: G, y_count: 4}
+    greedy_fails: true          # R 4 = 빨강 0 1 2 3 -> 남은 4 (c) · 5 (b) 섞임
   - name: V3_한모양_부족_순차실패   # 빨강 8 (원기둥 3 · 상자 5), R5 Y3 G4 -> Y = 빨강 3 개 같은 모양
     signal: RRRRRYYYGGGG
     barcode: P2-03

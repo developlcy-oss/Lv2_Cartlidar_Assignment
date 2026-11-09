@@ -1,0 +1,554 @@
+[
+ {
+  "name": "V1_Q1_오름차순",
+  "signal": "RGRRGRGGYGYG",
+  "barcode": "P2-01",
+  "pucks": [
+   {
+    "id": 0,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": -1
+   },
+   {
+    "id": 1,
+    "color": "green",
+    "shape": "box",
+    "box": 1,
+    "side": 1
+   },
+   {
+    "id": 2,
+    "color": "red",
+    "shape": "box",
+    "box": 2,
+    "side": -1
+   },
+   {
+    "id": 3,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 2,
+    "side": 1
+   },
+   {
+    "id": 4,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 3,
+    "side": -1
+   },
+   {
+    "id": 5,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 3,
+    "side": 1
+   },
+   {
+    "id": 6,
+    "color": "red",
+    "shape": "box",
+    "box": 4,
+    "side": -1
+   },
+   {
+    "id": 7,
+    "color": "green",
+    "shape": "box",
+    "box": 4,
+    "side": 1
+   },
+   {
+    "id": 8,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 5,
+    "side": -1
+   },
+   {
+    "id": 9,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 5,
+    "side": 1
+   },
+   {
+    "id": 10,
+    "color": "red",
+    "shape": "box",
+    "box": 6,
+    "side": -1
+   },
+   {
+    "id": 11,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": 1
+   }
+  ],
+  "impossible": false
+ },
+ {
+  "name": "V2_동률_내림차순",
+  "signal": "RRRRYYYYGGGG",
+  "barcode": "P2-02",
+  "pucks": [
+   {
+    "id": 0,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": -1
+   },
+   {
+    "id": 1,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": 1
+   },
+   {
+    "id": 2,
+    "color": "red",
+    "shape": "box",
+    "box": 2,
+    "side": -1
+   },
+   {
+    "id": 3,
+    "color": "red",
+    "shape": "box",
+    "box": 2,
+    "side": 1
+   },
+   {
+    "id": 4,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 3,
+    "side": -1
+   },
+   {
+    "id": 5,
+    "color": "red",
+    "shape": "box",
+    "box": 3,
+    "side": 1
+   },
+   {
+    "id": 6,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 4,
+    "side": -1
+   },
+   {
+    "id": 7,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 4,
+    "side": 1
+   },
+   {
+    "id": 8,
+    "color": "green",
+    "shape": "box",
+    "box": 5,
+    "side": -1
+   },
+   {
+    "id": 9,
+    "color": "green",
+    "shape": "box",
+    "box": 5,
+    "side": 1
+   },
+   {
+    "id": 10,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 6,
+    "side": -1
+   },
+   {
+    "id": 11,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": 1
+   }
+  ],
+  "impossible": false
+ },
+ {
+  "name": "V3_한모양_부족_순차실패",
+  "signal": "RRRRRYYYGGGG",
+  "barcode": "P2-03",
+  "pucks": [
+   {
+    "id": 0,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": -1
+   },
+   {
+    "id": 1,
+    "color": "red",
+    "shape": "box",
+    "box": 1,
+    "side": 1
+   },
+   {
+    "id": 2,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 2,
+    "side": -1
+   },
+   {
+    "id": 3,
+    "color": "red",
+    "shape": "box",
+    "box": 2,
+    "side": 1
+   },
+   {
+    "id": 4,
+    "color": "red",
+    "shape": "box",
+    "box": 3,
+    "side": -1
+   },
+   {
+    "id": 5,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 3,
+    "side": 1
+   },
+   {
+    "id": 6,
+    "color": "red",
+    "shape": "box",
+    "box": 4,
+    "side": -1
+   },
+   {
+    "id": 7,
+    "color": "red",
+    "shape": "box",
+    "box": 4,
+    "side": 1
+   },
+   {
+    "id": 8,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 5,
+    "side": -1
+   },
+   {
+    "id": 9,
+    "color": "green",
+    "shape": "box",
+    "box": 5,
+    "side": 1
+   },
+   {
+    "id": 10,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 6,
+    "side": -1
+   },
+   {
+    "id": 11,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": 1
+   }
+  ],
+  "impossible": false
+ },
+ {
+  "name": "V4_내림차순_Y6",
+  "signal": "YYYYYYRRRGGG",
+  "barcode": "P2-04",
+  "pucks": [
+   {
+    "id": 0,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": -1
+   },
+   {
+    "id": 1,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": 1
+   },
+   {
+    "id": 2,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 2,
+    "side": -1
+   },
+   {
+    "id": 3,
+    "color": "red",
+    "shape": "box",
+    "box": 2,
+    "side": 1
+   },
+   {
+    "id": 4,
+    "color": "red",
+    "shape": "box",
+    "box": 3,
+    "side": -1
+   },
+   {
+    "id": 5,
+    "color": "red",
+    "shape": "box",
+    "box": 3,
+    "side": 1
+   },
+   {
+    "id": 6,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 4,
+    "side": -1
+   },
+   {
+    "id": 7,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 4,
+    "side": 1
+   },
+   {
+    "id": 8,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 5,
+    "side": -1
+   },
+   {
+    "id": 9,
+    "color": "green",
+    "shape": "box",
+    "box": 5,
+    "side": 1
+   },
+   {
+    "id": 10,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": -1
+   },
+   {
+    "id": 11,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": 1
+   }
+  ],
+  "impossible": false
+ },
+ {
+  "name": "X1_불가능_색수부족",
+  "signal": "RRRYYYGGGGGG",
+  "barcode": "P2-01",
+  "pucks": [
+   {
+    "id": 0,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": -1
+   },
+   {
+    "id": 1,
+    "color": "red",
+    "shape": "box",
+    "box": 1,
+    "side": 1
+   },
+   {
+    "id": 2,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 2,
+    "side": -1
+   },
+   {
+    "id": 3,
+    "color": "green",
+    "shape": "box",
+    "box": 2,
+    "side": 1
+   },
+   {
+    "id": 4,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 3,
+    "side": -1
+   },
+   {
+    "id": 5,
+    "color": "green",
+    "shape": "box",
+    "box": 3,
+    "side": 1
+   },
+   {
+    "id": 6,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 4,
+    "side": -1
+   },
+   {
+    "id": 7,
+    "color": "green",
+    "shape": "box",
+    "box": 4,
+    "side": 1
+   },
+   {
+    "id": 8,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 5,
+    "side": -1
+   },
+   {
+    "id": 9,
+    "color": "green",
+    "shape": "box",
+    "box": 5,
+    "side": 1
+   },
+   {
+    "id": 10,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 6,
+    "side": -1
+   },
+   {
+    "id": 11,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": 1
+   }
+  ],
+  "impossible": true
+ },
+ {
+  "name": "X2_불가능_한모양없음",
+  "signal": "RRYYYYYYGGGG",
+  "barcode": "P2-02",
+  "pucks": [
+   {
+    "id": 0,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": -1
+   },
+   {
+    "id": 1,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 1,
+    "side": 1
+   },
+   {
+    "id": 2,
+    "color": "red",
+    "shape": "cylinder",
+    "box": 2,
+    "side": -1
+   },
+   {
+    "id": 3,
+    "color": "red",
+    "shape": "box",
+    "box": 2,
+    "side": 1
+   },
+   {
+    "id": 4,
+    "color": "red",
+    "shape": "box",
+    "box": 3,
+    "side": -1
+   },
+   {
+    "id": 5,
+    "color": "red",
+    "shape": "box",
+    "box": 3,
+    "side": 1
+   },
+   {
+    "id": 6,
+    "color": "red",
+    "shape": "box",
+    "box": 4,
+    "side": -1
+   },
+   {
+    "id": 7,
+    "color": "green",
+    "shape": "cylinder",
+    "box": 4,
+    "side": 1
+   },
+   {
+    "id": 8,
+    "color": "green",
+    "shape": "box",
+    "box": 5,
+    "side": -1
+   },
+   {
+    "id": 9,
+    "color": "green",
+    "shape": "box",
+    "box": 5,
+    "side": 1
+   },
+   {
+    "id": 10,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": -1
+   },
+   {
+    "id": 11,
+    "color": "green",
+    "shape": "box",
+    "box": 6,
+    "side": 1
+   }
+  ],
+  "impossible": true
+ }
+]

@@ -14,6 +14,7 @@ setup(
         (os.path.join("share", package_name, "config"), glob.glob("config/*.yaml")),
         (os.path.join("share", package_name, "maps"), glob.glob("maps/*.pgm") + glob.glob("maps/*.yaml")),
         (os.path.join("share", package_name, "worlds"), glob.glob("worlds/*.sdf")),
+        (os.path.join("share", package_name, "test"), ["test/cases_b.yaml"]),
         (os.path.join("share", package_name, "launch"), glob.glob("launch/*.py")),
     ],
     install_requires=["setuptools"],
@@ -27,6 +28,7 @@ setup(
         "mission_make_maps = mission_planner.cli:make_maps",
         "mission_plan = mission_planner.cli:plan_cmd",
         "mission_submit = mission_planner.submission:main",
+        "mission_challenge_b = mission_planner.challenge_b:main",
         "mission_planner_node = mission_planner.planner_node:main",
     ]},
 )

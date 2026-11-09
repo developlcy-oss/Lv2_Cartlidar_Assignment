@@ -1,0 +1,112 @@
+[
+ {
+  "name": "V1_Q1_오름차순",
+  "counts": {
+   "R": 4,
+   "Y": 2,
+   "G": 6
+  },
+  "locations": {
+   "L1": "Y",
+   "L2": "R",
+   "L3": "G"
+  },
+  "result": "ok",
+  "y_count": 2,
+  "n_valid_allocations": 6,
+  "y_shapes": [
+   "box",
+   "cylinder"
+  ]
+ },
+ {
+  "name": "V2_동률_내림차순",
+  "counts": {
+   "R": 4,
+   "Y": 4,
+   "G": 4
+  },
+  "locations": {
+   "L1": "R",
+   "L2": "Y",
+   "L3": "G"
+  },
+  "result": "ok",
+  "y_count": 4,
+  "n_valid_allocations": 18,
+  "y_shapes": [
+   "box",
+   "cylinder"
+  ]
+ },
+ {
+  "name": "V3_한모양_부족_순차실패",
+  "counts": {
+   "R": 5,
+   "Y": 3,
+   "G": 4
+  },
+  "locations": {
+   "L1": "Y",
+   "L2": "G",
+   "L3": "R"
+  },
+  "result": "ok",
+  "y_count": 3,
+  "n_valid_allocations": 11,
+  "y_shapes": [
+   "box",
+   "cylinder"
+  ]
+ },
+ {
+  "name": "V4_내림차순_Y6",
+  "counts": {
+   "R": 3,
+   "Y": 6,
+   "G": 3
+  },
+  "locations": {
+   "L1": "Y",
+   "L2": "R",
+   "L3": "G"
+  },
+  "result": "ok",
+  "y_count": 6,
+  "n_valid_allocations": 2,
+  "y_shapes": [
+   "box",
+   "cylinder"
+  ]
+ },
+ {
+  "name": "X1_불가능_색수부족",
+  "counts": {
+   "R": 3,
+   "Y": 3,
+   "G": 6
+  },
+  "locations": {
+   "L1": "R",
+   "L2": "Y",
+   "L3": "G"
+  },
+  "result": "error",
+  "reason": "빨강 2 · 초록 10 로는 R 3 · G 6 를 못 채움"
+ },
+ {
+  "name": "X2_불가능_한모양없음",
+  "counts": {
+   "R": 2,
+   "Y": 6,
+   "G": 4
+  },
+  "locations": {
+   "L1": "Y",
+   "L2": "G",
+   "L3": "R"
+  },
+  "result": "error",
+  "reason": "Y 6 개를 한 모양으로 못 만듦 (Y 에 빨강 5 · 초록 1 필요)"
+ }
+]

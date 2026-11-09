@@ -1,0 +1,13 @@
+case,method,valid_case,pass,success,error,time_ms,L1,L2,L3,y_shape,reason
+V1_Q1_오름차순,sequential,True,False,False,True,0.0017,,,,,"순차 선택 실패: 남은 Y 후보 모양 ['box', 'cylinder']"
+V1_Q1_오름차순,search,True,True,True,False,0.0043,0 4,2 6 8 10,1 3 5 7 9 11,cylinder,
+V2_동률_내림차순,sequential,True,False,False,True,0.0016,,,,,"순차 선택 실패: 남은 Y 후보 모양 ['box', 'cylinder']"
+V2_동률_내림차순,search,True,True,True,False,0.0047,2 3 4 5,0 1 6 7,8 9 10 11,cylinder,
+V3_한모양_부족_순차실패,sequential,True,False,False,True,0.0017,,,,,"순차 선택 실패: 남은 Y 후보 모양 ['box', 'cylinder']"
+V3_한모양_부족_순차실패,search,True,True,True,False,0.0049,0 2 5,8 9 10 11,1 3 4 6 7,cylinder,
+V4_내림차순_Y6,sequential,True,True,True,False,0.0013,3 4 5 9 10 11,0 1 2,6 7 8,box,
+V4_내림차순_Y6,search,True,True,True,False,0.0056,0 1 2 6 7 8,3 4 5,9 10 11,cylinder,
+X1_불가능_색수부족,sequential,False,True,False,True,0.0012,,,,,빨강 · 초록 수 부족
+X1_불가능_색수부족,search,False,True,False,True,0.0008,,,,,빨강 2 · 초록 10 로는 R 3 · G 6 를 못 채움
+X2_불가능_한모양없음,sequential,False,True,False,True,0.0019,,,,,"순차 선택 실패: 남은 Y 후보 모양 ['box', 'cylinder']"
+X2_불가능_한모양없음,search,False,True,False,True,0.0017,,,,,Y 6 개를 한 모양으로 못 만듦 (Y 에 빨강 5 · 초록 1 필요)

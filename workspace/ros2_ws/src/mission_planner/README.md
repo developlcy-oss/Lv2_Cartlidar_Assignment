@@ -18,7 +18,8 @@ mission_make_maps                                   # worlds/dice_mission.sdf �
 mission_plan --problem config/problem_q1_example.yaml --mode per_location --out /tmp/plan   # plan.json · signal.json · allocation.json
 mission_plan --problem <문제>.yaml --mode compare   # 두 운영 방식 비용 비교
 mission_submit --problem <문제>.yaml --out <저장소>/submission/review   # 발제 후 검토 제출물 5 종 (problem.md · signals.json · placement.csv · 할당 정답표 · 검증 기록)
-python3 -m pytest test                               # 시험 18 개 (할당 6 건 = 도전 B 형식, GTSP 최적성, 지도 · 자세, 계획)
+mission_challenge_b --out <저장소>/challenge/B      # 도전 B 제출물 (cases.json · expected.json · results.csv · report.md)
+python3 -m pytest test                               # 시험 19 개 (할당 6 건 = 도전 B 형식, GTSP 최적성, 지도 · 자세, 계획)
 ```
 
 문제 파일 (`config/problem_q1_example.yaml` 형식): `signal` (12 점멸), `barcode` (P2-01 ~ 04), `pucks` (id 0 ~ 11 · color red/green · shape cylinder/box · box 1 ~ 6 · side −1/+1).
