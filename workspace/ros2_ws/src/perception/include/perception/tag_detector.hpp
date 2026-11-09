@@ -31,6 +31,14 @@ struct TagCorners
   std::vector<cv::Point2f> corners;   // 왼쪽 위 · 오른쪽 위 · 오른쪽 아래 · 왼쪽 아래 (화소)
 };
 
+// 앞 영상에서 찾은 태그 (find_tracked 가 그 둘레만 다시 찾는 데 씀). 영상 흐름마다 부르는 쪽이 하나 가진다
+struct TagTrack
+{
+  std::vector<TagCorners> tags;
+  int since_full = 0;   // 마지막 전체 검색 뒤 지난 영상 수
+  void reset() {tags.clear(); since_full = 0;}
+};
+
 class TagDetector
 {
 public:
@@ -46,11 +54,17 @@ public:
   //   흰 여백이 좁으면 카펫 같은 바닥 무늬의 윤곽이 태그 테두리에 붙어 사각형을 못 찾는다. 상수를 키우면 약한 무늬가 빠진다
   //   (실물 장소 태그 2026-11-06, 261106_0917_real_judge2)
   void set_texture_pass(bool on) {texture_pass_ = on;}
+  // find_tracked 에서 이 영상 수마다 한 번 전체 검색 (추적 중 새로 보인 태그를 찾으려고). 0 = 추적 끔, 항상 전체 검색
+  void set_track_full_every(int n) {track_full_every_ = n;}
   // K · D 가 비어 있으면 자세 추정 없이 id 만
   std::vector<TagDetection> detect(const cv::Mat & bgr, const cv::Mat & K, const cv::Mat & D) const;
   // detect 를 나눈 두 단계. 찾기는 태그 크기와 상관없으므로 same_search 면 한 번 찾은 결과를 각자 크기로 풀 수 있다
   std::vector<TagCorners> find(const cv::Mat & bgr) const;
   std::vector<TagDetection> solve(const std::vector<TagCorners> & found, const cv::Mat & K, const cv::Mat & D) const;
+  // find 와 같되 앞 영상의 태그가 있으면 그 둘레(태그 긴 변의 반 + 2 px 여백)만 원래 크기로 찾는다.
+  //   Jetson 태그 있는 장 find() 96 ms → 둘레 약 20 ms (2026-11-09 P9h). 하나라도 놓치면 다음 영상은 전체 검색.
+  //   줄여 찾는 영상(팔 카메라)만 추적하고, 줄이지 않는 영상은 항상 find 와 같다
+  std::vector<TagCorners> find_tracked(const cv::Mat & bgr, TagTrack & track) const;
   // 같은 영상에서 찾은 결과가 항상 같은 설정인가 (태그 크기만 달라도 됨)
   bool same_search(const TagDetector & o) const
   {
@@ -59,6 +73,10 @@ public:
   }
 
 private:
+  // roi 안에서 번호 id · 가운데가 c0 에서 gate 안인 태그를 원래 크기로 찾아 q 에 넣는다 (못 찾으면 false, q 그대로)
+  bool refine_in(const cv::Mat & full_gray, const cv::Rect & roi, int id, const cv::Point2f & c0, double gate,
+    std::vector<cv::Point2f> & q) const;
+
   int dict_id_ = 0;
   double size_ = 0.1;
   double gamma_ = 1.0;
@@ -67,6 +85,7 @@ private:
   bool aruco_ = false;
   int max_width_ = 0;
   bool texture_pass_ = false;
+  int track_full_every_ = 0;
 };
 
 }  // namespace perception

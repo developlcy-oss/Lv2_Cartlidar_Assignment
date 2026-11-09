@@ -179,6 +179,7 @@ perception_node:
       ids: [12, 13, 14]         # 이 번호만 씀. 빼면 모든 번호 (빈 목록은 yaml 에서 타입을 알 수 없어 쓰지 않음)
       detect_max_width: 640     # ★ tag.detect_max_width 와 같음 (D435 640 폭은 줄이지 않음)
       texture_pass: true        # ★ 줄인 영상에서 무늬 거르기 문턱으로 한 번 더 찾음 (흰 여백이 좁아 카펫 무늬가 테두리에 붙는 태그, 줄이지 않는 D435 는 안 함)
+      track_full_every: 15      # ★ 팔 영상에서 앞 영상 태그 둘레만 찾고 이 영상 수마다 전체 검색 (30 Hz 입력 · 15 Hz 처리에서 약 1 s). 0 = 추적 끔
     signal:                     # 신호등 점멸 순서 (READ_SIGNAL). include/perception/signal_light.hpp · signal_sequence.hpp
       # 켜진 등 후보: 밝기 · 채도 하한과 색상(H) 범위 ★ Isaac Sim 렌더(R1) · 실물 영상으로 다시 정함 (지금은 가정값)
       # 3000 K 조명에서 카메라 AWB 뒤 켜진 등의 색상이 돈다(빨강 H 4→151 자홍, 노랑 30→59, 초록 74→90). 렌더 판정 R1 · R2 3000 · 6500 K 통과 값(2026-10-31, 모의)

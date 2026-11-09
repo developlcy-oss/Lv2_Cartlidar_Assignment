@@ -119,17 +119,22 @@ std::vector<TagCorners> TagDetector::find(const cv::Mat & bgr) const
   double coord_scale = 1.0;
   cv::Point2f coord_offset(0.f, 0.f);
   auto run = [&](int method, bool texture = false) {
+      // 줄인 영상(팔 카메라)의 첫 검색은 APRILTAG 사각형을 절반 해상도에서 찾는다. 꼭짓점은 뒤에서 원래 크기로 다시 다듬는다.
+      //   Jetson 태그 있는 장 find() 117 → 96 ms, 실물 10 cm 영상 551 장 잃음 0 (2026-11-09 P9h)
+      auto halve_quads = [&]() {return down < 1.0 && coord_scale == 1.0 && method == cv::aruco::CORNER_REFINE_APRILTAG;};
       std::vector<int> ii;
       std::vector<std::vector<cv::Point2f>> cc, rejected;
 #if ROBOT_ARUCO_NEW
       cv::aruco::DetectorParameters p;
       p.cornerRefinementMethod = method;
+      if (halve_quads()) {p.aprilTagQuadDecimate = 2.f;}
       if (texture) {set_texture_params(p);}
       cv::aruco::ArucoDetector det(cv::aruco::getPredefinedDictionary(dict_id_), p);
       det.detectMarkers(gray, cc, ii, rejected);
 #else
       auto p = cv::aruco::DetectorParameters::create();
       p->cornerRefinementMethod = method;
+      if (halve_quads()) {p->aprilTagQuadDecimate = 2.f;}
       if (texture) {set_texture_params(*p);}
       cv::aruco::detectMarkers(gray, cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p, rejected);
 #endif
@@ -184,7 +189,9 @@ std::vector<TagCorners> TagDetector::find(const cv::Mat & bgr) const
     if (aruco_) {
       run(cv::aruco::CORNER_REFINE_SUBPIX);
     } else {
-      run(cv::aruco::CORNER_REFINE_APRILTAG);
+      // 줄인 영상은 윤곽 찾기만: 태그 없는 장면에서 이 APRILTAG 가 한 장 266 ms 중 178 ms 를 썼다(Jetson 2026-11-09 P9g).
+      //   빼서 놓친 것은 약 30 cm 를 흉내 낸 영상 550 장 중 2 장(P9h). D435 는 위 R5 근거대로 그대로 둔다
+      if (down >= 1.0) {run(cv::aruco::CORNER_REFINE_APRILTAG);}
       run(cv::aruco::CORNER_REFINE_SUBPIX);
     }
     coord_scale = 1.0;
@@ -244,36 +251,72 @@ std::vector<TagCorners> TagDetector::find(const cv::Mat & bgr) const
       cv::Point2f c0(0.f, 0.f);
       for (const auto & point : q) {c0 += point * .25f;}
       const double gate = .25 * std::max(bb.width, bb.height);
-      // 차례: AprilTag · 윤곽 · (켰으면) 무늬 거르기 윤곽. 여기서도 무늬가 붙는 태그는 마지막 것으로 꼭짓점을 다듬는다
-      for (int attempt = 0; attempt < (texture_pass_ ? 3 : 2); ++attempt) {
-        if (aruco_ && attempt == 0) {continue;}
-        const int method = attempt == 0 ? static_cast<int>(cv::aruco::CORNER_REFINE_APRILTAG) : static_cast<int>(cv::aruco::CORNER_REFINE_SUBPIX);
-        std::vector<int> ii;
-        std::vector<std::vector<cv::Point2f>> cc;
-#if ROBOT_ARUCO_NEW
-        cv::aruco::DetectorParameters p;
-        p.cornerRefinementMethod = method;
-        if (attempt == 2) {set_texture_params(p);}
-        cv::aruco::ArucoDetector(cv::aruco::getPredefinedDictionary(dict_id_), p).detectMarkers(full_gray(roi), cc, ii);
-#else
-        auto p = cv::aruco::DetectorParameters::create();
-        p->cornerRefinementMethod = method;
-        if (attempt == 2) {set_texture_params(*p);}
-        cv::aruco::detectMarkers(full_gray(roi), cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p);
-#endif
-        bool done = false;
-        for (size_t k = 0; k < ii.size() && !done; ++k) {
-          if (ii[k] != ids[i]) {continue;}
-          cv::Point2f c1(0.f, 0.f);
-          for (auto & point : cc[k]) {point += cv::Point2f(roi.tl()); c1 += point * .25f;}
-          if (cv::norm(c1 - c0) <= gate) {q = cc[k]; done = true;}
-        }
-        if (done) {break;}
-      }
+      refine_in(full_gray, roi, ids[i], c0, gate, q);
     }
   }
   out.reserve(ids.size());
   for (size_t i = 0; i < ids.size(); ++i) {out.push_back({ids[i], std::move(corners[i])});}
+  return out;
+}
+
+bool TagDetector::refine_in(const cv::Mat & full_gray, const cv::Rect & roi, int id, const cv::Point2f & c0, double gate,
+  std::vector<cv::Point2f> & q) const
+{
+  // 차례: AprilTag · 윤곽 · (켰으면) 무늬 거르기 윤곽. 여기서도 무늬가 붙는 태그는 마지막 것으로 꼭짓점을 다듬는다
+  for (int attempt = 0; attempt < (texture_pass_ ? 3 : 2); ++attempt) {
+    if (aruco_ && attempt == 0) {continue;}
+    const int method = attempt == 0 ? static_cast<int>(cv::aruco::CORNER_REFINE_APRILTAG) : static_cast<int>(cv::aruco::CORNER_REFINE_SUBPIX);
+    std::vector<int> ii;
+    std::vector<std::vector<cv::Point2f>> cc;
+#if ROBOT_ARUCO_NEW
+    cv::aruco::DetectorParameters p;
+    p.cornerRefinementMethod = method;
+    if (attempt == 2) {set_texture_params(p);}
+    cv::aruco::ArucoDetector(cv::aruco::getPredefinedDictionary(dict_id_), p).detectMarkers(full_gray(roi), cc, ii);
+#else
+    auto p = cv::aruco::DetectorParameters::create();
+    p->cornerRefinementMethod = method;
+    if (attempt == 2) {set_texture_params(*p);}
+    cv::aruco::detectMarkers(full_gray(roi), cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p);
+#endif
+    for (size_t k = 0; k < ii.size(); ++k) {
+      if (ii[k] != id) {continue;}
+      cv::Point2f c1(0.f, 0.f);
+      for (auto & point : cc[k]) {point += cv::Point2f(roi.tl()); c1 += point * .25f;}
+      if (cv::norm(c1 - c0) <= gate) {q = cc[k]; return true;}
+    }
+  }
+  return false;
+}
+
+std::vector<TagCorners> TagDetector::find_tracked(const cv::Mat & bgr, TagTrack & track) const
+{
+  if (!ok_ || bgr.empty() || track_full_every_ <= 0 || max_width_ <= 0 || bgr.cols <= max_width_) {
+    track.reset();
+    return find(bgr);
+  }
+  if (track.tags.empty() || ++track.since_full >= track_full_every_) {
+    track.tags = find(bgr);
+    track.since_full = 0;
+    return track.tags;
+  }
+  cv::Mat gray;
+  cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
+  const cv::Rect whole(0, 0, gray.cols, gray.rows);
+  std::vector<TagCorners> out;
+  for (const auto & t : track.tags) {
+    const cv::Rect bb = cv::boundingRect(t.corners);
+    const int m = std::max(bb.width, bb.height) / 2 + 2;
+    const cv::Rect roi = (bb + cv::Size(2 * m, 2 * m) - cv::Point(m, m)) & whole;
+    if (roi.area() <= 0) {continue;}
+    cv::Point2f c0(0.f, 0.f);
+    for (const auto & point : t.corners) {c0 += point * .25f;}
+    std::vector<cv::Point2f> q;
+    // 둘레 안의 같은 번호면 움직인 같은 태그다 (가운데 차 제한 없음)
+    if (refine_in(gray, roi, t.id, c0, roi.width + roi.height, q)) {out.push_back({t.id, std::move(q)});}
+  }
+  // 하나라도 놓치면 이번 장은 찾은 것만 내고 다음 장은 전체 검색
+  if (out.size() == track.tags.size()) {track.tags = out;} else {track.reset();}
   return out;
 }
 
