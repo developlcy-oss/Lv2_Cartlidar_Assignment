@@ -34,7 +34,10 @@ ros2 launch navigation gazebo_sim.launch.py gui:=false    # 창 없이. nav:=fal
   AMCL 이 한쪽으로 치우치다 미로 칸을 착각해 1 m 넘어갔다. `map:=` · `objects_map:=` 로 바꿀 수 있다.
 - Gazebo 팔 관절은 0 (영 자세) 으로 시작한다. 팀 기본 시작 자세는 주행 자세(`isaac/robot_params.json` `drive`)라서 launch 가 `/arm/<관절>/cmd_pos` 로 보낸다. 영 자세로 달리면 팔이 걸린다.
 - Gazebo 는 twist_mux · ros2_control · EKF 를 거치지 않는다(diff_drive 플러그인이 `/cmd_vel` 을 받고 `odom → base_link` 를 냄). 그래서 `cmd_vel_out:=/cmd_vel` · `odom_topic:=/odom`.
-- `use_loc_monitor:=false`: Gazebo 를 오래 켜 둔 뒤 띄우면 loc_monitor 가 시작하자마자 LOST(gap) → 전역 탐색으로 엉뚱한 자세를 후보로 잡는다(2026-11-04).
+- `use_loc_monitor` 기본 false. 멈춘 동안 AMCL 이 자세를 안 내서 생기던 거짓 LOST(gap)는 localization 에서 고쳤다(#129).
+  켜면(`use_loc_monitor:=true`) `loc_map` 도 같은 SDF 지도(`map_amcl`)가 기본이다 — Isaac `slam_walls` 를 보면 잔차가 커져 FAILED(#133).
+  기본을 끈 이유: 잔차 문턱 0.034 m 는 Isaac 기준이라 Gazebo 주행 (특히 회전) 중 LOST:residual 이 잦고, 회전 중 다시 넣은 자세의
+  yaw 가 틀어져 미션이 FAILED 했다 (2026-11-09, LOST 15 · initialpose 14 → [61] FAILED, 끄면 DONE, #133).
 - Gazebo 는 카메라 3 대 렌더링으로 실시간의 약 0.5 ~ 0.66 배로 돈다. 모든 노드 `use_sim_time:=true`.
 
 ## 속도 명령 · TF
@@ -80,6 +83,8 @@ Gazebo 시험(2026-11-04)에서 기본값에서 바꾼 것과 이유:
 결과 (Gazebo, SDF 지도, `mission_planner/config/approach_poses.yaml` 의 stage 12 곳 차례로): **12/12 성공**, 실패 · 복구 0 회, sim 204 s.
 AMCL 오차 주행 중 평균 1.9 cm · 95 % 3.4 cm · 최대 6.1 cm. 끝 위치 실제 오차 평균 7.5 cm · 최대 11.9 cm (도착 기준 5 cm + 도착 뒤 회전 밀림), 방향 평균 1.2°.
 Isaac SLAM 지도로는 3 번째 목표에서 AMCL 이 위치를 잃어 2/12.
+(위 12/12 는 2026-11-04, 그 뒤 stage 4 곳 (#135) · BT (#142) 가 바뀜. 같은 dev 에서 다른 도구 `run_goals.py` 로는 8 ~ 9/12 (#133, 원인 미확인).
+ 지금 기준 확인은 미션 전체 `mission_planner/test/gazebo_mission.sh`: 105 단계 DONE · 재시도 0 (2026-11-08, loc_monitor 끔).)
 
 ## 확인할 것 ★
 
