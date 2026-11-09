@@ -92,7 +92,12 @@ bool solve_facing(const std::vector<cv::Point3f> & obj, const std::vector<cv::Po
 
 std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat & K, const cv::Mat & D) const
 {
-  std::vector<TagDetection> out;
+  return solve(find(bgr), K, D);
+}
+
+std::vector<TagCorners> TagDetector::find(const cv::Mat & bgr) const
+{
+  std::vector<TagCorners> out;
   if (!ok_ || bgr.empty()) {return out;}
   cv::Mat gray;
   cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
@@ -267,17 +272,25 @@ std::vector<TagDetection> TagDetector::detect(const cv::Mat & bgr, const cv::Mat
       }
     }
   }
+  out.reserve(ids.size());
+  for (size_t i = 0; i < ids.size(); ++i) {out.push_back({ids[i], std::move(corners[i])});}
+  return out;
+}
+
+std::vector<TagDetection> TagDetector::solve(const std::vector<TagCorners> & found, const cv::Mat & K, const cv::Mat & D) const
+{
+  std::vector<TagDetection> out;
   const double h = size_ / 2.0;
   // aruco 모서리 순서: 왼쪽 위 · 오른쪽 위 · 오른쪽 아래 · 왼쪽 아래 (태그 평면 z = 0)
   const std::vector<cv::Point3f> obj = {{float(-h), float(h), 0}, {float(h), float(h), 0},
     {float(h), float(-h), 0}, {float(-h), float(-h), 0}};
-  for (size_t i = 0; i < ids.size(); ++i) {
+  for (const auto & f : found) {
     TagDetection t;
-    t.id = ids[i];
-    t.area = std::fabs(cv::contourArea(corners[i]));
-    t.corners = corners[i];
+    t.id = f.id;
+    t.area = std::fabs(cv::contourArea(f.corners));
+    t.corners = f.corners;
     if (!K.empty()) {
-      t.pose_valid = solve_facing(obj, corners[i], K, D.empty() ? cv::Mat::zeros(1, 5, CV_64F) : D, t);
+      t.pose_valid = solve_facing(obj, f.corners, K, D.empty() ? cv::Mat::zeros(1, 5, CV_64F) : D, t);
     }
     out.push_back(t);
   }

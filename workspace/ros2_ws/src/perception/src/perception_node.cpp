@@ -1712,12 +1712,16 @@ private:
       T = lookup_at(base_frame_, frame, stamp, false);   // 태그 퍽 위치는 촬영 시각 팔 자세로만 (위에서 그 TF 를 기다림)
     }
     std::vector<TagDetection> places;   // 장소 태그: READ_TAG 결과 후보 · READ_MARKER 가 같이 씀
-    if (((mode & SetMode::Request::READ_TAG) && marker_->ok()) || (want_marker && T)) {
-      places = marker_->detect(u, newK_, cv::Mat());
+    std::vector<TagCorners> found;
+    const bool find_places = ((mode & SetMode::Request::READ_TAG) && marker_->ok()) || (want_marker && T);
+    if (find_places) {
+      found = marker_->find(u);
+      places = marker_->solve(found, newK_, cv::Mat());
       keep_tag_ids(places, marker_ids_);
     }
     if (mode & SetMode::Request::READ_TAG) {
-      auto tags = tag_->detect(u, newK_, cv::Mat());
+      // 퍽 · 장소 태그는 계열과 검색 설정이 같고 크기(자세 계산)만 다르다. 같으면 한 번 찾은 결과를 퍽 크기로 다시 푼다
+      auto tags = (find_places && tag_->same_search(*marker_)) ? tag_->solve(found, newK_, cv::Mat()) : tag_->detect(u, newK_, cv::Mat());
       keep_tag_ids(tags, tag_ids_);   // 같은 계열 장소 태그는 크기가 달라 퍽 자세가 틀리므로 뺀다 (장소 태그는 places 로)
       const TagDetection * best = largest_tag(tags, places);
       if (best) {

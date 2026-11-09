@@ -95,6 +95,46 @@ TEST(ReadTag, PlaceTagReadWithItsOwnSize)
   EXPECT_NEAR(pucks[0].tvec[2], Z, 0.01);   // 퍽 태그는 퍽 크기로 그대로
 }
 
+// 검색 한 번을 크기별로 풀면 따로 두 번 detect 한 것과 같다 (퍽 16 mm · 장소 48 mm). 설정이 다르면 합치지 않는다
+TEST(ReadTag, OneSearchMatchesSeparateDetects)
+{
+  cv::Mat g(720, 1280, CV_8U, cv::Scalar(200)), img;
+  draw_tag(g, 4, 0.016, 400, 300);
+  draw_tag(g, 13, 0.048, 900, 420);
+  cv::cvtColor(g, img, cv::COLOR_GRAY2BGR);
+  TagDetector puck("tag36h11", 0.016), place("tag36h11", 0.048);
+  for (auto * d : {&puck, &place}) {
+    d->set_max_width(640);
+    d->set_texture_pass(true);
+  }
+  ASSERT_TRUE(puck.same_search(place));
+  const auto found = place.find(img);
+  ASSERT_EQ(found.size(), 2u);
+  for (const auto * d : {&puck, &place}) {
+    const auto once = d->solve(found, K(), cv::Mat());
+    const auto sep = d->detect(img, K(), cv::Mat());
+    ASSERT_EQ(once.size(), sep.size());
+    for (size_t i = 0; i < once.size(); ++i) {
+      EXPECT_EQ(once[i].id, sep[i].id);
+      EXPECT_DOUBLE_EQ(once[i].area, sep[i].area);
+      for (int k = 0; k < 4; ++k) {EXPECT_EQ(once[i].corners[k], sep[i].corners[k]);}
+      ASSERT_TRUE(once[i].pose_valid);
+      EXPECT_LT(cv::norm(once[i].tvec - sep[i].tvec), 1e-12);
+      EXPECT_LT(cv::norm(once[i].rvec - sep[i].rvec), 1e-12);
+    }
+  }
+  // 크기만 다른 것은 같은 검색, 그 밖의 설정이나 계열이 다르면 다른 검색
+  TagDetector no_texture("tag36h11", 0.048), other_width("tag36h11", 0.048), other_family("DICT_4X4_50", 0.048);
+  no_texture.set_max_width(640);
+  other_width.set_max_width(320);
+  other_width.set_texture_pass(true);
+  other_family.set_max_width(640);
+  other_family.set_texture_pass(true);
+  EXPECT_FALSE(puck.same_search(no_texture));
+  EXPECT_FALSE(puck.same_search(other_width));
+  EXPECT_FALSE(puck.same_search(other_family));
+}
+
 // 팔 1280 × 720 을 640 폭으로 줄여 찾기 (TagDetector::set_max_width): 같은 번호를 찾고, 꼭짓점 · 자세는 원래 크기 검출과 같다
 TEST(ReadTag, MaxWidthKeepsIdsAndCorners)
 {

@@ -24,6 +24,13 @@ struct TagDetection
   double err_alt = 0;
 };
 
+// 영상에서 찾은 태그 하나 (자세 계산 전)
+struct TagCorners
+{
+  int id = -1;
+  std::vector<cv::Point2f> corners;   // 왼쪽 위 · 오른쪽 위 · 오른쪽 아래 · 왼쪽 아래 (화소)
+};
+
 class TagDetector
 {
 public:
@@ -41,6 +48,15 @@ public:
   void set_texture_pass(bool on) {texture_pass_ = on;}
   // K · D 가 비어 있으면 자세 추정 없이 id 만
   std::vector<TagDetection> detect(const cv::Mat & bgr, const cv::Mat & K, const cv::Mat & D) const;
+  // detect 를 나눈 두 단계. 찾기는 태그 크기와 상관없으므로 same_search 면 한 번 찾은 결과를 각자 크기로 풀 수 있다
+  std::vector<TagCorners> find(const cv::Mat & bgr) const;
+  std::vector<TagDetection> solve(const std::vector<TagCorners> & found, const cv::Mat & K, const cv::Mat & D) const;
+  // 같은 영상에서 찾은 결과가 항상 같은 설정인가 (태그 크기만 달라도 됨)
+  bool same_search(const TagDetector & o) const
+  {
+    return ok_ && o.ok_ && dict_id_ == o.dict_id_ && gamma_ == o.gamma_ && upscale_all_ == o.upscale_all_ &&
+           max_width_ == o.max_width_ && texture_pass_ == o.texture_pass_;
+  }
 
 private:
   int dict_id_ = 0;
