@@ -60,6 +60,7 @@ private:
   bool roles_ready() const;
   void refresh_aggregate_state();
   void apply_state_to_interfaces();
+  bool check_arm_standby() const;  // on_activate: 처음 켤 때 팔이 대기 자세 범위 안인지
   void set_state_if(const std::string & name, double v);
   bool send_cmd(bool torque_on);
   bool send_cmd_for_role(uint8_t role, bool torque_on);
@@ -85,6 +86,8 @@ private:
   double wheel_gear_ = 1.0;    // 바퀴 각속도 / 모터 각속도 (URDF drive 인자). 펌웨어 STATE · CMD 는 모터 축 기준
   bool listen_only_ = false;   // true: CMD 를 한 번도 보내지 않음 — 토크 · 모션 없이 STATE 수신만 확인
   bool auto_rearm_ = false;    // true: 잠금이 풀리면 리셋 버튼 없이 REARM (조이스틱 없는 벤치 전용, 실기 운용 금지)
+  // 팔 대기 자세 tick 범위 (URDF arm_standby_min_tick · arm_standby_max_tick, 칸 0~5). 비어 있으면 검사 안 함
+  std::vector<int> standby_min_tick_, standby_max_tick_;
 
   struct BoardLink
   {

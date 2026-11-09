@@ -68,6 +68,13 @@
         <param name="battery_error_v">10.5</param>
         <!-- 바퀴 각속도 / 모터 각속도. 펌웨어는 모터 축 기준 (WHEEL_GEAR 1.0 고정), 변환은 하드웨어 인터페이스가 한다 -->
         <param name="wheel_gear">${wheel_gear}</param>
+        <!-- 팔 대기 자세 (전원을 켜기 전 팔을 놓아 두는 자세) tick 범위, 칸 0~5 = joint1~5 · gripper_roll (ID 11 · 12 · 13 · 16 · 14 · 15).
+             처음 켤 때 (팔 HOLD 아님 = 토크 꺼짐) 한 칸이라도 밖이면 활성화를 거부한다 (토크 · 명령 없음, 두 보드 모두 시작 안 함).
+             토크가 켜진 채 호스트만 다시 켜면 (팔 HOLD) 건너뛴다. tick = 2048 + rad × 4096 / 2π (펌웨어 ARM_DIR 모두 +1 기준).
+             2026-11-09 실물: 왼쪽으로 접은 자세 (J1 정면 +90°) 에 손으로 놓는 오차를 더한 범위. J2 최소 · J3 최대 · J4 최소 · 그리퍼 최대는
+             펌웨어 범위 끝 (그 밖이면 어차피 켤 수 없음) — 펌웨어 범위 안인지 test_robot_description 이 확인 -->
+        <param name="arm_standby_min_tick">3004,653,3025,797,1962,2590</param>
+        <param name="arm_standby_max_tick">3118,721,3091,864,2190,2669</param>
         </xacro:if>
       </hardware>
 

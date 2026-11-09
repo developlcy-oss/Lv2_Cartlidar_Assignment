@@ -4,6 +4,7 @@
 #include <cctype>
 #include <chrono>
 #include <cmath>
+#include <cstdio>
 #include <iterator>
 #include <limits>
 #include <optional>
@@ -28,6 +29,27 @@ std::string param_or(const std::unordered_map<std::string, std::string> & m, con
   auto it = m.find(key);
   return it == m.end() ? def : it->second;
 }
+// "3004,653,..." → 팔 칸 수 (6) 만큼의 tick (0~4095). 개수 · 숫자 · 범위가 틀리면 false
+bool parse_ticks(const std::string & text, std::vector<int> & out)
+{
+  out.clear();
+  std::stringstream ss(text);
+  std::string item;
+  while (std::getline(ss, item, ',')) {
+    const auto b = item.find_first_not_of(" \t\n"), e = item.find_last_not_of(" \t\n");
+    if (b == std::string::npos) {return false;}
+    item = item.substr(b, e - b + 1);
+    size_t used = 0;
+    int v = 0;
+    try {v = std::stoi(item, &used);} catch (const std::exception &) {return false;}
+    if (used != item.size() || v < 0 || v > 4095) {return false;}
+    out.push_back(v);
+  }
+  return out.size() == static_cast<size_t>(opencr_proto::ARM_JOINTS);
+}
+// 팔 STATE rad → 모터 tick (펌웨어 ARM_DIR 모두 +1, 가운데 2048). 손으로 한 바퀴 넘게 돌리면 0~4095 밖으로 쌓인다
+long arm_tick(double rad) {return std::lround(2048.0 + rad * 4096.0 / (2.0 * M_PI));}
+
 const char * IMU_SUFFIX[10] = {
   "orientation.x", "orientation.y", "orientation.z", "orientation.w",
   "angular_velocity.x", "angular_velocity.y", "angular_velocity.z",
@@ -77,6 +99,25 @@ hi::CallbackReturn OpenCRHardware::on_init(const hi::HardwareComponentInterfaceP
     return CallbackReturn::ERROR;
   }
   RCLCPP_INFO(get_logger(), "바퀴 기어비 %.2f (바퀴 / 모터)", wheel_gear_);
+
+  // 팔 대기 자세 범위 (2026-11-09): 둘 다 주거나 둘 다 빼야 함. 하나만 있거나 글이 틀리면 검사가 몰래 꺼지지 않게 시작 거부
+  const std::string standby_min = param_or(hw, "arm_standby_min_tick", "");
+  const std::string standby_max = param_or(hw, "arm_standby_max_tick", "");
+  if (!standby_min.empty() || !standby_max.empty()) {
+    if (!parse_ticks(standby_min, standby_min_tick_) || !parse_ticks(standby_max, standby_max_tick_)) {
+      RCLCPP_FATAL(get_logger(), "arm_standby_min_tick · arm_standby_max_tick 은 0~4095 tick %d 개씩 (쉼표로): '%s' / '%s'",
+        opencr_proto::ARM_JOINTS, standby_min.c_str(), standby_max.c_str());
+      return CallbackReturn::ERROR;
+    }
+    for (int k = 0; k < opencr_proto::ARM_JOINTS; ++k) {
+      if (standby_min_tick_[k] > standby_max_tick_[k]) {
+        RCLCPP_FATAL(get_logger(), "팔 대기 자세 범위 칸 %d: 최소 %d > 최대 %d", k, standby_min_tick_[k], standby_max_tick_[k]);
+        return CallbackReturn::ERROR;
+      }
+    }
+    RCLCPP_INFO(get_logger(), "팔 대기 자세 검사 켬 (처음 켤 때 범위 밖이면 시작 거부): %s ~ %s",
+      standby_min.c_str(), standby_max.c_str());
+  }
   if (listen_only_) {RCLCPP_WARN(get_logger(), "listen_only: CMD 를 보내지 않음 (STATE 수신만 확인)");}
   if (auto_rearm_) {RCLCPP_WARN(get_logger(), "auto_rearm: 리셋 버튼 없이 REARM — 벤치 시험 전용");}
 
@@ -347,6 +388,40 @@ bool OpenCRHardware::wait_first_state(double timeout_s)
   return false;
 }
 
+// 처음 켤 때 (토크 꺼짐) 팔이 대기 자세 범위 안인지 (2026-11-09). 정해 둔 자세에서만 시작해야 켠 뒤 움직이는 길이 늘 같다.
+// 팔 HOLD = 토크가 켜진 채 펌웨어가 붙잡고 있음 (호스트만 다시 켬, safety_core.h) → 손으로 옮길 수 없으므로 건너뜀
+bool OpenCRHardware::check_arm_standby() const
+{
+  if (standby_min_tick_.empty() || listen_only_) {return true;}   // 범위 없음 (시험 · 다른 로봇) · CMD 를 안 보내는 확인 모드
+  if (latest_.error & opencr_proto::ERR_HOLD) {
+    RCLCPP_WARN(get_logger(), "팔 HOLD (토크가 켜진 채 호스트만 다시 시작) — 대기 자세 검사를 건너뜀");
+    return true;
+  }
+  std::ostringstream bad;
+  for (int k = 0; k < opencr_proto::ARM_JOINTS; ++k) {
+    const long t = arm_tick(latest_.pos[opencr_proto::MAX_WHEELS + k]);
+    const long lo = standby_min_tick_[k], hi = standby_max_tick_[k];
+    if (t >= lo && t <= hi) {continue;}
+    std::string name = "칸 " + std::to_string(k);
+    for (const auto & j : joints_) {
+      if (j.role == Role::ARM && j.slot == k) {name = j.name;}
+    }
+    const long off = t > hi ? t - hi : t - lo;
+    char line[200];
+    std::snprintf(line, sizeof(line), "\n  %s: %ld tick, 범위 %ld ~ %ld (%+ld tick = %+.1f°)", name.c_str(), t, lo, hi, off,
+      off * 360.0 / 4096.0);
+    bad << line;
+    if (t < 0 || t > 4095) {bad << " — 한 바퀴 넘게 돌아 값이 쌓임: 12 V 를 껐다 켠 뒤 다시";}
+  }
+  if (bad.str().empty()) {
+    RCLCPP_INFO(get_logger(), "팔 대기 자세 확인 — 여섯 칸 모두 범위 안");
+    return true;
+  }
+  RCLCPP_ERROR(get_logger(), "팔이 대기 자세가 아님 — 토크를 켜지 않고 시작을 거부합니다:%s\n"
+    "  지금은 토크가 꺼져 있습니다. 팔을 손으로 대기 자세에 놓은 뒤 다시 시작하세요", bad.str().c_str());
+  return false;
+}
+
 hi::CallbackReturn OpenCRHardware::on_activate(const rclcpp_lifecycle::State &)
 {
   bool any_open = false;
@@ -376,6 +451,9 @@ hi::CallbackReturn OpenCRHardware::on_activate(const rclcpp_lifecycle::State &)
     }
     // CMD 를 보내지 않으므로 모터 없이 연결한 보드도 STATE 수신 확인용으로 활성화한다
     RCLCPP_WARN(get_logger(), "listen_only: 부팅 점검 실패 보드 (모터 없음 등) — STATE 수신만 확인");
+  }
+  if (!check_arm_standby()) {
+    return CallbackReturn::ERROR;   // 아직 CMD 를 한 번도 안 보냄 (D5-2) → 토크 꺼진 채
   }
   apply_state_to_interfaces();
   // 팔 명령 초기값 = 현재 위치 (토크 ON 순간 튀지 않게), 바퀴 = 0
