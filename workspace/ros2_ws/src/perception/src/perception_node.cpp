@@ -437,6 +437,7 @@ public:
     odom_frame_ = declare_parameter("frames.odom", std::string("odom"));
     tf_fallback_max_s_ = declare_parameter("tf_fallback_max_s", tf_fallback_max_s_);
     tf_wait_s_ = declare_parameter("tf_wait_s", tf_wait_s_);
+    arm_tf_wait_s_ = declare_parameter("arm_tf_wait_s", arm_tf_wait_s_);
 
     std::string info;
     detector_ = make_detector(dc, info);
@@ -1077,15 +1078,17 @@ private:
     if (mode & SIGNAL_BIT) {process_signal();}
     if (mode & BARCODE_BIT) {process_barcode(now_t);}
     if (!(mode & ~(SIGNAL_BIT | BARCODE_BIT))) {return;}
-    // 같은 촬영 시각 TF가 늦게 도착하면 입력을 소비하지 않고 다음 처리 주기에 다시 확인한다.
-    // ARM_ALIGN 은 odom(D435 목표 투영), READ_TAG 만이면 base_link(태그 퍽 위치)까지의 촬영 시각 TF 가 있어야 한다
+    // 팔 영상의 촬영 시각 TF 가 아직 안 왔으면 arm_tf_wait_s 까지 기다리고, 그래도 없으면 입력을 소비하지 않고 다음 처리 주기에 다시 확인한다
+    // (영상이 관절 TF 보다 새것인 일이 많아 기다리지 않으면 처리 주기를 잃는다. /joint_states 50 Hz 에서 약 30 %).
+    // ARM_ALIGN 은 odom(D435 목표 투영), READ_TAG 만이면 base_link(태그 퍽 위치)까지의 촬영 시각 TF 가 있어야 한다.
+    // 이번 주기의 영상은 여기서 한 장으로 정한다: 기다리는 동안 더 새 장이 와도 그 장의 TF 는 아직 없다
+    Image::ConstSharedPtr arm_frame;
     if (mode & ARM_BITS) {
-      Image::ConstSharedPtr pending;
-      {std::lock_guard<std::mutex> lk(arm_.m); pending = arm_.image;}
-      if (pending && (now_t-rclcpp::Time(pending->header.stamp,now_t.get_clock_type())).seconds() <= frame_max_age_) {
-        const auto frame=arm_.frame_id.empty()?pending->header.frame_id:arm_.frame_id;
+      {std::lock_guard<std::mutex> lk(arm_.m); arm_frame = arm_.image;}
+      if (arm_frame && (now_t-rclcpp::Time(arm_frame->header.stamp,now_t.get_clock_type())).seconds() <= frame_max_age_) {
+        const auto frame=arm_.frame_id.empty()?arm_frame->header.frame_id:arm_.frame_id;
         const auto & need = (mode & SetMode::Request::ARM_ALIGN) ? odom_frame_ : base_frame_;
-        if (!tf_->buffer().canTransform(frame,need,tf2_ros::fromRclcpp(rclcpp::Time(pending->header.stamp,now_t.get_clock_type())))) {
+        if (!wait_transform(tf_->buffer(),frame,need,tf2_ros::fromRclcpp(rclcpp::Time(arm_frame->header.stamp,now_t.get_clock_type())),arm_tf_wait_s_)) {
           RCLCPP_WARN_THROTTLE(get_logger(),*get_clock(),1000,"ARM_TF_PENDING: 촬영 시각 TF 대기");
           return;
         }
@@ -1147,8 +1150,8 @@ private:
       bool fresh = false;
       {
         std::lock_guard<std::mutex> lk(arm_.m);
-        if (arm_.image && (now_t - rclcpp::Time(arm_.image->header.stamp, now_t.get_clock_type())).seconds() <= frame_max_age_) {
-          img = arm_.image;
+        if (arm_frame && (now_t - rclcpp::Time(arm_frame->header.stamp, now_t.get_clock_type())).seconds() <= frame_max_age_) {
+          img = arm_frame;
           info = arm_.info;
           const int64_t ns = stamp_ns(img->header.stamp);
           fresh = ns != arm_.used_ns;
@@ -1991,6 +1994,7 @@ private:
   double face_hint_tol_ = 0.012;   // [m] 서 있는 윗면 높이 허용 (누운 윗면과 30 mm 차이의 절반 안쪽)
   double tf_fallback_max_s_ = 0.1;   // [s] 촬영 시각 TF 가 없을 때 최근 TF 를 써도 되는 시각 차 (lookup_near)
   double tf_wait_s_ = 0.05;          // [s] D435 영상: 촬영 시각 TF 를 기다리는 한도 (pick_tf_frame, 0 이면 끔)
+  double arm_tf_wait_s_ = 0.025;     // [s] 팔 영상: 촬영 시각 TF 를 처리 주기 안에서 기다리는 한도 (wait_transform, 0 이면 기다리지 않음)
   TargetTracker tracker_;
   ArmTargetLock arm_lock_;             // ctl_cbg_ 에서만 쓴다 (on_set_mode · 처리 주기)
   std::optional<Vec3> seed_odom_;      // 가장 최근 D435 추적 목표 (odom) — 팔 정렬 목표 · /arm_range 보유 점
