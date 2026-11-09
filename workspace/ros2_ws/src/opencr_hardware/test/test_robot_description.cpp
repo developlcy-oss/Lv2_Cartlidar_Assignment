@@ -224,6 +224,7 @@ TEST(RobotDescription, RobotUrdfProvidesFramesUsedByOtherNodes)
   EXPECT_EQ(joints.at("imu_link_joint").parent, "base_link");
   EXPECT_NEAR(joints.at("imu_link_joint").rpy[0], 0.0, 1e-5);
   EXPECT_NEAR(joints.at("imu_link_joint").rpy[1], 0.0, 1e-5);
+  EXPECT_NEAR(joints.at("imu_link_joint").rpy[2], -M_PI / 2.0, 1e-5);   // 실물 보드 +y = 차체 앞 (2026-11-09)
   // LDS-03 은 뒤집어 장착 (roll π). 0 이면 스캔 좌우가 뒤집힌다
   for (const char * laser : {"laser_front_joint", "laser_rear_joint"}) {
     ASSERT_EQ(joints.count(laser), 1u) << laser;
