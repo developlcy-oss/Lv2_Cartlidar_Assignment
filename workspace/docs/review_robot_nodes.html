@@ -106,7 +106,7 @@ a{color:var(--info)} a:focus-visible{outline:2px solid var(--accent);outline-off
     <div class="fact ok"><div class="v">48 / 48</div><div class="k">단위 시험 통과 (5개 패키지)</div></div>
     <div class="fact ok"><div class="v">2 / 2</div><div class="k">통합 시나리오 통과 (정상 미션 · E-stop 재개)</div></div>
     <div class="fact"><div class="v">2</div><div class="k">이번에 확정 (4륜 · ArmPose message)</div></div>
-    <div class="fact warn"><div class="v">6</div><div class="k">팀 결정이 남은 항목 (#1 명세 · #3 · #6 · #7 · #8 · #10, 11-03 기준)</div></div>
+    <div class="fact warn"><div class="v">5</div><div class="k">팀 결정이 남은 항목 (#1 명세 · #6 · #7 · #8 · #10, 11-03 기준)</div></div>
   </div>
 </header>
 
@@ -152,7 +152,7 @@ a{color:var(--info)} a:focus-visible{outline:2px solid var(--accent);outline-off
 <div class="decide">
   <div class="dec open"><span class="num">#1</span><div><h3>스킬 성공 조건</h3><p>문서에는 "타임아웃이면 0 속도 후 abort" 만 있어, 정해진 시간 동안 하는 주행(slalom 등)도 항상 실패로 끝납니다. policies.yaml 에 <code>finish_on_timeout</code> 을 넣어 두었습니다 (기본 false = 문서대로). 장기적으로는 정책별 성공 · 종료 조건을 명세에 넣는 것을 제안합니다. <span class="upd">[11-03]</span> 코드 반영됨 — <code>robot_policy</code> <code>finish_on_timeout</code> (slalom_v1 = true). 남은 것은 명세 문서화입니다.</p></div><span class="chip info">코드 반영</span></div>
   <div class="dec"><span class="num">#2</span><div><h3>ArmPose 결과에 실패 이유</h3><p><code>string message</code> 를 추가했습니다. 미션은 pose · pick · align · skill 의 message 를 상태 reason 에 붙입니다. 예: <code>read_tag 실패: pose TAG_VIEW 실패: 관절 상태 없음</code></p></div><span class="chip ok">반영</span></div>
-  <div class="dec open"><span class="num">#3</span><div><h3>/arm/skill_state · /arm/safety_state</h3><p>문서 토픽표에 없는 모니터링 토픽입니다. 표에 넣을지 뺄지 정해야 합니다. <s>지금은 모니터링용으로 남겨 두었습니다.</s> <span class="upd">[11-03]</span> 지금은 발행 코드가 없습니다 (이름 <code>names.hpp</code> · 메시지만 정의). 발행을 구현할지 지울지 정해야 합니다.</p></div><span class="chip warn">결정 필요</span></div>
+  <div class="dec"><span class="num">#3</span><div><h3>/arm/skill_state · /arm/safety_state</h3><p>문서 토픽표에 없는 모니터링 토픽입니다. 표에 넣을지 뺄지 정해야 합니다. <s>지금은 모니터링용으로 남겨 두었습니다.</s> <span class="upd">[11-03]</span> 지금은 발행 코드가 없습니다 (이름 <code>names.hpp</code> · 메시지만 정의). 발행을 구현할지 지울지 정해야 합니다. <span class="upd">[11-09]</span> 지웠습니다 (#86): 팔 HOLD · E-stop 은 <code>/diagnostics</code>, 미션 진행은 <code>/mission/status</code>.</p></div><span class="chip ok">해결</span></div>
   <div class="dec"><span class="num">#4</span><div><h3>그리퍼가 정해지기 전의 grasped</h3><p>그리퍼가 없으면 잡았는지 판단할 수 없어 미션이 계속 재시도합니다. 벤치 시험용으로 <code>gripper.assume_grasped_without_gripper: true</code> 를 두었고, 그리퍼가 정해지면 false 로 바꿉니다.</p></div><span class="chip info">임시 설정</span></div>
   <div class="dec"><span class="num">#5</span><div><h3>바퀴 수</h3><p>4륜으로 확정했습니다 (기본값 그대로). robot_nodes.html 의 6륜 표기(하드웨어 표, ID 1~6, velocity ×6)는 문서 쪽을 고쳐야 합니다.</p></div><span class="chip ok">확정</span></div>
   <div class="dec open"><span class="num">#6</span><div><h3>/perception/rear_obstacle · /perception/task_marker 받는 쪽 없음</h3><p><span class="upd">[11-03]</span> rear_obstacle 은 주행 후진 판단에 쓸지, task_marker 는 미션에 연결할지 정해야 합니다.</p></div><span class="chip warn">결정 필요</span></div>
