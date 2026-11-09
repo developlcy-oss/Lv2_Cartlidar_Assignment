@@ -6,6 +6,7 @@
 #
 #   test/gazebo_mission.sh [결과 폴더]     기본 /tmp/gazebo_mission. 끝나면 결과 폴더/mock_out.json (goto 별 도착 자세 · 최종 상태)
 #   test/gazebo_mission.sh stop            시험 프로세스 정리
+#   GZ_ARGS="use_loc_monitor:=true" test/gazebo_mission.sh   gazebo_sim.launch.py 에 인자 더 주기 (#133)
 # 먼저: source install/setup.bash, colcon build (mission_planner · mission · control · navigation · localization · waffle_4wd_description, navigation README 참고)
 # 시각: 모든 로그 시각은 시뮬레이션 시각 (Gazebo 는 실시간의 약 0.5 ~ 0.66 배)
 set +u
@@ -41,7 +42,7 @@ drive_node:
         enabled: false         # gazebo_sim 은 loc_monitor 를 끔 (#121)
 YAML
 SIM="-p use_sim_time:=true"
-ros2 launch navigation gazebo_sim.launch.py gui:=false rviz:=false > "$OUT/gz.log" 2>&1 &
+ros2 launch navigation gazebo_sim.launch.py gui:=false rviz:=false $GZ_ARGS > "$OUT/gz.log" 2>&1 &
 echo "[gz_mission] Gazebo + Nav2 시작"
 for i in $(seq 1 200); do n=$(grep -c "Managed nodes are active" "$OUT/gz.log" 2>/dev/null); [ "${n:-0}" -ge 3 ] && break; sleep 3; done
 echo "[gz_mission] Nav2 active ($(grep -c 'Managed nodes are active' "$OUT/gz.log"))"

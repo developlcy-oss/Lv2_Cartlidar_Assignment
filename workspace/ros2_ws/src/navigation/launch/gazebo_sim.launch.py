@@ -4,6 +4,7 @@
   ros2 launch navigation gazebo_sim.launch.py gui:=false         # 창 없이 (센서 렌더는 함)
   ros2 launch navigation gazebo_sim.launch.py nav:=false         # Gazebo · 팔 자세만 (Nav2 는 따로)
   ros2 launch navigation gazebo_sim.launch.py x:=1.8108 y:=0.95  # 다른 시작 자세 (AMCL 시작 자세도 같이 바뀜)
+  ros2 launch navigation gazebo_sim.launch.py use_loc_monitor:=true   # loc_monitor 도 (loc_map 은 같은 SDF 지도가 기본, #133)
   ros2 launch navigation gazebo_sim.launch.py map:=<localization share>/maps/slam_walls_001.yaml objects_map:=<...>/objects.yaml   # Isaac SLAM 지도로
 
 waffle_4wd_description 은 ros2_ws/src 밖 패키지라 먼저 같이 빌드해야 한다 (README "Gazebo 시험").
@@ -37,6 +38,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('navigation'), 'launch', 'navigation.launch.py'])),
         launch_arguments={'use_sim_time': 'true', 'odom_topic': '/odom', 'cmd_vel_out': '/cmd_vel',
                           'use_loc_monitor': LC('use_loc_monitor'), 'map': LC('map'), 'objects_map': LC('objects_map'),
+                          'loc_map': LC('loc_map'),
                           'start_x': LC('x'), 'start_y': LC('y'), 'start_yaw': LC('yaw')}.items(),
         condition=IfCondition(LC('nav')))
     return LaunchDescription([
@@ -50,8 +52,10 @@ def generate_launch_description():
                               description='/map (AMCL · costmap 벽). SDF 에서 만든 지도 = Gazebo 경기장과 같음'),
         DeclareLaunchArgument('objects_map', default_value=PathJoinSubstitution([FindPackageShare('mission_planner'), 'maps', 'map_nav.yaml']),
                               description='/map_objects (costmap 물체: 벽 + 라이다에 안 보이는 상자 · 받침대)'),
+        DeclareLaunchArgument('loc_map', default_value=PathJoinSubstitution([FindPackageShare('mission_planner'), 'maps', 'map_amcl.yaml']),
+                              description='loc_monitor 잔차 · 탐색용 벽 지도. /map 과 같은 SDF 지도 (기본 Isaac slam_walls 는 Gazebo 와 어긋남, #133)'),
         DeclareLaunchArgument('use_loc_monitor', default_value='false',
-                              description='loc_monitor (Gazebo 를 오래 켠 뒤 띄우면 시작하자마자 LOST 가 남 — 2026-11-04)'),
+                              description='loc_monitor. 거짓 LOST(gap) 는 #129 로 고침. 기본 끔: 잔차 문턱 0.034 (Isaac 기준) 에서 LOST:residual 이 남음 (#133)'),
         gazebo,
         arm,
         RegisterEventHandler(OnProcessExit(target_action=arm, on_exit=[TimerAction(period=5.0, actions=[nav])])),
