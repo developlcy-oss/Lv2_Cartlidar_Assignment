@@ -32,6 +32,9 @@
   <exec_depend>topic_based_ros2_control</exec_depend>   <!-- backend:=isaac (Isaac Sim) -->
 
   <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+  <test_depend>python3-pytest</test_depend>
+  <test_depend>python3-numpy</test_depend>
   <test_depend>xacro</test_depend>
 
   <export>
