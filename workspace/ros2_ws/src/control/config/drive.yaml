@@ -7,6 +7,10 @@ drive_node:
       xy_goal_tolerance: 0.05      # 이 안의 목표는 nav2 spin 으로. navigation/config/nav2_params.yaml goal checker xy_goal_tolerance 와 같게
                                    # (Gazebo 2026-11-04: 0.025 면 마지막 옆 2 ~ 3 cm 를 못 메워 실패, #114). 정밀 위치는 align COARSE · FINE
       spin_time_allowance: 15.0
+      backoff:                     # 박스 앞 정차 중 navigate → Nav2 전에 곧게 후진 (#157). 뒤 /scan (scan.rear_stop) · 뒤 카메라가 막히면 멈춰 기다림
+        speed: 0.08                # [m/s]
+        max_m: 0.30                # FINE 자리 (TFmini 0.13) → 0.35 확인까지 약 0.22 m. 이만큼 가도 확인 못 하면 되돌리고 Nav2
+        timeout_s: 8.0             # 막혀 기다린 시간 포함. 넘으면 navigate 실패 (mission 재시도)
       # 위치 추정 상태로 목표 막기 (#121, include/control/loc_gate.hpp). loc_monitor (/localization/status) 가 없는 실행은 false
       #   (bringup 은 use_loc_gate 인자로 덮어씀, 기본 = use_loc_lock)
       loc_gate:
@@ -43,6 +47,10 @@ drive_node:
         stop_margin: 0.03          # 정밀 동안 obstacle_stop 정지 거리 = 목표 − 이 값 (TFmini 최소 0.10 이상)
         stop_min: 0.10
         obstacle_stop_node: /obstacle_stop
+        # 박스 앞 정차 (#157): FINE 이 박스 앞에서 끝나면 낮춘 정지 거리를 유지하고, TFmini 가 이 거리 이상을 연속으로 재면 (물러남) 되돌림
+        park_release_m: 0.35       # = perception lidar.yaml obstacle_stop release_m
+        park_release_count: 3      # = obstacle_stop release_count
+        park_refresh_s: 20.0       # 정차 중 낮춘 값 다시 보내기 (< obstacle_stop approach_max_s 60 — 그 자동 복귀는 drive_node 가 죽었을 때만)
     scan:
       required: true               # 먼 거리 접근은 /scan 없으면 중지
       half_angle: 0.349            # ±20°
