@@ -140,6 +140,7 @@
 #include "tf2_ros/transform_listener.hpp"
 
 #include "mission/verify_record.hpp"
+#include "mission/survey_pucks.hpp"
 
 namespace mission
 {
@@ -1469,24 +1470,12 @@ private:
     finish(Run::FAILED, "survey incomplete: " + why);
   }
 
-  // perception_survey 완료 파일 (JSON) → mission_planner 퍽 등록표 yaml (pucks: [{id, color, shape, box, side}])
+  // perception_survey 완료 파일 (JSON) → mission_planner 퍽 등록표 yaml (pucks: [{id, color, shape, box, side, pose}], survey_pucks.hpp)
   bool writePucksFromSurvey(const std::string & path, std::string & err)
   {
-    std::ostringstream out;
+    std::string out;
     try {
-      const YAML::Node doc = YAML::LoadFile(path);
-      const YAML::Node slots = doc["slots"];
-      if (!slots || slots.size() != 12) {err = "complete file must have 12 slots: " + path; return false;}
-      out << "# mission_node 가 perception_survey 완료 파일 (" << path << ") 에서 만든 퍽 등록표\npucks:\n";
-      for (const auto & t : slots) {
-        if (!t["id"] || t["id"].IsNull() || !t["color"] || t["color"].IsNull() || !t["shape"] || t["shape"].IsNull()) {
-          err = "slot without id · color · shape in " + path;
-          return false;
-        }
-        const std::string shape = t["shape"].as<std::string>() == "cuboid" ? "box" : t["shape"].as<std::string>();
-        out << "  - {id: " << t["id"].as<int>() << ", color: " << t["color"].as<std::string>() << ", shape: " << shape
-            << ", box: " << t["box"].as<int>() << ", side: " << t["side"].as<int>() << "}\n";
-      }
+      if (!surveyToPucksYaml(YAML::LoadFile(path), path, out, err)) {return false;}
     } catch (const std::exception & e) {
       err = std::string("cannot read ") + path + ": " + e.what();
       return false;
@@ -1494,7 +1483,7 @@ private:
     std::error_code ec;
     std::filesystem::create_directories(std::filesystem::path(survey_pucks_out_).parent_path(), ec);
     std::ofstream f(survey_pucks_out_);
-    if (!f || !(f << out.str())) {err = "cannot write " + survey_pucks_out_; return false;}
+    if (!f || !(f << out)) {err = "cannot write " + survey_pucks_out_; return false;}
     return true;
   }
 
