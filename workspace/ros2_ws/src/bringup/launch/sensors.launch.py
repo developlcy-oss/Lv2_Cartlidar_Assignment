@@ -121,8 +121,9 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('use_d435', default_value='true', description='앞 · 뒤 D435 (realsense2_camera)'),
-        DeclareLaunchArgument('front_serial', default_value='', description='★ 앞 D435 시리얼 (rs-enumerate-devices -s)'),
-        DeclareLaunchArgument('rear_serial', default_value='', description='★ 뒤 D435 시리얼'),
+        # 같은 모델 두 대라 시리얼로만 앞 · 뒤가 갈림. 빈 값이면 아무 장치나 열려 켤 때마다 앞 · 뒤가 바뀔 수 있음 (실물 2026-11-10)
+        DeclareLaunchArgument('front_serial', default_value='261822072247', description='앞 D435 시리얼 (rs-enumerate-devices -s), 빈 값 = 아무 장치'),
+        DeclareLaunchArgument('rear_serial', default_value='261822079801', description='뒤 D435 시리얼, 빈 값 = 아무 장치'),
         DeclareLaunchArgument('rgb_auto_exposure', default_value='false',
                               description='D435 RGB 자동 노출 (#89: 어두우면 노출이 길어져 흐림 -> 수동 고정)'),
         DeclareLaunchArgument('rgb_exposure', default_value='80',
