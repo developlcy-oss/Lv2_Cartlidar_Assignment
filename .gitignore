@@ -75,7 +75,8 @@ rosbag2_*/
 *.mcap
 *.bag
 core
-core.*
+core.[0-9]*
+!core/
 
 # 에디터 · 병합 임시 파일
 *.swp
