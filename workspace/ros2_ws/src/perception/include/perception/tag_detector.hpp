@@ -61,8 +61,11 @@ public:
   // detect 를 나눈 두 단계. 찾기는 태그 크기와 상관없으므로 same_search 면 한 번 찾은 결과를 각자 크기로 풀 수 있다
   std::vector<TagCorners> find(const cv::Mat & bgr) const;
   std::vector<TagDetection> solve(const std::vector<TagCorners> & found, const cv::Mat & K, const cv::Mat & D) const;
-  // find 와 같되 앞 영상의 태그가 있으면 그 둘레(태그 긴 변의 반 + 2 px 여백)만 원래 크기로 찾는다.
-  //   Jetson 태그 있는 장 find() 96 ms → 둘레 약 20 ms (2026-11-09 P9h). 하나라도 놓치면 다음 영상은 전체 검색.
+  // find 와 같되 앞 영상의 태그가 있으면 그 둘레(태그 긴 변의 반 + 2 px 여백)만 찾는다. 원래 크기에서 못 찾으면
+  //   같은 둘레를 find 와 같은 배율로 줄여 한 번 더 찾는다 (실물 팔 왕복 녹화: 원래 크기에서만 찾을 때 0.1 rad/s 에서도
+  //   등속 구간 3~14 % 를 잃었고, 그 장의 대부분은 줄여 찾으면 찾아짐, 2026-11-10 P9j).
+  //   2 배로 키워서도 못 찾으면 그 영상에서 바로 전체 검색 (같은 녹화 재생: 잃음 0, PC 모의 재생 2026-11-10).
+  //   Jetson 태그 있는 장 find() 96 ms → 둘레 약 20 ms (2026-11-09 P9h).
   //   줄여 찾는 영상(팔 카메라)만 추적하고, 줄이지 않는 영상은 항상 find 와 같다
   std::vector<TagCorners> find_tracked(const cv::Mat & bgr, TagTrack & track) const;
   // 같은 영상에서 찾은 결과가 항상 같은 설정인가 (태그 크기만 달라도 됨)
@@ -73,9 +76,10 @@ public:
   }
 
 private:
-  // roi 안에서 번호 id · 가운데가 c0 에서 gate 안인 태그를 원래 크기로 찾아 q 에 넣는다 (못 찾으면 false, q 그대로)
+  // roi 안에서 번호 id · 가운데가 c0 에서 gate 안인 태그를 찾아 q(원래 크기 좌표)에 넣는다 (못 찾으면 false, q 그대로).
+  //   scale ≠ 1 이면 roi 를 그 배율로 바꿔서 찾는다 (find 의 줄여 찾기와 같은 배율이면 원래 크기에서 놓치는 흐린 태그를 찾음)
   bool refine_in(const cv::Mat & full_gray, const cv::Rect & roi, int id, const cv::Point2f & c0, double gate,
-    std::vector<cv::Point2f> & q) const;
+    std::vector<cv::Point2f> & q, double scale = 1.0) const;
 
   int dict_id_ = 0;
   double size_ = 0.1;
