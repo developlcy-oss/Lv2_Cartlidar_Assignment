@@ -206,6 +206,7 @@ perception_node:
       queue_frames: 30          # 처리 전에 쌓아 두는 카메라별 프레임 수 (30 fps 로 1 s)
       lock_dist_m: 0.10         # 같은 자리로 보는 거리 (빨강 · 초록 칸 중심이 위아래 0.07 m, 어느 색을 먼저 봐도 한 자리)
       lock_blinks: 3            # 같은 자리에서 켜졌다 꺼지기를 이만큼 보면 신호등으로 고정
+      height_color: true        # 빨강 · 노랑을 켜진 칸 높이로 가름 (늘 위부터 빨 · 노 · 초). 실물 노출 80 에서 빨간 등이 노랑 색상으로 찍힘(2026-11-10)
       min_off_frames: 2         # 꺼짐으로 세는 연속 프레임 수
       forget_s: 10.0
       occlusion_margin_m: 0.10  # 켜진 등이 없는 프레임에서 칸 중심 깊이가 그 칸보다 이만큼 넘게 가까우면 가려짐 → 꺼짐이 아니라 모름
@@ -216,7 +217,9 @@ perception_node:
       on_ratio: 0.5             # 켜짐 중앙값의 이 배수보다 짧은 점멸은 잡음
       merge_ratio: 0.5          # 같은 색 사이 꺼짐이 꺼짐 중앙값의 이 배수보다 짧으면 한 점멸
       max_gap_s: 0.5            # 신호등이 이보다 오래 안 보이면 세던 묶음을 버림
-      confirm_cycles: 2
+      confirm_cycles: 2         # 같은 순서가 이만큼 나오면 확정
+      confirm_clear_cycles: 1   # height_color 일 때 빨강 · 노랑이 모두 칸 높이로 분명한 묶음은 이만큼 보고 확정 (0 = 끔 → 위 2 번 규칙만)
+      height_margin_pitch: 0.25 # 빨강 · 노랑 경계(초록 칸 위 1.5 칸)에서 이만큼(칸) 안이면 애매 → 한 묶음 더 봄
     dice:                       # 주사위 확인 (/perception/check_dice)
       tolerance_m: 0.015        # 요청 tolerance 가 0 일 때 칸 중심 허용 오차 (판정 기준 U3 값)
       region_margin_m: 0.04     # 칸 범위 밖 이만큼까지의 퍽을 판정에 넣음 (그 밖은 다른 선반 · 바닥)

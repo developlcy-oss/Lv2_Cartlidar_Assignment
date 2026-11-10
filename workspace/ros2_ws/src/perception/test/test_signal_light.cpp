@@ -166,7 +166,7 @@ TEST(SignalLight, LockedSiteFeedsSequence)
       u -= off;
     }
     std::vector<LightObs> obs{at(PUCK, Light::Green)};
-    if (l != Light::Off) {obs.push_back(at({LIGHT.x, LIGHT.y, LIGHT.z + 0.035 * (static_cast<int>(l) - 2)}, l));}
+    if (l != Light::Off) {obs.push_back(at(seg_of(l), l));}   // 실제 신호등처럼 위부터 빨강 · 노랑 · 초록 (높이로 색을 가름)
     if (const auto s = loc.update(t, obs, always)) {tr.update(t, *s);}
   }
   ASSERT_TRUE(loc.locked());
@@ -225,8 +225,10 @@ TEST(SignalLight, U5a_OccludedSteadyObjectDoesNotLock)
 
 TEST(SignalLight, U5a_SegmentsFillUnseenColors)
 {
-  // 빨강만 본 뒤: 빨강은 본 위치, 노랑 · 초록은 그 아래 34.9 mm 간격 / 세 색을 보면 모두 본 위치
-  SignalLightLocator loc;
+  // (높이로 색을 가르지 않을 때) 빨강만 본 뒤: 빨강은 본 위치, 노랑 · 초록은 그 아래 34.9 mm 간격 / 세 색을 보면 모두 본 위치
+  LocatorConfig c;
+  c.height_color = false;
+  SignalLightLocator loc(c);
   double t = 0;
   lock_on_light(loc, t);
   auto g = loc.segments();
@@ -243,6 +245,23 @@ TEST(SignalLight, U5a_SegmentsFillUnseenColors)
   EXPECT_NEAR(g[0].z, seg_of(Light::Green).z + 0.003, 1e-9);
   EXPECT_NEAR(g[1].z, seg_of(Light::Yellow).z + 0.003, 1e-9);
   EXPECT_NEAR(g[2].z, seg_of(Light::Red).z, 1e-9);
+}
+
+// 높이로 색을 가를 때(기본): 초록 칸을 본 뒤에는 세 칸 모두 초록 칸 + 칸 간격 (빨강 켜짐의 흔들리는 깊이를 쓰지 않음)
+TEST(SignalLight, SegmentsFromGreenWhenHeightColor)
+{
+  SignalLightLocator loc;
+  double t = 0;
+  lock_on_light(loc, t);
+  Vec3 p = seg_of(Light::Green);
+  p.z += 0.003;
+  loc.update(t += 1.0 / 30, {at(p, Light::Green)}, always);
+  loc.update(t += 1.0 / 30, {at({LIGHT.x + 0.05, LIGHT.y, seg_of(Light::Red).z}, Light::Yellow)}, always);   // 깊이가 5 cm 흔들린 빨강
+  const auto g = loc.segments();
+  for (int l = 0; l < 3; ++l) {
+    EXPECT_NEAR(g[l].z, seg_of(Light::Green).z + 0.003 + l * 0.0349, 1e-9);
+    EXPECT_NEAR(g[l].x, LIGHT.x, 1e-9);
+  }
 }
 
 // U5b: 무작위 1000회 = U1 조건(켜짐 · 꺼짐 0.1~1.0 s, 텀 max(3 × 꺼짐, 1.0)~5.0 s, 아무 때나 보기 시작,
@@ -361,3 +380,117 @@ TEST(SignalLightHistory, ReplayOnlyLockedCandidateAndReset)
   EXPECT_FALSE(locator.locked());
   EXPECT_TRUE(locator.take_locked_history().empty());
 }
+
+// 빨간 등이 노랑 색상으로 찍혀도(실물 노출 80, 2026-11-10) 초록 칸 위 2 칸 높이면 빨강, 1 칸이면 노랑
+TEST(SignalLight, WarmColorByHeightAboveGreen)
+{
+  SignalLightLocator loc;
+  double t = 0;
+  for (int k = 0; k < 3; ++k) {   // 초록으로 자리 고정
+    for (int i = 0; i < 6; ++i, t += 1.0 / 30) {
+      std::vector<LightObs> obs;
+      if (i < 3) {obs.push_back(at(seg_of(Light::Green), Light::Green));}
+      loc.update(t, obs, always);
+    }
+  }
+  ASSERT_TRUE(loc.locked());
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Red), Light::Yellow)}, always), Light::Red);
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Yellow), Light::Yellow)}, always), Light::Yellow);
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Yellow), Light::Red)}, always), Light::Yellow);   // 색상이 빨강이어도 가운데 칸이면 노랑
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Green), Light::Green)}, always), Light::Green);
+}
+
+// 초록을 아직 못 봤으면 따뜻한 색 켜짐이 칸 반 넘게 위아래로 갈린 뒤부터 위쪽이 빨강. 그 전에는 색상 그대로
+TEST(SignalLight, WarmColorByHeightBeforeGreen)
+{
+  SignalLightLocator loc;
+  double t = 0;
+  for (int k = 0; k < 3; ++k) {   // 노랑 칸만 깜빡여 자리 고정
+    for (int i = 0; i < 6; ++i, t += 1.0 / 30) {
+      std::vector<LightObs> obs;
+      if (i < 3) {obs.push_back(at(seg_of(Light::Yellow), Light::Yellow));}
+      loc.update(t, obs, always);
+    }
+  }
+  ASSERT_TRUE(loc.locked());
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Red), Light::Yellow)}, always), Light::Yellow);   // 이 장에서 처음 갈림 → 아직 색상
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Red), Light::Yellow)}, always), Light::Red);
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Yellow), Light::Yellow)}, always), Light::Yellow);
+}
+
+// height_color = false 면 예전처럼 색상 그대로
+TEST(SignalLight, HeightColorOffKeepsHue)
+{
+  LocatorConfig c;
+  c.height_color = false;
+  SignalLightLocator loc(c);
+  double t = 0;
+  for (int k = 0; k < 3; ++k) {
+    for (int i = 0; i < 6; ++i, t += 1.0 / 30) {
+      std::vector<LightObs> obs;
+      if (i < 3) {obs.push_back(at(seg_of(Light::Green), Light::Green));}
+      loc.update(t, obs, always);
+    }
+  }
+  t += 1.0 / 30;
+  EXPECT_EQ(loc.update(t, {at(seg_of(Light::Red), Light::Yellow)}, always), Light::Yellow);
+}
+
+// 12 회 순서를 노랑 색상으로만 보여 줘도(빨강이 노랑으로 찍힘) 높이로 원래 순서가 된다 — 실물 P5 의 순서
+TEST(SignalLight, SequenceWithRedSeenAsYellow)
+{
+  SignalLightLocator loc;
+  const std::string truth = "YYYRGRRYRRYR";
+  Blinker b{truth, 1.0, 1.0, 3.0};
+  std::string got;
+  Light prev = Light::Off;
+  for (double t = 0; t < 3 * b.period(); t += 1.0 / 30) {
+    const Light l = b.at(t);
+    std::vector<LightObs> obs;
+    if (l != Light::Off) {obs.push_back(at(seg_of(l), l == Light::Red ? Light::Yellow : l));}
+    const auto r = loc.update(t, obs, always);
+    if (t >= 2 * b.period() && r && *r != Light::Off && prev == Light::Off) {
+      got += *r == Light::Red ? 'R' : *r == Light::Yellow ? 'Y' : 'G';
+    }
+    if (r) {prev = *r;}
+  }
+  EXPECT_EQ(got, truth);   // 셋째 주기 (자리 고정 · 칸 높이를 다 본 뒤)
+}
+
+// 노드처럼 자리 추적 + 점멸 세기 모두 높이 판별: 빨강 둘로 시작 · 초록은 맨 끝(실물 2026-11-10 P5c 순서),
+//   빨강이 노랑 색상으로 찍혀도 첫 묶음에서 맞는 순서로 확정 (초록을 본 뒤 지난 점멸을 높이로 다시 읽음)
+TEST(SignalLight, HeightSequenceConfirmsOnFirstCycle)
+{
+  SignalLightLocator loc;
+  SignalConfig sc;
+  sc.height_color = true;
+  SignalSequenceTracker tr(sc);
+  const std::string truth = "RRYYYRYYRRYG";
+  Blinker b{truth, 1.0, 1.0, 3.0};
+  SignalResult res;
+  double t_conf = -1;
+  for (int n = 0; n / 30.0 < 3 * b.period(); ++n) {
+    const double t = n / 30.0;
+    const Light l = b.at(t);
+    std::vector<LightObs> obs;
+    if (l != Light::Off) {obs.push_back(at(seg_of(l), l == Light::Red ? Light::Yellow : l));}
+    const auto r = loc.update(t, obs, always);
+    if (!r) {continue;}
+    const auto history = loc.take_locked_history();
+    if (history.empty()) {res = tr.update(t, *r, loc.last_z());}
+    else {for (const auto & h : history) {res = tr.update(h.first, h.second, h.z);}}
+    if (res.status == SignalResult::CONFIRMED) {t_conf = t; break;}
+  }
+  ASSERT_EQ(res.status, SignalResult::CONFIRMED);
+  EXPECT_EQ(res.sequence, truth);
+  EXPECT_EQ(res.cycles, 1);
+  EXPECT_LT(t_conf, b.period() + 1.0);
+}
+

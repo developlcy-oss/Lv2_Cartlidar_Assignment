@@ -372,6 +372,7 @@ public:
     lc.min_off_frames = static_cast<int>(declare_parameter("signal.min_off_frames", lc.min_off_frames));
     lc.forget_s = declare_parameter("signal.forget_s", lc.forget_s);
     lc.segment_pitch = seg_h_;
+    lc.height_color = declare_parameter("signal.height_color", lc.height_color);   // 빨강 · 노랑을 칸 높이로 (signal_light.hpp)
     occl_margin_ = declare_parameter("signal.occlusion_margin_m", occl_margin_);
     locator_ = SignalLightLocator(lc);
     SignalConfig sc;
@@ -382,6 +383,10 @@ public:
     sc.merge_ratio = declare_parameter("signal.merge_ratio", sc.merge_ratio);
     sc.max_gap = declare_parameter("signal.max_gap_s", sc.max_gap);
     sc.confirm_cycles = static_cast<int>(declare_parameter("signal.confirm_cycles", sc.confirm_cycles));
+    sc.height_color = lc.height_color;   // 점멸 세기도 같은 칸 높이로 빨강 · 노랑을 가르고, 지난 점멸도 다시 읽음 (signal_sequence.hpp)
+    sc.segment_pitch = seg_h_;
+    sc.height_margin = declare_parameter("signal.height_margin_pitch", sc.height_margin);
+    sc.confirm_clear_cycles = static_cast<int>(declare_parameter("signal.confirm_clear_cycles", sc.confirm_clear_cycles));
     sequence_ = SignalSequenceTracker(sc);
     dice_tolerance_ = declare_parameter("dice.tolerance_m", 0.015);
     dice_margin_ = declare_parameter("dice.region_margin_m", 0.04);
@@ -1501,8 +1506,8 @@ private:
       last_stamp = stamp;
       if (state) {
         const auto history = locator_.take_locked_history();
-        if (history.empty()) {sequence_.update(t, *state);}
-        else {for (const auto & sample : history) {sequence_.update(sample.first, sample.second);}}
+        if (history.empty()) {sequence_.update(t, *state, locator_.last_z());}
+        else {for (const auto & sample : history) {sequence_.update(sample.first, sample.second, sample.z);}}
         last_light_ = *state;
         visible = true;
         signal_cam_ = f.cam == &front_ ? Puck::CAMERA_FRONT : Puck::CAMERA_REAR;
