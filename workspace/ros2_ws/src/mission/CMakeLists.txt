@@ -27,6 +27,7 @@ find_package(ament_index_cpp REQUIRED)   # survey 조사 자세 = mission_planne
 
 # --- MissionNode (공유 라이브러리 + component 등록, ⑨ mission_container) ---
 add_library(mission_component SHARED src/mission_node.cpp)
+target_include_directories(mission_component PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(mission_component PUBLIC
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action
@@ -56,5 +57,12 @@ install(TARGETS mission_component
   RUNTIME DESTINATION bin
 )
 install(DIRECTORY config launch DESTINATION share/${PROJECT_NAME})
+
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+  # 장소 재검증 기록 · 전체 중복/누락 판정 (verify_record.hpp, 헤더만)
+  ament_add_gtest(test_verify_record test/test_verify_record.cpp)
+  target_include_directories(test_verify_record PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+endif()
 
 ament_package()

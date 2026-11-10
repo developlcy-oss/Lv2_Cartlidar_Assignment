@@ -30,6 +30,12 @@ mission_node:
       stop_on_fail: false        # 틀려도 기록하고 계속 (복귀 10 점)
       check_marker: true         # READ_MARKER 도 켜고 새로 본 장소 태그 ID · 위치를 같은 기록에 남김 (#39, 채점: 새 관측 기반 ID · 위치)
       marker_wait_s: 3.0         # settle 뒤 태그를 더 기다리는 시간 (못 보면 seen=false 로 기록하고 칸 판정은 함)
+      # 퍽 ID 재검증 기록 (발제 06 쪽 이동 후 검증): verify 동안 /perception/pucks 를 쌓아 칸별 퍽 ID · 위치를 verify 줄 "ids" 에,
+      #   마지막 verify 뒤 모든 장소의 ID 중복 · 누락을 "verify_ids" 줄에 남김 (틀려도 stop_on_fail 에 따름)
+      record_ids: true
+      expected_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]   # 발제: 퍽 ID 0 ~ 11 을 세 장소에 모두 놓음
+      id_min_seen: 2             # (칸, ID) 를 이만큼 봐야 기록 (한 장 오독 제외)
+      region_margin: 0.04        # [m] 칸 범위 밖 여유 (perception dice.region_margin_m 과 같게)
     marker:
       ids: [12, 13, 14]          # L1 · L2 · L3 장소 태그 (tag36h11)
       check_before_place: false  # ★ true = 장소 첫 놓기 앞에서 태그 ID 확인 (놓는 자리에서 태그가 보이는지 실물 확인 뒤)
