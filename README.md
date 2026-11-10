@@ -37,9 +37,10 @@ colcon build --cmake-args -DCMAKE_BUILD_TYPE=Release
 
 ```bash
 source workspace/ros2_ws/install/setup.bash
-ros2 launch bringup bringup.launch.py
+ros2 launch bringup bringup.launch.py use_localization:=true use_nav2:=true
 ```
 
+미션은 기본이 plan 모드 (`mission_source:=plan`: `mission_plan.yaml` 덧씌움 + 계획기 `mission_planner_node`). 옛 태그 미션표는 `mission_source:=tag` 일 때만 불러온다.
 주요 인자: `use_hardware` · `use_teleop` · `use_perception` · `use_ekf` · `use_tfmini` (기본 true — TFmini 박스 거리 · obstacle_stop · twist_mux obstacle lock, 시뮬레이션은 false), `ports` (기본 `/dev/ttyACM0,/dev/ttyACM1`, 역할은 프로토콜 응답으로 판별), `skill_enabled` (기본 false, ONNX 빌드에서만 true),
 `drive` (기본 `belt` = 증속벨트 1:1.5, `direct` = 직결 — URDF 바퀴 위치 · 한계, 기어비, diff_drive 바퀴 간격 · 속도 한계가 같이 바뀜).
 nav2 · slam_toolbox 는 기존 launch 를 쓰고, nav2 체인의 마지막 출력만 `/cmd_vel_nav` 로 둔다.
@@ -49,12 +50,12 @@ Gazebo 모의에서 TFmini 를 쓰려면 `ros2 run perception scan_to_range` (`/
 운용 순서:
 1. 조이스틱을 켠다 (0.5 s 끊기면 E-stop 잠김).
 2. 리셋 버튼 — 켤 때는 잠긴 상태로 시작한다.
-3. 시작 버튼 (`/mission/start`) — TAG_VIEW → 태그 읽기 → 미션표 실행.
+3. 시작 버튼 (`/mission/start`) — 신호 · 바코드 읽기 (observe) → 퍽 조사 (survey) → 계획 (`/mission_planner/plan`) → 계획 단계 실행 (`mission_planner/README.md`).
 4. 진행 상황: `ros2 topic echo /mission/status`.
 
 E-stop · 진단 오류가 나면 미션이 PAUSED 가 된다. 원인 해결 → 리셋 → 시작 버튼이면 현재 단계부터 다시 한다. 끝내려면 정지 버튼 (`/mission/stop`).
 
-설정: 미션 `mission/config/mission.yaml` · 미션표 `mission/config/mission_table.yaml`, 인식 `perception/config/perception.yaml` (HSV 범위 · 크기 검증 · D435 화이트밸런스), 정책 `robot_policy/config/policies.yaml`.
+설정: 미션 `mission/config/mission.yaml` · plan 모드 `mission/config/mission_plan.yaml` (옛 태그 미션표 `mission_table.yaml` 은 tag 모드만), 인식 `perception/config/perception.yaml` (HSV 범위 · 크기 검증 · D435 화이트밸런스), 정책 `robot_policy/config/policies.yaml`.
 
 ## 시험
 

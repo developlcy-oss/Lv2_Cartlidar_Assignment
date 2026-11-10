@@ -75,7 +75,7 @@ Q1 예제 (설명용 색 · 모양): per_location 비용 66.5 (주행 44.5 m), s
 
 ```bash
 ros2 launch mission_planner planner.launch.py pucks_file:=<퍽 등록표>.yaml [mode:=per_location] [log_dir:=/tmp/mission_log]
-ros2 launch mission mission_bringup.launch.py source:=plan        # mission_plan.yaml 덧씌움 (기본 source:=tag 는 그대로)
+ros2 launch mission mission_bringup.launch.py                    # 기본 source:=plan = mission_plan.yaml 덧씌움 (옛 태그 미션표는 source:=tag)
 ros2 service call /mission/start std_srvs/srv/Trigger
 ```
 

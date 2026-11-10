@@ -368,8 +368,8 @@ private:
 
     // align tolerance: 0 = drive 기본값 (drive_node align.default_tolerance)
     align_tolerance_ = declare_parameter<double>("align.tolerance", 0.0);
-    // 먼 거리 정렬(COARSE) 목표 거리 (m, 범퍼 기준). drive_node는 align.coarse_min(0.3)보다 작으면 실패시킨다
-    // TODO(Mission · Controller): 값은 Controller(drive · 팔 길이)와 맞출 것 (추정)
+    // 먼 거리 정렬(COARSE) 목표 거리 (m, 차체 앞 끝 → 추적한 퍽). drive_node는 align.coarse_min(0.3)보다 작으면 실패시킨다
+    // 값을 고른 근거 (TFmini 정지 거리 · 대기 자리 · READY 팔 높이) 는 mission.yaml align.coarse_distance 주석
     coarse_distance_ = declare_parameter<double>("align.coarse_distance", 0.45);
     // pick: grasped=false면 실패로 본다
     require_grasped_ = declare_parameter<bool>("pick.require_grasped", true);

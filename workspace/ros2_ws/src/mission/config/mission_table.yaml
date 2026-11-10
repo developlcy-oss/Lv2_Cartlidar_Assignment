@@ -1,4 +1,6 @@
-# 미션표 (Mission 팀) — 공통 시작 pose(TAG_VIEW) → read_tag 뒤에 붙는다
+# 옛 태그 미션표 (Mission 팀, 발제 v5 이전) — tag 모드에서만 불러옴 (bringup mission_source:=tag · mission_bringup source:=tag)
+#   기본 실행 (plan 모드) 은 이 파일을 쓰지 않는다: 단계는 계획기 (mission_planner) 가 주고 위치는 접근 자세표 (approach_poses.yaml) 좌표
+# 공통 시작 pose(TAG_VIEW) → read_tag 뒤에 붙는다
 #   navigate <위치>            주행 + 팔 STOW (병렬)
 #   search                     STOW → OFF → SEARCH_FRONT | SEARCH_REAR, 못 찾으면 45°씩 최대 4번 회전
 #   approach <거리>            STOW → COARSE (align.coarse_distance) → READY → FINE <거리> (m, 1층 TFmini 렌즈 → 퍽이 놓인 박스 앞면, >= 0.13) ★ 팔이 닿는 거리로 실측
