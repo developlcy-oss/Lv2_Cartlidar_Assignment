@@ -125,6 +125,10 @@ struct LocatorConfig
   double forget_s = 10.0;        // [s] 고정 전 자리를 이만큼 못 보면 지움
   double segment_pitch = 0.0349; // [m] 칸 중심 위아래 간격 (칸 길이 34.9 mm, 사용자 실측 2026-10-23)
   std::size_t max_sites = 20;
+  // 빨강 · 노랑은 켜진 칸의 높이로 가른다 (신호등은 늘 위부터 빨강 · 노랑 · 초록, 사용자 2026-11-10).
+  //   실물 D435 노출 80 에서 빨간 등이 포화돼 색상이 주황으로 밀려(H 중앙 24) 노랑(H 30)과 겹침 → 12 회 순서의 빨강 6 개를
+  //   모두 노랑으로 읽음 (2026-11-10 P5). 초록은 색으로 갈림(H 88). false = 예전처럼 색상으로만
+  bool height_color = true;
 };
 
 class SignalLightLocator
@@ -166,25 +170,28 @@ public:
       if (best < 0) {
         if (locked() || sites_.size() >= c_.max_sites) {continue;}   // 고정 뒤에는 새 자리를 만들지 않음
         sites_.push_back({obs[k].pos, t, false, 0, 0, {}, {}, {}});
-        sites_.back().seg[level(obs[k].color)] = obs[k].pos;
-        sites_.back().seg_seen[level(obs[k].color)] = true;
+        const int l0 = level(by_height(sites_.back(), obs[k]));   // 높이 범위도 여기서 시작
+        sites_.back().seg[l0] = obs[k].pos;
+        sites_.back().seg_seen[l0] = true;
         lit.push_back(static_cast<int>(k));
         blocked_.push_back(false);
         continue;
       }
       if (lit[best] < 0 || obs[k].area > obs[lit[best]].area) {lit[best] = static_cast<int>(k);}
     }
+    std::vector<Light> col(sites_.size(), Light::Off);   // 자리별 이 프레임 색 (빨강 · 노랑은 높이로 다시 정한 것)
     for (std::size_t i = 0; i < sites_.size(); ++i) {
       Site & s = sites_[i];
       if (lit[i] >= 0) {
         const auto & o = obs[lit[i]];
+        col[i] = by_height(s, o);
         if (!s.on) {++s.blinks;}
         s.on = true;
         s.off_frames = 0;
         s.last_seen = t;
         // 위치를 천천히 맞춘다 (오도메트리가 흘러도 따라가게)
         s.pos = blend(s.pos, o.pos);
-        const int l = level(o.color);
+        const int l = level(col[i]);
         s.seg[l] = s.seg_seen[l] ? blend(s.seg[l], o.pos) : o.pos;
         s.seg_seen[l] = true;
       } else if (in_view(s.pos)) {
@@ -200,7 +207,7 @@ public:
     if (!history_taken_) {
       for (std::size_t i = 0; i < sites_.size(); ++i) {
         auto & history = sites_[i].history;
-        if (lit[i] >= 0) {history.emplace_back(t, obs[lit[i]].color);}
+        if (lit[i] >= 0) {history.emplace_back(t, col[i]);}
         else if (in_view(sites_[i].pos) && !blocked_[i]) {history.emplace_back(t, Light::Off);}
         if (history.size() > 4096) {history.erase(history.begin(), history.begin() + (history.size() - 4096));}
       }
@@ -217,7 +224,7 @@ public:
       }
     }
     const Site & s = sites_[locked_];
-    if (lit[locked_] >= 0) {return obs[lit[locked_]].color;}
+    if (lit[locked_] >= 0) {return col[locked_];}
     if (in_view(s.pos) && !blocked_[locked_]) {return Light::Off;}
     return std::nullopt;
   }
@@ -236,7 +243,27 @@ private:
     Segments seg;                // 색별로 본 칸 중심 (level 순서)
     std::array<bool, 3> seg_seen{};
     std::vector<TimedLight> history;
+    double warm_lo = 0, warm_hi = 0;   // 빨강 · 노랑 색상으로 본 켜짐의 높이 범위 (초록 칸을 아직 못 봤을 때 씀)
+    int warm_n = 0;
   };
+
+  // 빨강 · 노랑 색상의 켜짐을 칸 높이로 다시 정한다. 초록 칸을 봤으면 그 위 1 칸 = 노랑 · 2 칸 = 빨강,
+  //   못 봤으면 본 따뜻한 색 켜짐이 칸 반 넘게 위아래로 갈렸을 때 위쪽 = 빨강. 어느 것도 모르면 색상 그대로
+  Light by_height(Site & s, const LightObs & o) const
+  {
+    if (!c_.height_color || (o.color != Light::Red && o.color != Light::Yellow)) {return o.color;}
+    const double z = o.pos.z;
+    Light out = o.color;
+    if (s.seg_seen[0]) {
+      out = (z - s.seg[0].z) / c_.segment_pitch >= 1.5 ? Light::Red : Light::Yellow;
+    } else if (s.warm_n > 0 && s.warm_hi - s.warm_lo >= 0.5 * c_.segment_pitch) {
+      out = z >= 0.5 * (s.warm_lo + s.warm_hi) ? Light::Red : Light::Yellow;
+    }
+    s.warm_lo = s.warm_n ? std::min(s.warm_lo, z) : z;
+    s.warm_hi = s.warm_n ? std::max(s.warm_hi, z) : z;
+    ++s.warm_n;
+    return out;
+  }
 
   static int level(Light l) {return l == Light::Green ? 0 : l == Light::Yellow ? 1 : 2;}
 
@@ -248,6 +275,13 @@ private:
   // 본 칸은 그 위치, 못 본 칸은 본 칸들에서 간격으로 미룬 위치 (하나도 못 봤으면 자리 위치 기준 가운데 = 노랑)
   Segments segments(const Site & s) const
   {
+    // 높이로 색을 가를 때 초록 칸을 봤으면 칸 위치는 초록 칸 + 칸 간격으로만 정한다. 포화된 빨간 등은 깊이가 흔들려
+    //   그 켜짐으로 배운 칸 위치가 틀어지고, 그 자리 깊이를 가림으로 오판해 '모름' 장이 늘었음 (실물 2026-11-10 P5b)
+    if (c_.height_color && s.seg_seen[0]) {
+      Segments out;
+      for (int l = 0; l < 3; ++l) {out[l] = {s.seg[0].x, s.seg[0].y, s.seg[0].z + l * c_.segment_pitch};}
+      return out;
+    }
     double base = 0;
     int n = 0;
     for (int l = 0; l < 3; ++l) {

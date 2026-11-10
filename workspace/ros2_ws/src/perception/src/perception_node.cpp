@@ -372,6 +372,7 @@ public:
     lc.min_off_frames = static_cast<int>(declare_parameter("signal.min_off_frames", lc.min_off_frames));
     lc.forget_s = declare_parameter("signal.forget_s", lc.forget_s);
     lc.segment_pitch = seg_h_;
+    lc.height_color = declare_parameter("signal.height_color", lc.height_color);   // 빨강 · 노랑을 칸 높이로 (signal_light.hpp)
     occl_margin_ = declare_parameter("signal.occlusion_margin_m", occl_margin_);
     locator_ = SignalLightLocator(lc);
     SignalConfig sc;
