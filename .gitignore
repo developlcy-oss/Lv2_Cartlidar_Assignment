@@ -68,8 +68,12 @@ results/
 
 # 로그 · 기록
 *.log
+logs/
+mission_log/
+*.jsonl
 rosbag2_*/
 *.mcap
+*.bag
 core
 core.*
 
