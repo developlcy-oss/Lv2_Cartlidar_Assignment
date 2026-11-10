@@ -48,6 +48,7 @@ nav2 · slam_toolbox 는 기존 launch 를 쓰고, nav2 체인의 마지막 출�
 Gazebo 모의에서 TFmini 를 쓰려면 `ros2 run perception scan_to_range` (`/tfmini/scan` LaserScan → `/tfmini/range`).
 
 운용 순서:
+0. 켜기 전에 팔을 접은 대기 자세에 둔다 — 범위 밖이면 opencr_hardware 가 시작을 거부한다 (관절별 메시지, 범위 = `opencr_hardware/urdf/opencr.ros2_control.xacro` `arm_standby_*`, #166).
 1. 조이스틱을 켠다 (0.5 s 끊기면 E-stop 잠김).
 2. 리셋 버튼 — 켤 때는 잠긴 상태로 시작한다.
 3. 시작 버튼 (`/mission/start`) — 신호 · 바코드 읽기 (observe) → 퍽 조사 (survey) → 계획 (`/mission_planner/plan`) → 계획 단계 실행 (`mission_planner/README.md`).

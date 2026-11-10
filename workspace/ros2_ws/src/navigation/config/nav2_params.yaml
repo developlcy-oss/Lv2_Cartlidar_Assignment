@@ -12,7 +12,7 @@ bt_navigator:
     odom_topic: /odometry/filtered
     bt_loop_duration: 10
     default_server_timeout: 20
-    wait_for_service_timeout: 1000
+    wait_for_service_timeout: 5000   # ms. 1000 이면 시작 때 planner 의 is_path_valid 를 못 찾아 bt_navigator 활성화 실패 (Gazebo 11-10). Jetson 은 시작이 더 느림
     navigators: ["navigate_to_pose", "navigate_through_poses"]
     navigate_to_pose:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
@@ -148,7 +148,7 @@ local_costmap:
       resolution: 0.02
       track_unknown_space: false         # objects 지도의 '모름' (물체 밖) 을 빈칸으로 읽음 — 움직이는 창은 큰 값으로 합칠 때 '모름' 이 이김
       use_maximum: true                  # 정적 층 2 장을 큰 값으로 합침 (global_costmap 설명)
-      footprint: "[[0.1328, 0.1676], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676]]"   # ★ B안 외곽
+      footprint: "[[0.25, 0.07], [0.25, -0.07], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676], [0.1328, 0.1676]]"   # ★ B안 외곽 + 주행 자세 팔 (앞 가운데 x 0.247 · y ±0.066, #114)
       footprint_padding: 0.01
       plugins: ["static_layer", "objects_layer", "obstacle_layer", "inflation_layer"]
       static_layer:
@@ -186,7 +186,7 @@ global_costmap:
       resolution: 0.025                  # 지도 (SDF map_amcl · map_nav, 0.025 m) 와 같게. 정적 층이 지도 해상도로 맞추므로 지도와 같은 값으로 둠
       track_unknown_space: true
       use_maximum: true                  # 정적 층 2 장 (/map · /map_objects) 을 큰 값으로 합침. Nav2 1.5 는 층마다가 아니라 costmap 단위로만 받음
-      footprint: "[[0.1328, 0.1676], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676]]"   # ★ B안 외곽
+      footprint: "[[0.25, 0.07], [0.25, -0.07], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676], [0.1328, 0.1676]]"   # ★ B안 외곽 + 주행 자세 팔 (앞 가운데 x 0.247 · y ±0.066, #114)
       footprint_padding: 0.01
       plugins: ["static_layer", "objects_layer", "obstacle_layer", "inflation_layer"]
       static_layer:

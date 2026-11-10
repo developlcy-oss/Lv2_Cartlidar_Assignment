@@ -6,6 +6,8 @@
   move     v5 CMD 를 100 Hz 로 보내 토크 ON → HOLD 확인 → REARM → 목표를 --speed 이하로 천천히 바꾼다.
              --joint J --delta D   관절 J(1~5)를 현재 위치에서 D rad 움직였다가 제자리로
              --home                관절을 --order 순서로 하나씩 0 rad 로 (1~5)
+             --stages 3:2889,2:997 관절:목표 tick 을 차례로 한 관절씩 (2048 = 0 rad). 예: 대기 자세 → 주행 자세
+             --check-standby       움직이기 전에 여섯 칸이 대기 자세 범위 (urdf/opencr.ros2_control.xacro arm_standby_*_tick) 안인지
            6 번째 칸 (실물은 그리퍼 개폐) 은 움직이지 않고 시작 때 위치를 유지한다.
            --dry-run 이면 현재 위치만 읽고 계획을 출력한다 (쓰기 없음). 실제로 움직이려면 --yes.
            오류 비트 · 예상 밖 HOLD · 추종 오차 · 목표 미도달 (머문 뒤 --max-final 초과) · Ctrl-C → ESTOP 프레임을 보낸 뒤 송신을 멈춘다.
@@ -44,6 +46,39 @@ ARM0 = 6                              # STATE 의 팔 슬롯 시작
 MOVABLE = 5                           # move 가 움직이는 관절 1~5 (6 번째 칸 = 그리퍼 개폐, 현재 위치 유지)
 PERIOD = 0.01                         # 100 Hz
 CONFIG_H = Path(__file__).resolve().parents[2] / 'opencr_firmware' / 'config.h'
+ROS2_CONTROL_XACRO = Path(__file__).resolve().parents[1] / 'urdf' / 'opencr.ros2_control.xacro'
+TICK_RAD = 2 * 3.141592653589793 / 4096   # 펌웨어 ARM_DIR 모두 +1, 2048 = 0 rad
+
+
+def tick_of(rad):
+    return round(2048 + rad / TICK_RAD)
+
+
+def rad_of(tick):
+    return (tick - 2048) * TICK_RAD
+
+
+def load_standby():
+    """호스트 대기 자세 검사와 같은 범위 (xacro arm_standby_min_tick · arm_standby_max_tick)."""
+    text = ROS2_CONTROL_XACRO.read_text()
+
+    def arr(name):
+        m = re.search(r'<param name="' + name + r'">([^<]*)</param>', text)
+        if m is None:
+            sys.exit(f'{ROS2_CONTROL_XACRO.name} 에 {name} 없음')
+        return [int(x) for x in m.group(1).split(',')]
+    return arr('arm_standby_min_tick'), arr('arm_standby_max_tick')
+
+
+def parse_stages(text):
+    out = []
+    for item in text.split(','):
+        j, t = item.split(':')
+        j, t = int(j), int(t)
+        if not 1 <= j <= MOVABLE or not 0 <= t <= 4095:
+            raise ValueError(item)
+        out.append((j, t))
+    return out
 
 
 def crc16(data):
@@ -197,6 +232,13 @@ def monitor(args):
 
 
 def plan_targets(args, q0):
+    if args.stages:
+        q, out = list(q0), []
+        for j, t in parse_stages(args.stages):
+            q = list(q)
+            q[j - 1] = rad_of(t)
+            out.append((f'관절 {j} → {t} tick', q))
+        return out
     if args.home:
         order = [int(j) - 1 for j in args.order.split(',')]
         q, out = list(q0), []
@@ -219,13 +261,22 @@ def move(args):
     if st['error'] & ERR_ABORT:
         sys.exit(f"움직이지 않음: err={err_text(st['error'])}")
     q0 = arm_pos(st)
+    if args.check_standby:
+        smin, smax = load_standby()
+        t0 = [tick_of(q) for q in q0]
+        out = [f'칸 {i + 1}: {t0[i]} tick (범위 {smin[i]} ~ {smax[i]})' for i in range(6) if not smin[i] <= t0[i] <= smax[i]]
+        if out:
+            sys.exit('대기 자세가 아님 — 움직이지 않음 (쓰기 없음):\n  ' + '\n  '.join(out))
+        print('대기 자세 확인 — 여섯 칸 모두 범위 안', t0)
     plan = plan_targets(args, q0)
-    print('현재 [rad]', ' '.join(f'{q:+.3f}' for q in q0))
+    print('현재 [rad]', ' '.join(f'{q:+.3f}' for q in q0), '/ tick', [tick_of(q) for q in q0])
     for name, q in plan:
         bad = [i + 1 for i in range(6) if not lo[i] <= q[i] <= hi[i]]
         print(f'  {name:20s}', ' '.join(f'{x:+.3f}' for x in q), f'한계 밖 관절 {bad}' if bad else '')
         if bad:
             sys.exit('관절 한계 (config.h) 밖 목표 — 중단')
+    moves = [max(abs(b - a) for a, b in zip(p, q)) for p, q in zip([q0] + [q for _, q in plan], [q for _, q in plan])]
+    print(f'예상 시간 약 {sum(moves) / args.speed + args.dwell * len(plan):.0f} s (속도 {args.speed} rad/s, 단계마다 {args.dwell} s 머묾)')
     if args.dry_run or not args.yes:
         print('쓰기 없음 (--yes 를 주면 실제로 움직임)')
         return
@@ -356,6 +407,8 @@ def main():
     # 6 번째 칸은 실물에서 그리퍼 개폐 (config.h 벤치 임시 매핑) — 움직이지 않고 현재 위치만 유지
     g.add_argument('--joint', type=int, choices=range(1, MOVABLE + 1))
     g.add_argument('--home', action='store_true')
+    g.add_argument('--stages', help='관절:목표 tick 을 쉼표로, 차례로 한 관절씩 (예: 3:2889,2:997,1:2032,4:2823)')
+    v.add_argument('--check-standby', action='store_true', help='움직이기 전에 대기 자세 범위 (xacro) 확인, 밖이면 쓰기 없이 끝')
     v.add_argument('--delta', type=float, default=0.1, help='--joint 이동량 rad (기본 0.1)')
     v.add_argument('--order', default='1,2,3,4,5', help='--home 관절 순서 (1~5)')
     v.add_argument('--speed', type=float, default=0.1, help='목표 변화 속도 상한 rad/s (기본 0.1)')
@@ -368,6 +421,11 @@ def main():
     args = ap.parse_args()
     if args.cmd == 'move' and not 0 < args.speed <= 0.5:
         sys.exit('--speed 는 0 초과 0.5 rad/s 이하')
+    if args.cmd == 'move' and args.stages:
+        try:
+            parse_stages(args.stages)
+        except ValueError:
+            sys.exit(f'--stages 는 관절(1~{MOVABLE}):tick(0~4095) 을 쉼표로 — 예: 3:2889,2:997')
     if args.cmd == 'move' and args.home:
         try:
             order = [int(j) for j in args.order.split(',')]
