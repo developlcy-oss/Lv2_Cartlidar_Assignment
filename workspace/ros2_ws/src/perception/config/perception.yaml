@@ -217,7 +217,9 @@ perception_node:
       on_ratio: 0.5             # 켜짐 중앙값의 이 배수보다 짧은 점멸은 잡음
       merge_ratio: 0.5          # 같은 색 사이 꺼짐이 꺼짐 중앙값의 이 배수보다 짧으면 한 점멸
       max_gap_s: 0.5            # 신호등이 이보다 오래 안 보이면 세던 묶음을 버림
-      confirm_cycles: 2
+      confirm_cycles: 2         # 같은 순서가 이만큼 나오면 확정
+      confirm_clear_cycles: 1   # height_color 일 때 빨강 · 노랑이 모두 칸 높이로 분명한 묶음은 이만큼 보고 확정 (0 = 끔 → 위 2 번 규칙만)
+      height_margin_pitch: 0.25 # 빨강 · 노랑 경계(초록 칸 위 1.5 칸)에서 이만큼(칸) 안이면 애매 → 한 묶음 더 봄
     dice:                       # 주사위 확인 (/perception/check_dice)
       tolerance_m: 0.015        # 요청 tolerance 가 0 일 때 칸 중심 허용 오차 (판정 기준 U3 값)
       region_margin_m: 0.04     # 칸 범위 밖 이만큼까지의 퍽을 판정에 넣음 (그 밖은 다른 선반 · 바닥)

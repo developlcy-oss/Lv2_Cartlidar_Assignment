@@ -1,10 +1,11 @@
 # perception_node → mission  (Reliable, depth 1). 신호등 점멸 순서 (READ_SIGNAL)
 #   한 묶음 = 점멸 12회, 묶음 사이 텀을 두고 반복. 같은 묶음이 두 번 보이면 CONFIRMED (reset 은 set_mode 의 READ_SIGNAL 끔)
+#   perception signal.height_color 이면 빨강 · 노랑이 모두 칸 높이로 분명한 묶음은 한 번에 CONFIRMED (signal.confirm_clear_cycles)
 std_msgs/Header header      # stamp = 마지막으로 쓴 영상 촬영 시각, frame_id = base_link
 uint8 SEARCHING=0           # 신호등 위치를 아직 모름 (같은 자리에서 켜졌다 꺼지는 등을 찾는 중)
 uint8 COUNTING=1            # 신호등을 찾았고 점멸을 세는 중
 uint8 CANDIDATE=2           # 완성 묶음 1개 (sequence = 그 순서, 아직 확정 아님)
-uint8 CONFIRMED=3           # 같은 묶음 2개 → 확정
+uint8 CONFIRMED=3           # 같은 묶음 2개, 또는 높이로 분명한 묶음 1개 → 확정
 uint8 MISMATCH=4            # 완성 묶음 2개 이상이 서로 다름 (sequence = 마지막 묶음)
 uint8 status
 string sequence             # 예: "RGRRGRGGYGYG" (R 빨강 · Y 노랑 · G 초록)

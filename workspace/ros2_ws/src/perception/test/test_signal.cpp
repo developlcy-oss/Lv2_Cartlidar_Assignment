@@ -4,8 +4,11 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <random>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "perception/signal_sequence.hpp"
 
@@ -246,4 +249,140 @@ TEST(SignalSequence, U2_TermMeasuredAfterConfirm)
   RecordProperty("within_3_frames", ok);
   RecordProperty("within_0_5s", near);
   EXPECT_GE(ok, 198) << "3프레임 안 " << ok << "/200";
+}
+
+// ---------------- 높이 판별 (height_color, 실물 2026-11-10 P5c) ----------------
+//   실물 노출 80 에서 빨간 등이 노랑 색상으로 찍힘. 12 회가 빨강 둘로 시작하고 초록은 맨 끝인 순서에서
+//   첫 묶음 앞 빨강 2 개를 노랑으로 읽었음 → 초록을 본 뒤 지난 점멸도 높이로 다시 읽어야 함
+namespace
+{
+constexpr double PITCH = 0.0349, Z_GREEN = 0.056;
+
+SignalConfig height_cfg()
+{
+  SignalConfig c;
+  c.height_color = true;
+  c.segment_pitch = PITCH;
+  return c;
+}
+
+struct HeightRun
+{
+  bool confirmed = false;
+  std::string sequence;
+  double elapsed = 0;       // 확정까지 [s]
+  int cycles = 0;           // 확정 때 본 묶음 수
+  std::vector<std::pair<int, std::string>> seen;   // (묶음 수, 상태별 순서) 바뀔 때마다
+};
+
+// 빨강 · 노랑을 모두 노랑 색상으로 넣고(포화) 높이로만 가를 수 있게 한다.
+//   z_of(묶음 번호, 점멸 번호, 색) 로 켜진 등 높이, NaN 이면 높이 없음
+template<class ZOf>
+HeightRun watch_height(const Blinker & b, double limit, SignalConfig cfg, ZOf z_of)
+{
+  SignalSequenceTracker tr(cfg);
+  HeightRun r;
+  int last_status = -1;
+  for (int n = 0; n / FPS <= limit; ++n) {
+    const double t = n / FPS;
+    const Light l = b.at(t);
+    double z = std::numeric_limits<double>::quiet_NaN();
+    Light in = l;
+    if (l != Light::Off) {
+      double u = std::fmod(t, b.period());
+      const int k = std::min(static_cast<int>(u / (b.t_on + b.t_off)), static_cast<int>(b.seq.size()) - 1);
+      z = z_of(static_cast<int>(t / b.period()), k, l);
+      if (l == Light::Red) {in = Light::Yellow;}
+    }
+    const auto & res = tr.update(t, in, z);
+    if (static_cast<int>(res.status) != last_status) {
+      last_status = static_cast<int>(res.status);
+      r.seen.push_back({res.cycles, std::to_string(last_status) + " " + res.sequence});
+    }
+    if (res.status == SignalResult::CONFIRMED) {
+      r.confirmed = true;
+      r.sequence = res.sequence;
+      r.elapsed = t;
+      r.cycles = res.cycles;
+      break;
+    }
+  }
+  return r;
+}
+
+double seg_z(Light l) {return Z_GREEN + (l == Light::Green ? 0 : l == Light::Yellow ? 1 : 2) * PITCH;}
+}  // namespace
+
+// 실물에서 본 순서 그대로: 첫 묶음에서 바로 맞는 순서로 확정 (빨강 둘을 노랑으로 남기지 않음)
+TEST(SignalHeight, RelabelsEarlyRedOnceGreenSeen)
+{
+  const Blinker b{"RRYYYRYYRRYG", 1.0, 1.0, 3.0};
+  const auto r = watch_height(b, 4 * b.period(), height_cfg(), [](int, int, Light l) {return seg_z(l) + 0.002;});
+  ASSERT_TRUE(r.confirmed);
+  EXPECT_EQ(r.sequence, "RRYYYRYYRRYG");
+  EXPECT_EQ(r.cycles, 1);
+  EXPECT_LT(r.elapsed, b.period() + 1.0) << "첫 묶음 텀이 끝나면 확정";
+}
+
+// 첫 묶음에 경계 근처(애매) 점멸이 하나 있으면 한 묶음 더 보고, 둘째 묶음이 분명하면 그것으로 확정 (최대 두 번)
+TEST(SignalHeight, AmbiguousFirstCycleLooksOnceMore)
+{
+  const Blinker b{"RGYRYYGRRYGY", 1.0, 1.0, 3.0};
+  const auto r = watch_height(b, 5 * b.period(), height_cfg(), [](int cyc, int k, Light l) {
+      return cyc == 0 && k == 3 ? Z_GREEN + 1.45 * PITCH : seg_z(l);   // 첫 묶음 4 번째 빨강이 경계 바로 아래
+    });
+  ASSERT_TRUE(r.confirmed);
+  EXPECT_EQ(r.sequence, "RGYRYYGRRYGY");
+  EXPECT_EQ(r.cycles, 2) << "애매한 첫 묶음 뒤 둘째 묶음에서 확정";
+  EXPECT_LT(r.elapsed, 2 * b.period() + 1.0);
+}
+
+// 초록이 없는 묶음: 따뜻한 색 높이가 두 층으로 갈리면 위층 = 빨강, 한 번 보고 확정
+TEST(SignalHeight, NoGreenUsesWarmSpread)
+{
+  const Blinker b{"RYRYRRYYRYRY", 1.0, 1.0, 3.0};
+  const auto r = watch_height(b, 4 * b.period(), height_cfg(), [](int, int, Light l) {return seg_z(l);});
+  ASSERT_TRUE(r.confirmed);
+  EXPECT_EQ(r.sequence, "RYRYRRYYRYRY");
+  EXPECT_EQ(r.cycles, 1);
+}
+
+// 높이를 모르면(z 없음) 애매 → 색상 그대로, 같은 순서 두 번이어야 확정 (예전 규칙)
+TEST(SignalHeight, NoHeightFallsBackToTwoSameCycles)
+{
+  const Blinker b{"RGYRYYGRRYGY", 1.0, 1.0, 3.0};
+  const auto r = watch_height(b, 5 * b.period(), height_cfg(), [](int, int, Light) {return std::numeric_limits<double>::quiet_NaN();});
+  ASSERT_TRUE(r.confirmed);
+  EXPECT_EQ(r.cycles, 2);
+  EXPECT_EQ(r.sequence, "YGYYYYGYYYGY") << "빨강 색상이 노랑으로 찍히면 높이 없이는 고칠 수 없음 (알려진 한계)";
+}
+
+// 한 번 확정을 끄면(confirm_clear_cycles 0) 분명해도 두 번 봐야 확정
+TEST(SignalHeight, ClearConfirmCanBeTurnedOff)
+{
+  const Blinker b{"RRYYYRYYRRYG", 1.0, 1.0, 3.0};
+  auto cfg = height_cfg();
+  cfg.confirm_clear_cycles = 0;
+  const auto r = watch_height(b, 4 * b.period(), cfg, [](int, int, Light l) {return seg_z(l);});
+  ASSERT_TRUE(r.confirmed);
+  EXPECT_EQ(r.sequence, "RRYYYRYYRRYG");
+  EXPECT_EQ(r.cycles, 2);
+}
+
+// 점멸 사이 꺼짐이 짧아 켜진 채 빨강 → 노랑 색상이 바뀌어도(높이 판별 중) 따뜻한 색 한 점멸로 세지 않고 높이로 가름
+TEST(SignalHeight, HueFlickerInsideOneBlinkIsOneBlink)
+{
+  const Blinker b{"RRYYYRYYRRYG", 1.0, 1.0, 3.0};
+  SignalSequenceTracker tr(height_cfg());
+  SignalResult res;
+  for (int n = 0; n / FPS <= 2 * b.period(); ++n) {
+    const double t = n / FPS;
+    const Light l = b.at(t);
+    Light in = l;
+    if (l == Light::Red) {in = (n / 4) % 2 ? Light::Red : Light::Yellow;}   // 4 프레임마다 색상이 빨강 · 노랑 오감
+    res = tr.update(t, in, l == Light::Off ? std::numeric_limits<double>::quiet_NaN() : seg_z(l));
+    if (res.status == SignalResult::CONFIRMED) {break;}
+  }
+  EXPECT_EQ(res.status, SignalResult::CONFIRMED);
+  EXPECT_EQ(res.sequence, "RRYYYRYYRRYG");
 }

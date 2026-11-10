@@ -137,9 +137,15 @@ public:
   explicit SignalLightLocator(LocatorConfig c = {})
   : c_(c) {}
 
-  void reset() {sites_.clear(); blocked_.clear(); locked_ = -1; history_taken_ = false;}
+  void reset() {sites_.clear(); blocked_.clear(); locked_ = -1; history_taken_ = false; last_z_ = std::numeric_limits<double>::quiet_NaN();}
   bool locked() const {return locked_ >= 0;}
-  using TimedLight = std::pair<double, Light>;
+  // 고정 전 관측: first 시각 [s] · second 상태 · z 켜진 등 높이 [m] (꺼짐이면 NaN)
+  struct TimedLight
+  {
+    double first;
+    Light second;
+    double z = std::numeric_limits<double>::quiet_NaN();
+  };
   std::vector<TimedLight> take_locked_history() {
     if (!locked() || history_taken_) {return {};}
     history_taken_ = true;
@@ -207,8 +213,8 @@ public:
     if (!history_taken_) {
       for (std::size_t i = 0; i < sites_.size(); ++i) {
         auto & history = sites_[i].history;
-        if (lit[i] >= 0) {history.emplace_back(t, col[i]);}
-        else if (in_view(sites_[i].pos) && !blocked_[i]) {history.emplace_back(t, Light::Off);}
+        if (lit[i] >= 0) {history.push_back({t, col[i], obs[lit[i]].pos.z});}
+        else if (in_view(sites_[i].pos) && !blocked_[i]) {history.push_back({t, Light::Off});}
         if (history.size() > 4096) {history.erase(history.begin(), history.begin() + (history.size() - 4096));}
       }
     }
@@ -224,10 +230,14 @@ public:
       }
     }
     const Site & s = sites_[locked_];
+    last_z_ = lit[locked_] >= 0 ? obs[lit[locked_]].pos.z : std::numeric_limits<double>::quiet_NaN();
     if (lit[locked_] >= 0) {return col[locked_];}
     if (in_view(s.pos) && !blocked_[locked_]) {return Light::Off;}
     return std::nullopt;
   }
+
+  // 마지막 update 에서 고정된 자리에 붙은 켜진 등의 높이 [m] (odom, 꺼짐 · 모름이면 NaN). 점멸 세기의 높이 판별에 넘김
+  double last_z() const {return last_z_;}
 
   // 마지막 update 에서 고정된 자리가 가려졌는지
   bool occluded_last() const {return locked() && blocked_.size() > static_cast<std::size_t>(locked_) && blocked_[locked_];}
@@ -305,6 +315,7 @@ private:
   std::vector<bool> blocked_;    // 마지막 update 에서 자리별로 가려졌는지
   bool history_taken_ = false;
   int locked_ = -1;
+  double last_z_ = std::numeric_limits<double>::quiet_NaN();
 };
 
 }  // namespace perception

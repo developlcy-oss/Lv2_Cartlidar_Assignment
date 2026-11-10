@@ -464,3 +464,33 @@ TEST(SignalLight, SequenceWithRedSeenAsYellow)
   EXPECT_EQ(got, truth);   // 셋째 주기 (자리 고정 · 칸 높이를 다 본 뒤)
 }
 
+// 노드처럼 자리 추적 + 점멸 세기 모두 높이 판별: 빨강 둘로 시작 · 초록은 맨 끝(실물 2026-11-10 P5c 순서),
+//   빨강이 노랑 색상으로 찍혀도 첫 묶음에서 맞는 순서로 확정 (초록을 본 뒤 지난 점멸을 높이로 다시 읽음)
+TEST(SignalLight, HeightSequenceConfirmsOnFirstCycle)
+{
+  SignalLightLocator loc;
+  SignalConfig sc;
+  sc.height_color = true;
+  SignalSequenceTracker tr(sc);
+  const std::string truth = "RRYYYRYYRRYG";
+  Blinker b{truth, 1.0, 1.0, 3.0};
+  SignalResult res;
+  double t_conf = -1;
+  for (int n = 0; n / 30.0 < 3 * b.period(); ++n) {
+    const double t = n / 30.0;
+    const Light l = b.at(t);
+    std::vector<LightObs> obs;
+    if (l != Light::Off) {obs.push_back(at(seg_of(l), l == Light::Red ? Light::Yellow : l));}
+    const auto r = loc.update(t, obs, always);
+    if (!r) {continue;}
+    const auto history = loc.take_locked_history();
+    if (history.empty()) {res = tr.update(t, *r, loc.last_z());}
+    else {for (const auto & h : history) {res = tr.update(h.first, h.second, h.z);}}
+    if (res.status == SignalResult::CONFIRMED) {t_conf = t; break;}
+  }
+  ASSERT_EQ(res.status, SignalResult::CONFIRMED);
+  EXPECT_EQ(res.sequence, truth);
+  EXPECT_EQ(res.cycles, 1);
+  EXPECT_LT(t_conf, b.period() + 1.0);
+}
+
