@@ -9,6 +9,8 @@ mission_node:
 
     map_frame: map
     base_frame: base_link
+    arm:
+      travel_pose: DRIVE         # 주행 · 탐색 · 접근 시작 때 팔 자세 (manipulator poses 이름, #144). STOW = 전원 끄기 전 대기 자세
     behavior_tree: ""            # 빈 문자열 = nav2 기본 BT
 
     # 단계별 타임아웃 (s) · 재시도
@@ -16,8 +18,8 @@ mission_node:
       pose: 20.0
       read_tag: 90.0             # 회전 탐색 포함
       navigate: 120.0
-      search: 60.0               # STOW + 회전 탐색 포함
-      approach: 90.0             # STOW → COARSE → READY → FINE
+      search: 60.0               # 주행 자세 + 회전 탐색 포함
+      approach: 90.0             # 주행 자세 → COARSE → READY → FINE
       pick: 60.0
     skill:
       default_timeout: 30.0      # skill 단계에 timeout을 안 쓰면

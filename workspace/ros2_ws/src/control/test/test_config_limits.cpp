@@ -103,3 +103,52 @@ TEST(ConfigLimits, PalletWaypointsWithinLimits)
     }
   }
 }
+
+namespace
+{
+// robot.urdf.xacro 의 <xacro:arm_joint name=".." ... xyz=".."/> · <xacro:fixed_link name=".." ... xyz=".." rpy=".."/> 원점
+std::map<std::string, std::vector<double>> urdfOrigins(const std::string & macro, const std::string & attr)
+{
+  const std::string text = readFile(URDF_XACRO);
+  std::map<std::string, std::vector<double>> out;
+  const std::regex re("<xacro:" + macro + R"re(\s+name="(\w+)"[^>]*\s)re" + attr + R"re(="([^"]+)")re");
+  for (auto it = std::sregex_iterator(text.begin(), text.end(), re); it != std::sregex_iterator(); ++it) {
+    std::istringstream in((*it)[2].str());
+    std::vector<double> v;
+    double x;
+    while (in >> x) {v.push_back(x);}
+    out[(*it)[1]] = v;
+  }
+  return out;
+}
+}  // namespace
+
+// manipulator.yaml 기구 치수 (ArmIK · target_look 카메라) = robot.urdf.xacro 원점 (#112). URDF 만 바꾸면 IK 가 조용히 틀어지는 것을 막음
+TEST(ConfigLimits, IkGeometryEqualsUrdf)
+{
+  const auto joints = urdfOrigins("arm_joint", "xyz");
+  const auto links = urdfOrigins("fixed_link", "xyz");
+  const auto rpy = urdfOrigins("fixed_link", "rpy");
+  for (const char * j : {"joint1", "joint3", "joint4", "joint5", "gripper_roll"}) {
+    ASSERT_EQ(joints.count(j), 1u) << j << " xyz not found in " << URDF_XACRO;
+    ASSERT_EQ(joints.at(j).size(), 3u) << j;
+  }
+  for (const char * l : {"tool_link", "arm_camera_link"}) {
+    ASSERT_EQ(links.count(l), 1u) << l << " xyz not found in " << URDF_XACRO;
+    ASSERT_EQ(links.at(l).size(), 3u) << l;
+  }
+  ASSERT_EQ(rpy.count("arm_camera_link"), 1u);
+  const auto ik = params()["ik"];
+  const double tol = 1e-6;
+  EXPECT_NEAR(ik["shoulder_height"].as<double>(), joints.at("joint1")[2], tol);
+  EXPECT_NEAR(ik["upper_arm_x"].as<double>(), joints.at("joint3")[0], tol);
+  EXPECT_NEAR(ik["upper_arm_z"].as<double>(), joints.at("joint3")[2], tol);
+  EXPECT_NEAR(ik["forearm"].as<double>(), joints.at("joint4")[0], tol);
+  // joint4 → tool_link = joint5 + gripper_roll + tool_link (모두 집게 축 x 위)
+  EXPECT_NEAR(ik["wrist_to_tool"].as<double>(),
+    joints.at("joint5")[0] + joints.at("gripper_roll")[0] + links.at("tool_link")[0], tol);
+  const auto look = params()["target_look"];
+  EXPECT_NEAR(look["camera_x"].as<double>(), joints.at("joint5")[0] + links.at("arm_camera_link")[0], tol);
+  EXPECT_NEAR(look["camera_z"].as<double>(), links.at("arm_camera_link")[2], tol);
+  EXPECT_NEAR(look["camera_tilt"].as<double>(), rpy.at("arm_camera_link")[1], tol);
+}
