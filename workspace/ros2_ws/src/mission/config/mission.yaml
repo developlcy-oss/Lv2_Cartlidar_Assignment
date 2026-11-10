@@ -41,7 +41,13 @@ mission_node:
 
     align:
       tolerance: 0.0             # 0 = drive 기본값 (align.default_tolerance)
-      coarse_distance: 0.45      # 먼 거리 정렬 목표 (m, 범퍼 기준, >= 0.3). TODO Controller와 맞출 것
+      # 먼 거리 정렬 (COARSE) 목표 [m] = 차체 앞 끝 → 앞 D435 가 추적한 퍽. drive align.coarse_min 0.30 이상
+      #   plan 모드 시작 박스 (퍽 = 박스 중심, 면 → 퍽 0.1025): 대기 자리 standoff 0.40 · 0.45 → 앞 끝 → 퍽 0.50 · 0.55
+      #   하한 0.40: 끝난 자리의 TFmini → 면 (0.45 이면 0.35) 이 obstacle_stop stop_m 0.25 보다 0.05 이상 멀어야 잠기지 않음
+      #   상한 0.48: 대기 자리 (0.50) 보다 멀면 후진함
+      #   READY 팔은 앞 끝보다 약 0.20 m 나오지만 앞 끝 앞쪽은 바닥 위 0.18 m 이상 (퍽 윗면 0.13) 이라 이 거리에서 닿지 않음
+      #   장소 (빈 상자) 는 따라갈 퍽이 없어 COARSE 가 "물체 놓침" 으로 실패함 → #160
+      coarse_distance: 0.45
     pick:
       require_grasped: true      # grasped=false면 실패 → 직전 search부터 재시도
 
