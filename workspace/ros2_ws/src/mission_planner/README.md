@@ -92,7 +92,11 @@ robot_interfaces 는 바꾸지 않음 (동결). 계획 단계 (`mission_planner/
 | `verify L cx cy z expect9 yshape` | 팔 TAG_VIEW → READ_TAG+SEARCH_FRONT → /perception/check_dice (지도 좌표 칸) + /perception/pucks 로 칸별 퍽 ID · 위치 → 기록, 틀려도 계속 (stop_on_fail false) |
 | `wait 3` | 복귀 뒤 정지 |
 
-기록: 계획기 log_dir 에 signal.json · allocation.json · plan.json · mission_lines.txt, mission_node log_dir 에 mission_log.jsonl (observe · plan · verify (칸 판정 · 칸별 퍽 ID · 위치) · verify_ids (마지막 verify 뒤 12 개 ID 중복 · 누락 판정) · finish).
+기록: 미션 (/mission/start 로 새로 시작) 마다 mission_node `<log_dir>/<YYMMDD_HHMM>/` 한 폴더 (bringup 기본 log_dir `~/Lv2_Cartlidar_Assignment/mission_log`, 같은 분이면 `_2`, PAUSED 재개는 같은 폴더) 에
+mission_log.jsonl (observe · survey · plan · verify (칸 판정 · 칸별 퍽 ID · 위치) · verify_ids (마지막 verify 뒤 12 개 ID 중복 · 누락 판정) · snapshot · finish),
+images/ (팔 카메라 사진 사건당 3 장: 이동 전 `<NN>_before_r<회차>_B<박스>_<k>.jpg` = survey_view, 이동 후 `<NN>_after_<L>_<k>.jpg` = verify),
+planner/ (계획기 log_dir = `<log_dir>/planner` 의 signal.json · allocation.json · plan.json · mission_lines.txt 를 plan 성공 뒤 복사),
+pucks_survey.yaml · 측량 완료 파일 사본. 영상 전체 녹화는 하지 않는다 (최종 제출 전체 영상은 따로).
 실패: 점멸 MISMATCH · 미등록 바코드 · 풀 수 없는 문제 = 재시도 없이 FAILED (발제: 오류 기록 후 안전 정지). 그 밖의 단계는 max_retries 재시도.
 
 연동 시험 (`test/mock_robot.py` = 가짜 drive · manipulator · perception): Q1 예제로 /mission/start → DONE (단계 93, 주행 18 · 정렬 30 · drive skill 8 (turn) · manipulator skill 48 · check_dice 3, 26 s),
