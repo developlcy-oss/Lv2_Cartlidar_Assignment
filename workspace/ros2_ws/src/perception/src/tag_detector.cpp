@@ -260,8 +260,16 @@ std::vector<TagCorners> TagDetector::find(const cv::Mat & bgr) const
 }
 
 bool TagDetector::refine_in(const cv::Mat & full_gray, const cv::Rect & roi, int id, const cv::Point2f & c0, double gate,
-  std::vector<cv::Point2f> & q) const
+  std::vector<cv::Point2f> & q, double scale) const
 {
+  cv::Mat img = full_gray(roi);
+  if (scale > 0.0 && scale != 1.0) {
+    cv::Mat resized;
+    cv::resize(img, resized, cv::Size(), scale, scale, scale < 1.0 ? cv::INTER_AREA : cv::INTER_CUBIC);
+    img = resized;
+  } else {
+    scale = 1.0;
+  }
   // 차례: AprilTag · 윤곽 · (켰으면) 무늬 거르기 윤곽. 여기서도 무늬가 붙는 태그는 마지막 것으로 꼭짓점을 다듬는다
   for (int attempt = 0; attempt < (texture_pass_ ? 3 : 2); ++attempt) {
     if (aruco_ && attempt == 0) {continue;}
@@ -272,17 +280,20 @@ bool TagDetector::refine_in(const cv::Mat & full_gray, const cv::Rect & roi, int
     cv::aruco::DetectorParameters p;
     p.cornerRefinementMethod = method;
     if (attempt == 2) {set_texture_params(p);}
-    cv::aruco::ArucoDetector(cv::aruco::getPredefinedDictionary(dict_id_), p).detectMarkers(full_gray(roi), cc, ii);
+    cv::aruco::ArucoDetector(cv::aruco::getPredefinedDictionary(dict_id_), p).detectMarkers(img, cc, ii);
 #else
     auto p = cv::aruco::DetectorParameters::create();
     p->cornerRefinementMethod = method;
     if (attempt == 2) {set_texture_params(*p);}
-    cv::aruco::detectMarkers(full_gray(roi), cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p);
+    cv::aruco::detectMarkers(img, cv::aruco::getPredefinedDictionary(dict_id_), cc, ii, p);
 #endif
     for (size_t k = 0; k < ii.size(); ++k) {
       if (ii[k] != id) {continue;}
       cv::Point2f c1(0.f, 0.f);
-      for (auto & point : cc[k]) {point += cv::Point2f(roi.tl()); c1 += point * .25f;}
+      for (auto & point : cc[k]) {
+        point = (point + cv::Point2f(.5f, .5f)) * static_cast<float>(1.0 / scale) - cv::Point2f(.5f, .5f) + cv::Point2f(roi.tl());
+        c1 += point * .25f;
+      }
       if (cv::norm(c1 - c0) <= gate) {q = cc[k]; return true;}
     }
   }
@@ -303,6 +314,7 @@ std::vector<TagCorners> TagDetector::find_tracked(const cv::Mat & bgr, TagTrack 
   cv::Mat gray;
   cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
   const cv::Rect whole(0, 0, gray.cols, gray.rows);
+  const double down = static_cast<double>(max_width_) / gray.cols;   // find 의 줄여 찾기 배율 (위에서 cols > max_width_)
   std::vector<TagCorners> out;
   for (const auto & t : track.tags) {
     const cv::Rect bb = cv::boundingRect(t.corners);
@@ -312,12 +324,18 @@ std::vector<TagCorners> TagDetector::find_tracked(const cv::Mat & bgr, TagTrack 
     cv::Point2f c0(0.f, 0.f);
     for (const auto & point : t.corners) {c0 += point * .25f;}
     std::vector<cv::Point2f> q;
-    // 둘레 안의 같은 번호면 움직인 같은 태그다 (가운데 차 제한 없음)
-    if (refine_in(gray, roi, t.id, c0, roi.width + roi.height, q)) {out.push_back({t.id, std::move(q)});}
+    // 둘레 안의 같은 번호면 움직인 같은 태그다 (가운데 차 제한 없음). 원래 크기에서 못 찾으면 find 와 같은 배율로 줄여 한 번 더
+    const double gate = roi.width + roi.height;
+    if (refine_in(gray, roi, t.id, c0, gate, q) || refine_in(gray, roi, t.id, c0, gate, q, down) ||
+      refine_in(gray, roi, t.id, c0, gate, q, 2.0)) {
+      out.push_back({t.id, std::move(q)});
+    }
   }
-  // 하나라도 놓치면 이번 장은 찾은 것만 내고 다음 장은 전체 검색
-  if (out.size() == track.tags.size()) {track.tags = out;} else {track.reset();}
-  return out;
+  // 하나라도 놓치면 이번 장에서 바로 전체 검색 (실물 녹화에서 놓침은 약 0.5 % 라 전체 검색이 끼는 장은 드묾)
+  if (out.size() == track.tags.size()) {track.tags = out; return out;}
+  track.tags = find(bgr);
+  track.since_full = 0;
+  return track.tags;
 }
 
 std::vector<TagDetection> TagDetector::solve(const std::vector<TagCorners> & found, const cv::Mat & K, const cv::Mat & D) const

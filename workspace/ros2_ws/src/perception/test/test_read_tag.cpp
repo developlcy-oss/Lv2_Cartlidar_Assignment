@@ -261,7 +261,7 @@ TEST(ReadTag, TrackFollowsMovedTag)
   EXPECT_LT(cv::norm(mid(moved[0]) - cv::Point2f(680.f, 340.f)), 2.0);
 }
 
-// 둘레 밖으로 튀면 이번 장은 못 찾고 다음 장 전체 검색에서 찾는다
+// 둘레 밖으로 튀면 둘레에서는 못 찾지만 그 장에서 바로 전체 검색으로 찾는다 (since_full 0 = 전체 검색으로 찾음)
 TEST(ReadTag, TrackLostThenFullSearch)
 {
   auto d = arm_finder(15);
@@ -270,14 +270,16 @@ TEST(ReadTag, TrackLostThenFullSearch)
   draw_bgr(b, 7, 0.048, 900, 500);
   TagTrack track;
   ASSERT_EQ(d.find_tracked(a, track).size(), 1u);
-  EXPECT_TRUE(d.find_tracked(b, track).empty());
-  EXPECT_TRUE(track.tags.empty());
   const auto again = d.find_tracked(b, track);
   ASSERT_EQ(again.size(), 1u);
+  EXPECT_EQ(track.since_full, 0);
   EXPECT_LT(cv::norm(mid(again[0]) - cv::Point2f(900.f, 500.f)), 2.0);
+  // 다음 장은 다시 둘레 추적
+  ASSERT_EQ(d.find_tracked(b, track).size(), 1u);
+  EXPECT_EQ(track.since_full, 1);
 }
 
-// 태그가 둘일 때 하나만 놓쳐도 찾은 것은 내고 다음 장은 전체 검색
+// 태그가 둘일 때 하나를 놓치면 그 장에서 전체 검색 → 남은 태그만 추적 대상으로 남는다
 TEST(ReadTag, TrackPartialLossKeepsFoundAndResets)
 {
   auto d = arm_finder(15);
@@ -290,7 +292,9 @@ TEST(ReadTag, TrackPartialLossKeepsFoundAndResets)
   const auto got = d.find_tracked(b, track);
   ASSERT_EQ(got.size(), 1u);
   EXPECT_EQ(got[0].id, 1);
-  EXPECT_TRUE(track.tags.empty());
+  EXPECT_EQ(track.since_full, 0);
+  ASSERT_EQ(track.tags.size(), 1u);
+  EXPECT_EQ(track.tags[0].id, 1);
 }
 
 // 추적 중 새로 보인 태그는 둘레 밖이라 안 잡히고, 주기 전체 검색에서 잡힌다 (full_every = 3: 전체 · 추적 · 추적 · 전체)
