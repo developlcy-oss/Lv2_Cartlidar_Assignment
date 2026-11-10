@@ -41,10 +41,13 @@ mission_node:
 
     align:
       tolerance: 0.0             # 0 = drive 기본값 (align.default_tolerance)
-      # 먼 거리 정렬 (COARSE) 목표 [m] = 차체 앞 끝 → 앞 D435 가 추적한 퍽. drive align.coarse_min 0.30 이상
+      # 먼 거리 정렬 (COARSE) 목표 [m] = 차체 앞 끝 → 퍽 중심. 퍽 위치는 앞 D435 (색 검출 + 깊이, base_link), 라이다 아님
+      #   drive align.coarse_min 0.30 이상. 아래 범위는 계산값 (Gazebo · 실물 확인 전)
       #   plan 모드 시작 박스 (퍽 = 박스 중심, 면 → 퍽 0.1025): 대기 자리 standoff 0.40 · 0.45 → 앞 끝 → 퍽 0.50 · 0.55
-      #   하한 0.40: 끝난 자리의 TFmini → 면 (0.45 이면 0.35) 이 obstacle_stop stop_m 0.25 보다 0.05 이상 멀어야 잠기지 않음
-      #   상한 0.48: 대기 자리 (0.50) 보다 멀면 후진함
+      #   하한 0.40: TFmini → 박스 면 ≈ 이 값 − 0.10. 0.35 면 TFmini 0.25 = obstacle_stop stop_m 이라 전진이 막힘
+      #              (COARSE 동안은 정지 거리를 낮추지 않음, FINE 만) → 여유 0.05 를 더함
+      #   상한 0.48: COARSE 는 목표보다 멀면 전진, 가까우면 후진. 대기 자리 (0.50) 에서 앞으로 다가가며 맞추려면
+      #              0.50 − 허용오차 0.02 이하. 더 크면 대기 자리에서 뒤로 물러남
       #   READY 팔은 앞 끝보다 약 0.20 m 나오지만 앞 끝 앞쪽은 바닥 위 0.18 m 이상 (퍽 윗면 0.13) 이라 이 거리에서 닿지 않음
       #   장소 (빈 상자) 는 따라갈 퍽이 없어 COARSE 가 "물체 놓침" 으로 실패함 → #160
       coarse_distance: 0.45
