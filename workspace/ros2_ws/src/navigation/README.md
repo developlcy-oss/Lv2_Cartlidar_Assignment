@@ -108,7 +108,7 @@ behavior_server (spin · backup · wait) ──┴→ /nav2/cmd_vel_raw → velo
 | `planner_server` | Smac 2D (0.01 지도를 0.02 로 줄여 계산), `allow_unknown: false` | 시작 때 `Inflation layer ... not set sufficiently` ERROR 는 Smac 2D 가 늘 내는 알림 |
 | `controller_server` | RotationShim (경로 방향과 45° 넘게 다르면 먼저 제자리 회전, 도착 뒤 목표 방향 회전) → MPPI(DiffDrive) | Nav2 1.4+ 는 MPPI 값을 `FollowPath.primary_controller` 아래에 둔다 |
 | | vx −0.1 ~ 0.2 ★ · wz ±1.0 ★ · 가속 1.5, 도착 xy 0.05 ★ · yaw 0.1 ★ | drive.yaml `navigate.xy_goal_tolerance` 도 0.05 (#114) |
-| `local_costmap` · `global_costmap` | 정적 층 2 장(`/map` 벽, `/map_objects` 라이다에 안 보이는 물체) + `/scan_merged` + inflation 0.30 ★ | footprint = B안 외곽(앞 0.1328 · 뒤 −0.2135 · 반폭 0.1676) ★ |
+| `local_costmap` · `global_costmap` | 정적 층 2 장(`/map` 벽, `/map_objects` 라이다에 안 보이는 물체) + `/scan_merged` + inflation 0.30 ★ | footprint = B안 외곽(앞 0.1328 · 뒤 −0.2135 · 반폭 0.1676) ★ + 주행 자세 팔 (앞 0.25) |
 | `behavior_server` | spin · backup · wait (기본 BT 와 drive_node 가 쓰는 것) | 최소 회전 0.3 rad/s ★ |
 | `velocity_smoother` · `collision_monitor` | MPPI 와 같은 한계 / 차체가 1.2 s 안에 닿을 속도면 줄임 | |
 | `bt_navigator` | 기본 BT 복사본 `behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml` (플래너 복구 조건에 목표 · 시작 칸 막힘 205 · 206 추가, #135) | 플러그인 이름(GridBased · FollowPath · general_goal_checker · progress_checker · PathHandler)을 바꾸지 말 것 |
