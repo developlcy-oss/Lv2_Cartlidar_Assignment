@@ -58,6 +58,10 @@
 //   장소 태그 (/perception/task_marker, READ_MARKER, #39) — L1 · L2 · L3 = marker.ids (12 · 13 · 14):
 //     verify 에서 verify.check_marker 면 READ_MARKER 를 같이 켜고, 새로 본 태그 ID · 위치 (base_link · map) 를
 //     check_dice 결과와 같은 줄에 기록 (발제 채점: 새 관측 기반 장소별 ID · 위치). ID 가 다르면 verify.stop_on_fail 에 따름
+//   퍽 ID 재검증 기록 (verify.record_ids, include/mission/verify_record.hpp): verify 동안 받은 /perception/pucks 를 칸에 넣어
+//     (칸, 태그 ID) 별로 쌓고, check_dice 결과와 같은 줄 "pucks" 에 칸별 퍽 ID · 본 횟수 · 지도 위치를 남긴다 (태그를 못 읽은 퍽 = id -1).
+//     마지막 verify 뒤 모든 장소 기록으로 ID 중복 · 누락 · 기대 밖 ID (verify.expected_ids) 를 판정해 "verify_ids" 줄로 남긴다.
+//     틀리면 verify.stop_on_fail 에 따름. 목표 칸 · 계획 ID 를 옮겨 적지 않고 관측만 쓴다
 //   measure_box <L>               장소 상자 재기 (#73, place_box.enabled): 그 장소 첫 pallet_unload (다음이 place_<L>_*) 앞에 자동으로 붙음.
 //                                 팔 place_box.arm_pose → place_box.mode → settle_s → /perception/place_box/measure →
 //                                 /perception/place_box/status ok + /perception/place_box (odom, 윗면 중심 · 요).
@@ -71,6 +75,7 @@
 // - mission_cb_group_: Action · Service 클라이언트 · 서버, 타이머. 상태는 이 그룹에서만 바뀐다
 // - sensor_cb_group_: /perception/result · /e_stop · /diagnostics 구독. sensor_mutex_ · atomic으로 보호
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <cstddef>
@@ -106,6 +111,7 @@
 #include "robot_interfaces/msg/mission_status.hpp"
 #include "robot_interfaces/msg/barcode.hpp"
 #include "robot_interfaces/msg/perception_result.hpp"
+#include "robot_interfaces/msg/puck_array.hpp"
 #include "robot_interfaces/msg/signal_sequence.hpp"
 #include "robot_interfaces/msg/task_marker.hpp"
 #include "robot_interfaces/srv/check_dice.hpp"
@@ -120,6 +126,8 @@
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 
+#include "mission/verify_record.hpp"
+
 namespace mission
 {
 
@@ -132,6 +140,7 @@ public:
   using Pick = robot_interfaces::action::Pick;
   using ExecuteSkill = robot_interfaces::action::ExecuteSkill;
   using PerceptionResult = robot_interfaces::msg::PerceptionResult;
+  using PuckArray = robot_interfaces::msg::PuckArray;
   using MissionStatus = robot_interfaces::msg::MissionStatus;
   using SetPerceptionMode = robot_interfaces::srv::SetPerceptionMode;
   using Mode = SetPerceptionMode::Request;
@@ -189,6 +198,11 @@ public:
       marker_sub_ = create_subscription<TaskMarker>(
         "/perception/task_marker", rclcpp::QoS(1).reliable(),
         [this](TaskMarker::ConstSharedPtr msg) {onMarker(msg);}, sub_opt);
+      if (verify_record_ids_) {   // 재검증 퍽 ID 기록 (계약: Reliable, depth 1)
+        pucks_sub_ = create_subscription<PuckArray>(
+          "/perception/pucks", rclcpp::QoS(1).reliable(),
+          [this](PuckArray::ConstSharedPtr msg) {onPucks(msg);}, sub_opt);
+      }
       if (place_box_enabled_) {   // 장소 상자 측정 결과 (perception, latched)
         const auto latched = rclcpp::QoS(1).reliable().transient_local();
         pb_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/perception/place_box", latched,
@@ -354,8 +368,8 @@ private:
 
     // align tolerance: 0 = drive 기본값 (drive_node align.default_tolerance)
     align_tolerance_ = declare_parameter<double>("align.tolerance", 0.0);
-    // 먼 거리 정렬(COARSE) 목표 거리 (m, 범퍼 기준). drive_node는 align.coarse_min(0.3)보다 작으면 실패시킨다
-    // TODO(Mission · Controller): 값은 Controller(drive · 팔 길이)와 맞출 것 (추정)
+    // 먼 거리 정렬(COARSE) 목표 거리 (m, 차체 앞 끝 → 추적한 퍽). drive_node는 align.coarse_min(0.3)보다 작으면 실패시킨다
+    // 값을 고른 근거 (TFmini 정지 거리 · 대기 자리 · READY 팔 높이) 는 mission.yaml align.coarse_distance 주석
     coarse_distance_ = declare_parameter<double>("align.coarse_distance", 0.45);
     // pick: grasped=false면 실패로 본다
     require_grasped_ = declare_parameter<bool>("pick.require_grasped", true);
@@ -413,6 +427,12 @@ private:
     marker_ids_ = declare_parameter<std::vector<int64_t>>("marker.ids", {12, 13, 14});
     verify_check_marker_ = declare_parameter<bool>("verify.check_marker", true);
     verify_marker_wait_ = declare_parameter<double>("verify.marker_wait_s", 3.0);    // settle 뒤 태그를 더 기다리는 시간
+    // 퍽 ID 재검증 기록 (발제 06 쪽 이동 후 검증): verify 동안 /perception/pucks 를 쌓아 칸별 퍽 ID · 위치, 마지막 verify 뒤 중복 · 누락
+    verify_record_ids_ = declare_parameter<bool>("verify.record_ids", true);
+    verify_expected_ids_ = declare_parameter<std::vector<int64_t>>("verify.expected_ids",
+      std::vector<int64_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+    verify_id_min_seen_ = declare_parameter<int>("verify.id_min_seen", 2);         // (칸, ID) 를 이만큼 봐야 기록 (한 장 오독 제외)
+    verify_region_margin_ = declare_parameter<double>("verify.region_margin", 0.04);   // 칸 범위 밖 여유 [m] (perception dice.region_margin_m)
     marker_check_before_place_ = declare_parameter<bool>("marker.check_before_place", false);   // ★ 놓는 자리에서 태그가 보이면 true
     timeout_["check_marker"] = declare_parameter<double>("timeout.check_marker", 10.0);
     // 놓기 전 장소 상자 재기 (#73): 상자가 돌아가 있거나 밀려 있어도 칸에 놓고 판정하게 /perception/place_box 로 잼
@@ -540,6 +560,9 @@ private:
       if (observe_max_cycles_ < 2) {throw std::invalid_argument("observe.max_cycles must be >= 2 (CONFIRMED needs 2)");}
       if (marker_ids_.size() != 3) {throw std::invalid_argument("marker.ids must be [L1, L2, L3] tag ids");}
       if (!(verify_marker_wait_ >= 0.0)) {throw std::invalid_argument("verify.marker_wait_s must be >= 0");}
+      if (verify_id_min_seen_ < 1 || !(verify_region_margin_ >= 0.0)) {
+        throw std::invalid_argument("verify.id_min_seen must be >= 1 and verify.region_margin >= 0");
+      }
       if (barcode_point_.size() != 3) {throw std::invalid_argument("observe.barcode_point must be [x, y, z]");}
       if (verify_approach_ != 0.0 && !(verify_approach_ >= 0.13)) {
         throw std::invalid_argument("verify.approach_distance must be 0 (off) or >= 0.13 (TFmini FINE)");
@@ -719,6 +742,60 @@ private:
     std::lock_guard<std::mutex> lock(sensor_mutex_);
     last_marker_ = msg;
     marker_rx_ = now();
+  }
+
+  // 재검증 중이면 퍽 목록 한 장을 칸 좌표계 · 지도로 옮겨 쌓는다 (칸 범위 밖 · 높이 밖 퍽은 recorder 가 버림)
+  void onPucks(PuckArray::ConstSharedPtr msg)
+  {
+    std::string frame;
+    rclcpp::Time since;
+    {
+      std::lock_guard<std::mutex> lock(verify_rec_mutex_);
+      if (!verify_rec_.active()) {return;}
+      frame = verify_rec_frame_;
+      since = verify_rec_since_;
+    }
+    if (rclcpp::Time(msg->header.stamp, RCL_ROS_TIME) < since) {return;}   // 팔 자세 · 모드 전 영상
+    const std::string src = msg->header.frame_id.empty() ? base_frame_ : msg->header.frame_id;
+    const auto to_cell = lookupTf(frame, src, msg->header.stamp);
+    const auto to_map = frame == map_frame_ ? to_cell : lookupTf(map_frame_, src, msg->header.stamp);
+    if (!to_cell || !to_map) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "verify record: TF %s/%s <- %s missing", frame.c_str(),
+        map_frame_.c_str(), src.c_str());
+      return;
+    }
+    std::vector<VerifyObs> obs;
+    obs.reserve(msg->pucks.size());
+    for (const auto & p : msg->pucks) {
+      const tf2::Vector3 v(p.pose.position.x, p.pose.position.y, p.pose.position.z);
+      const tf2::Vector3 c = *to_cell * v, m = *to_map * v;
+      VerifyObs o;
+      o.x = c.x(); o.y = c.y(); o.z = c.z();
+      o.mx = m.x(); o.my = m.y();
+      o.tag_id = p.tag_id;
+      obs.push_back(o);
+    }
+    std::lock_guard<std::mutex> lock(verify_rec_mutex_);
+    verify_rec_.add_frame(obs);
+  }
+
+  // target <- source 변환 (stamp 시각, 없으면 최신)
+  std::optional<tf2::Transform> lookupTf(
+    const std::string & target, const std::string & source, const builtin_interfaces::msg::Time & stamp)
+  {
+    geometry_msgs::msg::TransformStamped t;
+    try {
+      try {
+        t = tf_buffer_->lookupTransform(target, source, tf2_ros::fromMsg(stamp));
+      } catch (const tf2::TransformException &) {
+        t = tf_buffer_->lookupTransform(target, source, tf2::TimePointZero);
+      }
+    } catch (const tf2::TransformException &) {
+      return std::nullopt;
+    }
+    tf2::Transform T;
+    tf2::fromMsg(t.transform, T);
+    return T;
   }
 
   void onBarcode(Barcode::ConstSharedPtr msg)
@@ -960,6 +1037,7 @@ private:
     marker_checked_.clear();
     box_attempted_.clear();
     box_meas_.clear();
+    verify_records_.clear();
     mismatch_logged_cycles_ = -1;
     retry_count_.clear();
     fallback_used_.clear();
@@ -987,6 +1065,7 @@ private:
     watching_ = false;
     rotating_ = false;
     rotations_ = 0;
+    stopVerifyRecord();
     const Step & s = steps_[idx];
     RCLCPP_INFO(get_logger(), "-> [%zu] %s", idx, s.text.c_str());
     publishStatus();
@@ -1641,10 +1720,106 @@ private:
       });
   }
 
+  // verify 칸 9 곳 (행 우선, 위 줄 +Y 부터, 줄 안은 -X 부터) 과 그 좌표계. 잰 장소면 그 상자 기준 칸 (#73)
+  std::string verifyCells(const Step & s, std::array<geometry_msgs::msg::Point, 9> & out) const
+  {
+    const double cx = std::stod(s.args[1]), cy = std::stod(s.args[2]), z = std::stod(s.args[3]);
+    const auto meas = box_meas_.find(s.args[0]);
+    for (int k = 0; k < 9; ++k) {
+      const int r = k / 3, c = k % 3;
+      if (meas != box_meas_.end()) {
+        const auto p = meas->second.cell((c - 1) * kGrid, (1 - r) * kGrid);
+        out[k].x = p.first;
+        out[k].y = p.second;
+        out[k].z = meas->second.z - (place_top_z_ - z);   // 계획기 z (지도 윗면 아래 0.03) 를 잰 윗면 기준으로
+      } else {
+        out[k].x = cx + (c - 1) * kGrid;
+        out[k].y = cy + (1 - r) * kGrid;
+        out[k].z = z;
+      }
+    }
+    return meas != box_meas_.end() ? meas->second.frame : map_frame_;
+  }
+
+  void startVerifyRecord(const Step & s)
+  {
+    std::array<geometry_msgs::msg::Point, 9> pts;
+    const std::string frame = verifyCells(s, pts);
+    VerifyRecorder::Cells cells{};
+    for (int k = 0; k < 9; ++k) {cells[k] = {pts[k].x, pts[k].y, pts[k].z};}
+    std::lock_guard<std::mutex> lock(verify_rec_mutex_);
+    verify_rec_.start(cells, verify_region_margin_);
+    verify_rec_frame_ = frame;
+    verify_rec_since_ = view_since_;
+    verify_rec_started_ = true;
+  }
+
+  void stopVerifyRecord()
+  {
+    verify_rec_started_ = false;
+    std::lock_guard<std::mutex> lock(verify_rec_mutex_);
+    verify_rec_.stop();
+  }
+
+  bool laterVerify() const
+  {
+    for (size_t i = step_idx_ + 1; i < steps_.size(); ++i) {
+      if (steps_[i].type == "verify") {return true;}
+    }
+    return false;
+  }
+
+  static std::string intList(const std::vector<int> & v)
+  {
+    std::ostringstream o;
+    o << "[";
+    for (size_t i = 0; i < v.size(); ++i) {o << (i ? ", " : "") << v[i];}
+    o << "]";
+    return o.str();
+  }
+
+  // 장소 하나의 퍽 ID 기록 JSON (새 관측: 본 장 수 · 칸 · 태그 ID · 본 횟수 · 칸 좌표계와 지도 위치)
+  static std::string pucksJson(const std::vector<VerifyPuck> & recs, int frames, const std::string & frame)
+  {
+    std::ostringstream o;
+    o << std::fixed << std::setprecision(4) << "{\"frame\": \"" << frame << "\", \"frames\": " << frames << ", \"pucks\": [";
+    for (size_t i = 0; i < recs.size(); ++i) {
+      const auto & r = recs[i];
+      o << (i ? ", " : "") << "{\"cell\": " << r.cell << ", \"id\": " << r.tag_id << ", \"seen\": " << r.seen
+        << ", \"xy\": [" << r.x << ", " << r.y << "], \"map\": [" << r.mx << ", " << r.my << "], \"offset\": " << r.offset << "}";
+    }
+    o << "]}";
+    return o.str();
+  }
+
+  // 마지막 verify 뒤: 모든 장소 기록으로 ID 중복 · 누락 판정을 기록. 틀렸으면 true
+  bool logIdJudgement()
+  {
+    std::vector<int> expected(verify_expected_ids_.begin(), verify_expected_ids_.end());
+    const IdJudgement j = judge_ids(verify_records_, expected);
+    std::ostringstream o;
+    o << "\"places\": [";
+    bool first = true;
+    for (const auto & kv : verify_records_) {o << (first ? "" : ", ") << "\"" << kv.first << "\""; first = false;}
+    o << "], \"expected\": " << intList(expected) << ", \"read\": " << j.total << ", \"unread\": " << j.unread
+      << ", \"duplicate\": " << intList(j.duplicate) << ", \"missing\": " << intList(j.missing)
+      << ", \"unexpected\": " << intList(j.unexpected) << ", \"passed\": " << (j.passed ? "true" : "false");
+    logEvent("verify_ids", o.str());
+    if (j.passed) {
+      RCLCPP_INFO(get_logger(), "verify ids: %d read, no duplicate / missing", j.total);
+    } else {
+      RCLCPP_WARN(get_logger(), "verify ids: duplicate %s, missing %s, unexpected %s, unread %d", intList(j.duplicate).c_str(),
+        intList(j.missing).c_str(), intList(j.unexpected).c_str(), j.unread);
+    }
+    return !j.passed;
+  }
+
   void tickVerify()
   {
-    if (!watching_ || dice_pending_ || (now() - view_since_).seconds() < verify_settle_) {return;}
+    if (!watching_ || dice_pending_) {return;}
     const Step & s = steps_[step_idx_];
+    if (verify_record_ids_ && !verify_rec_started_) {startVerifyRecord(s);}   // 자세 · 모드가 선 뒤부터 퍽 ID 를 쌓음
+    if ((now() - view_since_).seconds() < verify_settle_) {return;}
     // 장소 태그: settle 뒤 marker_wait_s 까지 새로 본 태그를 기다림 (없어도 칸 판정은 함)
     std::string marker_json;
     bool marker_bad = false;
@@ -1658,32 +1833,33 @@ private:
       marker_json = markerJson(m, markerIdOf(s.args[0]), marker_bad);
     }
     auto req = std::make_shared<CheckDice::Request>();
-    req->header.frame_id = map_frame_;
-    const double cx = std::stod(s.args[1]), cy = std::stod(s.args[2]), z = std::stod(s.args[3]);
-    const auto meas = box_meas_.find(s.args[0]);   // 잰 장소면 그 상자 기준 칸 (#73)
-    if (meas != box_meas_.end()) {req->header.frame_id = meas->second.frame;}
+    std::array<geometry_msgs::msg::Point, 9> cells;
+    req->header.frame_id = verifyCells(s, cells);
     for (int k = 0; k < 9; ++k) {
-      const int r = k / 3, c = k % 3;          // 위 줄 (+Y) 부터, 줄 안은 -X 부터
-      if (meas != box_meas_.end()) {
-        const auto p = meas->second.cell((c - 1) * kGrid, (1 - r) * kGrid);
-        req->cells[k].x = p.first;
-        req->cells[k].y = p.second;
-        req->cells[k].z = meas->second.z - (place_top_z_ - z);   // 계획기 z (지도 윗면 아래 0.03) 를 잰 윗면 기준으로
-      } else {
-        req->cells[k].x = cx + (c - 1) * kGrid;
-        req->cells[k].y = cy + (1 - r) * kGrid;
-        req->cells[k].z = z;
-      }
+      req->cells[k] = cells[k];
       req->expect[k] = static_cast<uint8_t>(s.args[4][k] - '0');
     }
     req->yellow_shape = static_cast<uint8_t>(std::stoi(s.args[5]));
     req->tolerance = static_cast<float>(verify_tolerance_);
     if (!dice_client_->service_is_ready()) {failStep("/perception/check_dice not ready"); return;}
+    // 퍽 ID 기록은 여기서 끊는다 (check_dice 가 보는 퍽 목록과 같은 시점까지)
+    std::string pucks_json;
+    std::vector<VerifyPuck> recs;
+    if (verify_record_ids_) {
+      int frames = 0;
+      {
+        std::lock_guard<std::mutex> lock(verify_rec_mutex_);
+        verify_rec_.stop();
+        recs = verify_rec_.records(verify_id_min_seen_);
+        frames = verify_rec_.frames();
+      }
+      pucks_json = pucksJson(recs, frames, req->header.frame_id);
+    }
     dice_pending_ = true;
     const uint64_t id = stage_id_;
     const std::string place = s.args[0];
     dice_client_->async_send_request(req,
-      [this, id, place, marker_json, marker_bad](rclcpp::Client<CheckDice>::SharedFuture future) {
+      [this, id, place, marker_json, marker_bad, pucks_json, recs](rclcpp::Client<CheckDice>::SharedFuture future) {
         if (id != stage_id_) {return;}
         const auto r = future.get();
         std::ostringstream o;
@@ -1695,14 +1871,25 @@ private:
         }
         o << "]";
         if (!marker_json.empty()) {o << ", \"marker\": " << marker_json;}
+        if (!pucks_json.empty()) {o << ", \"ids\": " << pucks_json;}
         logEvent("verify", o.str());
-        RCLCPP_INFO(get_logger(), "verify %s: observed %d, passed %d (%s)", place.c_str(), r->observed, r->passed, r->message.c_str());
+        RCLCPP_INFO(get_logger(), "verify %s: observed %d, passed %d (%s), %zu puck record(s)", place.c_str(), r->observed, r->passed,
+          r->message.c_str(), recs.size());
+        bool ids_bad = false;
+        if (verify_record_ids_) {
+          verify_records_[place] = recs;   // 같은 장소를 다시 재면 덮어씀
+          if (!laterVerify()) {ids_bad = logIdJudgement();}
+        }
         if ((!r->observed || !r->passed) && verify_stop_on_fail_) {
           failStep("verify " + place + ": " + (r->observed ? r->message : "nothing observed"));
           return;
         }
         if (marker_bad && verify_stop_on_fail_) {
           failStep("verify " + place + ": place marker not seen or wrong id");
+          return;
+        }
+        if (ids_bad && verify_stop_on_fail_) {
+          failStep("verify " + place + ": puck id duplicate / missing");
           return;
         }
         stepSucceeded();
@@ -1789,6 +1976,7 @@ private:
     cancelAll();
     ++stage_id_;  // 늦게 오는 결과 무시
     watching_ = false;
+    stopVerifyRecord();
 
     // skill 실패 → fallback 단계로 대체 (한 번만)
     if (s.type == "skill" && !s.fallback.empty() && !fallback_used_[failed]) {
@@ -1843,6 +2031,7 @@ private:
     cancelAll();
     ++stage_id_;
     watching_ = false;
+    stopVerifyRecord();
     if (retry_pending_) {
       step_idx_ = retry_idx_;  // 재시도 대기 중이었으면 그 단계부터 재개
       retry_pending_ = false;
@@ -1866,6 +2055,7 @@ private:
     cancelAll();
     retry_pending_ = false;
     watching_ = false;
+    stopVerifyRecord();
     if (r != Run::IDLE || run_ != Run::IDLE) {
       logEvent("finish", "\"state\": \"" + std::string(r == Run::DONE ? "DONE" : r == Run::FAILED ? "FAILED" : "IDLE") +
         "\", \"reason\": \"" + escape(why) + "\"");
@@ -2091,6 +2281,17 @@ private:
   std::vector<int64_t> marker_ids_;
   bool verify_check_marker_{true}, marker_check_before_place_{false};
   double verify_marker_wait_{3.0};
+  // 퍽 ID 재검증 기록 (verify_record.hpp). verify_rec_* 는 /perception/pucks 콜백 (sensor 그룹) 과 같이 써서 verify_rec_mutex_ 로 보호
+  bool verify_record_ids_{true}, verify_rec_started_{false};
+  std::vector<int64_t> verify_expected_ids_;
+  int verify_id_min_seen_{2};
+  double verify_region_margin_{0.04};
+  std::mutex verify_rec_mutex_;
+  VerifyRecorder verify_rec_;
+  std::string verify_rec_frame_;
+  rclcpp::Time verify_rec_since_{0, 0, RCL_ROS_TIME};
+  std::map<std::string, std::vector<VerifyPuck>> verify_records_;   // 장소 -> 이번 미션 퍽 ID 기록
+  rclcpp::Subscription<PuckArray>::SharedPtr pucks_sub_;
   std::set<std::string> marker_checked_;   // 놓기 전 태그를 확인한 장소 (미션마다 초기화)
   // 장소 상자 재기 (#73)
   struct BoxMeas

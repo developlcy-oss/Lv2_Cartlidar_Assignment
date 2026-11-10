@@ -108,6 +108,14 @@ manipulator_node:
       # 퍽이 팔 카메라 화면 밖이라 (#82) false → 목표 = 직전 target_look 이 잰 위치 (없으면 perception 추적 위치) 그대로 집음
       use_alignment: false
       latch_max_age: 30.0        # s, target_look 이 잰 위치를 toppick_tilt 가 쓸 수 있는 시간
+      # 접근 경로 (2026-11-09 Isaac chain_pallet_eval 고정 동작 집기로 검증, urdf_and_usd/policy/manipulator/정책_학습기록.md 4.15 절):
+      #   top  = 잡는 점에서 위로 approach_height · J1 쪽으로 approach_inward 인 자리 (벌림) -> 잡는 점까지 직선 (집게 45° 유지)
+      #          실제 배치 A·B·C 이어서 84/88 (측정 오차 0) · 69/88 (σ 2 mm)
+      #   axis = 집게 축 반대로 approach_distance (이전, pick 과 같음). 같은 시험에서 48/88 (운반 중 미끄럼 많음)
+      approach_mode: top
+      approach_height: 0.05      # m
+      approach_inward: 0.03      # m
+      radial_offset: 0.002       # m, 잡는 점을 J1 에서 먼 쪽으로 -> 퍽이 손 안 반경 −2 mm 에 (칸 넣기 −4 ~ 0 mm 만 받음)
     # 강화학습 집기 (skill.policies 에 toppick_tilt 를 넣고 skill.enabled true 면 같은 이름의 고정 IK 동작 대신 정책).
     #   policies.yaml toppick_tilt (tcp_delta(4), 관측 36 = include/control/toppick_obs.hpp), IK = arm_diff_ik.hpp. 값은 Isaac toppick_env_cfg 와 같게
     toppick_rl:

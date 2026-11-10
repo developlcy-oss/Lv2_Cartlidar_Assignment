@@ -10,9 +10,10 @@
 #   use_sensors:=false — 카메라 · 라이다 드라이버를 띄우지 않는다 (sim:=true 면 기본 false: Isaac 브리지가 같은 토픽을 냄)
 #   use_tfmini:=false — TFmini(박스 거리) · obstacle_stop 을 띄우지 않고 twist_mux obstacle lock 도 뺀다 (TFmini 가 없는데 lock 이 있으면 늘 잠김)
 #
-#   미션 전체 (주사위 기억 로봇, plan 모드):
-#   ros2 launch bringup bringup.launch.py mission_source:=plan use_localization:=true use_nav2:=true
-#     mission_source:=plan — mission_node 에 mission_plan.yaml 을 덧씌우고 mission_planner_node(계획기)도 띄운다 (use_planner 기본 = plan 일 때)
+#   미션 전체 (주사위 기억 로봇, plan 모드 = 기본):
+#   ros2 launch bringup bringup.launch.py use_localization:=true use_nav2:=true
+#     mission_source:=plan (기본) — mission_node 에 mission_plan.yaml 을 덧씌우고 mission_planner_node(계획기)도 띄운다 (use_planner 기본 = plan 일 때)
+#     mission_source:=tag — 옛 태그 미션표 (mission_table.yaml) 만 불러오고 계획기는 띄우지 않는다
 #                            측량 결과 = 계획기 등록표가 같은 파일이 되게 pucks_file 하나로 둘 다 준다 (mission survey.pucks_out = planner pucks_file)
 #                            mission/mission_bringup.launch.py 를 같이 띄우지 말 것 (mission_node 가 둘이 됨)
 #     use_localization:=true — localization.launch.py (지도 · scan 합치기 · loc_monitor). use_loc_lock · use_loc_gate 기본도 이것을 따른다
@@ -68,11 +69,12 @@ def generate_launch_description():
         source = LaunchConfiguration('mission_source').perform(context)
         if source not in ('tag', 'plan'):
             raise RuntimeError(f'mission_source 는 tag 또는 plan: {source}')
-        mission_params = [PathJoinSubstitution([mis, 'config', 'mission.yaml']),
-                          PathJoinSubstitution([mis, 'config', 'mission_table.yaml'])]
+        mission_params = [PathJoinSubstitution([mis, 'config', 'mission.yaml'])]
         if source == 'plan':   # mission_bringup.launch.py source:=plan 과 같은 덧씌우기 + 측량 결과 경로 = 계획기 pucks_file
             mission_params += [PathJoinSubstitution([mis, 'config', 'mission_plan.yaml']),
                                {'survey.pucks_out': LaunchConfiguration('pucks_file')}]
+        else:                  # 옛 태그 미션표 (태그 → 단계 · 위치표). plan 모드는 쓰지 않음
+            mission_params.append(PathJoinSubstitution([mis, 'config', 'mission_table.yaml']))
         return [ComposableNodeContainer(
         name='control_container', namespace='', package='rclcpp_components',
         executable='component_container_mt', output='screen',
@@ -100,8 +102,8 @@ def generate_launch_description():
         DeclareLaunchArgument('use_perception', default_value='true', description='⑦ 카메라 3대 · 검출'),
         DeclareLaunchArgument('use_tfmini', default_value='true',
                               description='1층 TFmini(박스 거리) · obstacle_stop · twist_mux obstacle lock. 시뮬레이션 · TFmini 없음은 false'),
-        DeclareLaunchArgument('mission_source', default_value='tag',
-                              description='tag (미션표 mission_table.yaml) | plan (주사위 기억 로봇: mission_plan.yaml + 계획기)'),
+        DeclareLaunchArgument('mission_source', default_value='plan',
+                              description='plan (주사위 기억 로봇: mission_plan.yaml + 계획기) | tag (옛 태그 미션표 mission_table.yaml)'),
         DeclareLaunchArgument('use_planner',
                               default_value=PythonExpression(["'true' if '", LaunchConfiguration('mission_source'), "' == 'plan' else 'false'"]),
                               description='mission_planner_node (계획기). 기본: mission_source:=plan 이면 true'),

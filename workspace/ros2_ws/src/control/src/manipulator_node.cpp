@@ -30,6 +30,8 @@
 //     toppick_tilt                   박스 위 퍽을 집게 45° 로 집기 (pick 과 같은 과정, 기울기만 toppick.pitch).
 //                                    목표 = 직전 target_look 이 잰 위치, 없으면 ② 추적 위치. ① 정밀 정렬 결과 · 미세 보정은
 //                                    toppick.use_alignment 일 때만 (45° 는 집게 축이 퍽을 보지 않아 기본 끔, #82)
+//                                    접근 toppick.approach_mode top (기본): 잡는 점 위 · J1 쪽에서 벌린 채 직선으로 내려와 쥠,
+//                                    잡는 점은 J1 에서 먼 쪽으로 radial_offset (Isaac 검증 2026-11-09). axis = 집게 축 반대 (이전)
 //     pallet_load_<열>_<칸>_tilt      쥔 퍽을 팔레트 칸에 놓기 = pallet_place_traj.json 의 칸 궤적 (3 열 쥔 구간 0.4 rad/s, #75)
 //     pallet_unload_<열>_<칸>_tilt    팔레트 칸의 퍽을 집어 들기 = 놓기 궤적 거꾸로 (빈 집게로 rotate_back · return · retract 거꾸로
 //                                     → 0.3 s → 쥠 → place · carry · rotate 거꾸로 → q_front, 0.8 rad/s, Isaac pallet_unload 24/24)
@@ -318,6 +320,17 @@ private:
     // 접근 위치에서 퍽이 팔 카메라 화면 밖이라 (#82) 기본 끔 → 목표 = target_look 이 잰 위치 (없으면 ② 추적 위치) 그대로
     toppick_use_alignment_ = declare_parameter<bool>("toppick.use_alignment", false);
     toppick_latch_max_age_ = declare_parameter<double>("toppick.latch_max_age", 30.0);   // target_look 값 유효 시간 (s)
+    // 접근 경로 top | axis (2026-11-09 Isaac 검증: top 84/88 vs axis 48/88, manipulator.yaml 주석)
+    {
+      const auto mode = declare_parameter<std::string>("toppick.approach_mode", "top");
+      if (mode != "top" && mode != "axis") {
+        throw std::invalid_argument("toppick.approach_mode must be top or axis");
+      }
+      toppick_top_ = (mode == "top");
+    }
+    toppick_approach_height_ = declare_parameter<double>("toppick.approach_height", 0.05);
+    toppick_approach_inward_ = declare_parameter<double>("toppick.approach_inward", 0.03);
+    toppick_radial_offset_ = declare_parameter<double>("toppick.radial_offset", 0.002);
     // target_look 타겟체크자세 (#82, target_look_pose.hpp). 카메라 장착 = robot.urdf.xacro arm_camera_link
     target_look_.camera_x = declare_parameter<double>("target_look.camera_x", target_look_.camera_x);
     target_look_.camera_z = declare_parameter<double>("target_look.camera_z", target_look_.camera_z);
@@ -630,6 +643,8 @@ private:
     requirePositive("gripper.grasp_margin", grasp_margin_);
     requirePositive("toppick.approach_distance", toppick_approach_);
     requirePositive("toppick.latch_max_age", toppick_latch_max_age_);
+    requirePositive("toppick.approach_height", toppick_approach_height_);
+    requireNonNegative("toppick.approach_inward", toppick_approach_inward_);
     if (!rl_start_pose_.empty() && rl_start_pose_.size() != 5) {
       throw std::invalid_argument("toppick_rl.start_pose must be [joint1..joint5] (model values) or empty");
     }
@@ -1178,11 +1193,22 @@ private:
       return;
     }
 
-    // pitch 후보를 순서대로: 접근 위치 · 파지 위치 · 들어올린 위치가 모두 풀리는 첫 pitch
+    // toppick_tilt 의 top 접근 (pick 은 그대로 axis): 잡는 점을 J1 에서 먼 쪽으로 radial_offset,
+    // 접근 위치 = 잡는 점 위 approach_height · J1 쪽 approach_inward (Isaac 고정 동작 집기와 같은 경로)
+    const bool top = (job_ == Job::SKILL && toppick_top_);
+    pick_top_ = top;
     const double yaw = std::atan2(grasp.y(), grasp.x());
+    const Eigen::Vector3d radial(std::cos(yaw), std::sin(yaw), 0.0);   // J1 에서 먼 쪽 (수평)
+    if (top) {
+      grasp += radial * toppick_radial_offset_;
+    }
+
+    // pitch 후보를 순서대로: 접근 위치 · 파지 위치 · 들어올린 위치가 모두 풀리는 첫 pitch
     std::optional<std::vector<double>> q_pre;
     for (double pitch : pitches) {
-      const Eigen::Vector3d pre = grasp - ArmIK::approachDirection(yaw, pitch) * approach;
+      const Eigen::Vector3d pre = top ?
+        Eigen::Vector3d(grasp + Eigen::Vector3d::UnitZ() * toppick_approach_height_ - radial * toppick_approach_inward_) :
+        Eigen::Vector3d(grasp - ArmIK::approachDirection(yaw, pitch) * approach);
       auto q = solveArm(pre, pitch, *current);
       if (q && solveArm(grasp, pitch, *q) &&
         solveArm(grasp + Eigen::Vector3d::UnitZ() * lift_height_, pitch, *q))
@@ -1460,6 +1486,11 @@ private:
   void finalApproach()
   {
     step_ = PickStep::FINAL;
+    if (pick_top_) {   // top: 접근 위치 -> 잡는 점 직선 (집게 축 방향 거리 계산 없이)
+      RCLCPP_INFO(get_logger(), "final approach: top -> grasp point");
+      moveTool(grasp_pos_, [this]() {closeGripper();});
+      return;
+    }
     const Eigen::Vector3d dir =
       ArmIK::approachDirection(std::atan2(tool_pos_.y(), tool_pos_.x()), pitch_);
     double distance;
@@ -2609,6 +2640,8 @@ private:
   double toppick_pitch_{-M_PI_4}, toppick_approach_{0.06}, grasp_z_offset_{0.015};
   bool toppick_use_alignment_{false};
   double toppick_latch_max_age_{30.0};
+  bool toppick_top_{true}, pick_top_{false};   // toppick.approach_mode top · 지금 집기가 top 경로인지
+  double toppick_approach_height_{0.05}, toppick_approach_inward_{0.03}, toppick_radial_offset_{0.002};
   TargetLookParams target_look_;
   std::map<std::string, TargetLookParams> look_params_;   // box_look · barcode_look (#65)
   double target_look_settle_{0.3}, target_look_arm_wait_{1.0}, target_look_timeout_{3.0}, target_look_match_{0.04};

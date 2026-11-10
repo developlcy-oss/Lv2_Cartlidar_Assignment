@@ -324,6 +324,7 @@ public:
     marker_->set_max_width(static_cast<int>(declare_parameter("marker.detect_max_width", static_cast<int64_t>(0))));
     tag_->set_texture_pass(declare_parameter("tag.texture_pass", false));
     marker_->set_texture_pass(declare_parameter("marker.texture_pass", false));
+    marker_->set_track_full_every(static_cast<int>(declare_parameter("marker.track_full_every", static_cast<int64_t>(0))));
     for (auto id : declare_parameter<std::vector<int64_t>>("marker.ids", std::vector<int64_t>{})) {
       marker_ids_.push_back(static_cast<int>(id));
     }
@@ -1715,9 +1716,11 @@ private:
     std::vector<TagCorners> found;
     const bool find_places = ((mode & SetMode::Request::READ_TAG) && marker_->ok()) || (want_marker && T);
     if (find_places) {
-      found = marker_->find(u);
+      found = marker_->find_tracked(u, arm_tag_track_);
       places = marker_->solve(found, newK_, cv::Mat());
       keep_tag_ids(places, marker_ids_);
+    } else {
+      arm_tag_track_.reset();
     }
     if (mode & SetMode::Request::READ_TAG) {
       // 퍽 · 장소 태그는 계열과 검색 설정이 같고 크기(자세 계산)만 다르다. 같으면 한 번 찾은 결과를 퍽 크기로 다시 푼다
@@ -1986,6 +1989,7 @@ private:
   double engine_merge_iou_ = 0.7;   // 팔 엔진 박스: 같은 색 · 이 IoU 이상이면 점수 높은 하나만 (0 이면 끔)
   bool arm_class_filter_ = true;             // 팔 검출에 target_class 를 쓸지 (번호 뜻이 주 검출기와 같을 때만)
   std::unique_ptr<TagDetector> tag_, marker_;
+  TagTrack arm_tag_track_;   // 팔 카메라 태그 추적 (process_arm 만 씀, 처리 타이머 한 곳)
   std::vector<int> marker_ids_, tag_ids_;
   std::vector<HsvRange> hsv_;
   int blur_ksize_ = 3, morph_kernel_ = 3;

@@ -1,4 +1,4 @@
-# mission_node 설정 (Mission 팀) — 미션표는 mission_table.yaml
+# mission_node 설정 (Mission 팀) — 기본 실행 (plan 모드) 은 mission_plan.yaml 을 덧씌움, 옛 태그 미션표 mission_table.yaml 은 tag 모드에서만
 # 시작 · 정지: ros2 service call /mission/start std_srvs/srv/Trigger  (조이스틱 버튼은 joy_teleop이 같은 서비스 호출)
 #             ros2 service call /mission/stop std_srvs/srv/Trigger
 # E-stop · 진단 오류로 PAUSED가 되면 리셋 후 /mission/start로 재개 (자동 재개 없음)
@@ -41,7 +41,16 @@ mission_node:
 
     align:
       tolerance: 0.0             # 0 = drive 기본값 (align.default_tolerance)
-      coarse_distance: 0.45      # 먼 거리 정렬 목표 (m, 범퍼 기준, >= 0.3). TODO Controller와 맞출 것
+      # 먼 거리 정렬 (COARSE) 목표 [m] = 차체 앞 끝 → 퍽 중심. 퍽 위치는 앞 D435 (색 검출 + 깊이, base_link), 라이다 아님
+      #   drive align.coarse_min 0.30 이상. 아래 범위는 계산값 (Gazebo · 실물 확인 전)
+      #   plan 모드 시작 박스 (퍽 = 박스 중심, 면 → 퍽 0.1025): 대기 자리 standoff 0.40 · 0.45 → 앞 끝 → 퍽 0.50 · 0.55
+      #   하한 0.40: TFmini → 박스 면 ≈ 이 값 − 0.10. 0.35 면 TFmini 0.25 = obstacle_stop stop_m 이라 전진이 막힘
+      #              (COARSE 동안은 정지 거리를 낮추지 않음, FINE 만) → 여유 0.05 를 더함
+      #   상한 0.48: COARSE 는 목표보다 멀면 전진, 가까우면 후진. 대기 자리 (0.50) 에서 앞으로 다가가며 맞추려면
+      #              0.50 − 허용오차 0.02 이하. 더 크면 대기 자리에서 뒤로 물러남
+      #   READY 팔은 앞 끝보다 약 0.20 m 나오지만 앞 끝 앞쪽은 바닥 위 0.18 m 이상 (퍽 윗면 0.13) 이라 이 거리에서 닿지 않음
+      #   장소 (빈 상자) 는 따라갈 퍽이 없어 COARSE 가 "물체 놓침" 으로 실패함 → #160
+      coarse_distance: 0.45
     pick:
       require_grasped: true      # grasped=false면 실패 → 직전 search부터 재시도
 
@@ -56,5 +65,5 @@ mission_node:
       status_topic: /localization/status
       max_lost_s: 90.0           # ★ 실물에서 위치를 다시 찾는 데 걸리는 시간 보고 조정
 
-    # ---- plan 모드 (주사위 기억 로봇 발제 v5) — mission_bringup.launch.py source:=plan 이면 mission_plan.yaml 이 덮어씀 ----
-    mission_source: tag          # tag = 위 미션표 (태그 → 단계), plan = observe → plan (mission_planner_node 가 단계를 줌)
+    # ---- plan 모드 (주사위 기억 로봇 발제 v5) — bringup mission_source · mission_bringup source 기본 (plan) 이면 mission_plan.yaml 이 덮어씀 ----
+    mission_source: tag          # tag = 옛 미션표 mission_table.yaml (태그 → 단계), plan = observe → plan (mission_planner_node 가 단계를 줌)

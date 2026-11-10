@@ -17,7 +17,9 @@ colcon build --packages-select mission_planner && source install/setup.bash
 mission_make_maps                                   # worlds/dice_mission.sdf 가 바뀌면 (지도 · 자세표 다시)
 mission_plan --problem config/problem_q1_example.yaml --mode per_location --out /tmp/plan   # plan.json · signal.json · allocation.json
 mission_plan --problem <문제>.yaml --mode compare   # 두 운영 방식 비용 비교
-python3 -m pytest test                               # 시험 15 개 (할당 6 건 = 도전 B 형식, GTSP 최적성, 지도 · 자세, 계획)
+mission_submit --problem <문제>.yaml --out <저장소>/submission/review   # 발제 후 검토 제출물 5 종 (problem.md · signals.json · placement.csv · 할당 정답표 · 검증 기록)
+mission_challenge_b --out <저장소>/challenge/B      # 도전 B 제출물 (cases.json · expected.json · results.csv · report.md)
+python3 -m pytest test                               # 시험 19 개 (할당 6 건 = 도전 B 형식, GTSP 최적성, 지도 · 자세, 계획)
 ```
 
 문제 파일 (`config/problem_q1_example.yaml` 형식): `signal` (12 점멸), `barcode` (P2-01 ~ 04), `pucks` (id 0 ~ 11 · color red/green · shape cylinder/box · box 1 ~ 6 · side −1/+1).
@@ -73,7 +75,7 @@ Q1 예제 (설명용 색 · 모양): per_location 비용 66.5 (주행 44.5 m), s
 
 ```bash
 ros2 launch mission_planner planner.launch.py pucks_file:=<퍽 등록표>.yaml [mode:=per_location] [log_dir:=/tmp/mission_log]
-ros2 launch mission mission_bringup.launch.py source:=plan        # mission_plan.yaml 덧씌움 (기본 source:=tag 는 그대로)
+ros2 launch mission mission_bringup.launch.py                    # 기본 source:=plan = mission_plan.yaml 덧씌움 (옛 태그 미션표는 source:=tag)
 ros2 service call /mission/start std_srvs/srv/Trigger
 ```
 
@@ -87,10 +89,10 @@ robot_interfaces 는 바꾸지 않음 (동결). 계획 단계 (`mission_planner/
 | `approach 0.13` | 기존 approach (COARSE → READY → FINE, TFmini 하한 0.13) |
 | `skill manipulator <이름>` | /manipulator/execute_skill (manipulator_node). 집기 · 놓기는 모두 집게 45°: `target_look:base_footprint:x:y:z` (집기 전 팔 카메라로 퍽을 내려다보고 재서 붙잡음, 회전 뒤 예상 위치 `poses.puck_after_turn`, #82) → `toppick_tilt` (그 위치로 45° 집기), `pallet_load_<열>_<칸>_tilt`, `pallet_unload_<열>_<칸>_tilt` (속도 규칙 #75), `place_<L>_<dx>_<dy>_tilt` (dx, dy = m1 · 0 · p1) |
 | `skill drive turn_<p\|m>17` · `turn_0` | /drive/execute_skill — drive_node (#77, 실제 회전 중심 보정 `base.icr_x` = control robot_geometry.yaml). 상자 퍽을 집기 전 FINE 정렬 방향에서 로봇 중심 둘레로 ±17° 제자리 회전 (J1→퍽 = 박스 축 = 퍽 면, ±3°), 집고 실은 뒤 `turn_0` 으로 되돌림. inline (박스 6) 은 회전 없음 |
-| `verify L cx cy z expect9 yshape` | 팔 TAG_VIEW → READ_TAG+SEARCH_FRONT → /perception/check_dice (지도 좌표 칸) → 기록, 틀려도 계속 (stop_on_fail false) |
+| `verify L cx cy z expect9 yshape` | 팔 TAG_VIEW → READ_TAG+SEARCH_FRONT → /perception/check_dice (지도 좌표 칸) + /perception/pucks 로 칸별 퍽 ID · 위치 → 기록, 틀려도 계속 (stop_on_fail false) |
 | `wait 3` | 복귀 뒤 정지 |
 
-기록: 계획기 log_dir 에 signal.json · allocation.json · plan.json · mission_lines.txt, mission_node log_dir 에 mission_log.jsonl (observe · plan · verify · finish).
+기록: 계획기 log_dir 에 signal.json · allocation.json · plan.json · mission_lines.txt, mission_node log_dir 에 mission_log.jsonl (observe · plan · verify (칸 판정 · 칸별 퍽 ID · 위치) · verify_ids (마지막 verify 뒤 12 개 ID 중복 · 누락 판정) · finish).
 실패: 점멸 MISMATCH · 미등록 바코드 · 풀 수 없는 문제 = 재시도 없이 FAILED (발제: 오류 기록 후 안전 정지). 그 밖의 단계는 max_retries 재시도.
 
 연동 시험 (`test/mock_robot.py` = 가짜 drive · manipulator · perception): Q1 예제로 /mission/start → DONE (단계 93, 주행 18 · 정렬 30 · drive skill 8 (turn) · manipulator skill 48 · check_dice 3, 26 s),
