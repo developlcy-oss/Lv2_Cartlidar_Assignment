@@ -66,6 +66,7 @@ flowchart LR
   MIS -->|/drive/navigate · align · execute_skill| DRV
   MIS -->|/manipulator/pose · pick · execute_skill| MAN
   MIS -->|/perception/set_mode · check_dice srv| PER
+  MIS -->|/perception/snapshot| PER
   DRV -->|navigate_to_pose| NAV -->|/cmd_vel_nav| MUX
   DRV -->|/cmd_vel_drive| MUX -->|/cmd_vel| HW
   MAN -->|follow_joint_trajectory · gripper_cmd| HW
@@ -143,7 +144,7 @@ OK · SUSPECT 가 아니면 `/localization/lock` 으로 Nav2 속도만 막고, m
 
 | 파일 | 만드는 곳 | 내용 |
 |---|---|---|
-| `signal.json` · `allocation.json` · `plan.json` · `mission_lines.txt` | mission_planner_node `log_dir` | 관측한 색 12 개 · 횟수 · 바코드, 그룹 · 할당, 계획 단계 |
-| `mission_log.jsonl` | mission_node `log_dir` | observe · survey · plan · verify (칸 판정 + 새로 본 장소 태그 ID · 위치) · finish |
-| `pucks_survey.yaml` | mission_node (survey_finish) | 실제 측량한 퍽 등록표 → 계획기 입력 |
-| 이동 전후 이미지 · 영상 | **없음 (미구현)** | 발제 Q1 기록 항목. rosbag 또는 스냅샷 저장 필요 |
+| `signal.json` · `allocation.json` · `plan.json` · `mission_lines.txt` | 계획기 `log_dir` = `<log_dir>/planner`, plan 성공 뒤 에피소드 폴더 `planner/` 로 사본 | 관측한 색 12 개 · 횟수 · 바코드, 그룹 · 할당, 계획 단계 |
+| `mission_log.jsonl` | 미션마다 `<log_dir>/<YYMMDD_HHMM>/` (bringup 기본 `~/Lv2_Cartlidar_Assignment/mission_log`) | observe · survey · plan · verify (칸 판정 · 칸별 퍽 ID · 위치) · verify_ids (ID 중복 · 누락) · snapshot · copy · finish |
+| `pucks_survey.yaml` | `<log_dir>/pucks_survey.yaml` (mission_node survey_finish), survey 성공 뒤 에피소드 폴더에 사본 | 실제 측량한 퍽 등록표 → 계획기 입력 |
+| 이동 전후 이미지 | 에피소드 폴더 `images/`, 팔 카메라 사건당 3 장 (`/perception/snapshot`, perception 이 READ_TAG · ARM_ALIGN 모드일 때) | 이동 전 `NN_before_r<회차>_B<박스>_<k>.jpg` (survey_view), 이동 후 `NN_after_<L>_<k>.jpg` (verify). 전체 영상은 따로 |
