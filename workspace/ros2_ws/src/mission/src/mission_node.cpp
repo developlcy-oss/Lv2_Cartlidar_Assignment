@@ -5,7 +5,7 @@
 // - 바퀴는 drive_node, 팔은 manipulator_node에 Action으로 맡긴다. /cmd_vel · 관절 명령은 내지 않는다
 // - 자세 값은 manipulator가 정한다. 정렬 거리는 미션 파라미터로 drive에 넘긴다 (align.coarse_distance · 미션표 approach <거리>)
 // - robot_interfaces는 팀 공용 정의를 그대로 쓴다 (이 노드 때문에 바꾸지 않는다)
-// - 병렬은 센서와 무관한 동작만 (navigate 중 팔 STOW). 정렬은 팔 동작이 끝난 뒤
+// - 병렬은 센서와 무관한 동작만 (navigate 중 팔 주행 자세 arm.travel_pose). 정렬은 팔 동작이 끝난 뒤
 // - 실패 · 타임아웃: 진행 중 goal 전부 cancel → 단계별 max_retries회 재시도 후 FAILED
 //   pick 실패 · 빈손은 직전 search부터, skill 실패는 fallback 단계로 대체 (한 번)
 //   skill manipulator toppick_tilt 실패는 바로 앞 target_look 부터 (퍽 위치를 다시 재야 같은 퍽을 집음, #69)
@@ -18,10 +18,10 @@
 // - 결과를 콜백 안에서 기다리지 않는다. 각 결과는 result 콜백에서 처리한다
 //
 // 단계 문법 (mission_table.yaml의 missions.tag_<id> 문자열 배열)
-//   navigate <location>          locations.<name> = [x, y, yaw]로 주행 + 팔 STOW (병렬)
-//   search                        STOW → set_mode(OFF) → set_mode(SEARCH_FRONT | SEARCH_REAR),
+//   navigate <location>          locations.<name> = [x, y, yaw]로 주행 + 팔 주행 자세 (병렬)
+//   search                        주행 자세 → set_mode(OFF) → set_mode(SEARCH_FRONT | SEARCH_REAR),
 //                                 object_found 연속 확인, 없으면 제자리 회전
-//   approach <distance>           STOW → SEARCH_FRONT → align COARSE → READY → SEARCH_FRONT | ARM_ALIGN | READ_TAG → align FINE
+//   approach <distance>           주행 자세 → SEARCH_FRONT → align COARSE → READY → SEARCH_FRONT | ARM_ALIGN | READ_TAG → align FINE
 //                                 <distance> = 1층 TFmini 렌즈 → 퍽이 놓인 박스 앞면 [m] (>= 0.13: 최소 측정 0.10 + 정지 여유)
 //   pick                          SEARCH_FRONT | ARM_ALIGN | READ_TAG 유지, /manipulator/pick (grasped 확인)
 //                                 READ_TAG: perception 이 Arducam 태그로 /arm_range (팔 끝 → 퍽) 를 정밀하게 낸다
@@ -326,6 +326,8 @@ private:
     declare_parameter<bool>("auto_start", false);
     map_frame_ = declare_parameter<std::string>("map_frame", "map");
     base_frame_ = declare_parameter<std::string>("base_frame", "base_link");
+    // 주행 · 탐색 · 접근 시작 때 팔 자세 (manipulator poses 이름). 주행 중 팔 = 주행 자세 (#114 → #144). STOW 는 전원 끄기 전 대기 자세
+    travel_pose_ = declare_parameter<std::string>("arm.travel_pose", "DRIVE");
     behavior_tree_ = declare_parameter<std::string>("behavior_tree", "");
 
     // 위치표: locations.names = [home, L1, ...], locations.<name> = [x, y, yaw(rad)] (map = 발제 좌표, base_link 자세)
@@ -1104,17 +1106,17 @@ private:
       // TAG_VIEW는 앞 단계에서 완료. 태그 모드를 켜고 tickReadTag에서 확인 · 회전
       setModeThen(Mode::READ_TAG, [this]() {beginWatch();});
     } else if (s.type == "navigate") {
-      // 주행 + 팔 STOW 병렬 (센서와 무관한 동작)
+      // 주행 + 팔 주행 자세 병렬 (센서와 무관한 동작)
       const uint64_t id = stage_id_;
       sendNavigate(locations_.at(s.args[0]));
       if (id != stage_id_) {return;}
-      sendArmPose("STOW");
+      sendArmPose(travel_pose_);
     } else if (s.type == "search") {
-      // ① STOW 완료 → ② OFF(추적 초기화) → ③ SEARCH_FRONT | SEARCH_REAR → tickSearch
-      sendArmPose("STOW");
+      // ① 주행 자세 완료 → ② OFF(추적 초기화) → ③ SEARCH_FRONT | SEARCH_REAR → tickSearch
+      sendArmPose(travel_pose_);
     } else if (s.type == "approach") {
-      // ① STOW 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ READY → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
-      sendArmPose("STOW");
+      // ① 주행 자세 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ READY → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
+      sendArmPose(travel_pose_);
     } else if (s.type == "pick") {
       // 바퀴는 정지 유지. approach FINE 과 같은 모드 (추적 위치 + arm_offset + 태그 → /arm_range)
       drive_done_ = true;
@@ -1123,7 +1125,7 @@ private:
       const uint64_t id = stage_id_;
       sendNavigate({std::stod(s.args[0]), std::stod(s.args[1]), std::stod(s.args[2])});
       if (id != stage_id_) {return;}
-      sendArmPose("STOW");
+      sendArmPose(travel_pose_);
     } else if (s.type == "pick_target") {
       drive_done_ = true;
       geometry_msgs::msg::PoseStamped target;
@@ -1204,7 +1206,7 @@ private:
     ++phase_;
     if (s.type == "search") {
       if (phase_ == 1) {
-        // STOW 완료 → OFF로 perception 추적 초기화 → 앞뒤 탐색
+        // 주행 자세 완료 → OFF로 perception 추적 초기화 → 앞뒤 탐색
         setModeThen(Mode::OFF, [this]() {
             setModeThen(Mode::SEARCH_FRONT | Mode::SEARCH_REAR, [this]() {beginWatch();});
           });
@@ -1231,7 +1233,7 @@ private:
       setModeThen(*parseModeNames(place_box_mode_text_), [this]() {beginWatch();});
     } else if (s.type == "approach") {
       switch (phase_) {
-        case 1:  // STOW 완료 → 전방 탐색만 켜고 먼 거리 정렬 (drive는 ARM_ALIGN 비트가 없으면 먼 거리 모드)
+        case 1:  // 주행 자세 완료 → 전방 탐색만 켜고 먼 거리 정렬 (drive는 ARM_ALIGN 비트가 없으면 먼 거리 모드)
           setModeThen(Mode::SEARCH_FRONT, [this]() {sendAlign(AlignStage::COARSE, coarse_distance_);});
           break;
         case 2:  // COARSE 완료 → 팔 READY
@@ -2091,7 +2093,7 @@ private:
     ++count;
     size_t target = failed;
     if (s.type == "pick") {
-      // pick 실패(IK 해 없음 · 빈손 등)는 직전 search부터: search가 STOW · 추적 초기화부터 다시 한다
+      // pick 실패(IK 해 없음 · 빈손 등)는 직전 search부터: search가 주행 자세 · 추적 초기화부터 다시 한다
       for (size_t i = failed; i-- > 0;) {
         if (steps_[i].type == "search") {target = i; break;}
       }
@@ -2357,6 +2359,7 @@ private:
   // ------------------------------------------------------------------ 멤버
   // 파라미터
   std::string map_frame_, base_frame_, behavior_tree_;
+  std::string travel_pose_{"DRIVE"};
   std::map<std::string, std::vector<double>> locations_;
   std::map<int, std::vector<Step>> missions_;
   std::map<std::string, double> timeout_;

@@ -29,10 +29,12 @@ manipulator_node:
 
     # 이름 자세 [joint1~5, 6 번째] (rad). gripper.mode=arm_joint 면 6 번째는 쓰지 않고 지금 그리퍼 명령을 유지
     poses:
-      names: [STOW, READY, PLACE, TAG_VIEW, BOX_VIEW, TRANSIT_TILT]
-      # STOW = arm_bench 대기 자세 (J1 1008 · J2 691 · J3 3057 · J4 835 · J5 2039 · 그리퍼 2650 tick,
-      #   docs/arm_bench_test_2026-10-27.md) = (tick − 2048) × 2π/4096. 펌웨어 ARM_DIR 모두 +1 이라 부호 그대로 (#83)
-      STOW: [-1.5953, -2.0816, 1.5478, -1.8607, -0.0138, 0.923]
+      names: [STOW, DRIVE, READY, PLACE, TAG_VIEW, BOX_VIEW, TRANSIT_TILT]
+      # STOW = 실물 대기 자세 (#166 · #144): J1 +90° 쪽, 차체 오른쪽 위에 접힘. 값 = opencr.ros2_control.xacro
+      #   arm_standby_min_tick · max_tick 의 가운데 = (tick − 2048) × 2π/4096. 전원을 끄기 전 이 자세로 접어 둠 (켤 때 이 범위 밖이면 하드웨어가 거부)
+      STOW: [1.554, -2.088, 1.549, -1.868, 0.043, 0.923]
+      # 주행 자세 (#114 → #144): 주행 중 팔. 대기 → 주행은 J3 → J2 → J1 → J4 한 관절씩 실물 확인 (0.1 rad/s, #165)
+      DRIVE: [-0.0245, -1.6122, 1.2901, 1.1888, 0.0, 0.923]
       READY: [0.0, 0.6, -1.2, -0.9, 0.0, 0.0]
       PLACE: [1.57, 0.4, -0.8, -1.1, 0.0, 0.0]
       TAG_VIEW: [0.0, 0.9, -1.4, 0.2, 0.0, 0.0]   # TODO 현장에서 태그가 보이도록 조정
@@ -41,6 +43,19 @@ manipulator_node:
       #   ↑ 범퍼 → 면 0.02 m 가정. FINE 0.127 m 자리에서는 장소 중심보다 0.12 m 앞을 봄 → mission verify 는 box_look (#65)
       # 팔레트 궤적 이동 자세 (pallet_place_traj.json transit q_front_tilt, 집게 45°). place 뒤 이 자세로 돌아옴
       TRANSIT_TILT: [0.0, -1.32032, 0.67766, 1.42805, 0.0, 0.0]
+
+    # 켜질 때 정리 자세 (include/control/startup_stow.hpp, #144). 켤 때는 늘 대기 자세 (STOW) 에서 시작하므로 (#166) 한 번 주행 자세로 편다.
+    #   arm_controller 준비 · 팔 HOLD 해제 (리셋 버튼 = REARM, /diagnostics opencr/motors arm_hold 0) 뒤에 시작.
+    #   HOLD 중에 보낸 명령은 펌웨어가 무시하다가 REARM 순간 그 자리로 한 번에 튀므로 HOLD 가 풀리기 전에는 보내지 않는다.
+    #   그 전에 pose · pick · skill goal 을 받으면 하지 않음. 정리 중에 오는 goal 은 거절 (mission 은 재시도)
+    #   ★ 충돌로 관절이 반 바퀴 돌아간 경우는 자동으로 풀지 않음 (회전 방향을 몰라 케이블이 감길 수 있음) — 손으로 되돌림
+    startup:
+      pose: DRIVE                # poses.names 중 하나. 빈 문자열 = 끔
+      stages: ["3", "2", "1", "4", "5,6"]   # 관절 번호 묶음 순서 (6 = 그리퍼). 대기 → 주행 = J3 → J2 → J1 → J4 (#165 실물 확인한 순서)
+      max_joint_velocity: 0.1    # rad/s (#165 실물 확인한 값, 확인 뒤 0.2)
+      skip_tolerance: 0.05       # rad, 묶음 관절이 모두 이 안이면 그 묶음은 건너뜀
+      diag_wait: 5.0             # s, opencr 진단이 이 동안 한 번도 안 오면 (시뮬레이션 · mock) HOLD 확인 없이 진행
+      warn_after: 15.0           # s, 이만큼 기다려도 arm_controller · /joint_states 가 없으면 경고 (관절 한계 밖 · OpenCR 활성화 실패)
 
     # 그리퍼: 실물은 6 번째 칸 gripper_roll 이 개폐 모터 (ID 15) → arm_joint (arm_controller 궤적의 6 번째 값)
     gripper:
