@@ -198,3 +198,146 @@ TEST(ReadTag, TexturePassFindsNarrowMarginTagOnTexturedFloor)
   cv::Mat blank(480, 640, CV_8UC3, cv::Scalar(120, 120, 120));
   EXPECT_TRUE(d435.detect(blank, K(), cv::Mat()).empty());
 }
+
+namespace
+{
+// 팔 카메라처럼 1280 폭을 640 으로 줄여 찾는 검출기
+TagDetector arm_finder(int full_every)
+{
+  TagDetector d("tag36h11", 0.048);
+  d.set_max_width(640);
+  d.set_track_full_every(full_every);
+  return d;
+}
+
+cv::Mat arm_scene() {return cv::Mat(720, 1280, CV_8UC3, cv::Scalar(230, 230, 230));}
+
+void draw_bgr(cv::Mat & bgr, int id, double size_m, int cx, int cy)
+{
+  cv::Mat gray;
+  cv::cvtColor(bgr, gray, cv::COLOR_BGR2GRAY);
+  draw_tag(gray, id, size_m, cx, cy);
+  cv::cvtColor(gray, bgr, cv::COLOR_GRAY2BGR);
+}
+
+cv::Point2f mid(const TagCorners & t)
+{
+  cv::Point2f c(0.f, 0.f);
+  for (const auto & p : t.corners) {c += p * .25f;}
+  return c;
+}
+}  // namespace
+
+// 첫 영상은 전체 검색, 같은 영상의 둘째는 둘레만 찾는데 번호 · 꼭짓점이 전체 검색과 같아야 한다
+TEST(ReadTag, TrackMatchesFullSearch)
+{
+  auto d = arm_finder(15);
+  cv::Mat img = arm_scene();
+  draw_bgr(img, 3, 0.048, 640, 360);
+  TagTrack track;
+  const auto full = d.find(img);
+  ASSERT_EQ(full.size(), 1u);
+  EXPECT_EQ(d.find_tracked(img, track).size(), 1u);
+  EXPECT_EQ(track.since_full, 0);
+  const auto again = d.find_tracked(img, track);
+  EXPECT_EQ(track.since_full, 1);
+  ASSERT_EQ(again.size(), 1u);
+  EXPECT_EQ(again[0].id, 3);
+  for (int k = 0; k < 4; ++k) {EXPECT_LT(cv::norm(again[0].corners[k] - full[0].corners[k]), 1.0);}
+}
+
+// 팔이 움직여 태그가 둘레 안에서 옮겨도 새 자리를 낸다
+TEST(ReadTag, TrackFollowsMovedTag)
+{
+  auto d = arm_finder(15);
+  cv::Mat a = arm_scene(), b = arm_scene();
+  draw_bgr(a, 5, 0.048, 640, 360);
+  draw_bgr(b, 5, 0.048, 680, 340);
+  TagTrack track;
+  ASSERT_EQ(d.find_tracked(a, track).size(), 1u);
+  const auto moved = d.find_tracked(b, track);
+  ASSERT_EQ(moved.size(), 1u);
+  EXPECT_EQ(track.since_full, 1);   // 전체 검색이 아니라 추적으로 찾음
+  EXPECT_LT(cv::norm(mid(moved[0]) - cv::Point2f(680.f, 340.f)), 2.0);
+}
+
+// 둘레 밖으로 튀면 이번 장은 못 찾고 다음 장 전체 검색에서 찾는다
+TEST(ReadTag, TrackLostThenFullSearch)
+{
+  auto d = arm_finder(15);
+  cv::Mat a = arm_scene(), b = arm_scene();
+  draw_bgr(a, 7, 0.048, 300, 200);
+  draw_bgr(b, 7, 0.048, 900, 500);
+  TagTrack track;
+  ASSERT_EQ(d.find_tracked(a, track).size(), 1u);
+  EXPECT_TRUE(d.find_tracked(b, track).empty());
+  EXPECT_TRUE(track.tags.empty());
+  const auto again = d.find_tracked(b, track);
+  ASSERT_EQ(again.size(), 1u);
+  EXPECT_LT(cv::norm(mid(again[0]) - cv::Point2f(900.f, 500.f)), 2.0);
+}
+
+// 태그가 둘일 때 하나만 놓쳐도 찾은 것은 내고 다음 장은 전체 검색
+TEST(ReadTag, TrackPartialLossKeepsFoundAndResets)
+{
+  auto d = arm_finder(15);
+  cv::Mat a = arm_scene(), b = arm_scene();
+  draw_bgr(a, 1, 0.048, 300, 300);
+  draw_bgr(a, 2, 0.048, 900, 300);
+  draw_bgr(b, 1, 0.048, 300, 300);
+  TagTrack track;
+  ASSERT_EQ(d.find_tracked(a, track).size(), 2u);
+  const auto got = d.find_tracked(b, track);
+  ASSERT_EQ(got.size(), 1u);
+  EXPECT_EQ(got[0].id, 1);
+  EXPECT_TRUE(track.tags.empty());
+}
+
+// 추적 중 새로 보인 태그는 둘레 밖이라 안 잡히고, 주기 전체 검색에서 잡힌다 (full_every = 3: 전체 · 추적 · 추적 · 전체)
+TEST(ReadTag, TrackPeriodicFullSearchFindsNewTag)
+{
+  auto d = arm_finder(3);
+  cv::Mat a = arm_scene(), b = arm_scene();
+  draw_bgr(a, 1, 0.048, 300, 300);
+  draw_bgr(b, 1, 0.048, 300, 300);
+  draw_bgr(b, 2, 0.048, 900, 300);
+  TagTrack track;
+  EXPECT_EQ(d.find_tracked(a, track).size(), 1u);
+  EXPECT_EQ(d.find_tracked(b, track).size(), 1u);
+  EXPECT_EQ(d.find_tracked(b, track).size(), 1u);
+  EXPECT_EQ(d.find_tracked(b, track).size(), 2u);
+}
+
+// 추적을 끄거나 줄이지 않는 영상(D435 640 폭)은 매번 전체 검색: 태그가 멀리 튀어도 바로 찾는다
+TEST(ReadTag, TrackOffOrUnshrunkIsAlwaysFullSearch)
+{
+  auto off = arm_finder(0);
+  cv::Mat a = arm_scene(), b = arm_scene();
+  draw_bgr(a, 7, 0.048, 300, 200);
+  draw_bgr(b, 7, 0.048, 900, 500);
+  TagTrack track;
+  EXPECT_EQ(off.find_tracked(a, track).size(), 1u);
+  EXPECT_EQ(off.find_tracked(b, track).size(), 1u);
+  EXPECT_TRUE(track.tags.empty());
+
+  auto d435 = arm_finder(15);
+  cv::Mat c(480, 640, CV_8UC3, cv::Scalar(230, 230, 230)), e = c.clone();
+  draw_bgr(c, 7, 0.048, 150, 150);
+  draw_bgr(e, 7, 0.048, 480, 330);
+  EXPECT_EQ(d435.find_tracked(c, track).size(), 1u);
+  EXPECT_EQ(d435.find_tracked(e, track).size(), 1u);
+  EXPECT_TRUE(track.tags.empty());
+}
+
+// 줄여 찾는 영상에서 절반 해상도 사각형 찾기 · 2배 윤곽만으로도 퍽 태그 크기(16 mm, 48 px)를 찾고, 빈 장면에서는 아무것도 안 낸다
+TEST(ReadTag, ShrunkSearchFindsPuckSizeTagAndNothingOnBlank)
+{
+  auto d = arm_finder(0);
+  d.set_texture_pass(true);
+  cv::Mat img = arm_scene();
+  draw_bgr(img, 9, 0.016, 640, 360);
+  const auto got = d.find(img);
+  ASSERT_EQ(got.size(), 1u);
+  EXPECT_EQ(got[0].id, 9);
+  EXPECT_TRUE(d.find(arm_scene()).empty());
+}
