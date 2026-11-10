@@ -1,4 +1,4 @@
-# mission_node 설정 (Mission 팀) — 미션표는 mission_table.yaml
+# mission_node 설정 (Mission 팀) — 기본 실행 (plan 모드) 은 mission_plan.yaml 을 덧씌움, 옛 태그 미션표 mission_table.yaml 은 tag 모드에서만
 # 시작 · 정지: ros2 service call /mission/start std_srvs/srv/Trigger  (조이스틱 버튼은 joy_teleop이 같은 서비스 호출)
 #             ros2 service call /mission/stop std_srvs/srv/Trigger
 # E-stop · 진단 오류로 PAUSED가 되면 리셋 후 /mission/start로 재개 (자동 재개 없음)
@@ -56,5 +56,5 @@ mission_node:
       status_topic: /localization/status
       max_lost_s: 90.0           # ★ 실물에서 위치를 다시 찾는 데 걸리는 시간 보고 조정
 
-    # ---- plan 모드 (주사위 기억 로봇 발제 v5) — mission_bringup.launch.py source:=plan 이면 mission_plan.yaml 이 덮어씀 ----
-    mission_source: tag          # tag = 위 미션표 (태그 → 단계), plan = observe → plan (mission_planner_node 가 단계를 줌)
+    # ---- plan 모드 (주사위 기억 로봇 발제 v5) — bringup mission_source · mission_bringup source 기본 (plan) 이면 mission_plan.yaml 이 덮어씀 ----
+    mission_source: tag          # tag = 옛 미션표 mission_table.yaml (태그 → 단계), plan = observe → plan (mission_planner_node 가 단계를 줌)
