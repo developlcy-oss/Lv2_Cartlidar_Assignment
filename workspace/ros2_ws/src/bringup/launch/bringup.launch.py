@@ -15,6 +15,9 @@
 #     mission_source:=plan (기본) — mission_node 에 mission_plan.yaml 을 덧씌우고 mission_planner_node(계획기)도 띄운다 (use_planner 기본 = plan 일 때)
 #     mission_source:=tag — 옛 태그 미션표 (mission_table.yaml) 만 불러오고 계획기는 띄우지 않는다
 #                            측량 결과 = 계획기 등록표가 같은 파일이 되게 pucks_file 하나로 둘 다 준다 (mission survey.pucks_out = planner pucks_file)
+#     log_dir:=<경로>        — 미션 기록 루트 (기본 ~/Lv2_Cartlidar_Assignment/mission_log, 앞 ~ = HOME). 미션마다 <log_dir>/<YYMMDD_HHMM>/
+#                            (mission_log.jsonl · images/ 이동 전후 사진 · planner/ 계획기 기록 사본 · 퍽 등록표 사본).
+#                            계획기 log_dir = <log_dir>/planner, pucks_file 기본 = <log_dir>/pucks_survey.yaml. 빈 값이면 기록 안 함
 #                            mission/mission_bringup.launch.py 를 같이 띄우지 말 것 (mission_node 가 둘이 됨)
 #     use_localization:=true — localization.launch.py (지도 · scan 합치기 · loc_monitor). use_loc_lock · use_loc_gate 기본도 이것을 따른다
 #     use_nav2:=true        — navigation/navigation.launch.py (Smac 2D · RotationShim + MPPI → /cmd_vel_nav) 를 use_localization:=false 로.
@@ -33,6 +36,8 @@
 # 센서 드라이버 (use_sensors) : bringup/sensors.launch.py — D435 두 대 · 팔 Arducam · LDS-03 두 대 (TFmini 는 위 ⑧)
 # 위치 추정 (use_localization) : localization/localization.launch.py · 계획기 (use_planner) : mission_planner/planner.launch.py
 # 주행 (use_nav2) : navigation/navigation.launch.py (마지막 출력만 /cmd_vel_nav → twist_mux)
+import os
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
 from launch.conditions import IfCondition
@@ -65,14 +70,25 @@ def generate_launch_description():
     # loc_monitor 없이 띄우면 /localization/status 가 없음 → drive navigate 위치 확인 끔 (켜 두면 60 s 기다리다 실패, #121)
     loc_gate = {'navigate.loc_gate.enabled': ParameterValue(LaunchConfiguration('use_loc_gate'), value_type=bool)}
 
+    # 기록 루트 · 퍽 등록표 경로 (앞 ~ 를 풀어서 mission · 계획기에 같은 값을 넘김)
+    def log_paths(context):
+        log_dir = os.path.expanduser(LaunchConfiguration('log_dir').perform(context))
+        pucks = os.path.expanduser(LaunchConfiguration('pucks_file').perform(context))
+        if not pucks:
+            if not log_dir:
+                raise RuntimeError('pucks_file 이 비었으면 log_dir 이 있어야 함 (등록표 = <log_dir>/pucks_survey.yaml)')
+            pucks = os.path.join(log_dir, 'pucks_survey.yaml')
+        return log_dir, pucks
+
     def control_container(context):
         source = LaunchConfiguration('mission_source').perform(context)
         if source not in ('tag', 'plan'):
             raise RuntimeError(f'mission_source 는 tag 또는 plan: {source}')
         mission_params = [PathJoinSubstitution([mis, 'config', 'mission.yaml'])]
         if source == 'plan':   # mission_bringup.launch.py source:=plan 과 같은 덧씌우기 + 측량 결과 경로 = 계획기 pucks_file
+            log_dir, pucks = log_paths(context)
             mission_params += [PathJoinSubstitution([mis, 'config', 'mission_plan.yaml']),
-                               {'survey.pucks_out': LaunchConfiguration('pucks_file')}]
+                               {'survey.pucks_out': pucks, 'log_dir': log_dir}]
         else:                  # 옛 태그 미션표 (태그 → 단계 · 위치표). plan 모드는 쓰지 않음
             mission_params.append(PathJoinSubstitution([mis, 'config', 'mission_table.yaml']))
         return [ComposableNodeContainer(
@@ -94,6 +110,18 @@ def generate_launch_description():
                            condition=IfCondition(LaunchConfiguration('use_tfmini'))),
         ])]
 
+    def planner(context):   # 계획기: mission 과 같은 등록표, 기록은 <log_dir>/planner (mission 이 plan 성공 뒤 에피소드 폴더로 복사)
+        if LaunchConfiguration('use_planner').perform(context).lower() != 'true':
+            return []
+        log_dir, pucks = log_paths(context)
+        args = {'use_sim_time': LaunchConfiguration('use_sim_time'), 'pucks_file': pucks,
+                'mode': LaunchConfiguration('planner_mode')}
+        if log_dir:
+            args['log_dir'] = os.path.join(log_dir, 'planner')
+        return [IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([mpl, 'launch', 'planner.launch.py'])),
+            launch_arguments=args.items())]
+
     return LaunchDescription([
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
         DeclareLaunchArgument('sim', default_value='false',
@@ -107,8 +135,11 @@ def generate_launch_description():
         DeclareLaunchArgument('use_planner',
                               default_value=PythonExpression(["'true' if '", LaunchConfiguration('mission_source'), "' == 'plan' else 'false'"]),
                               description='mission_planner_node (계획기). 기본: mission_source:=plan 이면 true'),
-        DeclareLaunchArgument('pucks_file', default_value='/tmp/mission_log/pucks_survey.yaml',
-                              description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 측량을 끄면 미리 만든 등록표'),
+        DeclareLaunchArgument('log_dir', default_value='~/Lv2_Cartlidar_Assignment/mission_log',
+                              description='미션 기록 루트: 미션마다 <log_dir>/<YYMMDD_HHMM>/ (기록 · 사진 · 사본), 계획기는 <log_dir>/planner. 빈 값 = 기록 안 함'),
+        DeclareLaunchArgument('pucks_file', default_value='',
+                              description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 빈 값 = <log_dir>/pucks_survey.yaml. '
+                                          '측량을 끄면 미리 만든 등록표'),
         DeclareLaunchArgument('planner_mode', default_value='per_location', description='계획기 mode: per_location | single_load'),
         DeclareLaunchArgument('use_localization', default_value='false',
                               description='localization.launch.py (지도 · scan 합치기 · loc_monitor). Nav2 는 따로 (#114)'),
@@ -174,12 +205,7 @@ def generate_launch_description():
             launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
                               'use_localization': 'false'}.items(),   # 위치 추정은 위 use_localization 하나만 (#116)
             condition=IfCondition(LaunchConfiguration('use_nav2'))),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([mpl, 'launch', 'planner.launch.py'])),
-            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
-                              'pucks_file': LaunchConfiguration('pucks_file'),
-                              'mode': LaunchConfiguration('planner_mode')}.items(),
-            condition=IfCondition(LaunchConfiguration('use_planner'))),
+        OpaqueFunction(function=planner),
         # ⑥ /odom + IMU ω → /odom_icr (vy = −icr_x·ω, 스키드 회전 중심 옆 이동, #92) → ekf odom0
         Node(package='bringup', executable='odom_icr.py', name='odom_icr', output='screen',
              parameters=[geometry, sim], condition=IfCondition(LaunchConfiguration('use_ekf'))),

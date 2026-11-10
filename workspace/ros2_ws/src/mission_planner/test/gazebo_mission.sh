@@ -50,7 +50,7 @@ ros2 run control drive --ros-args -r __node:=drive_node --params-file $CTL/robot
   --params-file "$OUT/drive_sim.yaml" -r /drive/align:=/drive/align_real -r /drive/execute_skill:=/drive/execute_skill_real > "$OUT/drive.log" 2>&1 &
 ros2 run mission mission_node --ros-args -r __node:=mission_node --params-file $MIS/mission.yaml --params-file $MIS/mission_table.yaml \
   --params-file $MIS/mission_plan.yaml $SIM -p survey.enabled:=false -p log_dir:="$OUT/log" > "$OUT/mission.log" 2>&1 &
-ros2 launch mission_planner planner.launch.py pucks_file:=$MPL/problem_q1_example.yaml use_sim_time:=true log_dir:="$OUT/log" > "$OUT/planner.log" 2>&1 &
+ros2 launch mission_planner planner.launch.py pucks_file:=$MPL/problem_q1_example.yaml use_sim_time:=true log_dir:="$OUT/log/planner" > "$OUT/planner.log" 2>&1 &
 python3 "$HERE/mock_robot.py" --real_nav --approach $MPL/approach_poses.yaml --out "$OUT/mock_out.json" --timeout ${TIMEOUT:-5400} \
   --ros-args $SIM > "$OUT/mock.log" 2>&1 &
 MOCK=$!
