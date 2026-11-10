@@ -44,7 +44,7 @@
 //                                 계획기 단계에서 마지막 goto 뒤 approach 없이 verify 가 오면 그 앞에 approach verify.approach_distance 를
 //                                 끼운다 (대기 자리 면 0.45 m 에서는 장소 중심이 J1 0.59 m 라 팔 카메라가 위에서 볼 수 없음)
 //                                 칸 = (cx, cy) ± 0.06 격자 (행 우선, 위 줄 +Y 부터, 줄 안은 -X 부터), expect9 = 칸마다 0 빈칸 · 1 R · 2 G · 3 Y.
-//                                 결과는 로그 (log_dir/mission_log.jsonl) 에 남기고, 틀려도 verify.stop_on_fail=false 면 계속 (복귀 점수)
+//                                 결과는 로그 (<에피소드 폴더>/mission_log.jsonl) 에 남기고, 틀려도 verify.stop_on_fail=false 면 계속 (복귀 점수)
 //   wait <s>                      제자리 대기 (복귀 후 정지 등)
 //   퍽 측량 (survey.enabled, 이슈 #39 #53) — observe 와 plan 사이에 붙는다:
 //   survey_start                  /perception/survey/start (std_srvs/Trigger) → survey.mode 켜기
@@ -70,6 +70,18 @@
 //                                 place_box.required 면 단계 실패, 아니면 기록하고 지도 좌표 그대로
 //   check_marker <L>              marker.check_before_place 면 그 장소 첫 place_<L>_* skill 앞에 자동으로 붙음:
 //                                 READ_MARKER → 기대 ID 를 보면 성공, 다른 ID 면 실패 (엉뚱한 장소에 놓지 않게)
+//
+// 기록 (log_dir, include/mission/episode_log.hpp): 에피소드 (/mission/start 로 새로 시작한 미션) 마다 <log_dir>/<YYMMDD_HHMM>/ 하나
+//   (이미 있으면 _2). 앞 '~' 는 HOME. log_dir 이 비면 기록 · 사진 · 사본 모두 안 함. PAUSED 재개 · 재시도는 같은 폴더,
+//   IDLE · DONE · FAILED 뒤 start 는 새 폴더. 폴더 이름은 벽시계 (sim_time 이어도)
+//   mission_log.jsonl         관측 · 측량 · 계획 · 재검증 · 사진 요청 · 끝 (한 줄 = 사건 하나)
+//   images/<NN>_before_r<회차>_B<박스>_<k>.jpg  이동 전: survey_view 보기 자세에서 (survey.mode 를 켠 직후)
+//   images/<NN>_after_<L>_<k>.jpg               이동 후: verify 보기 자세에서 (verify.mode 를 켠 직후)
+//                             /perception/snapshot (String = 접두어) 를 보내면 perception 이 팔 카메라로 몇 장 씀 (k = 1..).
+//                             NN = 에피소드 안 요청 번호 (재시도로 같은 자리를 다시 봐도 이름이 겹치지 않음)
+//   planner/                  plan 성공 응답 뒤 <log_dir>/planner (계획기 log_dir, bringup 이 넘김) 의 파일 사본
+//   pucks_survey.yaml · <완료 파일>  survey_finish 성공 뒤 퍽 등록표 (survey.pucks_out, 비우면 <log_dir>/pucks_survey.yaml) 와
+//                             perception_survey 완료 파일 사본
 //
 // callback group
 // - mission_cb_group_: Action · Service 클라이언트 · 서버, 타이머. 상태는 이 그룹에서만 바뀐다
@@ -123,6 +135,7 @@
 #include "tf2/utils.hpp"
 #include "yaml-cpp/yaml.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "mission/episode_log.hpp"
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 
@@ -256,6 +269,8 @@ public:
       rclcpp::ServicesQoS(), mission_cb_group_);
 
     status_pub_ = create_publisher<MissionStatus>("/mission/status", rclcpp::QoS(10));
+    // 이동 전후 사진 요청 (perception 이 팔 카메라 영상을 <접두어>_k.jpg 로 씀)
+    snapshot_pub_ = create_publisher<std_msgs::msg::String>("/perception/snapshot", rclcpp::QoS(10).reliable());
 
     start_requested_ = get_parameter("auto_start").as_bool();
     tick_timer_ = rclcpp::create_timer(
@@ -403,7 +418,8 @@ private:
     verify_settle_ = declare_parameter<double>("verify.settle_s", 2.0);
     verify_tolerance_ = declare_parameter<double>("verify.tolerance", 0.0);   // 0 = perception 설정값
     verify_stop_on_fail_ = declare_parameter<bool>("verify.stop_on_fail", false);
-    log_dir_ = declare_parameter<std::string>("log_dir", "");                // 비우면 기록 안 함
+    // 기록 루트 (앞 '~' = HOME). 에피소드마다 <log_dir>/<YYMMDD_HHMM>/ 를 만든다. 비우면 기록 · 사진 안 함
+    log_dir_ = expandHome(declare_parameter<std::string>("log_dir", ""));
 
     // 퍽 측량 (perception_survey, #39 #53). 박스 1~6 마다 조사 자세 [x, y, yaw] (지도 = 발제 좌표)
     //   = 계획기 접근 자세표 (mission_planner approach_poses.yaml) 의 B<box>:<side> stage 를 읽음 (한 곳에서만 고치게).
@@ -422,7 +438,11 @@ private:
     survey_settle_ = declare_parameter<double>("survey.settle_s", 2.0);
     survey_max_rounds_ = declare_parameter<int>("survey.max_rounds", 2);              // 다시 보기 횟수 (perception max_revisits)
     survey_on_unconfirmed_ = declare_parameter<std::string>("survey.on_unconfirmed", "fail");   // fail | registered
-    survey_pucks_out_ = declare_parameter<std::string>("survey.pucks_out", "/tmp/mission_log/pucks_survey.yaml");
+    // 퍽 등록표 (계획기 pucks_file 과 같은 경로). 비우면 <log_dir>/pucks_survey.yaml
+    survey_pucks_out_ = expandHome(declare_parameter<std::string>("survey.pucks_out", ""));
+    if (survey_pucks_out_.empty() && !log_dir_.empty()) {
+      survey_pucks_out_ = (std::filesystem::path(log_dir_) / "pucks_survey.yaml").string();
+    }
     // 장소 태그 (#39): L1 · L2 · L3 의 태그 ID
     marker_ids_ = declare_parameter<std::vector<int64_t>>("marker.ids", {12, 13, 14});
     verify_check_marker_ = declare_parameter<bool>("verify.check_marker", true);
@@ -554,7 +574,9 @@ private:
       if (survey_on_unconfirmed_ != "fail" && survey_on_unconfirmed_ != "registered") {
         throw std::invalid_argument("survey.on_unconfirmed must be fail or registered");
       }
-      if (survey_pucks_out_.empty()) {throw std::invalid_argument("survey.pucks_out must be set (planner pucks_file)");}
+      if (survey_pucks_out_.empty()) {
+        throw std::invalid_argument("survey.pucks_out or log_dir must be set (planner pucks_file)");
+      }
     }
     if (plan_mode_) {
       if (observe_max_cycles_ < 2) {throw std::invalid_argument("observe.max_cycles must be >= 2 (CONFIRMED needs 2)");}
@@ -1013,6 +1035,7 @@ private:
   // 공통 시작 단계: 팔을 태그 쪽으로 → 태그 읽기. 읽은 뒤 미션표 단계가 뒤에 붙는다
   void beginMission()
   {
+    openEpisode();   // 맨 앞: 아래 logEvent("start") 부터 이 폴더에
     steps_.clear();
     if (plan_mode_) {
       // 출발 구역에서 신호 · 바코드 관측 → 계획기에 단계 요청 (뒤에 붙음)
@@ -1044,7 +1067,11 @@ private:
     run_ = Run::RUNNING;
     reason_.clear();
     RCLCPP_INFO(get_logger(), "mission start (%s)", plan_mode_ ? "plan" : "tag");
-    logEvent("start", "\"source\": \"" + std::string(plan_mode_ ? "plan" : "tag") + "\"");
+    logEvent("start", "\"source\": \"" + std::string(plan_mode_ ? "plan" : "tag") + "\", \"episode\": \"" +
+      escape(episode_dir_) + "\"");
+    if (plan_mode_ && !survey_enabled_ && !episode_dir_.empty()) {
+      RCLCPP_WARN(get_logger(), "survey.enabled false: 이동 전 사진 (survey_view) 없음, 이동 후 (verify) 만 찍음");
+    }
     enterStep(0);
   }
 
@@ -1187,9 +1214,19 @@ private:
       setModeThen(Mode::READ_SIGNAL | Mode::READ_BARCODE, [this]() {beginWatch();});
     } else if (s.type == "verify" && phase_ == 1) {
       const uint8_t mode = *parseModeNames(verify_mode_text_) | (verify_check_marker_ ? Mode::READ_MARKER : 0);
-      setModeThen(mode, [this]() {beginWatch();});
+      const std::string L = s.args[0];
+      setModeThen(mode, [this, L]() {
+          beginWatch();
+          requestSnapshot("after_" + L, "\"event\": \"after\", \"place\": \"" + L + "\"");   // 이동 후 (장소 보기 자세)
+        });
     } else if (s.type == "survey_view" && phase_ == 1) {
-      setModeThen(*parseModeNames(survey_mode_text_), [this]() {beginWatch();});
+      const std::string box = s.args[0];
+      setModeThen(*parseModeNames(survey_mode_text_), [this, box]() {
+          beginWatch();
+          const std::string r = std::to_string(survey_round_ + 1);   // 1 = 처음 조사, 2 부터 다시 보기
+          requestSnapshot("before_r" + r + "_B" + box,
+            "\"event\": \"before\", \"box\": " + box + ", \"round\": " + r);   // 이동 전 (시작 박스 보기 자세)
+        });
     } else if (s.type == "measure_box" && phase_ == 1) {
       setModeThen(*parseModeNames(place_box_mode_text_), [this]() {beginWatch();});
     } else if (s.type == "approach") {
@@ -1369,6 +1406,7 @@ private:
           RCLCPP_INFO(get_logger(), "survey complete: %s -> %s", msg.c_str(), survey_pucks_out_.c_str());
           logEvent("survey", "\"event\": \"finish\", \"ok\": true, \"file\": \"" + escape(msg) +
             "\", \"pucks\": \"" + escape(survey_pucks_out_) + "\"");
+          copyIntoEpisode({survey_pucks_out_, msg}, "survey");   // 퍽 등록표 · 측량 완료 파일 사본
           stepSucceeded();
           return;
         }
@@ -1714,6 +1752,7 @@ private:
         }
         RCLCPP_INFO(get_logger(), "plan -> %zu step(s)", added.size());
         logEvent("plan", "\"ok\": true, \"steps\": " + std::to_string(added.size()));
+        copyPlannerLog();
         steps_.resize(step_idx_ + 1);
         steps_.insert(steps_.end(), added.begin(), added.end());
         stepSucceeded();
@@ -1907,14 +1946,72 @@ private:
     return out;
   }
 
-  // log_dir/mission_log.jsonl 에 한 줄 (관측 · 계획 · 재검증 기록 = 발제 제출물 근거)
+  // ------------------------------------------------------------------ 기록 (에피소드 폴더, episode_log.hpp)
+  // 새 미션마다 <log_dir>/<YYMMDD_HHMM>[_n]/. 못 만들면 경고하고 이번 미션은 기록 없이 진행
+  void openEpisode()
+  {
+    episode_dir_.clear();
+    snapshot_seq_ = 0;
+    if (log_dir_.empty()) {return;}
+    std::string err;
+    episode_dir_ = makeEpisodeDir(log_dir_, episodeName(std::time(nullptr)), err);
+    if (episode_dir_.empty()) {
+      RCLCPP_WARN(get_logger(), "mission log off for this run: %s", err.c_str());
+      return;
+    }
+    RCLCPP_INFO(get_logger(), "mission log: %s", episode_dir_.c_str());
+  }
+
+  // 사진 요청: /perception/snapshot 에 <episode>/images/<NN>_<what> 를 보내고 그 사실을 기록
+  void requestSnapshot(const std::string & what, const std::string & body)
+  {
+    if (episode_dir_.empty()) {return;}
+    const std::string prefix = snapshotPrefix(episode_dir_, ++snapshot_seq_, what);
+    std::error_code ec;
+    std::filesystem::create_directories(std::filesystem::path(prefix).parent_path(), ec);
+    std_msgs::msg::String m;
+    m.data = prefix;
+    snapshot_pub_->publish(m);
+    if (snapshot_pub_->get_subscription_count() == 0) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 60000, "/perception/snapshot: no subscriber (perception) — no image");
+    }
+    logEvent("snapshot", body + ", \"prefix\": \"" + escape(prefix) + "\"");
+  }
+
+  // plan 성공 뒤 계획기 기록 (<log_dir>/planner: signal · allocation · plan · mission_lines) 을 에피소드 폴더 planner/ 로.
+  //   계획기는 성공일 때만 네 파일을 다 쓴 뒤 응답한다 (planner_node.py). 계획기를 다른 log_dir 로 띄웠으면 경고만
+  void copyPlannerLog()
+  {
+    if (episode_dir_.empty()) {return;}
+    const std::string src = (std::filesystem::path(log_dir_) / "planner").string();
+    std::string err;
+    const int n = copyFiles(src, (std::filesystem::path(episode_dir_) / "planner").string(), err);
+    if (n < 0) {
+      RCLCPP_WARN(get_logger(), "planner log not copied (planner log_dir must be <log_dir>/planner): %s", err.c_str());
+      logEvent("copy", "\"what\": \"planner\", \"ok\": false, \"reason\": \"" + escape(err) + "\"");
+      return;
+    }
+    logEvent("copy", "\"what\": \"planner\", \"ok\": true, \"files\": " + std::to_string(n));
+  }
+
+  void copyIntoEpisode(const std::vector<std::string> & files, const std::string & what)
+  {
+    if (episode_dir_.empty()) {return;}
+    for (const auto & f : files) {
+      std::string err;
+      if (!copyFileInto(f, episode_dir_, err)) {
+        RCLCPP_WARN(get_logger(), "%s copy: %s", what.c_str(), err.c_str());
+        logEvent("copy", "\"what\": \"" + what + "\", \"ok\": false, \"reason\": \"" + escape(err) + "\"");
+      }
+    }
+  }
+
+  // <에피소드 폴더>/mission_log.jsonl 에 한 줄 (관측 · 계획 · 재검증 기록 = 발제 제출물 근거)
   void logEvent(const std::string & kind, const std::string & body)
   {
-    if (log_dir_.empty()) {return;}
-    std::error_code ec;
-    std::filesystem::create_directories(log_dir_, ec);
-    std::ofstream f(log_dir_ + "/mission_log.jsonl", std::ios::app);
-    if (!f) {RCLCPP_WARN_ONCE(get_logger(), "cannot write %s/mission_log.jsonl", log_dir_.c_str()); return;}
+    if (episode_dir_.empty()) {return;}
+    std::ofstream f(episode_dir_ + "/mission_log.jsonl", std::ios::app);
+    if (!f) {RCLCPP_WARN_ONCE(get_logger(), "cannot write %s/mission_log.jsonl", episode_dir_.c_str()); return;}
     f << std::fixed << std::setprecision(3) << "{\"t\": " << now().seconds() << ", \"kind\": \"" << kind << "\", \"step\": "
       << step_idx_ << ", " << body << "}\n";
   }
@@ -2274,6 +2371,9 @@ private:
   double diag_timeout_{3.0};
   bool plan_mode_{false};
   std::string plan_service_, observe_arm_pose_, verify_arm_pose_, verify_mode_text_, log_dir_;
+  std::string episode_dir_;    // 이번 미션 기록 폴더 (빈 문자열 = 기록 안 함). beginMission 에서만 바꿈
+  int snapshot_seq_{0};        // 에피소드 안 사진 요청 번호
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr snapshot_pub_;
   std::vector<double> barcode_point_;
   double verify_approach_{0.13};
   double verify_settle_{2.0}, verify_tolerance_{0.0};
