@@ -299,6 +299,106 @@
    "note": "손 안 반경 보상 (rew_radial 5, 목표 −3 ± 2 mm) 으로 TP6 38500 에서 3000 반복 (2026-11-08_17-33-38) 중 40300. 같은 날 나란히 이어평가 시드1 44 vs TP6 31, 시드2 57 vs 47/192. 반경 −7 ~ +1 mm 비율 46 -> 52 %. 집기 평가 시드2 150/256 (58.6 %, TP6 147)",
    "git": "ed58996",
    "registered": "2026-11-09 17:37"
+  },
+  {
+   "name": "toppick_TP9",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_TP9.pt",
+   "onnx": "policies/toppick_TP9.onnx",
+   "sha256": "515ba2a47a9caf65",
+   "source": "logs/rsl_rl/waffle_toppick/2026-11-09_22-14-33/model_59250.pt",
+   "iteration": 59250,
+   "obs_dim": 36,
+   "action_dim": 4,
+   "hidden": [
+    256,
+    128,
+    64
+   ],
+   "activation": "elu",
+   "latest": false,
+   "ros_model": null,
+   "evals": [
+    {
+     "file": "policies/evals/2026-11-10_chain_TP9.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "-friction",
+     "num_envs": 192,
+     "chain": {
+      "ok": 39,
+      "n": 192,
+      "pct": 20.3
+     },
+     "pick": {
+      "ok": 93,
+      "n": 192,
+      "pct": 48.4
+     },
+     "place_given_pick": {
+      "ok": 39,
+      "n": 93,
+      "pct": 41.9
+     }
+    }
+   ],
+   "note": "그리퍼 벌림 50 mm (gripper_open 0.0042) 로 TP8 40300 에서 20000 반복 (2026-11-09_22-14-33) 중 59250. 같은 날 이어평가 50 mm 시드2 39 vs TP8 23 (TP8 61.6 mm 57), 시드1 35 vs 후보 29~33. latest · ROS 아님 (미션은 고정 동작 집기 toppick_scripted)",
+   "git": "20e8f71",
+   "registered": "2026-11-10 20:46"
+  },
+  {
+   "name": "toppick_scripted",
+   "task": "Waffle-TopPick-Direct",
+   "kind": "scripted",
+   "file": null,
+   "onnx": null,
+   "params": {
+    "approach_mode": "top",
+    "approach_height": 0.05,
+    "approach_inward": 0.03,
+    "radial_offset": 0.002,
+    "gripper_open": 0.0042,
+    "grip_open_mm": 50
+   },
+   "ros": "ros2_ws/src/control/config/manipulator.yaml toppick.* (manipulator_node beginPick/finalApproach)",
+   "latest": false,
+   "evals": [
+    {
+     "file": "policies/evals/2026-11-10_chain_scripted_s0.json",
+     "seed": 2,
+     "noise_mm": 0,
+     "num_envs": 192,
+     "chain": {
+      "ok": 172,
+      "n": 192,
+      "pct": 89.6
+     },
+     "pick": {
+      "ok": 174,
+      "n": 192,
+      "pct": 90.6
+     }
+    },
+    {
+     "file": "policies/evals/2026-11-10_chain_scripted_s2.json",
+     "seed": 2,
+     "noise_mm": 2,
+     "num_envs": 192,
+     "chain": {
+      "ok": 146,
+      "n": 192,
+      "pct": 76.0
+     },
+     "pick": {
+      "ok": 173,
+      "n": 192,
+      "pct": 90.1
+     }
+    }
+   ],
+   "note": "미션에 쓰는 고정 동작 집기 (정책 없음, chain_pallet_eval.py --scripted_pick σ --grip_open 0.0042). 같은 날 이어평가 시드2: TP8 50 mm 23 · TP9 59250 39 / 192 (policies/evals/2026-11-10_chain_TP8_open42.json · _TP9.json)",
+   "git": "20e8f71",
+   "registered": "2026-11-10"
   }
  ]
 }
