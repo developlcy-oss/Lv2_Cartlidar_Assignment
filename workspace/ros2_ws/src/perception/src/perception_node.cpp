@@ -47,10 +47,17 @@
 //              움직였으면 그 프레임부터 다시 모음) → 라벨 찾기(barcode_locator.hpp) → base_link 위치. 묶음마다 한 번
 //      READ  : 팔 카메라(cameras.arm.image_topic) 새 영상마다 zbar 로 CODE128 읽기(barcode_reader.hpp, barcode.read_scale 배)
 //      둘 다 일꾼 스레드에서 돌아 다른 모드 처리 주기를 막지 않는다. 일꾼이 도는 동안 온 팔 영상은 건너뛴다
+//   /perception/snapshot (토픽, std_msgs/String = 저장 경로 접두어): 팔 카메라가 켜진 모드(READ_TAG · ARM_ALIGN)에서
+//      받으면 snapshot.delay_s 뒤부터 snapshot.interval_s 간격으로 snapshot.count 장을 <접두어>_1.jpg ... 로 저장한다
+//      (snapshot.hpp). 장마다 요청 뒤 새로 받은 팔 영상만 쓰고, snapshot.max_wait_s 안에 안 오면 남은 장은 경고 뒤 포기.
+//      같은 이름이 있으면 _2 를 붙임. 일정은 처리 주기와 다른 콜백 그룹, 변환 · 인코딩 · 쓰기는 쓰기 스레드 하나에서
+//      (처리가 늦어도 사진 시각이 밀리지 않고, 사진이 처리 주기를 막지 않음). 팔 카메라가
+//      꺼진 모드면 경고만. 영상은 받은 그대로 (왜곡 보정 · 회전 없음). 사진을 위해 따로 구독하거나 상시 녹화하지 않는다
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <deque>
+#include <filesystem>
 #include <limits>
 #include <chrono>
 #include <future>
@@ -65,6 +72,7 @@
 #include <vector>
 
 #include <opencv2/calib3d.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include "ament_index_cpp/get_package_share_path.hpp"
@@ -106,6 +114,7 @@
 #include "perception/read_tag.hpp"
 #include "perception/signal_light.hpp"
 #include "perception/signal_sequence.hpp"
+#include "perception/snapshot.hpp"
 #include "perception/tag_depth.hpp"
 #include "perception/tag_detector.hpp"
 #include "perception/tag_upright.hpp"
@@ -190,6 +199,7 @@ struct MonoCamera
 
   std::mutex m;
   Image::ConstSharedPtr image;
+  uint64_t seq = 0;   // 받은 영상 수 (구독을 끄고 켜도 계속 늘어남, 사진 저장이 새 영상인지 봄)
   int64_t used_ns = -1;
   CameraInfo::ConstSharedPtr info;
   StampGate gate;
@@ -584,6 +594,24 @@ public:
         [this](SetMode::Request::SharedPtr req, SetMode::Response::SharedPtr res) {on_set_mode(*req, *res);},
         rclcpp::ServicesQoS(), ctl_cbg_);
     timer_ = create_timer(std::chrono::duration<double>(1.0 / rate), [this]() {process();}, ctl_cbg_);
+
+    // 팔 카메라 사진 (/perception/snapshot, mission 이 이동 전후 보기 자세에서 요청)
+    {
+      SnapshotConfig sc;
+      sc.count = static_cast<int>(declare_parameter("snapshot.count", sc.count));
+      sc.delay_s = declare_parameter("snapshot.delay_s", sc.delay_s);
+      sc.interval_s = declare_parameter("snapshot.interval_s", sc.interval_s);
+      sc.max_wait_s = declare_parameter("snapshot.max_wait_s", sc.max_wait_s);
+      sc.jpeg_quality = static_cast<int>(declare_parameter("snapshot.jpeg_quality", sc.jpeg_quality));
+      snap_ = SnapshotSchedule(sc);
+      // 처리 주기 (ctl_cbg_) 와 다른 그룹: 처리가 늦어져도 사진 시각이 밀리지 않게 (snap_ 는 이 그룹에서만 씀)
+      snap_cbg_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+      rclcpp::SubscriptionOptions so;
+      so.callback_group = snap_cbg_;
+      snap_sub_ = create_subscription<std_msgs::msg::String>("/perception/snapshot", rclcpp::QoS(10).reliable(),
+          [this](std_msgs::msg::String::ConstSharedPtr m) {on_snapshot(m->data);}, so);
+      snap_timer_ = create_wall_timer(std::chrono::milliseconds(50), [this]() {snapshot_tick();}, snap_cbg_);
+    }
   }
 
 private:
@@ -592,6 +620,76 @@ private:
   static constexpr uint8_t MARKER_BIT = SetMode::Request::READ_MARKER;
   static constexpr uint8_t SIGNAL_BIT = SetMode::Request::READ_SIGNAL;
   static constexpr uint8_t BARCODE_BIT = SetMode::Request::READ_BARCODE;
+
+  // ------------------------------ 팔 카메라 사진 (snapshot.hpp) ------------------------------
+  void on_snapshot(const std::string & prefix)
+  {
+    if (prefix.empty()) {RCLCPP_WARN(get_logger(), "사진 요청: 빈 경로는 무시"); return;}
+    if (snap_.config().count <= 0) {return;}
+    if (!arm_cam_on_) {
+      RCLCPP_WARN(get_logger(), "사진 요청 %s: 팔 카메라가 꺼진 모드 (READ_TAG · ARM_ALIGN 아님) 라 찍지 않음", prefix.c_str());
+      return;
+    }
+    uint64_t seq;
+    {
+      std::lock_guard<std::mutex> lk(arm_.m);
+      seq = arm_.seq;
+    }
+    const int left = snap_.active() ? snap_.config().count - snap_.next() + 1 : 0;
+    if (snap_.start(prefix, now().seconds(), seq)) {
+      RCLCPP_WARN(get_logger(), "사진: 앞 요청 남은 %d 장을 버리고 새 요청 %s", left, prefix.c_str());
+    } else {
+      RCLCPP_INFO(get_logger(), "사진 요청 %s (%d 장)", prefix.c_str(), snap_.config().count);
+    }
+  }
+
+  void snapshot_tick()
+  {
+    if (!snap_.active()) {return;}
+    const int n = snap_.config().count;
+    if (!arm_cam_on_) {
+      RCLCPP_WARN(get_logger(), "사진 %s: 팔 카메라 모드가 꺼져 %d/%d 장부터 포기", snap_.prefix().c_str(), snap_.next(), n);
+      snap_.cancel();
+      return;
+    }
+    Image::ConstSharedPtr img;
+    uint64_t seq;
+    {
+      std::lock_guard<std::mutex> lk(arm_.m);   // 잠금 안에서는 포인터 복사만
+      img = arm_.image;
+      seq = arm_.seq;
+    }
+    switch (snap_.poll(now().seconds(), img ? seq : 0)) {
+      case SnapshotSchedule::Action::Take: {
+        const int k = snap_.taken(seq);
+        const std::string prefix = snap_.prefix();
+        const int quality = snap_.config().jpeg_quality;
+        const auto logger = get_logger();
+        snap_jobs_.push([img, prefix, k, n, quality, logger]() {
+            try {
+              const auto cv = cv_bridge::toCvShare(img, "bgr8");
+              const std::string path = unique_jpg_path(prefix, k);   // 쓰기 스레드 하나라 이름이 겹치지 않음
+              std::error_code ec;
+              std::filesystem::create_directories(std::filesystem::path(path).parent_path(), ec);
+              if (!cv::imwrite(path, cv->image, {cv::IMWRITE_JPEG_QUALITY, quality})) {
+                RCLCPP_WARN(logger, "사진 %d/%d 저장 실패: %s", k, n, path.c_str());
+                return;
+              }
+              RCLCPP_INFO(logger, "사진 %d/%d 저장: %s", k, n, path.c_str());
+            } catch (const std::exception & e) {
+              RCLCPP_WARN(logger, "사진 %d/%d (%s) 실패: %s", k, n, prefix.c_str(), e.what());
+            }
+          });
+        break;
+      }
+      case SnapshotSchedule::Action::GiveUp:
+        RCLCPP_WARN(get_logger(), "사진 %s: 새 팔 영상이 %.1f s 안에 안 와 %d/%d 장부터 포기", snap_.prefix().c_str(),
+          snap_.config().max_wait_s, snap_.givenUpAt(), n);
+        break;
+      default:
+        break;
+    }
+  }
 
   // ------------------------------ set_mode ------------------------------
   void on_set_mode(const SetMode::Request & req, SetMode::Response & res)
@@ -651,6 +749,7 @@ private:
     set_depth_subscribed(front_, (mode_ & (front_.bit | MARKER_BIT | SIGNAL_BIT)) || (bc && bc_cam_ == &front_));
     set_depth_subscribed(rear_, (mode_ & (rear_.bit | MARKER_BIT | SIGNAL_BIT)) || (bc && bc_cam_ == &rear_));
     set_mono_subscribed(arm_, mode_ & ARM_BITS);
+    arm_cam_on_ = (mode_ & ARM_BITS) != 0;   // 사진 그룹 (snap_cbg_) 이 읽음
     set_mono_subscribed(bc_arm_, bc);
   }
 
@@ -748,7 +847,10 @@ private:
   void on_mono_image(MonoCamera & c, const Image::ConstSharedPtr & m)
   {
     std::lock_guard<std::mutex> lk(c.m);
-    if (gate_frame(c, m) != GateResult::Duplicate) {c.image = m;}
+    if (gate_frame(c, m) != GateResult::Duplicate) {
+      c.image = m;
+      ++c.seq;
+    }
   }
 
   // ------------------------------ 처리 ------------------------------
@@ -2092,6 +2194,13 @@ private:
   std::atomic<bool> barcode_on_{false};        // 깊이 콜백(cam_cbg_)이 읽는다
   std::atomic<uint64_t> bc_gen_{0};            // 모드를 켜고 끌 때마다 늘림: 그 전에 시작한 일꾼 결과는 내지 않는다
   std::future<void> bc_locate_job_, bc_read_job_;
+  // 팔 카메라 사진 (snap_cbg_ 에서만). 쓰기 스레드는 맨 뒤: 소멸 때 남은 사진을 다 쓰고 끝남 (작업은 this 를 쓰지 않음)
+  std::atomic<bool> arm_cam_on_{false};   // 팔 카메라 모드 (on_set_mode 가 씀)
+  rclcpp::CallbackGroup::SharedPtr snap_cbg_;
+  SnapshotSchedule snap_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr snap_sub_;
+  rclcpp::TimerBase::SharedPtr snap_timer_;
+  JobQueue snap_jobs_;
 };
 
 }  // namespace perception

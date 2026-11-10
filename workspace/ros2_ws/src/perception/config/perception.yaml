@@ -27,6 +27,14 @@ perception_node:
         image_topic: /arm_camera/image_raw
         info_topic: /arm_camera/camera_info     # 왜곡 보정·태그 자세에 쓴다. 없으면 보정 없이 태그 id 만
         frame_id: ""            # 비우면 영상 header (UVC 드라이버 frame_id 를 URDF arm_camera_optical_frame 으로 발행해야 함)
+    # 팔 카메라 사진 (/perception/snapshot, mission 이 이동 전 survey_view · 이동 후 verify 보기 자세에서 경로 접두어를 보냄)
+    #   요청마다 delay_s 뒤부터 interval_s 간격으로 count 장 <접두어>_1..count.jpg. 0.5 · 1.0 · 1.5 s 는 mission settle_s 2.0 안
+    snapshot:
+      count: 3                  # 0 이면 사진 끔
+      delay_s: 0.5              # [s] 요청 → 첫 장 (보기 자세 · 모드를 켠 직후 흔들림 피함)
+      interval_s: 0.5           # [s] 장 사이
+      max_wait_s: 3.0           # [s] 새 팔 영상을 기다리는 한도. 넘으면 남은 장 포기 (경고만, 미션은 계속)
+      jpeg_quality: 90
     depth:
       min_m: 0.15               # [m] 이보다 가까운 깊이는 버림
       max_m: 4.0
