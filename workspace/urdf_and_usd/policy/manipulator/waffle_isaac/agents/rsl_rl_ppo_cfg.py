@@ -115,3 +115,14 @@ class WaffleInsertPPORunnerCfg(WafflePickPPORunnerCfg):
         value_loss_coef=1.0, use_clipped_value_loss=True, clip_param=0.2, entropy_coef=0.003, num_learning_epochs=5,
         num_mini_batches=4, learning_rate=3.0e-4, schedule="adaptive", gamma=0.99, lam=0.95, desired_kl=0.01, max_grad_norm=1.0,
     )
+
+
+@configclass
+class WaffleLieUprightPPORunnerCfg(WaffleStorePPORunnerCfg):
+    """2026-11-10 (Onbeom, #192) 누운 직육면체 세우기 P1 (관측 45 + 평가자 참값 16, 행동 6). 설계 4 절: [256, 128, 64] elu, 학습률 3e-4 adaptive,
+    gamma 0.99, lam 0.95, entropy 0.003, 시작 표준편차 0.5, 24 스텝/반복, 미니배치 4, 에포크 5 (팀 Store 와 같음)."""
+
+    experiment_name = "waffle_lieupright"
+    max_iterations = 1000
+    save_interval = 50
+    obs_groups = {"actor": ["policy"], "critic": ["policy", "critic"]}
