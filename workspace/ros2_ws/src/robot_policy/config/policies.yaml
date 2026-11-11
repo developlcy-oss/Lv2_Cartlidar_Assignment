@@ -53,13 +53,15 @@ toppick_tilt:
   action_low: [-1.0, -1.0, -1.0, -1.0]
   action_high: [1.0, 1.0, 1.0, 1.0]
 
-# 상자 위 누운 직육면체를 쥐고 들어 손 안에서 세운 뒤 상자 위 세울 자리 D 에 세워 놓고 손을 뺌 (#192 · #193, Isaac Waffle-LieUprightB4-Direct = r2e,
+# 상자 위 누운 직육면체를 쥐고 들어 손 안에서 세운 뒤 상자 위 세울 자리 D 에 세워 놓고 손을 뺌 (#192 · #193, Isaac Waffle-LieUprightB7-Direct = r2g2,
+#   노드 관측으로 학습: 퍽 · 긴 축 · 옆 퍽은 시작 때 잰 값 고정, 상자는 잰 값, 쥠은 손가락만. 노드 관절 속도 비례 축소 3.0 rad/s 와
+#   놓음 규칙 (lie_upright.release_*) 도 학습에 들어 있음 → max_joint_velocity 를 3.0 넘게 올리려면 다시 평가,
 #   학습 lieupright_env.py · 넘겨받은 묶음 lv2_next_module 261110_2010_lie_rl/handoff). 다시 집기는 이 정책 밖 (미션 toppick_tilt 고정 동작).
 #   manipulator_node 는 skill.enabled 와 따로 lie_upright.enabled 로 로드 (미션 skill "lie_upright:<frame>:x:y:yaw_deg", control/lieupright.hpp).
 #   관측 = base_link (m, rad), 모두 필수. 행동 tcp_delta(6): 잡는 점 변위 x · y · z × 0.005 m, 집게 숙임 β 변화 × 0.05 rad,
 #   집게 롤 ρ 변화 × 0.06 rad, 집게 > 0 벌림 0.010 · ≤ 0 닫음 −0.011 (손가락 m). β · ρ 는 적분 (시작 π/4 · 0), 자세 + 변위 → 감쇠 최소제곱 IK
 lie_upright:
-  model: models/lieupright_r2e.onnx
+  model: models/lieupright_r2g2.onnx
   rate_hz: 30
   obs_dim: 45
   observation:
