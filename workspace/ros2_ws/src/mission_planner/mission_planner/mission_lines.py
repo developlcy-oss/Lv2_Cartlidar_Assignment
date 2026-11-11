@@ -3,6 +3,7 @@
 mission_node 가 쓰는 단계 (src/mission/src/mission_node.cpp 머리말):
   goto <x> <y> <yaw>                    지도 자세로 주행 + 팔 STOW (navigate 와 같고 위치 이름 대신 좌표)
   approach <d>                          STOW -> COARSE -> READY -> FINE (TFmini 렌즈 -> 박스 앞면 d, >= 0.13)
+  approach_box <d>                      장소 상자 (#160, 처음엔 빔): 주행 자세 -> 퍽 없이 방향 유지 + TFmini 로 면 d 까지
   pick_target <x> <y> <z>               /manipulator/pick, target = 지도 좌표 퍽 중심 (grasped 확인)
   skill manipulator <이름> [timeout] [mode=…]   이름 규칙 (manipulator_node, PR #94).
                                         집기 · 놓기는 모두 집게 45° (_tilt):
@@ -83,8 +84,8 @@ def to_lines(world, plan, fine_distance=0.13, skill_timeout=40.0, return_wait=3.
             if turn != "turn_0":
                 lines.append(f"skill drive turn_0 {T} mode=OFF")  # 다음 퍽 · 주행 전 정렬 방향으로
         elif t == "place":
-            if not approached:
-                lines.append(f"approach {_n(fine_distance)}")
+            if not approached:   # 장소 상자는 처음에 비어 있어 퍽을 목표로 정렬할 수 없음 -> 상자 면 거리만 (#160)
+                lines.append(f"approach_box {_n(fine_distance)}")
                 approached = True
             r, i = s["from_slot"]
             dx, dy = (int(v) for v in s["cell"].split(","))

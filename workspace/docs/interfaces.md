@@ -8,7 +8,7 @@
 - 200 ms (펌웨어 명령 무수신 정지) 와 300 ms (값의 최대 나이) 는 다른 규칙
 - 이름 · QoS 는 코드에 직접 쓰지 않고 `robot_interfaces/names.hpp` 의 `names::` · `qos::` 상수를 쓴다 (이 표와 같이 고침)
 - 300 ms 예외 하나: `/arm_range` 의 D435 보유 점은 "odom 에 고정된 정지 퍽 위치"를 현재 팔 자세로 다시 계산한 값이라 D435 가 마지막으로 본 뒤 `arm.range.hold_s`(3 s)까지 쓴다. 메시지 stamp 는 팔 영상 촬영 시각이라 받는 쪽 300 ms 규칙은 그대로
-- 박스 접근: drive_node 가 FINE 정렬 동안 obstacle_stop 파라미터 `approach_stop_m` 을 "목표 − 0.03 m" 로 넣고 끝나면 0 으로 되돌린다 (되돌리지 못하면 60 s 뒤 스스로 복귀)
+- 박스 접근: drive_node 가 FINE · 박스 (`box_only`) 정렬 동안 obstacle_stop 파라미터 `approach_stop_m` 을 "목표 − 0.03 m" 로 넣고, 끝나면 박스 앞이면 물러난 것을 TFmini 로 확인한 뒤 (#157), 아니면 바로 0 으로 되돌린다 (되돌리지 못하면 60 s 뒤 스스로 복귀)
 - perception 은 쓸 수 있는 프레임이 없으면 `/perception/result` 를 **발행하지 않는다** (카메라 정지). 받는 쪽은 300 ms 규칙으로 "모름" 처리
 
 ## 토픽
@@ -58,7 +58,7 @@
 | 이름 | 종류 | 타입 | Client | Server |
 |---|---|---|---|---|
 | /drive/navigate | Action | nav2_msgs/NavigateToPose | mission | drive → nav2 (같은 위치면 spin) |
-| /drive/align | Action | robot_interfaces/AlignBase | mission | drive |
+| /drive/align | Action | robot_interfaces/AlignBase | mission | drive (COARSE · FINE = 인식 모드 ARM_ALIGN 비트, `box_only` = 장소 상자 박스 접근 #160) |
 | /drive/execute_skill | Action | robot_interfaces/ExecuteSkill | mission | drive (강화학습 정책, 또는 정해진 회전 `turn_p<deg>` · `turn_m<deg>` · `turn_0` = 직전 FINE 정렬 방향 기준, #77) |
 | /manipulator/pose | Action | robot_interfaces/ArmPose | mission | manipulator |
 | /manipulator/pick | Action | robot_interfaces/Pick | mission | manipulator |
@@ -82,7 +82,7 @@
 |---|---|
 | PerceptionResult | |
 | SetPerceptionMode | 비트 |
-| AlignBase | |
+| AlignBase | goal `box_only` (2026-11-11 추가, #160): true 면 인식 결과 없이 시작 yaw 유지 + TFmini 박스 거리만으로 접근 (빈 장소 상자). false = 기존 (ARM_ALIGN 비트로 COARSE · FINE) |
 | ArmPose | result `success` · `message` (2026-10-22 message 추가) |
 | Pick | `grasped` 포함 |
 | ExecuteSkill | |

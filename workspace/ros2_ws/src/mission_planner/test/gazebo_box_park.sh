@@ -5,8 +5,11 @@
 #   가짜: 인식 결과 (ARM_ALIGN, 화면 가운데) 만 — box_park_scenario.py
 #   순서: 박스 1 남쪽 stage (0.40 m) 에서 FINE 0.13 → turn_p17 → turn_0 → /drive/navigate 출발 구역
 #   통과 = 네 단계 모두 성공 (수정 전 drive_node 는 FINE 뒤 정지가 켜져 turn_p17 시간 초과)
+#   PLACE=1 (#160): 장소 L1 stage (빈 상자, 0.45 m) 에서 박스 접근 (box_only, 인식 결과 없음) 0.13 → navigate 출발 구역
+#                   (수정 전에는 퍽이 없어 COARSE · FINE 모두 "물체 놓침")
 #
 #   test/gazebo_box_park.sh [결과 폴더]     기본 /tmp/gazebo_box_park. 결과 폴더/result.json, 종료 코드 0 = 통과
+#   PLACE=1 test/gazebo_box_park.sh [결과 폴더]   장소 상자 시나리오 (기본 결과 폴더 /tmp/gazebo_box_park_place)
 #   test/gazebo_box_park.sh stop            시험 프로세스 정리
 #   CTL_WS=<작업공간> test/gazebo_box_park.sh   control 만 다른 작업공간 것으로 (수정 전 · 후 비교)
 # 먼저: source install/setup.bash (mission_planner · control · perception · navigation · localization · waffle_4wd_description · twist_mux)
@@ -31,7 +34,7 @@ stop_all() {
 }
 if [ "$1" = "stop" ]; then stop_all; exit 0; fi
 [ -n "$CTL_WS" ] && source "$CTL_WS/install/setup.bash"
-OUT="${1:-/tmp/gazebo_box_park}"
+if [ -n "$PLACE" ]; then OUT="${1:-/tmp/gazebo_box_park_place}"; else OUT="${1:-/tmp/gazebo_box_park}"; fi
 export GZ_IP=127.0.0.1
 export ROS_AUTOMATIC_DISCOVERY_RANGE=${SIM_DISCOVERY_RANGE:-LOCALHOST}   # gazebo_mission.sh 와 같은 이유 (Nav2 lifecycle)
 rm -rf "$OUT"; mkdir -p "$OUT"
@@ -40,6 +43,8 @@ MAPS=$(ros2 pkg prefix mission_planner)/share/mission_planner/maps
 CTL=$(ros2 pkg prefix control)/share/control/config
 PER=$(ros2 pkg prefix perception)/share/perception/config
 X=1.468; Y=0.3147; YAW=1.5708   # approach_poses.yaml B1:S stage
+SCEN_ARGS=""
+if [ -n "$PLACE" ]; then X=2.9847; Y=0.95; YAW=0.0; SCEN_ARGS="--place"; fi   # approach_poses.yaml L1 stage (#160)
 
 cat > "$OUT/mux.yaml" <<'YAML'
 twist_mux:
@@ -85,7 +90,7 @@ ros2 run control drive --ros-args -r __node:=drive_node --params-file $CTL/robot
   > "$OUT/drive.log" 2>&1 &
 sleep 8
 echo "[box_park] 시나리오 (시뮬레이션이 실시간보다 느려 수 분)"
-timeout 1500 python3 "$HERE/box_park_scenario.py" 0.69365 0.95 3.14159265 > "$OUT/scenario.log" 2>&1
+timeout 1500 python3 "$HERE/box_park_scenario.py" 0.69365 0.95 3.14159265 $SCEN_ARGS > "$OUT/scenario.log" 2>&1
 RC=$?
 tail -1 "$OUT/scenario.log" > "$OUT/result.json"
 cat "$OUT/result.json"; echo

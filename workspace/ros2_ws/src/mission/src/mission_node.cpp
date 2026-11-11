@@ -23,6 +23,8 @@
 //                                 object_found 연속 확인, 없으면 제자리 회전
 //   approach <distance>           주행 자세 → SEARCH_FRONT → align COARSE → 정렬 자세 (align.arm_pose) → SEARCH_FRONT | ARM_ALIGN | READ_TAG → align FINE
 //                                 <distance> = 1층 TFmini 렌즈 → 퍽이 놓인 박스 앞면 [m] (>= 0.13: 최소 측정 0.10 + 정지 여유)
+//   approach_box <distance>       장소 상자 앞 (#160, 빈 상자라 정렬할 퍽이 없음): 주행 자세 → align box_only (COARSE · 정렬 자세 없이
+//                                 지금 방향을 지킨 채 TFmini 거리만으로 <distance> 까지). 남는 좌우 · 각도는 measure_box 가 메움
 //   pick                          SEARCH_FRONT | ARM_ALIGN | READ_TAG 유지, /manipulator/pick (grasped 확인)
 //                                 READ_TAG: perception 이 Arducam 태그로 /arm_range (팔 끝 → 퍽) 를 정밀하게 낸다
 //   pose <name>                   /manipulator/pose
@@ -140,6 +142,7 @@
 #include "tf2_ros/transform_listener.hpp"
 
 #include "mission/verify_record.hpp"
+#include "mission/survey_pucks.hpp"
 
 namespace mission
 {
@@ -286,7 +289,7 @@ public:
 
 private:
   enum class Run { IDLE, RUNNING, PAUSED, DONE, FAILED };
-  enum class AlignStage { COARSE, FINE };   // 로그 · 순서용 (AlignBase 필드 아님)
+  enum class AlignStage { COARSE, FINE, BOX };   // 로그 · 순서용. BOX 만 AlignBase.box_only 로 보냄 (#160)
   // 정밀 정렬 · pick 모드. READ_TAG 는 perception /arm_range(팔 끝 → 퍽)를 태그로 정밀하게 하려고 켠다
   static constexpr uint8_t kFineMode = Mode::SEARCH_FRONT | Mode::ARM_ALIGN | Mode::READ_TAG;
 
@@ -362,6 +365,7 @@ private:
     timeout_["navigate"] = declare_parameter<double>("timeout.navigate", 120.0);
     timeout_["search"] = declare_parameter<double>("timeout.search", 60.0);      // 회전 탐색 포함
     timeout_["approach"] = declare_parameter<double>("timeout.approach", 90.0);  // COARSE + 정렬 자세 + FINE
+    timeout_["approach_box"] = declare_parameter<double>("timeout.approach_box", 40.0);  // 주행 자세 + 박스 접근
     timeout_["pick"] = declare_parameter<double>("timeout.pick", 60.0);
     skill_default_timeout_ = declare_parameter<double>("skill.default_timeout", 30.0);
     skill_timeout_margin_ = declare_parameter<double>("skill.timeout_margin", 5.0);
@@ -679,7 +683,7 @@ private:
       if (s.args.size() != 1 || locations_.count(s.args[0]) == 0) {bad("needs a name from locations.names");}
     } else if (s.type == "pose") {
       if (s.args.size() != 1) {bad("needs a pose name");}
-    } else if (s.type == "approach") {
+    } else if (s.type == "approach" || s.type == "approach_box") {
       // FINE 정렬 거리는 미션표에서 준다 (TFmini 렌즈 → 박스 앞면). drive align.min_target_distance 와 같게
       if (s.args.size() != 1 || !isNumber(s.args[0], v) || v < 0.13) {
         bad("needs <distance> >= 0.13 (FINE align, TFmini lens to box front)");
@@ -713,7 +717,7 @@ private:
     } else if (s.type == "wait") {
       if (s.args.size() != 1 || !isNumber(s.args[0], v) || v < 0.0) {bad("needs <seconds> >= 0");}
     } else {
-      bad("unknown step type (navigate · search · approach · pick · pose · skill · "
+      bad("unknown step type (navigate · search · approach · approach_box · pick · pose · skill · "
         "observe · plan · goto · pick_target · verify · wait)");
     }
   }
@@ -1116,8 +1120,9 @@ private:
     } else if (s.type == "search") {
       // ① 주행 자세 완료 → ② OFF(추적 초기화) → ③ SEARCH_FRONT | SEARCH_REAR → tickSearch
       sendArmPose(travel_pose_);
-    } else if (s.type == "approach") {
-      // ① 주행 자세 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ 정렬 자세 → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
+    } else if (s.type == "approach" || s.type == "approach_box") {
+      // approach: ① 주행 자세 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ 정렬 자세 (align.arm_pose) → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
+      // approach_box: ① 주행 자세 완료 → ② align box_only (인식 모드와 상관없음, #160)
       sendArmPose(travel_pose_);
     } else if (s.type == "pick") {
       // 바퀴는 정지 유지. approach FINE 과 같은 모드 (추적 위치 + arm_offset + 태그 → /arm_range)
@@ -1250,13 +1255,19 @@ private:
           stepSucceeded();
           break;
       }
+    } else if (s.type == "approach_box") {
+      if (phase_ == 1) {
+        sendAlign(AlignStage::BOX, std::stod(s.args[0]));   // 주행 자세 완료 → 박스 접근
+      } else {
+        stepSucceeded();
+      }
     }
   }
 
   bool isSequenced() const
   {
     const auto & t = steps_[step_idx_].type;
-    return t == "search" || t == "approach" || t == "observe" || t == "verify" || t == "survey_view" ||
+    return t == "search" || t == "approach" || t == "approach_box" || t == "observe" || t == "verify" || t == "survey_view" ||
            t == "measure_box";
   }
 
@@ -1471,24 +1482,12 @@ private:
     finish(Run::FAILED, "survey incomplete: " + why);
   }
 
-  // perception_survey 완료 파일 (JSON) → mission_planner 퍽 등록표 yaml (pucks: [{id, color, shape, box, side}])
+  // perception_survey 완료 파일 (JSON) → mission_planner 퍽 등록표 yaml (pucks: [{id, color, shape, box, side, pose}], survey_pucks.hpp)
   bool writePucksFromSurvey(const std::string & path, std::string & err)
   {
-    std::ostringstream out;
+    std::string out;
     try {
-      const YAML::Node doc = YAML::LoadFile(path);
-      const YAML::Node slots = doc["slots"];
-      if (!slots || slots.size() != 12) {err = "complete file must have 12 slots: " + path; return false;}
-      out << "# mission_node 가 perception_survey 완료 파일 (" << path << ") 에서 만든 퍽 등록표\npucks:\n";
-      for (const auto & t : slots) {
-        if (!t["id"] || t["id"].IsNull() || !t["color"] || t["color"].IsNull() || !t["shape"] || t["shape"].IsNull()) {
-          err = "slot without id · color · shape in " + path;
-          return false;
-        }
-        const std::string shape = t["shape"].as<std::string>() == "cuboid" ? "box" : t["shape"].as<std::string>();
-        out << "  - {id: " << t["id"].as<int>() << ", color: " << t["color"].as<std::string>() << ", shape: " << shape
-            << ", box: " << t["box"].as<int>() << ", side: " << t["side"].as<int>() << "}\n";
-      }
+      if (!surveyToPucksYaml(YAML::LoadFile(path), path, out, err)) {return false;}
     } catch (const std::exception & e) {
       err = std::string("cannot read ") + path + ": " + e.what();
       return false;
@@ -1496,7 +1495,7 @@ private:
     std::error_code ec;
     std::filesystem::create_directories(std::filesystem::path(survey_pucks_out_).parent_path(), ec);
     std::ofstream f(survey_pucks_out_);
-    if (!f || !(f << out.str())) {err = "cannot write " + survey_pucks_out_; return false;}
+    if (!f || !(f << out)) {err = "cannot write " + survey_pucks_out_; return false;}
     return true;
   }
 
@@ -1686,19 +1685,20 @@ private:
   }
 
   // #65: verify 는 팔 카메라로 장소를 위에서 봐야 해서 정렬 (FINE) 자리에서 한다. 계획기는 다시 들르는 장소에서
-  //   goto (대기 자리) 바로 뒤에 verify 를 내므로, 마지막 goto · navigate 뒤 approach 가 없으면 verify 앞에 approach 를 끼운다
+  //   goto (대기 자리) 바로 뒤에 verify 를 내므로, 마지막 goto · navigate 뒤 approach 가 없으면 verify 앞에 approach_box 를 끼운다
+  //   (장소 상자는 퍽을 목표로 정렬할 수 없음 #160 — 퍽이 있어도 상자 면으로 서는 것이 칸 판정에 맞음)
   int insertVerifyApproach(std::vector<Step> & steps) const
   {
     if (verify_approach_ <= 0.0) {return 0;}
     std::ostringstream line;
-    line << "approach " << verify_approach_;
+    line << "approach_box " << verify_approach_;
     int inserted = 0;
     bool approached = false;   // plan 직전 = 출발 자리 (정렬 안 함)
     for (size_t i = 0; i < steps.size(); ++i) {
       const auto & t = steps[i].type;
       if (t == "goto" || t == "navigate") {
         approached = false;
-      } else if (t == "approach") {
+      } else if (t == "approach" || t == "approach_box") {
         approached = true;
       } else if (t == "verify" && !approached) {
         steps.insert(steps.begin() + static_cast<std::ptrdiff_t>(i), parseStep(line.str()));
@@ -1752,7 +1752,7 @@ private:
         if (added.empty()) {finish(Run::FAILED, "plan returned no steps"); return;}
         const int inserted = insertVerifyApproach(added);
         if (inserted > 0) {
-          RCLCPP_INFO(get_logger(), "plan: approach %.2f m inserted before %d verify step(s)", verify_approach_, inserted);
+          RCLCPP_INFO(get_logger(), "plan: approach_box %.2f m inserted before %d verify step(s)", verify_approach_, inserted);
         }
         RCLCPP_INFO(get_logger(), "plan -> %zu step(s)", added.size());
         logEvent("plan", "\"ok\": true, \"steps\": " + std::to_string(added.size()));
@@ -2307,14 +2307,16 @@ private:
       [](const NavigateToPose::Result &, std::string &) {return true;});
   }
 
-  // COARSE(먼 거리, 범퍼 기준) · FINE(정밀, TFmini 기준 >= 0.10m).
-  // AlignBase에는 단계 필드가 없다 — drive가 goal 뒤 첫 result의 ARM_ALIGN 비트로 정하므로 모드를 먼저 켜고 보낸다
+  // COARSE(먼 거리, 범퍼 기준) · FINE(정밀, TFmini 기준 >= 0.10m) · BOX (퍽 없이 장소 상자, #160).
+  // COARSE · FINE 은 drive가 goal 뒤 첫 result의 ARM_ALIGN 비트로 정하므로 모드를 먼저 켜고 보낸다. BOX 는 box_only 필드
   void sendAlign(AlignStage stage, double distance)
   {
     AlignBase::Goal goal;
     goal.target_distance = static_cast<float>(distance);
     goal.tolerance = static_cast<float>(align_tolerance_);
-    const std::string label = stage == AlignStage::COARSE ? "/drive/align(COARSE)" : "/drive/align(FINE)";
+    goal.box_only = stage == AlignStage::BOX;
+    const std::string label = stage == AlignStage::COARSE ? "/drive/align(COARSE)" :
+      stage == AlignStage::FINE ? "/drive/align(FINE)" : "/drive/align(BOX)";
     sendGoal<AlignBase>(align_client_, goal, align_goal_, label, driveReport(),
       [](const AlignBase::Result & r, std::string & msg) {msg = r.message; return r.success;});
   }
