@@ -1,5 +1,6 @@
 // /drive/align 제어 법칙 (drive_node) — ROS 의존 없음
 //   정밀(AlignController): Arducam 가로 오차 → 회전, TFmini 박스 앞면 거리(BoxRangeFilter, 차체 1층 렌즈 기준) → 전후 P 제어
+//   박스(BoxApproach, #160): 퍽 없이 — 시작 yaw 유지 (odom) + TFmini 박스 거리 → 전후 P 제어 (빈 장소 상자 앞)
 //   먼 거리(CoarseAlign): D435 object_pose(base_link) → 물체 쪽 회전 + 전진/후진, 범퍼 기준 거리
 //   scan_blocked(): 직접 P 제어라 nav2 회피가 없음 → /scan 으로 앞 · 뒤 장애물 확인
 //   허용오차 안에서 N 주기 연속이면 완료.
@@ -63,6 +64,42 @@ public:
 
 private:
   AlignGains g_;
+  int settled_ = 0;
+};
+
+// 박스 접근 (#160): 정렬할 물체 (퍽) 가 없는 장소 상자 앞. 방향은 시작 yaw 를 지키고 (남는 좌우 · 각도는 measure_box 가 메움),
+//   거리는 AlignController 와 같은 P 제어. yaw_err = 목표 yaw - 지금 yaw [rad] (+ = 왼쪽으로 돌아야 함)
+struct BoxApproachGains
+{
+  double kp_yaw = 1.5;       // rad/s per rad
+  double max_ang = 0.3;      // rad/s
+  double yaw_tol = 0.02;     // rad (약 1.1°)
+  double kp_lin = 1.0;       // (m/s) / m
+  double max_lin = 0.08;     // m/s (align.max_linear 와 같게)
+  int settle_cycles = 10;
+};
+class BoxApproach
+{
+public:
+  explicit BoxApproach(BoxApproachGains g = {})
+  : g_(g) {}
+  void reset() {settled_ = 0;}
+  AlignCmd step(double yaw_err, double distance, double target, double dist_tol)
+  {
+    AlignCmd c;
+    const double e_d = distance - target;
+    const bool yaw_ok = std::fabs(yaw_err) <= g_.yaw_tol;
+    const bool dist_ok = std::fabs(e_d) <= dist_tol;
+    c.in_tolerance = yaw_ok && dist_ok;
+    settled_ = c.in_tolerance ? settled_ + 1 : 0;
+    if (settled_ >= g_.settle_cycles) {c.done = true; return c;}
+    c.w = yaw_ok ? 0.0 : std::clamp(g_.kp_yaw * yaw_err, -g_.max_ang, g_.max_ang);
+    const double lin_scale = std::fabs(yaw_err) > 3 * g_.yaw_tol ? 0.3 : 1.0;   // 많이 틀어졌으면 먼저 돌기
+    c.v = dist_ok ? 0.0 : std::clamp(g_.kp_lin * e_d, -g_.max_lin, g_.max_lin) * lin_scale;
+    return c;
+  }
+private:
+  BoxApproachGains g_;
   int settled_ = 0;
 };
 

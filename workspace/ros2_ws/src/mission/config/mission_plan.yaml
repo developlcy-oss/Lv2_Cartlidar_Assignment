@@ -21,7 +21,7 @@ mission_node:
       max_cycles: 4              # 신호 묶음이 반복됨 (12 회 → 3 s 꺼짐 → 다시). 이만큼 보고도 같은 순서 2 번이 안 나오면 안전 정지
     verify:
       # 장소 3 x 3 칸 보기 (#65): manipulator box_look skill 이 verify 줄의 칸 중심 · 윗면을 위에서 내려다봄 (바로 아래 · 0.20 m 우선).
-      #   대기 자리 (면 0.45 m) 에서는 팔이 닿지 않아, 정렬 없이 오는 verify 앞에는 approach approach_distance 를 끼움
+      #   대기 자리 (면 0.45 m) 에서는 팔이 닿지 않아, 정렬 없이 오는 verify 앞에는 approach_box approach_distance 를 끼움 (#160)
       arm_pose: box_look
       approach_distance: 0.13    # FINE (TFmini 렌즈 → 면, >= 0.13). 0 = 끼우지 않음
       mode: READ_TAG+SEARCH_FRONT
