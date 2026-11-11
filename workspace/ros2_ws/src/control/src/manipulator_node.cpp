@@ -515,7 +515,9 @@ private:
     lie_floor_frame_ = declare_parameter<std::string>("lie_upright.floor_frame", "base_footprint");
     lie_box_top_ = declare_parameter<double>("lie_upright.box_top", 0.07);         // 상자 윗면 (바닥 위, 발제 70 mm)
     lie_puck_dz_ = declare_parameter<double>("lie_upright.puck_dz", 0.015);        // 관측 누운 퍽 중심 = 윗면 + 15 mm
-    lie_spot_dz_ = declare_parameter<double>("lie_upright.spot_dz", 0.032);        // 세울 자리 D = 윗면 + 퍽 반 높이 30 + 2 mm
+    // 세울 자리 D 높이 = 윗면 + 29 mm. 학습 _stand_spot 은 30 + 2 mm 를 생성 높이 (base_link 9.75 mm) 로 뺐는데 차체는 6.75 mm 로
+    //   내려앉아, 실제 base_link 기준 D 는 윗면 + 29 mm 로 학습됨 (RL 261111 1 확인, 11-11). 학습과 같은 입력을 주려고 29 mm
+    lie_spot_dz_ = declare_parameter<double>("lie_upright.spot_dz", 0.029);
     lie_view_left_ = declare_parameter<std::vector<double>>("lie_upright.view_left", {-0.300, -1.80, 0.50, 1.90, 0.0});
     lie_view_right_ = declare_parameter<std::vector<double>>("lie_upright.view_right", {0.305, -1.80, 0.50, 1.90, 0.0});
     lie_view_inline_ = declare_parameter<std::vector<double>>("lie_upright.view_inline", {0.0, -1.80, 0.50, 1.90, 0.0});
@@ -530,6 +532,11 @@ private:
     lie_clear_hold_ = declare_parameter<double>("lie_upright.clear_hold", 1.0);
     lie_max_joint_vel_ = declare_parameter<double>("lie_upright.max_joint_velocity", 2.0);
     lie_look_after_ = declare_parameter<bool>("lie_upright.look_after", true);
+    lie_release_xy_ = declare_parameter<double>("lie_upright.release_xy", 0.03);   // 놓음 = 잡는 점이 D 수평 이 안 (학습 spot_tol)
+    lie_release_z_ = declare_parameter<double>("lie_upright.release_z", 0.06);     // · D 위 이 아래. 밖에서 벌리면 떨어뜨림 실패
+    lie_release_beta_ = declare_parameter<double>("lie_upright.release_beta", 1.4);   // · 집게 숙임 β 이 위 (세운 퍽, 수평 1.57)
+    lie_retreat_up_ = declare_parameter<double>("lie_upright.retreat_up", 0.05);   // 끝난 뒤 잡는 점을 위로 (m)
+    lie_retreat_time_ = declare_parameter<double>("lie_upright.retreat_time", 1.0);   // 그 이동 최소 시간 (s)
     lie_params_.finger_open = declare_parameter<double>("lie_upright.finger_open", lie_params_.finger_open);
     lie_params_.finger_close = declare_parameter<double>("lie_upright.finger_close", lie_params_.finger_close);
     lie_params_.grasp_lo = declare_parameter<double>("lie_upright.grasp_finger_min", lie_params_.grasp_lo);
@@ -2251,9 +2258,11 @@ private:
   //   ① 상자 보기 자세 (lie_upright.view_*, 경우는 사전 상자 옆 위치로 고름) → 인식 /perception/place_box/prior 에 사전값을 내고
   //      /perception/place_box/measure → /perception/place_box (상자 윗면 중심 · 요). 못 재면 lie_upright.box_required 면 실패, 아니면 사전값
   //   ② 학습 시작 자세 READY_POSE_45 + 집게 벌림 → ③ 정책 (rate_hz, lieupright.hpp: 관측 45 → 행동 6 → β · ρ · 감쇠 최소제곱 IK)
-  //   ④ 들었다가 (쥠 + 잡는 점 lift_ok 위) 집게를 벌리면 놓음으로 보고 그 뒤 집게는 늘 벌림. 놓은 뒤 clear_hold 지났고 잡는 점이
-  //      세울 자리 D 에서 clear_distance 넘게 떨어져 있으면 끝 → ⑤ D 에서 target_look (세운 퍽을 다시 재서 다음 toppick_tilt 가 씀)
-  //   실패: 시간 (lie_upright.max_duration), 든 뒤 놓기 전에 쥠이 풀림 (떨어뜨림), 관측 · 추론 오류. 퍽 상태는 실물에서 못 보므로 판정하지 않음
+  //   ④ 들었다가 (쥠 + 잡는 점 lift_ok 위) 잡는 점이 세울 자리 D 위 (수평 release_xy · 높이 release_z 안, β ≥ release_beta) 에서 벌리면 놓음,
+  //      그 뒤 집게는 늘 벌림. 놓은 뒤 clear_hold 지났고 잡는 점이 D 에서 clear_distance 넘게 떨어져 있으면 끝
+  //   ⑤ 잡는 점을 retreat_up 위로 → D 에서 target_look (세운 퍽을 다시 재서 다음 toppick_tilt 가 씀)
+  //   실패: 시간 (lie_upright.max_duration), 든 뒤 놓기 전에 쥠이 풀림 · D 밖에서 벌림 (떨어뜨림), 관측 · 추론 오류.
+  //   퍽 상태는 실물에서 못 보므로 판정하지 않음 (세운 뒤 D 의 target_look 이 퍽을 찾는지가 확인)
   enum class LieStep { VIEW, BOX_WAIT, START, RUN };
   struct LieRun
   {
@@ -2628,22 +2637,35 @@ private:
     std::array<float, 6> act{};
     for (size_t i = 0; i < 6; ++i) {act[i] = std::clamp(a[i], -1.f, 1.f);}
     if (r.lifted && !r.released && act[5] > 0.f) {
+      // 학습: 놓음 = 퍽이 상자 위에 자리 잡았을 때만 (공중에서 벌리면 떨어뜨림). 실물은 퍽을 못 보므로 잡는 점이 세울 자리 위
+      //   (수평 release_xy · 높이 release_z 안) 이고 집게가 퍽을 세운 자세 (β ≥ release_beta) 일 때만 놓음으로 봄.
+      //   Isaac 기록 세 에피소드: 수평 8 ~ 13 mm, D 위 20 ~ 39 mm, β 1.55 ~ 1.75. 든 직후 (아직 누운 채) 는 D 위 51 ~ 61 mm · β 0.8 ~ 1.0
+      const double dh = std::hypot(f.tcp.x() - s.spot.x(), f.tcp.y() - s.spot.y());
+      const double dz = f.tcp.z() - s.spot.z();
+      char buf[200];
+      std::snprintf(buf, sizeof(buf), "grasp point %.1f mm beside and %.1f mm above the stand spot, beta %.2f rad", dh * 1000.0,
+        dz * 1000.0, s.beta);
+      if (dh > lie_release_xy_ || dz > lie_release_z_ || s.beta < lie_release_beta_) {
+        finishSkill(false, std::string("lie_upright: gripper opened away from the stand spot (dropped): ") + buf);
+        return;
+      }
       r.released = true;
-      RCLCPP_INFO(get_logger(), "lie_upright: released at (%.3f, %.3f, %.3f), %.3f m from stand spot", f.tcp.x(), f.tcp.y(), f.tcp.z(),
-        (f.tcp - s.spot).norm());
+      RCLCPP_INFO(get_logger(), "lie_upright: released, %s", buf);
     }
     if (r.released) {act[5] = 1.f;}   // 학습: 놓은 뒤 집게는 늘 벌림
     const Joints5 tgt = lieApplyAction(diff_ik_, lie_params_, r.target ? *r.target : s.q, s.q, act, s.beta, s.rho);
-    r.target = tgt;
     s.action = act;
 
     if (!skill_last_cmd_) {skill_last_cmd_ = q;}
     const double max_step = lie_max_joint_vel_ / skill_rate_;
     std::vector<double> cmd(joint_names_.size());
+    Joints5 sent{};
     for (size_t k = 0; k < 5; ++k) {
       const double c = std::clamp(ik_signs_[k] * tgt[k] + ik_offsets_[k], lower_[k], upper_[k]);
       cmd[k] = std::clamp(c, (*skill_last_cmd_)[k] - max_step, (*skill_last_cmd_)[k] + max_step);
+      sent[k] = (cmd[k] - ik_offsets_[k]) / ik_signs_[k];
     }
+    r.target = sent;   // 학습 arm_target 처럼 다음 스텝 기준 = 실제로 보낸 목표 (속도 제한으로 자르면 자른 값)
     const double grip = std::clamp(rl_grip_.toRad(act[5] > 0.f ? lie_params_.finger_open : lie_params_.finger_close),
       std::min(gripper_open_, gripper_close_), std::max(gripper_open_, gripper_close_));
     cmd[5] = std::clamp(grip, lower_[5], upper_[5]);
@@ -2669,20 +2691,48 @@ private:
       std::snprintf(buf, sizeof(buf), "lie_upright: placed and released (%.1f s), hand %.3f m from stand spot", (now() - r.t_start).seconds(),
         (f.tcp - s.spot).norm());
       RCLCPP_INFO(get_logger(), "%s", buf);
-      if (!lie_look_after_) {
-        finishSkill(true, buf);
+      // ⑤ 잡는 점을 retreat_up 만큼 위로 (지금 집게 자세에서 β · ρ 를 다시 정하고 같은 IK 를 측정 없이 이어 계산, 세운 퍽 · 상자를 치지 않게)
+      //   → D 에서 target_look
+      Joints5 qu = s.q, tu = s.q;
+      double bu = s.beta, ru = s.rho;
+      lieBetaRhoFrom(diff_ik_, lie_params_, s.q, bu, ru);   // 지금 집게 자세 그대로 (정책 β · ρ 목표와 조금 다를 수 있음)
+      const int n_up = static_cast<int>(std::ceil(lie_retreat_up_ / lie_params_.cart_scale - 1e-9));
+      for (int i = 0; i < n_up; ++i) {
+        tu = lieApplyAction(diff_ik_, lie_params_, tu, qu, {0.f, 0.f, 1.f, 0.f, 0.f, 1.f}, bu, ru);
+        qu = tu;
+      }
+      const double rise = diff_ik_.forward(qu).tcp.z() - f.tcp.z();
+      std::vector<double> qcmd(joint_names_.size());
+      for (size_t k = 0; k < 5; ++k) {qcmd[k] = ik_signs_[k] * qu[k] + ik_offsets_[k];}
+      qcmd[5] = cmd[5];
+      if (!withinLimits(qcmd) || rise < 0.8 * lie_retreat_up_) {
+        std::snprintf(buf, sizeof(buf), "lie_upright: cannot retreat up %.0f mm after release (rise %.0f mm or joint limits)",
+          lie_retreat_up_ * 1000.0, rise * 1000.0);
+        finishSkill(false, buf);
         return;
       }
-      // ⑤ 세운 자리 D 에서 target_look (다음 toppick_tilt 가 이 값을 씀)
-      TaskSkill look;
-      look.kind = Task::TARGET_LOOK;
-      look.frame = rl_frame_;
-      look.x = s.spot.x();
-      look.y = s.spot.y();
-      look.z = s.spot.z();
-      lie_.reset();
-      task_ = Task::TARGET_LOOK;
-      startTargetLook(look);
+      const std::string done = buf;
+      const Eigen::Vector3d spot = s.spot;
+      const auto current = currentJoints();
+      sendArm(qcmd, trajDuration(current ? *current : q, qcmd, lie_retreat_time_), [this, done, spot](bool ok, const std::string & msg) {
+          if (!ok) {
+            finishSkill(false, "lie_upright retreat up: " + msg);
+            return;
+          }
+          if (!lie_look_after_) {
+            finishSkill(true, done);
+            return;
+          }
+          TaskSkill look;
+          look.kind = Task::TARGET_LOOK;
+          look.frame = rl_frame_;
+          look.x = spot.x();
+          look.y = spot.y();
+          look.z = spot.z();
+          lie_.reset();
+          task_ = Task::TARGET_LOOK;
+          startTargetLook(look);
+        });
       return;
     }
     auto fb = std::make_shared<ExecuteSkill::Feedback>();
@@ -3415,9 +3465,9 @@ private:
   bool lie_enabled_{true}, lie_box_required_{true}, lie_look_after_{true};
   std::string lie_policy_name_{"lie_upright"}, lie_file_, lie_floor_frame_{"base_footprint"};
   std::vector<double> lie_view_left_, lie_view_right_, lie_view_inline_;
-  double lie_box_top_{0.07}, lie_puck_dz_{0.015}, lie_spot_dz_{0.032}, lie_side_y_{0.05}, lie_box_settle_{0.5}, lie_box_timeout_{3.0};
+  double lie_box_top_{0.07}, lie_puck_dz_{0.015}, lie_spot_dz_{0.029}, lie_side_y_{0.05}, lie_box_settle_{0.5}, lie_box_timeout_{3.0};
   double lie_pucks_age_{2.0}, lie_max_duration_{15.0}, lie_lift_ok_{0.03}, lie_clear_dist_{0.03}, lie_clear_hold_{1.0};
-  double lie_max_joint_vel_{2.0};
+  double lie_max_joint_vel_{2.0}, lie_release_xy_{0.03}, lie_release_z_{0.06}, lie_release_beta_{1.4}, lie_retreat_up_{0.05}, lie_retreat_time_{1.0};
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr lie_prior_pub_;
   rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr lie_box_client_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr lie_box_sub_;
