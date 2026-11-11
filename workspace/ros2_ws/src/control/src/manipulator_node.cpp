@@ -412,6 +412,11 @@ private:
     place_clearance_ = declare_parameter<double>("place.clearance", 0.002);
     place_approach_ = declare_parameter<double>("place.approach_distance", 0.04);
     place_retreat_ = declare_parameter<double>("place.retreat_distance", 0.04);
+    // 2026-11-11 Isaac 주사위 연속 놓기 (dice_place_check.py, 2048 대): 끝까지 벌리면 (81.6 mm) 먼저 놓은 옆 퍽을 밀고,
+    //   퍽 쥔 팔 처짐으로 J1 쪽으로 3 ~ 10 mm 덜 감 -> 놓을 때 벌림 폭 · J1 바깥 보정 (판 전체 33.6 % -> 90.0 %)
+    place_release_ = declare_parameter<double>("place.release_position", gripper_open_);   // rad, 기본 = 끝까지 (이전 동작)
+    place_radial_a_ = declare_parameter<double>("place.radial_offset_mm", 0.0);              // J1 거리 0.2665 m 칸에서 바깥으로 [mm]
+    place_radial_b_ = declare_parameter<double>("place.radial_offset_slope_mm", 0.0);        // 칸 (0.06 m) 멀어질 때마다 더할 값 [mm]
     // 바닥 frame (z = 바닥). arm_base_link 높이 = 이 frame → arm_base_link TF, 없으면 arm_base_height
     floor_frame_ = declare_parameter<std::string>("floor_frame", "base_footprint");
     arm_base_height_ = declare_parameter<double>("arm_base_height", 0.120);   // ★ base_link 바닥 위 0.00675 + 0.1135 (B안)
@@ -3137,6 +3142,14 @@ private:
         base_frame_.c_str(), arm_base_height_);
     }
     const double surface = has_z ? arm.point.z : floor_z + place_surface_height_;
+    {   // 2026-11-11 처짐 보정: 칸을 J1 축 바깥으로 (a + b x (J1 거리 − 0.2665) / 0.06) mm
+      const double r = std::hypot(arm.point.x, arm.point.y);
+      if (r > 1e-6) {
+        const double comp = (place_radial_a_ + place_radial_b_ * (r - 0.2665) / 0.06) / 1000.0;
+        arm.point.x += arm.point.x / r * comp;
+        arm.point.y += arm.point.y / r * comp;
+      }
+    }
     const Eigen::Vector3d tip(arm.point.x, arm.point.y, surface + puck_half_height_ + grasp_z_offset_ + place_clearance_);
     const auto current = currentJoints();
     if (!current) {
@@ -3164,7 +3177,7 @@ private:
         }
         tool_pos_ = pre;
         moveTool(tip, [this, back]() {
-            moveGripper(gripper_open_, [this, back](bool gok, const std::string & gmsg) {
+            moveGripper(place_release_, [this, back](bool gok, const std::string & gmsg) {
                 if (!gok) {
                   finishSkill(false, "place release: " + gmsg);
                   return;
@@ -3428,6 +3441,7 @@ private:
   std::map<std::string, std::pair<double, double>> place_cells_;      // "L1/-1,0" → (x, y)
   double place_pitch_{-M_PI_4}, place_surface_height_{0.070}, puck_half_height_{0.030}, place_clearance_{0.002};
   double place_approach_{0.04}, place_retreat_{0.04}, arm_base_height_{0.120};
+  double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};   // 2026-11-11 놓기 벌림 폭 · J1 바깥 보정
   std::string base_frame_, fixed_frame_, range_frame_;
   double approach_distance_{0.15}, range_offset_{0.015}, max_final_approach_{0.25};
   double range_mismatch_tol_{0.04};

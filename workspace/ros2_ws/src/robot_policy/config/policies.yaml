@@ -82,3 +82,31 @@ lie_upright:
   action: tcp_delta(6)
   action_low: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
   action_high: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+
+# 세운 퍽 45° 집기 k7 (Isaac Waffle-SidePick45Chain-Direct = 미션 배치 Waffle-SidePick45Mission-Direct 와 같은 관측 · 행동, #199 · #193). 2026-11-11 등록.
+#   학습 sidepick_env.py _get_observations 순서 · 단위 · 좌표 (base_link, m, rad). 모두 필수 (obs_dim 33).
+#   ★ 노드 관측 조립은 아직 없음 (#193 PR, Onbeom). 조립 전에는 skill.policies 에 넣지 말 것 (toppick_obs 이름이 아니라 로드 거절).
+#   행동 tcp_delta(4) = toppick_tilt 와 같은 IK (arm_diff_ik, 기울임 45°, 닫는 축 = J1 접선, cart_scale 0.005, rot_weight 0.3, damping 1e-4, lead 0.25 rad),
+#   4 번째 > 0 벌림 0.010 m (61.6 mm) · ≤ 0 닫기 (학습 −0.011, 미션 연결은 −0.0075 가 넣기에 나음 = toppick_rl.closed_m 과 같음).
+#   시작 자세 (학습 리셋) = READY_POSE_45 [0, −0.338, 0.559, 0.564, 0] ± 0.08 rad, 손가락 벌림 0.010 -> 정책 전에 이 자세로 옮길 것 (toppick_rl.start_pose 처럼).
+#   Isaac 미션 배치 (정지 0.1272 · 직육면체 ±17° 회전 접근) 집기 -> 칸 넣기 2048 대: 원기둥 1894 (92.5 %) · 직육면체 1688 (82.4 %)
+#   (쥐기 −0.0075, pallet.speed 0.4, 인식 ±1 mm). 집기 통과 98 ~ 99 %.
+sidepick45_k7:
+  model: models/sidepick45_k7.onnx
+  rate_hz: 30
+  obs_dim: 33
+  observation:
+    - {name: joint_pos_rel, size: 5, required: true}      # joint1~5 − READY_POSE_45 [0, −0.338, 0.559, 0.564, 0] (lie_upright 와 같은 기준)
+    - {name: joint_vel, size: 5, required: true}          # rad/s
+    - {name: finger_pos, size: 1, required: true}         # gripper_left_joint (m, 벌림 mm = 41.6 + 2000 x 값)
+    - {name: puck_pos, size: 3, required: true}           # 인식 퍽 중심 (base_link). 학습: 참값 + 에피소드 치우침 ±1 mm + 스텝 ±1 mm, 지연 3 ~ 9 스텝 · 갱신 3 ~ 10 스텝 · 끊김 (#191)
+    - {name: grasp_pos, size: 3, required: true}          # 잡는 점 = gripper_roll_link + (0.14, 0, 0) (FK)
+    - {name: puck_minus_grasp, size: 3, required: true}   # puck_pos − grasp_pos
+    - {name: approach_axis, size: 3, required: true}      # gripper_roll_link +x (base_link)
+    - {name: close_axis, size: 3, required: true}         # gripper_roll_link +y
+    - {name: neighbor_rel, size: 2, required: true}       # 옆 퍽 − 퍽 (x, y). 옆 퍽 없음 = (0, 0) (toppick 의 (0, 0.5) 와 다름)
+    - {name: is_box, size: 1, required: true}             # 직육면체 퍽 1, 원기둥 0
+    - {name: prev_action, size: 4, required: true}        # 직전 정책 출력 ([-1, 1] 자른 값). 첫 스텝 (0, 0, 0, 1)
+  action: tcp_delta(4)
+  action_low: [-1.0, -1.0, -1.0, -1.0]
+  action_high: [1.0, 1.0, 1.0, 1.0]
