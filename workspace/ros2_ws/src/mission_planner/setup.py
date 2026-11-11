@@ -29,6 +29,7 @@ setup(
         "mission_plan = mission_planner.cli:plan_cmd",
         "mission_submit = mission_planner.submission:main",
         "mission_challenge_b = mission_planner.challenge_b:main",
+        "mission_score = mission_planner.score:main",
         "mission_planner_node = mission_planner.planner_node:main",
     ]},
 )

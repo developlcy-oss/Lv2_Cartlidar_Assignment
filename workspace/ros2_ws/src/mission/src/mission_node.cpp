@@ -47,7 +47,8 @@
 //                                 끼운다 (대기 자리 면 0.45 m 에서는 장소 중심이 J1 0.59 m 라 팔 카메라가 위에서 볼 수 없음)
 //                                 칸 = (cx, cy) ± 0.06 격자 (행 우선, 위 줄 +Y 부터, 줄 안은 -X 부터), expect9 = 칸마다 0 빈칸 · 1 R · 2 G · 3 Y.
 //                                 결과는 로그 (<에피소드 폴더>/mission_log.jsonl) 에 남기고, 틀려도 verify.stop_on_fail=false 면 계속 (복귀 점수)
-//   wait <s>                      제자리 대기 (복귀 후 정지 등)
+//   wait <s>                      제자리 대기 (복귀 후 정지 등). return_check 를 켜면 처음 · 끝 자세로 차체가 출발 구역 안인지
+//                                 mission_log "return" 에 남김 (return_check.hpp, 판정만 · 멈추지 않음)
 //   퍽 측량 (survey.enabled, 이슈 #39 #53) — observe 와 plan 사이에 붙는다:
 //   survey_start                  /perception/survey/start (std_srvs/Trigger) → survey.mode 켜기
 //   survey_view <box> <arm_pose>  팔 자세 → survey.mode → survey.settle_s 기다림 (perception_survey 가 /perception/pucks 를 쌓음)
@@ -141,6 +142,7 @@
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 
+#include "mission/return_check.hpp"
 #include "mission/verify_record.hpp"
 #include "mission/survey_pucks.hpp"
 
@@ -468,6 +470,21 @@ private:
     place_box_arm_pose_ = declare_parameter<std::string>("place_box.arm_pose", "BOX_VIEW");
     place_box_mode_text_ = declare_parameter<std::string>("place_box.mode", "READ_TAG");
     place_box_settle_ = declare_parameter<double>("place_box.settle_s", 0.5);
+    // 복귀 기록 (채점 "차체 전체가 출발 구역 안에서 3 초 정지"): wait 처음 · 끝의 map -> base_link 자세와 구역 안 여부
+    return_check_ = declare_parameter<bool>("return_check.enabled", true);
+    {
+      const auto c = declare_parameter<std::vector<double>>("return_check.zone_center", {return_zone_.cx, return_zone_.cy});
+      const auto bx = declare_parameter<std::vector<double>>("return_check.body_x", {return_zone_.body_x_min, return_zone_.body_x_max});
+      if (c.size() != 2 || bx.size() != 2 || bx[0] >= bx[1]) {
+        throw std::invalid_argument("return_check.zone_center [x, y] · body_x [min, max] (min < max)");
+      }
+      return_zone_.cx = c[0];
+      return_zone_.cy = c[1];
+      return_zone_.body_x_min = bx[0];
+      return_zone_.body_x_max = bx[1];
+      return_zone_.half = declare_parameter<double>("return_check.zone_half", return_zone_.half);
+      return_zone_.body_y_half = declare_parameter<double>("return_check.body_y_half", return_zone_.body_y_half);
+    }
     place_box_max_shift_ = declare_parameter<double>("place_box.max_shift", 0.10);
     place_box_required_ = declare_parameter<bool>("place_box.required", false);
     timeout_["measure_box"] = declare_parameter<double>("timeout.measure_box", 15.0);
@@ -963,7 +980,10 @@ private:
     } else if (s.type == "measure_box") {
       tickMeasureBox();
     } else if (s.type == "wait") {
-      if (now() >= wait_until_) {stepSucceeded();}
+      if (now() >= wait_until_) {
+        logReturn();
+        stepSucceeded();
+      }
     }
   }
 
@@ -1173,6 +1193,7 @@ private:
       finishSurvey();
     } else if (s.type == "wait") {
       wait_until_ = now() + rclcpp::Duration::from_seconds(std::stod(s.args[0]));
+      wait_pose0_ = return_check_ ? basePose() : std::nullopt;
     } else if (s.type == "check_marker") {
       drive_done_ = true;
       setModeThen(Mode::READ_MARKER, [this]() {beginWatch();});
@@ -2020,6 +2041,43 @@ private:
       << step_idx_ << ", " << body << "}\n";
   }
 
+  // 지도의 차체 자세 (x, y, yaw), 최신 TF. 없으면 nullopt
+  std::optional<std::array<double, 3>> basePose()
+  {
+    try {
+      const auto t = tf_buffer_->lookupTransform(map_frame_, base_frame_, tf2::TimePointZero);
+      return std::array<double, 3>{t.transform.translation.x, t.transform.translation.y, tf2::getYaw(t.transform.rotation)};
+    } catch (const tf2::TransformException &) {
+      return std::nullopt;
+    }
+  }
+
+  // wait 끝: 처음 · 끝 자세로 정지 (움직인 거리 · 각도) 와 차체 네 모서리가 출발 구역 안인지 기록
+  void logReturn()
+  {
+    if (!return_check_) {return;}
+    const auto p1 = basePose();
+    std::ostringstream o;
+    o << std::setprecision(4) << std::fixed;
+    if (!p1) {
+      o << "\"ok\": false, \"reason\": \"no TF " << map_frame_ << " -> " << base_frame_ << "\"";
+      logEvent("return", o.str());
+      return;
+    }
+    const auto j = judge_return(return_zone_, (*p1)[0], (*p1)[1], (*p1)[2]);
+    o << "\"ok\": true, \"pose\": [" << (*p1)[0] << ", " << (*p1)[1] << ", " << (*p1)[2] << "], \"inside\": "
+      << (j.inside ? "true" : "false") << ", \"min_margin_m\": " << j.min_margin;
+    if (wait_pose0_) {
+      const auto & p0 = *wait_pose0_;
+      o << ", \"moved_m\": " << std::hypot((*p1)[0] - p0[0], (*p1)[1] - p0[1])
+        << ", \"turned_deg\": " << std::abs(std::remainder((*p1)[2] - p0[2], 2 * M_PI)) * 180.0 / M_PI
+        << ", \"start_inside\": " << (judge_return(return_zone_, p0[0], p0[1], p0[2]).inside ? "true" : "false");
+    }
+    o << ", \"zone\": [" << return_zone_.cx << ", " << return_zone_.cy << ", " << 2 * return_zone_.half << "]";
+    logEvent("return", o.str());
+    RCLCPP_INFO(get_logger(), "return: (%.3f, %.3f) inside %s, margin %.3f m", (*p1)[0], (*p1)[1], j.inside ? "yes" : "NO", j.min_margin);
+  }
+
   // view_wait 동안 못 찾으면 제자리 회전: 현재 위치 + yaw로 /drive/navigate (drive가 nav2 spin으로 처리)
   void rotateIfNothing(const Rotate & r, const std::string & what)
   {
@@ -2508,6 +2566,9 @@ private:
   bool loc_waiting_{false};
   rclcpp::Time loc_lost_since_{0, 0, RCL_ROS_TIME}, last_tick_{0, 0, RCL_ROS_TIME};
   rclcpp::Time wait_until_{0, 0, RCL_ROS_TIME};
+  bool return_check_{true};
+  ReturnZone return_zone_;                                  // 출발 구역 · 차체 외곽 (return_check.*)
+  std::optional<std::array<double, 3>> wait_pose0_;          // wait 처음 자세 (map)
   bool dice_pending_{false};
 };
 
