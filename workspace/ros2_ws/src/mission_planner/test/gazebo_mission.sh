@@ -6,11 +6,14 @@
 #
 #   test/gazebo_mission.sh [결과 폴더]     기본 /tmp/gazebo_mission. 끝나면 결과 폴더/mock_out.json (goto 별 도착 자세 · 최종 상태)
 #   test/gazebo_mission.sh stop            시험 프로세스 정리
-#   GZ_ARGS="use_loc_monitor:=true" test/gazebo_mission.sh   gazebo_sim.launch.py 에 인자 더 주기 (#133)
+#   GZ_ARGS="..." test/gazebo_mission.sh   gazebo_sim.launch.py 에 인자 더 주기 (#133)
+#   LOC=1 test/gazebo_mission.sh           loc_monitor 를 실물처럼 (#151): use_loc_monitor + twist_mux (drive 50 · nav 10,
+#                                          잠금 /localization/lock 20) + drive loc_gate. 사건 기록 결과 폴더/loc_events.jsonl
 # 먼저: source install/setup.bash, colcon build (mission_planner · mission · control · navigation · localization · waffle_4wd_description, navigation README 참고)
+#       LOC=1 은 twist_mux 도
 # 시각: 모든 로그 시각은 시뮬레이션 시각 (Gazebo 는 실시간의 약 0.5 ~ 0.66 배)
 set +u
-PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim'
+PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim|lib/twist_mux/twist_mux|loc_monitor'
 stop_all() {
   for sig in INT TERM KILL; do
     pids=$(pgrep -f "$PAT" | grep -vx "$$")
@@ -30,8 +33,9 @@ export GZ_IP=127.0.0.1   # Gazebo 통신을 이 PC 안으로 (샌드박스 · �
 #   시험 중 다른 터미널에서 토픽을 보려면 그 터미널도 export ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST
 export ROS_AUTOMATIC_DISCOVERY_RANGE=${SIM_DISCOVERY_RANGE:-LOCALHOST}
 rm -rf "$OUT"; mkdir -p "$OUT/log"
+[ "${LOC:-0}" = 1 ] && LOC_GATE=true || LOC_GATE=false
 # 노드 이름 키 (drive_node:) 가 있는 yaml 값은 -p 보다 우선이라 덮어쓸 값도 yaml 로
-cat > "$OUT/drive_sim.yaml" <<'YAML'
+cat > "$OUT/drive_sim.yaml" <<YAML
 drive_node:
   ros__parameters:
     use_sim_time: true
@@ -39,9 +43,25 @@ drive_node:
       rear_camera: false       # Gazebo 뒤 깊이 → rear_obstacle 노드 없음
     navigate:
       loc_gate:
-        enabled: false         # gazebo_sim 은 loc_monitor 를 끔 (#121)
+        enabled: $LOC_GATE         # loc_monitor 를 띄울 때만 (#121)
 YAML
 SIM="-p use_sim_time:=true"
+if [ "${LOC:-0}" = 1 ]; then
+  GZ_ARGS="use_loc_monitor:=true cmd_vel_out:=/cmd_vel_nav loc_event_log:=$OUT/loc_events.jsonl $GZ_ARGS"
+  # 실물 twist_mux (opencr_hardware/config/twist_mux.yaml) 중 Gazebo 에 있는 것만: e_stop · obstacle 잠금은 내는 노드가 없어 뺌
+  cat > "$OUT/mux.yaml" <<'YAML'
+twist_mux:
+  ros__parameters:
+    use_sim_time: true
+    use_stamped: true
+    topics:
+      drive: {topic: cmd_vel_drive, timeout: 0.25, priority: 50}
+      nav:   {topic: cmd_vel_nav,   timeout: 0.5,  priority: 10}
+    locks:
+      localization: {topic: /localization/lock, timeout: 0.5, priority: 20}
+YAML
+  ros2 run twist_mux twist_mux --ros-args --params-file "$OUT/mux.yaml" -r cmd_vel_out:=/cmd_vel > "$OUT/mux.log" 2>&1 &
+fi
 ros2 launch navigation gazebo_sim.launch.py gui:=false rviz:=false $GZ_ARGS > "$OUT/gz.log" 2>&1 &
 echo "[gz_mission] Gazebo + Nav2 시작"
 for i in $(seq 1 200); do n=$(grep -c "Managed nodes are active" "$OUT/gz.log" 2>/dev/null); [ "${n:-0}" -ge 3 ] && break; sleep 3; done

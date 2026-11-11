@@ -42,14 +42,7 @@ def tf_pose(t):
     return (t.transform.translation.x, t.transform.translation.y, yaw_of(t.transform.rotation))
 
 
-def compose(a, b):
-    c, s = math.cos(a[2]), math.sin(a[2])
-    return (a[0] + c * b[0] - s * b[1], a[1] + s * b[0] + c * b[1], math.atan2(math.sin(a[2] + b[2]), math.cos(a[2] + b[2])))
-
-
-def inverse(a):
-    c, s = math.cos(a[2]), math.sin(a[2])
-    return (-(c * a[0] + s * a[1]), -(-s * a[0] + c * a[1]), -a[2])
+compose, inverse = lc.se2_compose, lc.se2_inverse
 
 
 def wrap(a):
@@ -320,11 +313,29 @@ class LocMonitor(Node):
                 self.worker.start()
 
     def latest_pts(self):
+        """앞 · 뒤 스캔을 앞 스캔 시각 base_link 로 모음. 뒤 스캔은 두 시각 사이 odom 이동만큼 옮김 (움직이는 중에도 맞게, #151).
+        돌려줌: (앞 스캔 시각, 그 시각 odom 자세, 점)"""
         with self.lock:
-            v = list(self.scans.values())
-        if len(v) < 2 or abs((v[0][0] - v[1][0]).nanoseconds) * 1e-9 > 0.06:
+            v = dict(self.scans)
+        tf_, tr_ = self.g('scan_topics')[:2]
+        if tf_ not in v or tr_ not in v or abs((v[tf_][0] - v[tr_][0]).nanoseconds) * 1e-9 > 0.06:
+            return None, None, None
+        (sf, pf, _), (sr, pr, _) = v[tf_], v[tr_]
+        of = self.lookup(self.g('odom_frame'), self.g('base_frame'), sf, timeout=0.1)   # 작업 스레드라 기다려도 됨
+        orr = self.lookup(self.g('odom_frame'), self.g('base_frame'), sr, timeout=0.1)
+        if of is None or orr is None:
+            return None, None, None
+        return sf, of, np.concatenate([pf, lc.move_points(pr, compose(inverse(of), orr))])   # 뒤 스캔 시각 base → 앞 스캔 시각 base
+
+    def to_now(self, pose_st, odom_st):
+        """스캔 시각 자세 ∘ (스캔 시각 → 가장 최근 odom TF 이동). 돌려줌: (자세, 그 TF 시각). 탐색하는 동안 움직인 만큼 메움 (#151)"""
+        try:
+            t = self.buf.lookup_transform(self.g('odom_frame'), self.g('base_frame'), Time(), timeout=Duration(seconds=0.1))
+        except tf2_ros.TransformException:
             return None, None
-        return v[0][0], np.concatenate([v[0][1], v[1][1]])     # 다시 찾기는 차체가 멈춘 상태(게이트 0)라 한 자세로 놓아도 됨
+        d = compose(inverse(odom_st), tf_pose(t))
+        self.event('motion_comp', dxy=round(math.hypot(d[0], d[1]), 3), dyaw_deg=round(math.degrees(d[2]), 2))
+        return compose(pose_st, d), t.header.stamp
 
     def recover(self):
         self.set_state('RECOVERING')
@@ -332,11 +343,10 @@ class LocMonitor(Node):
             if self.now_s() - self.recover_since > self.g('max_recover_s'):
                 self.set_state('FAILED', recover_s=round(self.now_s() - self.recover_since, 2))
                 return
-            st, pts = self.latest_pts()
+            st, odom, pts = self.latest_pts()
             cand = None
             if pts is not None:
-                odom = self.lookup(self.g('odom_frame'), self.g('base_frame'), st, timeout=0.1)   # 작업 스레드라 기다려도 됨
-                if self.last_good is not None and odom is not None:
+                if self.last_good is not None:
                     center = compose(self.last_good[1], compose(inverse(self.last_good[2]), odom))
                     t0 = time.monotonic()
                     L = lc.search(self.field, pts, center=center, lin=self.g('local_lin'), ang=math.radians(self.g('local_ang_deg')))
@@ -349,7 +359,10 @@ class LocMonitor(Node):
                     self.event('search_global', best=[round(v, 3) for v in G['best']], score=round(G['score'], 4),
                                second=G['second'], second_score=G['second_score'], n_cand=G['n_cand'], wall_s=round(time.monotonic() - t0, 2))
                     cand = G if self.accept(G) else None
-            if cand is not None and self.restart(cand['best']):
+            stamp = None
+            if cand is not None:
+                cand['best'], stamp = self.to_now(cand['best'], odom)
+            if cand is not None and cand['best'] is not None and self.restart(cand['best'], stamp):
                 self.confirm_since, self.confirm_ok_since = self.now_s(), None
                 self.set_state('CONFIRM', pose=[round(v, 3) for v in cand['best']], score=round(cand['score'], 4))
                 return
@@ -369,13 +382,13 @@ class LocMonitor(Node):
             time.sleep(0.01)
         return fut.result() if fut.done() else None
 
-    def restart(self, mission_pose):
-        return self.restart_carto(mission_pose) if self.backend == 'carto' else self.restart_amcl(mission_pose)
+    def restart(self, mission_pose, stamp=None):
+        return self.restart_carto(mission_pose) if self.backend == 'carto' else self.restart_amcl(mission_pose, stamp)
 
-    def restart_amcl(self, mission_pose):
+    def restart_amcl(self, mission_pose, stamp=None):
         """AMCL 에 /initialpose(map = 발제 좌표)로 다시 넣음. 입자는 이 자세 둘레(initialpose_*_sd)로 다시 뿌려짐"""
         m = PoseWithCovarianceStamped()
-        m.header.stamp = self.get_clock().now().to_msg()
+        m.header.stamp = stamp if stamp is not None else self.get_clock().now().to_msg()   # 자세가 맞는 TF 시각 → 남은 이동은 AMCL 이 odom 으로 메움
         m.header.frame_id = self.g('mission_frame')
         m.pose.pose.position.x, m.pose.pose.position.y = mission_pose[0], mission_pose[1]
         m.pose.pose.orientation.z, m.pose.pose.orientation.w = math.sin(mission_pose[2] / 2), math.cos(mission_pose[2] / 2)

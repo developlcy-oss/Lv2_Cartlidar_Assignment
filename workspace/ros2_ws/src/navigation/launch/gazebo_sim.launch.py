@@ -36,7 +36,7 @@ def generate_launch_description():
         output='screen')
     nav = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('navigation'), 'launch', 'navigation.launch.py'])),
-        launch_arguments={'use_sim_time': 'true', 'odom_topic': '/odom', 'cmd_vel_out': '/cmd_vel',
+        launch_arguments={'use_sim_time': 'true', 'odom_topic': '/odom', 'cmd_vel_out': LC('cmd_vel_out'),
                           'use_loc_monitor': LC('use_loc_monitor'), 'map': LC('map'), 'objects_map': LC('objects_map'),
                           'loc_map': LC('loc_map'),
                           'start_x': LC('x'), 'start_y': LC('y'), 'start_yaw': LC('yaw')}.items(),
@@ -54,6 +54,8 @@ def generate_launch_description():
                               description='/map_objects (costmap 물체: 벽 + 라이다에 안 보이는 상자 · 받침대)'),
         DeclareLaunchArgument('loc_map', default_value=PathJoinSubstitution([FindPackageShare('mission_planner'), 'maps', 'map_amcl.yaml']),
                               description='loc_monitor 잔차 · 탐색용 벽 지도. /map 과 같은 SDF 지도 (기본 Isaac slam_walls 는 Gazebo 와 어긋남, #133)'),
+        DeclareLaunchArgument('cmd_vel_out', default_value='/cmd_vel',
+                              description='Nav2 최종 속도 명령. 기본 Gazebo 바로. twist_mux 를 따로 띄워 실물처럼 /localization/lock 을 걸려면 /cmd_vel_nav (#151)'),
         DeclareLaunchArgument('use_loc_monitor', default_value='false',
                               description='loc_monitor. 거짓 LOST(gap) 는 #129 로 고침. 기본 끔: 잔차 문턱 0.034 (Isaac 기준) 에서 LOST:residual 이 남음 (#133)'),
         gazebo,

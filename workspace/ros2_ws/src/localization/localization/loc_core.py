@@ -125,6 +125,23 @@ def search(field, pts, center=None, lin=0.5, ang=math.radians(30), n_refine=8, s
             'second_score': None if second is None else second[1], 'n_cand': len(cand)}
 
 
+def se2_compose(a, b):
+    """평면 자세 (x, y, yaw) 끼리 a ∘ b"""
+    c, s = math.cos(a[2]), math.sin(a[2])
+    return (a[0] + c * b[0] - s * b[1], a[1] + s * b[0] + c * b[1], math.atan2(math.sin(a[2] + b[2]), math.cos(a[2] + b[2])))
+
+
+def se2_inverse(a):
+    c, s = math.cos(a[2]), math.sin(a[2])
+    return (-(c * a[0] + s * a[1]), -(-s * a[0] + c * a[1]), -a[2])
+
+
+def move_points(pts, d):
+    """d 좌표계의 점 (M, 2) → 바깥 좌표계. d = 바깥 기준 d 좌표계 자세 (x, y, yaw)"""
+    c, s = math.cos(d[2]), math.sin(d[2])
+    return np.asarray(pts, float) @ np.array([[c, s], [-s, c]]) + np.array(d[:2], float)
+
+
 def T2d_from_tf(tx, ty, qx, qy, qz, qw):
     """3차원 변환(위치 · 쿼터니언) → 바닥 평면 2×3 [A | t]. 라이다가 거꾸로(roll π) 달린 경우 A 는 반사(det −1)가 됨 — yaw 만 뽑으면 좌우가 뒤집힘."""
     R = np.array([[1 - 2 * (qy * qy + qz * qz), 2 * (qx * qy - qz * qw)],
