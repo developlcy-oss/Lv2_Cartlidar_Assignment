@@ -9,6 +9,8 @@
 //                        TFmini 로 물러남을 확인한 뒤 0 으로 되돌린다 (#157, control/box_park.hpp). 정차 중에는 park_refresh_s 마다 다시 보냄
 //                        (바로 되돌리면 0.13 < 평소 0.25 → twist_mux 잠금이 회전 · 후진 · Nav2 를 모두 막아 박스 앞에서 멈춤)
 //                        먼 거리: object_pose(D435, base_link) → 회전 + 전진/후진, 범퍼 기준 거리, /scan 장애물 감시
+//                        박스 (goal.box_only, #160 빈 장소 상자): 인식 결과를 기다리지 않음. 시작 yaw (odom) 유지 + TFmini → 전후.
+//                        정지 거리 낮추기 · 박스 앞 정차는 정밀과 같음. 남는 좌우 · 각도는 mission measure_box 가 메움
 //   (#157) /drive/navigate 를 정차 중에 받으면 먼저 곧게 후진 (navigate.backoff.*, 뒤 /scan · 뒤 카메라 확인) → 물러남 확인 뒤 Nav2
 //   /drive/execute_skill 강화학습 정책 (robot_policy, CPU) → 속도
 //                        turn_p<deg> · turn_m<deg> · turn_0 = 직전 FINE 정렬 방향 기준 제자리 회전 (#77, 정책 · skill.enabled 와 상관없음)
@@ -86,6 +88,14 @@ public:
     cg.max_ang = declare_parameter("align.coarse_max_angular", cg.max_ang);
     cg.yaw_tol = declare_parameter("align.coarse_yaw_tolerance", cg.yaw_tol);
     coarse_ = CoarseAlign(cg);
+    BoxApproachGains bg;
+    bg.kp_yaw = declare_parameter("align.box_only.kp_yaw", bg.kp_yaw);
+    bg.max_ang = declare_parameter("align.box_only.max_angular", bg.max_ang);
+    bg.yaw_tol = declare_parameter("align.box_only.yaw_tolerance", bg.yaw_tol);
+    bg.kp_lin = g.kp_lin;
+    bg.max_lin = g.max_lin;
+    bg.settle_cycles = g.settle_cycles;
+    box_only_ = BoxApproach(bg);
     rate_hz_ = declare_parameter("align.rate_hz", 20.0);
     lost_s_ = declare_parameter("align.lost_timeout_s", 0.5);
     mode_wait_s_ = declare_parameter("align.mode_wait_s", 0.5);
@@ -454,7 +464,7 @@ private:
   }
 
   // ---------- /drive/align ----------
-  enum class AlignMode { WAIT, COARSE, FINE };
+  enum class AlignMode { WAIT, COARSE, FINE, BOX };   // BOX = goal.box_only (#160)
 
   void start_align(std::shared_ptr<AlignGH> gh)
   {
@@ -463,12 +473,31 @@ private:
     align_gh_ = gh;
     fine_.reset();
     coarse_.reset();
+    box_only_.reset();
     align_mode_ = AlignMode::WAIT;
     align_start_ = now();
     last_valid_ = align_start_;
     align_target_ = gh->get_goal()->target_distance;
     box_.reset();
     align_tol_ = gh->get_goal()->tolerance > 0.0 ? gh->get_goal()->tolerance : default_tol_;
+    box_yaw_.reset();
+    if (gh->get_goal()->box_only) {   // 인식 결과 없이 바로 박스 모드: 지금 yaw 를 지킴 (#160)
+      if (!odom_ || !fresh(odom_->header.stamp)) {finish_align(false, "박스 접근: /odometry/filtered 없음 (yaw 를 지킬 수 없음)"); return;}
+      box_yaw_ = tf2::getYaw(odom_->pose.pose.orientation);
+      enter_box_approach(AlignMode::BOX);
+    }
+  }
+
+  // 정밀 · 박스: obstacle_stop 정지 거리를 낮추고 이 정렬이 맡음 (끝날 때 end_box_approach 가 정차 판단)
+  void enter_box_approach(AlignMode mode)
+  {
+    align_mode_ = mode;
+    last_valid_ = now();
+    box_park_.clear();
+    fine_stop_m_ = box_approach_stop(align_target_, box_stop_margin_, box_stop_min_);
+    set_box_approach(fine_stop_m_);
+    RCLCPP_INFO(get_logger(), "align 모드: %s, 목표 %.3f m",
+      mode == AlignMode::BOX ? "박스 (퍽 없이, yaw 유지 + TFmini)" : "정밀(TFmini 박스 거리)", align_target_);
   }
 
   // 정렬이 끝날 때 (성공 · 실패 · 취소 · 선점) 낮춘 정지 거리 처리 (#157)
@@ -477,7 +506,7 @@ private:
   void end_box_approach()
   {
     if (!box_approach_set_) {return;}
-    if (align_mode_ == AlignMode::FINE) {
+    if (align_mode_ == AlignMode::FINE || align_mode_ == AlignMode::BOX) {
       const auto r = box_.value(now().seconds());
       if (box_park_.on_align_end(now().seconds(), fine_stop_m_, r)) {
         RCLCPP_INFO(get_logger(), "박스 앞 정차: TFmini %.3f m — 정지 거리 %.3f m 유지 (물러난 뒤 되돌림)", r ? *r : NAN, fine_stop_m_);
@@ -509,7 +538,7 @@ private:
 
   void finish_align(bool ok, const std::string & msg)
   {
-    if (ok && align_mode_ == AlignMode::FINE) {   // turn_* 기준 yaw₀ (#77)
+    if (ok && (align_mode_ == AlignMode::FINE || align_mode_ == AlignMode::BOX)) {   // turn_* 기준 yaw₀ (#77)
       if (odom_ && fresh(odom_->header.stamp)) {
         ref_yaw_ = tf2::getYaw(odom_->pose.pose.orientation);
       } else {
@@ -521,7 +550,8 @@ private:
     auto r = std::make_shared<Align::Result>();
     r->success = ok;
     r->message = msg;
-    RCLCPP_INFO(get_logger(), "align(%s) %s: %s", align_mode_ == AlignMode::FINE ? "정밀" : "먼 거리",
+    RCLCPP_INFO(get_logger(), "align(%s) %s: %s",
+      align_mode_ == AlignMode::FINE ? "정밀" : align_mode_ == AlignMode::BOX ? "박스" : "먼 거리",
       ok ? "성공" : "실패", msg.c_str());
     end(align_gh_, ok, r);
   }
@@ -549,12 +579,10 @@ private:
         }
         last_valid_ = t;
         if (align_mode_ == AlignMode::FINE) {
-          box_park_.clear();   // 이 정렬이 낮춘 값을 새로 맡음 (끝날 때 end_box_approach 가 정차 판단)
-          fine_stop_m_ = box_approach_stop(align_target_, box_stop_margin_, box_stop_min_);
-          set_box_approach(fine_stop_m_);
+          enter_box_approach(AlignMode::FINE);
+        } else {
+          RCLCPP_INFO(get_logger(), "align 모드: 먼 거리(범퍼), 목표 %.3f m", align_target_);
         }
-        RCLCPP_INFO(get_logger(), "align 모드: %s, 목표 %.3f m", align_mode_ == AlignMode::FINE ? "정밀(TFmini 박스 거리)" : "먼 거리(범퍼)",
-          align_target_);
       } else if ((t - align_start_).seconds() > mode_wait_s_) {
         finish_align(false, "0.5 s 안에 새 perception result 없음");
       }
@@ -563,7 +591,27 @@ private:
 
     auto fb = std::make_shared<Align::Feedback>();
     AlignCmd c;
-    if (align_mode_ == AlignMode::FINE) {
+    if (align_mode_ == AlignMode::BOX) {
+      const bool odom_ok = odom_ && fresh(odom_->header.stamp);
+      const auto box = box_.value(t.seconds());
+      if (!odom_ok || !box) {
+        publish_cmd(0, 0);
+        if ((t - last_valid_).seconds() > lost_s_) {
+          finish_align(false, !odom_ok ? "박스 접근: /odometry/filtered 끊김" :
+            "박스 거리 무효 (/tfmini/range 끊김 · 무효 · 박스 모서리)");
+        }
+        return;
+      }
+      last_valid_ = t;
+      const double yaw_err = wrap_pi(*box_yaw_ - tf2::getYaw(odom_->pose.pose.orientation));
+      c = box_only_.step(yaw_err, *box, align_target_, align_tol_);
+      fb->lateral_error = static_cast<float>(yaw_err);
+      fb->distance = static_cast<float>(*box);
+      if (rear_camera_blocks(c.v, rear_camera_, rear_state())) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "박스 접근: 후방 장애물 (뒤 카메라: %s) — 후진 0", rear_why().c_str());
+        c.v = 0.0;
+      }
+    } else if (align_mode_ == AlignMode::FINE) {
       const bool off_ok = result_ && fresh(result_->header.stamp) && (result_->mode & PerceptionMode::ARM_ALIGN) && result_->offset_valid;
       const auto box = box_.value(t.seconds());
       if (!off_ok || !box) {
@@ -816,6 +864,8 @@ private:
   AlignController fine_;
   LocGate loc_gate_;
   CoarseAlign coarse_;
+  BoxApproach box_only_;
+  std::optional<double> box_yaw_;   // 박스 접근 목표 yaw (odom, goal 받은 때)
   robot_policy::PolicyLibrary policies_;
 
   // 입력 (최신값, 300 ms 규칙은 쓸 때 확인)

@@ -1,6 +1,7 @@
-# drive_node — 모드는 goal 수신 뒤 첫 새 result 의 ARM_ALIGN 비트로 정하고 끝까지 유지
+# drive_node — 모드는 goal 수신 뒤 첫 새 result 의 ARM_ALIGN 비트로 정하고 끝까지 유지 (box_only 면 인식 결과 없이 박스 모드)
 float32 target_distance   # m — 정밀(ARM_ALIGN): TFmini 기준 >= 0.10 / 먼 거리: 범퍼 기준 (D435)
 float32 tolerance
+bool box_only              # true = 퍽 없이 (#160 장소 상자): 인식 결과를 보지 않고 시작 yaw 를 유지한 채 TFmini 박스 거리만으로 target_distance 까지 (>= 0.10)
 ---
 bool success
 string message

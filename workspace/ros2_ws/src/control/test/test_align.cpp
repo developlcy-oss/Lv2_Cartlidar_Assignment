@@ -53,6 +53,38 @@ TEST(Align, ClosedLoopConverges)
   EXPECT_NEAR(lateral, 0.0, 0.04);
 }
 
+// 박스 접근 (#160): 퍽 없이 시작 yaw 유지 + TFmini 거리
+TEST(BoxApproach, HoldsYawAndDrivesToBoxDistance)
+{
+  BoxApproach c;
+  auto o = c.step(0.1, 0.45, 0.13, 0.01);       // 오른쪽으로 0.1 rad 틀어짐 (목표가 왼쪽) · 0.45 m
+  EXPECT_GT(o.w, 0.0);                          // 왼쪽으로 돌고
+  EXPECT_GT(o.v, 0.0);
+  EXPECT_LT(o.v, 0.08 * 0.5);                   // 많이 틀어졌으면 천천히
+  o = c.step(0.0, 0.45, 0.13, 0.01);
+  EXPECT_DOUBLE_EQ(o.w, 0.0);
+  EXPECT_DOUBLE_EQ(o.v, 0.08);                  // 최고 속도로 자름
+  o = c.step(0.0, 0.10, 0.13, 0.01);            // 지나침 → 후진
+  EXPECT_LT(o.v, 0.0);
+}
+
+TEST(BoxApproach, ClosedLoopConverges)
+{
+  BoxApproach c;
+  double yaw_err = -0.08, dist = 0.45;
+  const double dt = 0.05;
+  bool done = false;
+  for (int k = 0; k < 400 && !done; ++k) {
+    const auto o = c.step(yaw_err, dist, 0.13, 0.01);
+    done = o.done;
+    yaw_err -= o.w * dt;   // 돌면 남은 오차가 줄어듦
+    dist -= o.v * dt;
+  }
+  EXPECT_TRUE(done);
+  EXPECT_NEAR(dist, 0.13, 0.01);
+  EXPECT_NEAR(yaw_err, 0.0, 0.02);
+}
+
 TEST(CoarseAlign, TurnsFirstThenDrivesToBumperDistance)
 {
   CoarseAlign c;

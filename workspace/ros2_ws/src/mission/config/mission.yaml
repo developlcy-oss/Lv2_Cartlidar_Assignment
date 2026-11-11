@@ -20,6 +20,7 @@ mission_node:
       navigate: 120.0
       search: 60.0               # 주행 자세 + 회전 탐색 포함
       approach: 90.0             # 주행 자세 → COARSE → READY → FINE
+      approach_box: 40.0         # 장소 상자 (#160): 주행 자세 → 박스 접근 (퍽 없이 TFmini)
       pick: 60.0
     skill:
       default_timeout: 30.0      # skill 단계에 timeout을 안 쓰면

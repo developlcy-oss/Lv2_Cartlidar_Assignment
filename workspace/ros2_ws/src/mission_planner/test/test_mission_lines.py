@@ -8,7 +8,7 @@ from mission_planner.poses import CENTER_X, J1_X, puck_after_turn
 from mission_planner.planner import plan
 
 PROB = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "..", "config", "problem_q1_example.yaml"), encoding="utf-8"))
-KNOWN = {"goto", "approach", "skill", "verify", "wait"}
+KNOWN = {"goto", "approach", "approach_box", "skill", "verify", "wait"}
 
 
 def test_puck_after_turn():
@@ -54,11 +54,17 @@ def test_lines_q1(world):
         n_box = sum(s["shape"] == "box" and s["turn_deg"] != 0.0 for s in p["steps"] if s["type"] == "pick")
         assert len(turns) == 2 * n_box and turns.count("turn_0") == n_box            # 돌고 -> 집고 -> 되돌림
         assert set(turns) <= {"turn_0", "turn_p17", "turn_m17"}
+        # 장소 (놓기) 앞 정렬은 퍽 없이 상자 면으로 (#160), 집기 앞은 퍽 정렬
+        for k, ln in enumerate(lines):
+            if ln.split()[0] in ("approach", "approach_box"):
+                nxt = next(x for x in lines[k + 1:] if x.startswith("skill manipulator"))
+                want = "approach_box" if "pallet_unload" in nxt else "approach"
+                assert ln.split()[0] == want, (ln, nxt)
         for ln in lines:                                   # mission_node checkStep 과 같은 인자 수
             a = ln.split()
             if a[0] == "goto":
                 assert len(a) == 4 and all(float(v) == float(v) for v in a[1:])
-            if a[0] == "approach":
+            if a[0] in ("approach", "approach_box"):
                 assert float(a[1]) >= 0.13
             if a[0] == "verify":
                 assert len(a) == 7 and len(a[5]) == 9 and set(a[5]) <= set("0123") and a[6] in "012"
