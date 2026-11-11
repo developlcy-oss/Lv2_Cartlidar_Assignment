@@ -97,6 +97,7 @@ struct Host
 };
 
 const int NO_CMD = -1;
+const int BDPIN_BUZZER_PIN = 31;   // OpenCR chip.h BDPIN_BUZZER (SIL sil_env.hpp 와 같음)
 
 struct Bench
 {
@@ -1116,5 +1117,53 @@ TEST(FirmwareSil, WheelBootCheckDoesNotTouchArm)
       EXPECT_NE(wr.item, sil_item::DRIVE_MODE) << "팔 보드는 Drive Mode 를 쓰지 않음";
       EXPECT_NE(wr.item, sil_item::VELOCITY_LIMIT) << "팔 보드는 Velocity Limit 을 쓰지 않음";
     }
+  });
+}
+
+// 배터리 (2026-11-11): 보드마다 전용 배터리 → 두 보드 모두 STATE battery_v 를 채움 (예전에는 주행 보드만)
+TEST(FirmwareSil, BothBoardsReportBatteryVoltage)
+{
+  isolated([] {
+    Bench b;
+    b.w.vin = 12.3f;
+    b.a.vin = 11.8f;
+    b.boot();
+    b.run(500);
+    b.hw.poll();
+    b.ha.poll();
+    EXPECT_NEAR(b.hw.last().battery_v, 12.3f, 0.02f);
+    EXPECT_NEAR(b.ha.last().battery_v, 11.8f, 0.02f) << "팔 보드도 자기 전원 전압";
+  });
+}
+
+// 부팅 잔량 비프 (부저 핀) · USB 만이면 조용 · 방전 직전이면 3 번씩 — 비프가 100 Hz 루프를 늦추지 않음
+TEST(FirmwareSil, BatteryBeepsFromBuzzer)
+{
+  isolated([] {
+    Bench b;
+    b.w.vin = 12.4f;   // 만충 근처 → 잔량 비프 4 번
+    b.a.vin = 0.5f;    // USB 만 (배터리 없음) → 울리지 않음
+    b.boot();
+    b.run(5000);
+    ASSERT_EQ(b.w.tones.size(), 4u);
+    for (const SilTone & t : b.w.tones) {
+      EXPECT_EQ(t.pin, BDPIN_BUZZER_PIN);
+      EXPECT_EQ(t.freq, 1500u);
+    }
+    EXPECT_GE(b.w.tones[0].t_us, BATTERY_SETTLE_MS * 1000ull) << "전압이 자리 잡은 뒤";
+    EXPECT_TRUE(b.a.tones.empty()) << "배터리 없음";
+
+    b.w.tones.clear();
+    b.hw.poll();
+    b.hw.states.clear();
+    b.w.vin = 10.2f;   // 방전 직전
+    b.run(10000);
+    b.hw.poll();
+    int crit = 0;
+    for (const SilTone & t : b.w.tones) {crit += t.freq == 2500u ? 1 : 0;}
+    EXPECT_GE(crit, 9) << "3 s 뒤부터 2 s 마다 3 번";
+    EXPECT_EQ(crit % 3, 0);
+    EXPECT_NEAR(static_cast<double>(b.hw.states.size()), 1000.0, 2.0) << "비프 중에도 STATE 100 Hz";
+    EXPECT_NEAR(b.hw.last().battery_v, 10.2f, 0.02f);
   });
 }

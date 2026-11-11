@@ -49,6 +49,14 @@ struct SilWrite
   int32_t value;
 };
 
+struct SilTone
+{
+  uint64_t t_us;   // 울린 가상 시각
+  int pin;
+  unsigned int freq;
+  unsigned long ms;
+};
+
 struct SilBoard
 {
   std::map<uint8_t, SilMotor> motors;
@@ -60,6 +68,7 @@ struct SilBoard
   uint64_t now_us = 0;
   bool estop_pin_low = false;
   float vin = 12.0f;
+  std::vector<SilTone> tones;      // 부저 tone() 기록 (battery_alarm)
   bool motors_follow_goals = true;   // 토크 ON 모터가 목표에 즉시 도달 (이상적 모델)
   void (*setup)() = nullptr;
   void (*loop)() = nullptr;

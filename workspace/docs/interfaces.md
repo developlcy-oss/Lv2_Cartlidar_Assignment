@@ -49,7 +49,8 @@
 | /joint_states | sensor_msgs/JointState | 기본, 100 Hz (controller_manager update_rate). | joint_state_broadcaster | robot_state_publisher, manipulator |
 | /joy | sensor_msgs/Joy | 기본, 20 Hz autorepeat | joy_node | teleop_twist_joy, joy_teleop (시작 · 정지 버튼 → /mission/start · stop), OpenCRHardware (E-stop · 리셋 버튼, heartbeat) |
 | /e_stop | std_msgs/Bool | Reliable + TransientLocal, 10 Hz | OpenCRHardware (잠금식) · Isaac 브리지 (모의, 항상 false) | twist_mux (lock 0.5 s), mission |
-| /diagnostics | diagnostic_msgs/DiagnosticArray | 기본, 1 Hz + 오류 즉시 | OpenCRHardware (`opencr/link · motors · battery · estop`, hardware_id `opencr`) | mission (opencr/ 만) |
+| /diagnostics | diagnostic_msgs/DiagnosticArray | 기본, 1 Hz + 오류 즉시 | OpenCRHardware (`opencr/link · motors · battery · estop`, hardware_id `opencr`). `opencr/battery` = 주행 · 팔 보드 각각 전압 · 잔량 % (`wheel_voltage · wheel_percent · wheel_state · arm_*`, `voltage` = 주행), 수준은 나쁜 쪽 (경고 11.1 · 위험 10.5 V) | mission (opencr/ 만 — 위험이면 정지) |
+| /battery/wheel · /battery/arm | sensor_msgs/BatteryState | 기본, 1 Hz | OpenCRHardware (보드별 전용 배터리, LiPo 3S 1.8 Ah. percentage 는 휴지 전압 표 추정 — 부하 중 낮게, 보고 없으면 present false · NaN) | 모니터링 |
 | /tf · /tf_static | tf2_msgs/TFMessage | 기본 · TransientLocal | slam_toolbox · ekf · robot_state_publisher · realsense2_camera — 규약 [frames_tf.md](frames_tf.md) | 전체 |
 | /clock · /isaac_joint_states · /isaac_joint_commands | rosgraph_msgs/Clock · sensor_msgs/JointState | 기본 | Isaac 브리지 (`/clock` · 관절 상태) · TopicBasedSystem (관절 명령) | 모의 전용 (`sim:=true`) |
 
@@ -111,7 +112,9 @@
   - flags: bit0 TORQUE_ON · bit1 ESTOP · bit2 GRIPPER_VALID · bit3 REARM (상승 에지로 팔 HOLD 해제)
 - STATE 0x81 (OpenCR → Jetson, 100 Hz, 192 B):
   - `role` · `pos[12]` · `vel[12]` · `effort[12]` · `quat[4]` · `gyro[3]` · `accel[3]` · `battery_v` · `error` · `fw_version` · `seq`
-  - 주행 보드는 바퀴 슬롯 0~3, 팔 보드는 팔 슬롯 6~11을 채운다. IMU·배터리는 주행 보드 값만 사용한다.
+  - 주행 보드는 바퀴 슬롯 0~3, 팔 보드는 팔 슬롯 6~11을 채운다. IMU 는 주행 보드 값만 사용한다.
+  - `battery_v`: 두 보드가 각자 자기 전원 입력 전압을 채운다 (보드마다 전용 배터리 LiPo 3S, 2026-11-11). 예전 팔 펌웨어는 0 → 호스트가 "보고 없음" 으로 넘김.
+    펌웨어는 같은 전압으로 부저를 울린다: 켤 때 잔량 (1 ~ 4 번) · 저전압 11.1 V 미만 10 s → 30 s 마다 1 번 · 방전 직전 10.5 V 미만 3 s → 2 s 마다 3 번 (비프만, 모터는 그대로).
   - error 비트: 0x01 SyncRead 누락 · 0x02 명령 타임아웃 · 0x04 물리 E-stop · 0x08 모터 HW · 0x10 모터 설정 · 0x20 CMD 역할 불일치 ·
     0x40 HOLD (팔이 토크를 유지한 채 멈춤, REARM 으로만 풀림) · 0x80 FAULT (부팅 점검 실패, 토크 거부)
 - `PROTOCOL_VERSION = 5`: 버전이 다르면 호스트가 활성화를 거부한다 (v3 은 길이도 다름). 호스트는 역할별 STATE를 하나씩 받고 두 보드 모두 v5인지 확인해야 활성화한다.

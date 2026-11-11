@@ -6,7 +6,7 @@
   → 바퀴 ω = (vx ∓ wz · 좌우 간격 / 2) / 반지름
   → 한 바퀴라도 한계를 넘으면 좌우를 같은 비율로 줄임                  펌웨어 비례 축소 (PR #10). controller_manager 는 바퀴를
                                                                         따로 자르지 않음 (opencr.ros2_control.xacro limits enable false)
-바퀴 한계는 시뮬 바퀴 한계 (팀 robot_params.json 10.996 rad/s) 를 쓴다. 실물 펌웨어 한계 (모터 7.91 rad/s × 벨트 1.5 = 11.87) 보다
+바퀴 한계는 시뮬 바퀴 한계 (팀 robot_params.json 10.996 rad/s) 를 쓴다. 실물 펌웨어 한계 (모터 7.51 rad/s × 벨트 1.5 = 11.26) 보다
 작아서, 시뮬 관절이 바퀴마다 따로 잘려 회전 반경이 바뀌는 일이 없다.
 """
 

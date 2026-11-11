@@ -28,6 +28,8 @@ inline constexpr const char * JOINT_STATES = "/joint_states";
 inline constexpr const char * JOY = "/joy";
 inline constexpr const char * E_STOP = "/e_stop";
 inline constexpr const char * DIAGNOSTICS = "/diagnostics";
+inline constexpr const char * BATTERY_WHEEL = "/battery/wheel";   // OpenCRHardware: 주행 보드 전용 배터리 (sensor_msgs/BatteryState, 1 Hz, 2026-11-11)
+inline constexpr const char * BATTERY_ARM = "/battery/arm";       // OpenCRHardware: 팔 보드 전용 배터리
 inline constexpr const char * MISSION_STATUS = "/mission/status";
 // Action
 inline constexpr const char * DRIVE_NAVIGATE = "/drive/navigate";

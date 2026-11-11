@@ -265,6 +265,28 @@ TEST(RobotDescription, HardwareFlagsAndCommandLimits)
 
 // 팔 대기 자세 범위 (2026-11-09): 실물 블록에만, 칸 6 개씩, 최소 ≤ 최대, 펌웨어 config.h 범위 안
 // (밖이면 그 자세에서는 켤 수 없음 — 호스트가 명령을 펌웨어 범위로 잘라 REARM 때 튐). tick = 2048 + rad × 4096 / 2π (ARM_DIR +1)
+// 배터리 기준 (2026-11-11): 호스트 진단 (URDF <param>) 과 펌웨어 비프 (config.h) 가 같은 전압 · 셀 수를 써야
+//   "부저는 울리는데 진단은 정상" 같은 어긋남이 없다
+TEST(RobotDescription, BatteryThresholdsMatchFirmware)
+{
+  if (!have_xacro()) {GTEST_SKIP() << "xacro 없음 (sudo apt install ros-lyrical-xacro)";}
+  std::string urdf;
+  ASSERT_TRUE(expand_xacro(read_file(PKG_DIR "/urdf/robot.urdf.xacro"), urdf)) << urdf;
+  const auto hw = parse_one(urdf);
+  const std::string cfg = read_file(PKG_DIR "/../opencr_firmware/config.h");
+  auto cfg_num = [&](const std::string & key) {
+      std::smatch m;
+      EXPECT_TRUE(std::regex_search(cfg, m, std::regex(key + R"((?:\s*=\s*|\s+)([0-9]+(\.[0-9]*)?)f?)"))) << key;
+      return m.size() > 1 ? std::stod(m[1]) : std::nan("");
+    };
+  ASSERT_TRUE(hw.hardware_parameters.count("battery_warn_v"));
+  ASSERT_TRUE(hw.hardware_parameters.count("battery_error_v"));
+  ASSERT_TRUE(hw.hardware_parameters.count("battery_cells"));
+  EXPECT_DOUBLE_EQ(std::stod(hw.hardware_parameters.at("battery_warn_v")), cfg_num("BATTERY_WARN_V"));
+  EXPECT_DOUBLE_EQ(std::stod(hw.hardware_parameters.at("battery_error_v")), cfg_num("BATTERY_CRIT_V"));
+  EXPECT_DOUBLE_EQ(std::stod(hw.hardware_parameters.at("battery_cells")), cfg_num("BATTERY_CELLS"));
+}
+
 TEST(RobotDescription, ArmStandbyRangeInsideFirmwareRange)
 {
   if (!have_xacro()) {GTEST_SKIP() << "xacro 없음 (sudo apt install ros-lyrical-xacro)";}

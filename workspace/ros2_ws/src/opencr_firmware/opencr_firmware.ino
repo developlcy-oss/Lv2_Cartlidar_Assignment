@@ -11,7 +11,8 @@
 //   handleCmd()    HOLD 가 아니면 승인된 명령을 rad/s 또는 rad → 모터 목표로 변환
 //   guardGripper() (팔) 그리퍼 칸이 막히면 목표를 "막힌 자리 + 쥐는 힘" 으로 (safety_core.h GripGuard, 2026-10-27 arm_bench)
 //   writeGoals()   역할에 해당하는 SyncWrite만 수행
-//   sendState()    상태 + IMU + 배터리 전압 + 오류 · HOLD · FAULT 비트
+//   sendState()    상태 + IMU (주행) + 배터리 전압 (두 보드, 2026-11-11) + 오류 · HOLD · FAULT 비트
+//   배터리 비프    전원 전압 → battery_alarm.h (잔량 · 저전압 · 방전 직전) → 부저 tone() (타이머 인터럽트, 루프를 막지 않음)
 //
 // 부팅 점검 (Xmen opencr_control.ino prepareAxis 참고): ping · 모델 번호 · Homing Offset 0 · Return Delay 0
 //   · (팔) 모터 Min/Max Position Limit 가 config 범위를 덮는지 · 위치 P/I/D 게인 쓰기 (다시 읽어 확인) · 그리퍼 PWM Limit ≤ GRIP_PWM_LIMIT_MAX
@@ -30,6 +31,7 @@
 #include <IMU.h>
 
 #include "config.h"
+#include "battery_alarm.h"
 #include "opencr_protocol.h"
 #include "safety_core.h"
 
@@ -62,6 +64,9 @@ static uint8_t g_error = 0;          // SyncRead · 물리 E-stop · 모터 HW �
 static uint8_t g_state_seq = 0;
 static uint8_t g_hw_error_mask = 0;  // 모터별 HW 오류 비트 (k 번째 모터 = 1 << k), STATE 에는 비트 1개로 보고
 static float g_battery_v = 0.f;      // 저역 통과한 전원 전압
+static opencr_battery::BatteryAlarm g_battery_alarm({BATTERY_CELLS, BATTERY_NONE_V, BATTERY_WARN_V, BATTERY_CRIT_V,
+  BATTERY_HYST_V, BATTERY_WARN_HOLD_MS, BATTERY_CRIT_HOLD_MS, BATTERY_RECOVER_HOLD_MS, BATTERY_SETTLE_MS,
+  BATTERY_WARN_PERIOD_MS, BATTERY_CRIT_PERIOD_MS});
 static bool g_config_error = false;  // 부팅 점검 실패 (래치 — 재부팅으로만 지움)
 
 static opencr_proto::FrameParser g_parser;
@@ -434,8 +439,8 @@ static void sendState()
       s.gyro[i] = imu.SEN.gyroADC[i] * GYRO_FACTOR;
       s.accel[i] = imu.SEN.accADC[i] * ACCEL_FACTOR;
     }
-    s.battery_v = g_battery_v;
   }
+  s.battery_v = g_battery_v;   // 두 보드 모두 (보드마다 배터리 따로, 2026-11-11). 예전 팔 펌웨어는 0 을 보냄
   if (g_config_error) {g_error |= opencr_proto::ERR_MOTOR_CONFIG;}
   s.error = g_error | g_safety.status_bits();
   s.fw_version = opencr_proto::PROTOCOL_VERSION;
@@ -509,6 +514,12 @@ void loop()
     readState();
     const float vin = getPowerInVoltage();
     g_battery_v = (g_battery_v <= 0.f) ? vin : 0.9f * g_battery_v + 0.1f * vin;
+    const opencr_battery::Beep beep = g_battery_alarm.update(millis(), g_battery_v);
+#if BATTERY_BEEP_ENABLE
+    if (beep.freq != 0) {tone(BDPIN_BUZZER, beep.freq, beep.ms);}
+#else
+    (void)beep;
+#endif
     applySafety();   // 무수신 · ESTOP · HOLD 판단을 먼저 하고 명령을 적용
     handleCmd();
     guardGripper();

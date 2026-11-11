@@ -10,6 +10,7 @@
 #include <optional>
 #include <sstream>
 
+#include "battery_status.hpp"
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "pluginlib/class_list_macros.hpp"
 #include "robot_interfaces/names.hpp"
@@ -82,6 +83,13 @@ hi::CallbackReturn OpenCRHardware::on_init(const hi::HardwareComponentInterfaceP
   reset_button_ = std::stoi(param_or(hw, "reset_button", "7"));
   battery_warn_v_ = std::stod(param_or(hw, "battery_warn_v", "11.1"));
   battery_error_v_ = std::stod(param_or(hw, "battery_error_v", "10.5"));
+  battery_cells_ = std::stoi(param_or(hw, "battery_cells", "3"));
+  battery_capacity_ah_ = std::stod(param_or(hw, "battery_capacity_ah", "1.8"));
+  if (battery_cells_ < 1 || battery_error_v_ >= battery_warn_v_) {
+    RCLCPP_FATAL(get_logger(), "배터리 설정 오류: battery_cells %d (1 이상) · battery_error_v %.2f < battery_warn_v %.2f 여야 함",
+      battery_cells_, battery_error_v_, battery_warn_v_);
+    return CallbackReturn::ERROR;
+  }
   const auto joy_required = param_flag(hw, "joy_required", true);
   const auto listen_only = param_flag(hw, "listen_only", false);
   const auto auto_rearm = param_flag(hw, "auto_rearm", false);
@@ -222,6 +230,8 @@ void OpenCRHardware::setup_ros_io()
       });
   estop_pub_ = node->create_publisher<std_msgs::msg::Bool>(names::E_STOP, qos::e_stop());
   diag_pub_ = node->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(names::DIAGNOSTICS, 10);
+  bat_wheel_pub_ = node->create_publisher<sensor_msgs::msg::BatteryState>(names::BATTERY_WHEEL, 10);
+  bat_arm_pub_ = node->create_publisher<sensor_msgs::msg::BatteryState>(names::BATTERY_ARM, 10);
   estop_timer_ = node->create_wall_timer(std::chrono::milliseconds(100), [this]() {
         publish_estop();
         publish_diagnostics(false);   // 오류로 바뀌면 즉시
@@ -255,6 +265,7 @@ void OpenCRHardware::publish_diagnostics(bool force)
   const uint8_t err = fw_error_.load();
   const bool link = link_ok_.load();
   const float bat = battery_v_.load();
+  const float arm_bat = arm_battery_v_.load();
   add("link", link ? DiagnosticStatus::OK : DiagnosticStatus::ERROR, link ? "정상" : "STATE 무수신",
     {{"bad_frames", std::to_string(bad_frames_.load())}, {"ports", port_}});
   const bool motor_bad = err & (opencr_proto::ERR_MOTOR_HW | opencr_proto::ERR_SYNCREAD |
@@ -267,11 +278,20 @@ void OpenCRHardware::publish_diagnostics(bool force)
     (err & opencr_proto::ERR_SYNCREAD) ? "SyncRead 응답 부족" : "정상",
     {{"error_bits", std::to_string(err)}, {"fw_version", std::to_string(fw_version_.load())},
       {"arm_hold", (err & opencr_proto::ERR_HOLD) ? "1" : "0"}});
-  uint8_t bl = DiagnosticStatus::OK;
-  if (link && bat < battery_error_v_) {bl = DiagnosticStatus::ERROR;} else if (link && bat < battery_warn_v_) {bl = DiagnosticStatus::WARN;}
-  char vb[16];
-  std::snprintf(vb, sizeof(vb), "%.2f", bat);
-  add("battery", bl, bl == DiagnosticStatus::OK ? "정상" : (bl == DiagnosticStatus::WARN ? "전압 낮음" : "전압 위험"), {{"voltage", vb}});
+  // 배터리 (2026-11-11): 보드마다 전용 배터리 → 두 보드 각각 판정, 수준은 나쁜 쪽. 링크가 없으면 판정하지 않음 (link 항목이 ERROR)
+  //   voltage 키 = 주행 보드 (예전 계약 그대로). 팔은 예전 펌웨어면 0 → "보고 없음"
+  const BatteryReport wb = evaluate_battery(bat, battery_warn_v_, battery_error_v_, battery_cells_, true);
+  const BatteryReport ab = evaluate_battery(arm_bat, battery_warn_v_, battery_error_v_, battery_cells_, false);
+  const uint8_t bl = link ? std::max(wb.level, ab.level) : DiagnosticStatus::OK;
+  auto fmt = [](const char * f, double v) {char b[16]; std::snprintf(b, sizeof(b), f, v); return std::string(b);};
+  add("battery", bl, link ? battery_summary("주행", wb) + " · " + battery_summary("팔", ab) : std::string("링크 없음"),
+    {{"voltage", fmt("%.2f", bat)},
+      {"wheel_voltage", fmt("%.2f", bat)}, {"wheel_percent", fmt("%.0f", wb.percent)}, {"wheel_state", wb.state},
+      {"arm_voltage", fmt("%.2f", arm_bat)}, {"arm_percent", fmt("%.0f", ab.percent)}, {"arm_state", ab.state}});
+  if (force) {
+    publish_battery_state(bat_wheel_pub_, "wheel_board", bat, link && wb.reported, wb.level, wb.percent);
+    publish_battery_state(bat_arm_pub_, "arm_board", arm_bat, link && ab.reported, ab.level, ab.percent);
+  }
   static const char * reasons[] = {"", "시작 — 리셋 버튼 필요", "OpenCR 링크 끊김", "물리 E-stop 스위치", "조이스틱 E-stop 버튼", "조이스틱 무수신",
     "OpenCR 팔 HOLD — 리셋 버튼으로 REARM"};
   const int rc = estop_reason_code_.load();
@@ -284,11 +304,41 @@ void OpenCRHardware::publish_diagnostics(bool force)
   if (force || became_error) {diag_pub_->publish(arr);}
 }
 
+// sensor_msgs/BatteryState 1 Hz (diag_timer). 모르는 값 (전류 · 온도 · 충전량) 은 NaN, 셀 전압은 셀 수만큼 NaN (개별 측정 없음)
+void OpenCRHardware::publish_battery_state(const rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr & pub,
+  const char * location, float v, bool reported, uint8_t level, float percent)
+{
+  if (!pub) {return;}
+  using sensor_msgs::msg::BatteryState;
+  const float nan = std::numeric_limits<float>::quiet_NaN();
+  BatteryState m;
+  m.header.stamp = get_node()->now();
+  m.header.frame_id = location;
+  m.voltage = reported ? v : nan;
+  m.temperature = nan;
+  m.current = nan;
+  m.charge = nan;
+  m.capacity = nan;
+  m.design_capacity = static_cast<float>(battery_capacity_ah_);
+  m.percentage = reported ? percent / 100.f : nan;   // 0 ~ 1 (LiPo 휴지 전압 표 추정 — 부하 중에는 낮게)
+  m.power_supply_status = reported ? BatteryState::POWER_SUPPLY_STATUS_DISCHARGING : BatteryState::POWER_SUPPLY_STATUS_UNKNOWN;
+  m.power_supply_health = !reported ? BatteryState::POWER_SUPPLY_HEALTH_UNKNOWN :
+    (level >= 2 ? BatteryState::POWER_SUPPLY_HEALTH_DEAD : BatteryState::POWER_SUPPLY_HEALTH_GOOD);
+  m.power_supply_technology = BatteryState::POWER_SUPPLY_TECHNOLOGY_LIPO;
+  m.present = reported;
+  m.cell_voltage.assign(static_cast<size_t>(battery_cells_), nan);
+  m.cell_temperature.assign(static_cast<size_t>(battery_cells_), nan);
+  m.location = location;
+  pub->publish(m);
+}
+
 hi::CallbackReturn OpenCRHardware::on_cleanup(const rclcpp_lifecycle::State &)
 {
   joy_sub_.reset();
   estop_timer_.reset();
   diag_timer_.reset();
+  bat_wheel_pub_.reset();
+  bat_arm_pub_.reset();
   links_.clear();
   return CallbackReturn::SUCCESS;
 }
@@ -355,6 +405,7 @@ void OpenCRHardware::refresh_aggregate_state()
         const int k = opencr_proto::MAX_WHEELS + i;
         merged.pos[k] = s.pos[k]; merged.vel[k] = s.vel[k]; merged.effort[k] = s.effort[k];
       }
+      arm_battery_raw_ = s.battery_v;
     }
     merged.error |= s.error;
     if (s.fw_version != opencr_proto::PROTOCOL_VERSION) {
@@ -567,6 +618,7 @@ return_type OpenCRHardware::read(const rclcpp::Time &, const rclcpp::Duration &)
   fw_error_.store(latest_.error);
   fw_version_.store(latest_.fw_version);
   battery_v_.store(latest_.battery_v);
+  arm_battery_v_.store(arm_battery_raw_);
   if (latest_.error != last_error_) {
     if (latest_.error) {
       RCLCPP_WARN(get_logger(), "OpenCR 오류 비트 0x%02X (SyncRead 누락 %d · 명령 타임아웃 %d · 물리 E-stop %d · 모터 HW %d · 역할 불일치 %d"

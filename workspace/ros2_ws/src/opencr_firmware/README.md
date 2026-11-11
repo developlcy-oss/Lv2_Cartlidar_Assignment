@@ -63,11 +63,14 @@ tools/build_firmware.sh wheel --upload /dev/ttyACM0    # 빌드 후 업로드 �
   **모터 Drive Mode 의 반전 비트는 0 으로 둔다** (urdfv2 문서의 "Drive Mode 반전" 은 이 펌웨어에서는 하지 않음 — 둘 다 하면 다시 거꾸로).
 - `WHEEL_GEAR = 1.0` **고정** — 펌웨어는 모터 축 기준으로 명령 · 상태를 주고받는다. 증속벨트 (1:1.5, 2026-10-27 장착) 같은 기어비는
   호스트 `OpenCRHardware` 가 URDF `wheel_gear` 파라미터로 변환한다 (`drive:=belt|direct`). 여기서 바꾸면 두 번 적용된다.
-  `WHEEL_VEL_LIMIT_RAW = 330` (★) = 75.6 rpm = 모터 7.91 rad/s → 바퀴 direct ≈ 0.261 m/s · belt ≈ 0.39 m/s (12 V, 11.1 V 에서 약 0.34)
+  `WHEEL_VEL_LIMIT_RAW = 313` (★) = 71.7 rpm = 모터 7.51 rad/s → 바퀴 direct ≈ 0.248 m/s · belt ≈ 0.372 m/s (12 V)
   (URDF 바퀴 한계는 11.1 V 기준 direct 7.33 · belt 10.996 rad/s, #15).
+  근거: 2026-11-11 T4 (12.1 V 어댑터, 바퀴 띄움) — 네 바퀴를 같은 속도로 앞 · 뒤 6 s 돌려 회전 수가 맞는 최대가 모터 7.61,
+  7.71 부터 가장 약한 바퀴가 먼저 포화되어 어긋남 → 한 단계 아래 7.51. 한계가 포화보다 낮아야 D6 비례 축소가 회전 반경을 지킨다.
+  배터리 (11.1 V 이하) 에서는 포화가 더 낮아질 것 (전압 비례 추정 약 7.0 · 10.5 V 약 6.6) → 배터리로 다시 재고 정한다 ★.
 - 한계 초과 명령 (D6): 한 바퀴라도 넘으면 **모든 바퀴를 같은 비율로 줄인다** (좌우 속도비 = 회전 반경 유지). 개별 clamp 는 안전망으로 남김.
 - 부팅 때 바퀴 모터 설정을 맞춘다 (`prepareWheelConfig`, 토크 OFF 상태에서 다를 때만 EEPROM 에 씀):
-  **Drive Mode bit0 (반전) → 0**, **Velocity Limit (주소 44) < 330 이면 → 330**. 쓴 뒤 다시 읽어 맞지 않으면
+  **Drive Mode bit0 (반전) → 0**, **Velocity Limit (주소 44) < 313 이면 → 313**. 쓴 뒤 다시 읽어 맞지 않으면
   `ERR_MOTOR_CONFIG` + `ERR_FAULT` 로 토크를 거부한다. 따로 손으로 설정할 필요 없음 (지금 값 확인: `tools/dxl_setup` 의 `x <id>`).
 - 부팅 때 바퀴 토크를 끄고 시작한다. 토크는 호스트가 `TORQUE_ON` 을 보낼 때 켜진다.
 - **아직 실물에서 돌려 보지 않았다** (주행 보드 없이 SIL 시험만 함). 첫 실기는 바퀴를 띄우고 저속으로.
@@ -115,6 +118,26 @@ tools/build_firmware.sh wheel --upload /dev/ttyACM0    # 빌드 후 업로드 �
 | 부팅 점검 실패 (ID · 모델 · Homing 0 · 위치 한계) | `ERR_MOTOR_CONFIG` + `ERR_FAULT`, 토크 거부 | 같음 |
 
 - `FLAG_REARM` (0x08) 상승 에지 = 팔 HOLD 해제. `ERR_HOLD` 0x40 · `ERR_FAULT` 0x80 은 v5 에서 추가.
+
+### 배터리 · 부저 (두 보드, 2026-11-11)
+
+보드마다 전용 배터리 (LiPo 3S 11.1 V 1800 mAh 5C, 만충 12.6 V — XM430 입력 10 ~ 14.8 V 안). 각 보드가 자기 전원 입력 전압을 10 ms 마다 재서
+STATE `battery_v` 로 보내고 (예전에는 주행 보드만), 같은 전압으로 OpenCR 부저 (`BDPIN_BUZZER`, `tone()` — 타이머 인터럽트라 루프를 막지 않음) 를 울린다.
+판단은 `battery_alarm.h` (1 초 평균 전압, 기준은 `config.h` "배터리 · 부저").
+
+| 상태 | 조건 | 부저 |
+|---|---|---|
+| 배터리 없음 (USB 만) | 6 V 미만 | 울리지 않음 |
+| 켤 때 · 다시 꽂을 때 | 1.5 s 뒤 평균이 자리 잡으면 | 잔량 1500 Hz: 75 % 이상 4 번 · 50 % 이상 3 번 · 25 % 이상 2 번 · 그 아래 1 번 |
+| 저전압 (셀 3.70 V, 휴지 약 12 %) | 11.1 V 미만이 10 s | 2000 Hz 1 번, 30 s 마다 |
+| 방전 직전 (셀 3.50 V) | 10.5 V 미만이 3 s | 2500 Hz 3 번, 2 s 마다 |
+
+- 가속 때 잠깐 처지는 전압 (몇 초) 에는 울리지 않는다. 한 단계 위로 돌아오려면 기준 + 0.2 V 위가 3 s 이어져야 한다.
+- **비프만 한다** — 모터는 건드리지 않는다. 멈추는 것은 호스트: `/diagnostics` `opencr/battery` 가 위험 (ERROR) → mission 정지.
+- 쓰는 중 확인: `ros2 topic echo /battery/wheel` · `/battery/arm` (`sensor_msgs/BatteryState`, 1 Hz) 또는 `/diagnostics` 의 `opencr/battery`
+  (주행 · 팔 전압 · 잔량 %). 잔량 % 는 휴지 전압 표 추정이라 주행 중에는 낮게 나온다 ★.
+- 기준 전압 · 셀 수는 호스트 `../opencr_hardware/urdf/opencr.ros2_control.xacro` 의 `battery_warn_v · battery_error_v · battery_cells` 와 같아야 한다 (`test_robot_description` 이 비교).
+- 전압 측정값은 멀티미터와 아직 비교하지 않았다 ★. 부저를 끄려면 `BATTERY_BEEP_ENABLE 0` (판단 · STATE 전압은 그대로).
 - 물리 E-stop 회로는 아직 없다 (`ESTOP_PIN` 은 배선 전이라 풀업으로 "해제" 로 읽힘). 소프트웨어 ESTOP 은 물리 비상정지를 대신하지 않는다.
 - 팀 규격 `../../../docs/interfaces.md` 의 승인본 (dev) 은 v3 (OpenCR 1대) 이다. 이 브랜치의 USB 패킷 절은 v5 제안이고,
   바뀐 점은 `../../../docs/opencr_v5_change_request.md` (Controller 팀장 승인 전 — dev/main 병합 금지).
@@ -127,6 +150,7 @@ tools/build_firmware.sh wheel --upload /dev/ttyACM0    # 빌드 후 업로드 �
 | `config.h` | ID · 방향 · 한계 · 주소 · 단위 (공통 / 주행 전용 / 팔 전용 구역) |
 | `opencr_protocol.h` | 패킷 정의 — `../opencr_hardware/include/opencr_hardware/opencr_protocol.hpp` 와 **바이트 단위로 같아야 함** (시험이 비교) |
 | `safety_core.h` | 안전 판단 (CMD 검증 · 타임아웃 · ESTOP · HOLD/REARM · FAULT · 그리퍼 막힘 GripGuard), Arduino 의존 없음 |
+| `battery_alarm.h` | 배터리 잔량 표 · 저전압 비프 판단 (Arduino 의존 없음, 호스트도 같은 잔량 표를 씀) |
 | `tools/build_firmware.sh` | 역할별 빌드 · 업로드 |
 | `tools/dxl_setup/` | 모터 사전 설정 도구 (탐색 `s` · 정보 `r` · 진단 덤프 `x` · ID `i` · 통신 속도 `b` · 위치 한계 `m` · Homing Offset `o` · PWM 한계 `w`). 토크 ON 명령 없음 |
 
@@ -140,6 +164,7 @@ colcon build --packages-up-to opencr_hardware && colcon test --packages-select o
 ```
 
 `test_firmware_sil` · `test_host_firmware_sil` 은 **실제 이 펌웨어 소스**를 PC 에서 컴파일해 가짜 모터 · 가짜 USB 와 돌린다 (두 역할 모두).
+`test_battery_alarm` 은 `battery_alarm.h` (잔량 표 · 비프 판단, 실제 config.h 값) 와 호스트 진단 판정 (`../opencr_hardware/src/battery_status.hpp`) 을 본다.
 실물 모터 동작을 보장하지는 않는다. ROS 가 없는 PC 에서 돌리는 방법은 저장소 루트 `CLAUDE.md` 의 "빌드 · 테스트".
 
 ## 아직 정하지 않은 것 (★)

@@ -16,10 +16,14 @@ find_package(sensor_msgs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(robot_interfaces REQUIRED)   # names.hpp (통신 이름 · QoS)
 
+# 펌웨어 소스 (opencr_firmware/, COLCON_IGNORE). 호스트는 battery_alarm.h 의 잔량 표를 같이 쓴다 (빌드 때만 — 설치 헤더에는 없음)
+set(FIRMWARE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../opencr_firmware)
+
 add_library(${PROJECT_NAME} SHARED src/opencr_hardware.cpp)
 target_include_directories(${PROJECT_NAME} PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+target_include_directories(${PROJECT_NAME} PRIVATE src ${FIRMWARE_DIR})
 target_link_libraries(${PROJECT_NAME} PUBLIC
   hardware_interface::hardware_interface pluginlib::pluginlib rclcpp::rclcpp
   rclcpp_lifecycle::rclcpp_lifecycle ${std_msgs_TARGETS} ${sensor_msgs_TARGETS} ${diagnostic_msgs_TARGETS} ${robot_interfaces_TARGETS})
@@ -50,9 +54,12 @@ if(BUILD_TESTING)
   target_link_libraries(test_robot_description hardware_interface::hardware_interface)
 
   # 펌웨어 안전 판단 (opencr_firmware/safety_core.h — 실제 펌웨어 코드, Arduino 없이)
-  set(FIRMWARE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../opencr_firmware)
   ament_add_gtest(test_safety_core test/test_safety_core.cpp)
   target_include_directories(test_safety_core PRIVATE include ${FIRMWARE_DIR})
+
+  # 배터리 잔량 · 저전압 비프 판단 (opencr_firmware/battery_alarm.h) + 호스트 진단 판정 (src/battery_status.hpp)
+  ament_add_gtest(test_battery_alarm test/test_battery_alarm.cpp)
+  target_include_directories(test_battery_alarm PRIVATE src ${FIRMWARE_DIR})
 
   # SIL: 실제 opencr_firmware.ino 를 역할별 namespace 로 호스트에서 컴파일 (Dynamixel · USB · 시계는 test/sil 의 테스트 더블)
   foreach(role wheel arm)
