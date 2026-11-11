@@ -19,7 +19,7 @@ mission_node:
       read_tag: 90.0             # 회전 탐색 포함
       navigate: 120.0
       search: 60.0               # 주행 자세 + 회전 탐색 포함
-      approach: 90.0             # 주행 자세 → COARSE → READY → FINE
+      approach: 90.0             # 주행 자세 → COARSE → 정렬 자세 → FINE
       pick: 60.0
     skill:
       default_timeout: 30.0      # skill 단계에 timeout을 안 쓰면
@@ -50,9 +50,10 @@ mission_node:
       #              (COARSE 동안은 정지 거리를 낮추지 않음, FINE 만) → 여유 0.05 를 더함
       #   상한 0.48: COARSE 는 목표보다 멀면 전진, 가까우면 후진. 대기 자리 (0.50) 에서 앞으로 다가가며 맞추려면
       #              0.50 − 허용오차 0.02 이하. 더 크면 대기 자리에서 뒤로 물러남
-      #   READY 팔은 앞 끝보다 약 0.20 m 나오지만 앞 끝 앞쪽은 바닥 위 0.18 m 이상 (퍽 윗면 0.13) 이라 이 거리에서 닿지 않음
+      #   정렬 자세 (ALIGN) 팔 앞 끝은 base_link x 0.179 (차체 앞 끝보다 0.046 m) · 바닥 위 0.14 m 라 이 거리에서 상자에 닿지 않음 (#154)
       #   장소 (빈 상자) 는 따라갈 퍽이 없어 COARSE 가 "물체 놓침" 으로 실패함 → #160
       coarse_distance: 0.45
+      arm_pose: ALIGN            # FINE 정렬 때 팔 자세 (manipulator poses). 팔 카메라가 퍽을 봐야 arm_offset 이 나옴 (#188 · #154, 예전 READY 는 하늘을 봄)
     pick:
       require_grasped: true      # grasped=false면 실패 → 직전 search부터 재시도
 

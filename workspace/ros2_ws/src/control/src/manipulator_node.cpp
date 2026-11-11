@@ -295,7 +295,7 @@ private:
     // 이름 자세 [joint1~5, 6 번째]. gripper.mode=arm_joint 면 6 번째는 쓰지 않고 지금 그리퍼 명령을 유지 (쥔 퍽을 놓치지 않게)
     //   TAG_VIEW = 팔 끝 Arducam이 태그를 보는 자세, BOX_VIEW = 상자 윗면을 내려다보는 자세 (#74)
     const auto names = declare_parameter<std::vector<std::string>>(
-      "poses.names", {"STOW", "DRIVE", "READY", "PLACE", "TAG_VIEW", "BOX_VIEW", "TRANSIT_TILT"});
+      "poses.names", {"STOW", "DRIVE", "ALIGN", "READY", "PLACE", "TAG_VIEW", "BOX_VIEW", "TRANSIT_TILT"});
     for (const auto & name : names) {
       auto q = declare_parameter<std::vector<double>>("poses." + name, std::vector<double>(6, 0.0));
       requireSize("poses." + name, q.size(), 6);

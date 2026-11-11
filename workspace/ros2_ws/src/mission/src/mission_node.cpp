@@ -21,7 +21,7 @@
 //   navigate <location>          locations.<name> = [x, y, yaw]로 주행 + 팔 주행 자세 (병렬)
 //   search                        주행 자세 → set_mode(OFF) → set_mode(SEARCH_FRONT | SEARCH_REAR),
 //                                 object_found 연속 확인, 없으면 제자리 회전
-//   approach <distance>           주행 자세 → SEARCH_FRONT → align COARSE → READY → SEARCH_FRONT | ARM_ALIGN | READ_TAG → align FINE
+//   approach <distance>           주행 자세 → SEARCH_FRONT → align COARSE → 정렬 자세 (align.arm_pose) → SEARCH_FRONT | ARM_ALIGN | READ_TAG → align FINE
 //                                 <distance> = 1층 TFmini 렌즈 → 퍽이 놓인 박스 앞면 [m] (>= 0.13: 최소 측정 0.10 + 정지 여유)
 //   pick                          SEARCH_FRONT | ARM_ALIGN | READ_TAG 유지, /manipulator/pick (grasped 확인)
 //                                 READ_TAG: perception 이 Arducam 태그로 /arm_range (팔 끝 → 퍽) 를 정밀하게 낸다
@@ -361,7 +361,7 @@ private:
     timeout_["read_tag"] = declare_parameter<double>("timeout.read_tag", 90.0);  // 회전 탐색 포함
     timeout_["navigate"] = declare_parameter<double>("timeout.navigate", 120.0);
     timeout_["search"] = declare_parameter<double>("timeout.search", 60.0);      // 회전 탐색 포함
-    timeout_["approach"] = declare_parameter<double>("timeout.approach", 90.0);  // COARSE + READY + FINE
+    timeout_["approach"] = declare_parameter<double>("timeout.approach", 90.0);  // COARSE + 정렬 자세 + FINE
     timeout_["pick"] = declare_parameter<double>("timeout.pick", 60.0);
     skill_default_timeout_ = declare_parameter<double>("skill.default_timeout", 30.0);
     skill_timeout_margin_ = declare_parameter<double>("skill.timeout_margin", 5.0);
@@ -386,8 +386,10 @@ private:
     // align tolerance: 0 = drive 기본값 (drive_node align.default_tolerance)
     align_tolerance_ = declare_parameter<double>("align.tolerance", 0.0);
     // 먼 거리 정렬(COARSE) 목표 거리 (m, 차체 앞 끝 → 추적한 퍽). drive_node는 align.coarse_min(0.3)보다 작으면 실패시킨다
-    // 값을 고른 근거 (TFmini 정지 거리 · 대기 자리 · READY 팔 높이) 는 mission.yaml align.coarse_distance 주석
+    // 값을 고른 근거 (TFmini 정지 거리 · 대기 자리 · 정렬 자세 팔 높이) 는 mission.yaml align.coarse_distance 주석
     coarse_distance_ = declare_parameter<double>("align.coarse_distance", 0.45);
+    // FINE 정렬 때 팔 자세 (manipulator poses 이름). 팔 카메라 arm_offset 으로 맞추므로 퍽이 화면에 들어오는 자세 (#188 · #154)
+    align_arm_pose_ = declare_parameter<std::string>("align.arm_pose", "ALIGN");
     // pick: grasped=false면 실패로 본다
     require_grasped_ = declare_parameter<bool>("pick.require_grasped", true);
 
@@ -1115,7 +1117,7 @@ private:
       // ① 주행 자세 완료 → ② OFF(추적 초기화) → ③ SEARCH_FRONT | SEARCH_REAR → tickSearch
       sendArmPose(travel_pose_);
     } else if (s.type == "approach") {
-      // ① 주행 자세 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ READY → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
+      // ① 주행 자세 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ 정렬 자세 → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
       sendArmPose(travel_pose_);
     } else if (s.type == "pick") {
       // 바퀴는 정지 유지. approach FINE 과 같은 모드 (추적 위치 + arm_offset + 태그 → /arm_range)
@@ -1236,10 +1238,10 @@ private:
         case 1:  // 주행 자세 완료 → 전방 탐색만 켜고 먼 거리 정렬 (drive는 ARM_ALIGN 비트가 없으면 먼 거리 모드)
           setModeThen(Mode::SEARCH_FRONT, [this]() {sendAlign(AlignStage::COARSE, coarse_distance_);});
           break;
-        case 2:  // COARSE 완료 → 팔 READY
-          sendArmPose("READY");
+        case 2:  // COARSE 완료 → 팔 정렬 자세 (align.arm_pose, 기본 ALIGN)
+          sendArmPose(align_arm_pose_);
           break;
-        case 3:  // READY 완료 → 정밀 정렬 (ARM_ALIGN 비트 → drive 정밀 모드: Arducam 좌우 + 1층 TFmini 박스 거리)
+        case 3:  // 정렬 자세 완료 → 정밀 정렬 (ARM_ALIGN 비트 → drive 정밀 모드: Arducam 좌우 + 1층 TFmini 박스 거리)
           setModeThen(kFineMode, [this]() {
               sendAlign(AlignStage::FINE, std::stod(steps_[step_idx_].args[0]));
             });
@@ -2360,6 +2362,7 @@ private:
   // 파라미터
   std::string map_frame_, base_frame_, behavior_tree_;
   std::string travel_pose_{"DRIVE"};
+  std::string align_arm_pose_{"ALIGN"};
   std::map<std::string, std::vector<double>> locations_;
   std::map<int, std::vector<Step>> missions_;
   std::map<std::string, double> timeout_;
