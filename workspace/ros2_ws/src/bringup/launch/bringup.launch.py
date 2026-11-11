@@ -115,7 +115,7 @@ def generate_launch_description():
             return []
         log_dir, pucks = log_paths(context)
         args = {'use_sim_time': LaunchConfiguration('use_sim_time'), 'pucks_file': pucks,
-                'mode': LaunchConfiguration('planner_mode')}
+                'mode': LaunchConfiguration('planner_mode'), 'stop_after': LaunchConfiguration('planner_stop_after')}
         if log_dir:
             args['log_dir'] = os.path.join(log_dir, 'planner')
         return [IncludeLaunchDescription(
@@ -141,6 +141,8 @@ def generate_launch_description():
                               description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 빈 값 = <log_dir>/pucks_survey.yaml. '
                                           '측량을 끄면 미리 만든 등록표'),
         DeclareLaunchArgument('planner_mode', default_value='per_location', description='계획기 mode: per_location | single_load'),
+        DeclareLaunchArgument('planner_stop_after', default_value='none',
+                              description='부분 실물 시험: none | observe (관측만) | first_pick (박스 1 곳 집기) | first_place (장소 1 곳 놓기 + verify). 그 뒤 복귀'),
         DeclareLaunchArgument('use_localization', default_value='false',
                               description='localization.launch.py (지도 · scan 합치기 · loc_monitor). Nav2 는 따로 (#114)'),
         DeclareLaunchArgument('localization', default_value='amcl', description='위치 추정 방식: amcl | carto (localization.launch.py)'),

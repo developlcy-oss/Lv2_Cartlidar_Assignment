@@ -68,6 +68,8 @@ def plan_cmd(argv=None):
     ap.add_argument("--problem", required=True)
     ap.add_argument("--mode", default="per_location", choices=["per_location", "single_load", "compare"])
     ap.add_argument("--sdf", default=default_sdf())
+    ap.add_argument("--stop_after", default="none", choices=["none", "observe", "first_pick", "first_place"],
+                    help="부분 실물 시험: 그 지점까지만 하고 복귀 (단계 문장도 출력)")
     ap.add_argument("--out", default=None, help="이 폴더에 plan.json · signal.json · allocation.json")
     a = ap.parse_args(argv)
     from .planner import World, plan
@@ -76,7 +78,7 @@ def plan_cmd(argv=None):
     w = World(a.sdf)
     try:
         modes = ["per_location", "single_load"] if a.mode == "compare" else [a.mode]
-        plans = {m: plan(w, prob, m) for m in modes}
+        plans = {m: plan(w, prob, m, stop_after=a.stop_after) for m in modes}
     except MissionError as e:
         print(f"[오류] {e} -> 안전 정지", file=sys.stderr)
         return 2
@@ -86,6 +88,10 @@ def plan_cmd(argv=None):
         print(f"[{m}] 비용 {p['cost_m']:.2f} (주행 {length:.2f} m, 이동 {n_nav} 번) · 할당 {', '.join(f'{L}={v['group']}:{v['ids']}' for L, v in p['allocation'].items())}")
         for wmsg in p["warnings"]:
             print(f"  경고: {wmsg}")
+        if a.stop_after != "none":
+            from .mission_lines import to_lines
+            for line in to_lines(w, p)[0]:
+                print(f"  | {line}")
     if a.out:
         os.makedirs(a.out, exist_ok=True)
         p = plans[modes[0]]

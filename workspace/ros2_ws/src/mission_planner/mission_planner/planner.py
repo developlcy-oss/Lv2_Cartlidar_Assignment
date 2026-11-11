@@ -180,7 +180,9 @@ def _product_limited(lists, limit):
     return out
 
 
-def plan(world: World, problem: dict, mode="per_location", alloc_limit=2000):
+def plan(world: World, problem: dict, mode="per_location", alloc_limit=2000, stop_after="none"):
+    if stop_after not in STOP_AFTER:
+        raise ValueError(f"stop_after {stop_after!r}: {' | '.join(STOP_AFTER)}")
     counts = count_signal(problem["signal"])
     groups = order_groups(counts, problem["barcode"])
     pucks = parse_pucks(problem["pucks"])
@@ -197,8 +199,11 @@ def plan(world: World, problem: dict, mode="per_location", alloc_limit=2000):
         raise MissionError("경로를 찾지 못함")
     alloc, r, yshape = best
     steps, warnings = _steps(world, mode, alloc, group_of_L, r)
+    steps = cut_steps(world, steps, stop_after)
+    if stop_after != "none":
+        warnings = [f"부분 시험 stop_after={stop_after}: 미션 전체가 아님 (cost_m 은 전체 계획 값)"] + warnings
     return dict(
-        mode=mode,
+        mode=mode, stop_after=stop_after,
         signal=dict(sequence=list(problem["signal"]), counts=counts),
         barcode=dict(code=problem["barcode"], order="desc" if problem["barcode"] in ("P2-02", "P2-04") else "asc"),
         groups={L: dict(group=g, count=counts[g]) for L, g in group_of_L.items()},
@@ -207,6 +212,46 @@ def plan(world: World, problem: dict, mode="per_location", alloc_limit=2000):
         cost_m=round(r[0], 3), allocations_checked=n_alloc,
         steps=steps, warnings=warnings,
     )
+
+
+STOP_AFTER = ("none", "observe", "first_pick", "first_place")
+
+
+def _nav_step(world, cur, to):
+    """navigate 단계 하나"""
+    info = world.path(cur, to)
+    a = world.approaches[to]
+    return dict(type="navigate", to=to, stage=a.stage.as_list(), final=a.final.as_list(), standoff=a.standoff,
+                length_m=round(info["length"], 3) if info else None, waypoints=info["points"] if info else None)
+
+
+def cut_steps(world, steps, stop_after="none"):
+    """부분 실물 시험: stop_after 지점까지만 하고 출발 구역으로 돌아옴 (복귀 + 3 s 정지는 그대로).
+      observe      출발 자세에서 관측만 (계획은 세움 -> 단계는 복귀 대기뿐)
+      first_pick   첫 박스 정차의 집기 전부 (접근 · 집기 · 팔레트 싣기)
+      first_place  첫 장소 정차의 놓기 전부 + 그 장소를 다시 들러 verify
+                   (per_location = 그 장소 퍽만 싣고 감, single_load = 전부 실은 뒤)"""
+    if stop_after not in STOP_AFTER:
+        raise ValueError(f"stop_after {stop_after!r}: {' | '.join(STOP_AFTER)}")
+    if stop_after == "none":
+        return steps
+    if stop_after == "observe":
+        out = steps[:1]
+    else:
+        kind = "pick" if stop_after == "first_pick" else "place"
+        i = next(k for k, s in enumerate(steps) if s["type"] == kind)
+        at = steps[i]["at"]
+        while i + 1 < len(steps) and steps[i + 1]["type"] == kind and steps[i + 1]["at"] == at:
+            i += 1
+        out = steps[:i + 1]
+        if kind == "place":   # 놓은 자리 (상자 앞) 에서 물러나 verify 보기 자리 (stage) 로 다시 들름
+            out.append(_nav_step(world, at, at))
+            out.append(next(s for s in steps if s["type"] == "verify" and s["at"] == at))
+    cur = next((s["to"] for s in reversed(out) if s["type"] == "navigate"), "HOME")
+    if cur != "HOME":
+        out.append(_nav_step(world, cur, "HOME"))
+    out.append(steps[-1])   # return
+    return out
 
 
 def _steps(world, mode, alloc, group_of_L, r):
@@ -218,10 +263,7 @@ def _steps(world, mode, alloc, group_of_L, r):
     def nav(to):
         nonlocal cur
         if to != cur:
-            info = world.path(cur, to)
-            a = world.approaches[to]
-            steps.append(dict(type="navigate", to=to, stage=a.stage.as_list(), final=a.final.as_list(), standoff=a.standoff,
-                              length_m=round(info["length"], 3) if info else None, waypoints=info["points"] if info else None))
+            steps.append(_nav_step(world, cur, to))
             cur = to
 
     def pick(key, p, slot):
