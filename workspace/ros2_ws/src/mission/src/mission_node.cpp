@@ -1850,7 +1850,8 @@ private:
     for (size_t i = 0; i < recs.size(); ++i) {
       const auto & r = recs[i];
       o << (i ? ", " : "") << "{\"cell\": " << r.cell << ", \"id\": " << r.tag_id << ", \"seen\": " << r.seen
-        << ", \"xy\": [" << r.x << ", " << r.y << "], \"map\": [" << r.mx << ", " << r.my << "], \"offset\": " << r.offset << "}";
+        << ", \"xy\": [" << r.x << ", " << r.y << "], \"map\": [" << r.mx << ", " << r.my << "], \"offset\": " << r.offset
+        << ", \"split_cells\": " << intList(r.split_cells) << "}";
     }
     o << "]}";
     return o.str();

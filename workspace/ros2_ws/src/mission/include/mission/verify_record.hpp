@@ -2,7 +2,7 @@
 //   VerifyRecorder: verify 한 번 동안 /perception/pucks 를 받을 때마다 add_frame. 퍽마다 가장 가까운 칸에 넣고
 //     (칸, 태그 ID) 별로 본 횟수 · 위치 합을 쌓는다. 같은 퍽이 어떤 장은 태그를 읽고 어떤 장은 못 읽어도 칸으로 묶인다
 //   records(min_seen): (칸, ID) 가 min_seen 번 이상 보인 것만. 태그를 한 번도 못 읽은 퍽이 있는 칸은 ID −1 로 남긴다
-//   judge_ids: 모든 장소 기록을 모아 ID 중복 (두 칸 이상) · 누락 (기대 ID 를 못 봄) · 기대 밖 ID 를 낸다
+//   judge_ids: 모든 장소 기록을 모아 ID 중복 (두 장소 이상, 한 장소 안 여러 칸은 records 가 합침) · 누락 (기대 ID 를 못 봄) · 기대 밖 ID 를 낸다
 //   칸 범위 · 높이 거르기는 perception check_dice 와 같다 (칸 범위 + margin, 칸 높이 −0.02 ~ +0.10 m)
 #pragma once
 
@@ -36,6 +36,7 @@ struct VerifyPuck
   double x = 0, y = 0;   // 칸 좌표계 평균
   double mx = 0, my = 0; // 지도 평균
   double offset = 0;     // 칸 중심과의 수평 거리 [m]
+  std::vector<int> split_cells;   // 같은 ID 를 이 칸 말고도 본 칸 (한 퍽으로 합침, 경계 근처 퍽)
 };
 
 class VerifyRecorder
@@ -86,25 +87,40 @@ public:
   }
 
   // 칸 번호 · ID 순. 태그를 읽은 기록이 있는 칸의 ID −1 관측은 같은 퍽으로 보고 뺀다
+  //   같은 ID 가 한 장소의 여러 칸에 나뉘면 (퍽이 칸 경계 근처라 장마다 가까운 칸이 바뀜, #172) 한 퍽으로 합친다:
+  //   가장 많이 본 칸에 두고 본 횟수 · 위치는 합쳐 평균, 나머지 칸은 split_cells 로 남긴다. min_seen 은 합친 횟수로 본다
   std::vector<VerifyPuck> records(int min_seen) const
   {
     std::vector<VerifyPuck> out;
     std::array<bool, 9> tagged{};
+    std::map<int, std::vector<std::pair<int, const Acc *>>> by_id;   // ID -> [(칸, 누적)]
     for (const auto & [key, a] : acc_) {
-      if (key.second >= 0 && a.n >= min_seen) {tagged[key.first] = true;}
+      if (key.second < 0) {continue;}
+      if (a.n >= min_seen) {tagged[key.first] = true;}
+      by_id[key.second].push_back({key.first, &a});
     }
-    for (const auto & [key, a] : acc_) {   // map 순서 = (칸, ID) 오름차순, ID −1 이 먼저
-      if (a.n < min_seen) {continue;}
-      if (key.second < 0 && tagged[key.first]) {continue;}
-      VerifyPuck p;
-      p.cell = key.first;
-      p.tag_id = key.second;
-      p.seen = a.n;
-      p.x = a.x / a.n; p.y = a.y / a.n;
-      p.mx = a.mx / a.n; p.my = a.my / a.n;
-      p.offset = std::hypot(p.x - cells_[p.cell][0], p.y - cells_[p.cell][1]);
-      out.push_back(p);
+    for (const auto & [key, a] : acc_) {   // ID −1: 칸마다 따로
+      if (key.second >= 0 || a.n < min_seen || tagged[key.first]) {continue;}
+      out.push_back(make(key.first, -1, a, {}));
     }
+    for (const auto & [id, parts] : by_id) {
+      Acc sum;
+      int best = parts.front().first, best_n = 0;
+      for (const auto & [cell, a] : parts) {
+        sum.n += a->n;
+        sum.x += a->x; sum.y += a->y; sum.mx += a->mx; sum.my += a->my;
+        if (a->n > best_n) {best_n = a->n; best = cell;}   // 같으면 칸 번호 작은 쪽 (map 순서)
+      }
+      if (sum.n < min_seen) {continue;}
+      std::vector<int> split;
+      for (const auto & [cell, a] : parts) {
+        if (cell != best) {split.push_back(cell);}
+      }
+      out.push_back(make(best, id, sum, split));
+    }
+    std::sort(out.begin(), out.end(), [](const VerifyPuck & a, const VerifyPuck & b) {
+        return a.cell != b.cell ? a.cell < b.cell : a.tag_id < b.tag_id;
+      });
     return out;
   }
 
@@ -114,6 +130,18 @@ private:
     int n = 0;
     double x = 0, y = 0, mx = 0, my = 0;
   };
+  VerifyPuck make(int cell, int id, const Acc & a, std::vector<int> split) const
+  {
+    VerifyPuck p;
+    p.cell = cell;
+    p.tag_id = id;
+    p.seen = a.n;
+    p.x = a.x / a.n; p.y = a.y / a.n;
+    p.mx = a.mx / a.n; p.my = a.my / a.n;
+    p.offset = std::hypot(p.x - cells_[cell][0], p.y - cells_[cell][1]);
+    p.split_cells = std::move(split);
+    return p;
+  }
   Cells cells_{};
   double margin_ = 0.04;
   double x0_ = 0, x1_ = 0, y0_ = 0, y1_ = 0, z0_ = 0, z1_ = 0;
