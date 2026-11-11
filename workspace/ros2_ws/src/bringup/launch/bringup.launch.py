@@ -62,6 +62,8 @@ def generate_launch_description():
     ipc = [{'use_intra_process_comms': True}]
     # 모든 노드가 같은 시계를 쓰게: 시뮬레이션이면 /clock (영상 · 라이다 stamp 가 시뮬레이션 시각이라 300 ms 규칙에 필요)
     sim = {'use_sim_time': ParameterValue(LaunchConfiguration('use_sim_time'), value_type=bool)}
+    # /diagnostics 끊김 감시 (#207): OpenCRHardware 가 있을 때만 (실물). sim · use_hardware:=false 에는 opencr/* 진단이 없음
+    diag = {'diagnostics.timeout': ParameterValue(LaunchConfiguration('diag_timeout'), value_type=float)}
     geometry = PathJoinSubstitution([ctl, 'config', 'robot_geometry.yaml'])   # drive · odom_icr 공용 (base.icr_x 한 곳)
     skill = {'skill.enabled':ParameterValue(LaunchConfiguration('skill_enabled'), value_type=bool),
              'skill.policies_file': LaunchConfiguration('policies_file')}
@@ -96,7 +98,7 @@ def generate_launch_description():
         executable='component_container_mt', output='screen',
         composable_node_descriptions=[
             ComposableNode(package='mission', plugin='mission::MissionNode', name='mission_node',
-                           parameters=mission_params + [sim], extra_arguments=ipc),
+                           parameters=mission_params + [diag, sim], extra_arguments=ipc),
             ComposableNode(package='control', plugin='control::DriveNode', name='drive_node',
                            parameters=[geometry, PathJoinSubstitution([ctl, 'config', 'drive.yaml']), skill, rear_camera, loc_gate, sim],
                            extra_arguments=ipc),
@@ -115,7 +117,7 @@ def generate_launch_description():
             return []
         log_dir, pucks = log_paths(context)
         args = {'use_sim_time': LaunchConfiguration('use_sim_time'), 'pucks_file': pucks,
-                'mode': LaunchConfiguration('planner_mode')}
+                'mode': LaunchConfiguration('planner_mode'), 'stop_after': LaunchConfiguration('planner_stop_after')}
         if log_dir:
             args['log_dir'] = os.path.join(log_dir, 'planner')
         return [IncludeLaunchDescription(
@@ -124,6 +126,10 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
+        DeclareLaunchArgument('diag_timeout',
+                              default_value=PythonExpression(["'3.0' if '", LaunchConfiguration('use_hardware'), "'.lower() == 'true' and '",
+                                                              LaunchConfiguration('sim'), "'.lower() != 'true' else '0.0'"]),
+                              description='mission_node diagnostics.timeout [s]: opencr/* 진단이 이만큼 끊기면 안전 정지. 기본 실물 3.0 · sim · 하드웨어 없음 0 (끔)'),
         DeclareLaunchArgument('sim', default_value='false',
                               description='① 을 Isaac Sim 브리지에 연결 (TopicBasedSystem). use_sim_time:=true 와 함께'),
         DeclareLaunchArgument('use_teleop', default_value='true', description='조이스틱 (끄면 E-stop heartbeat 검사도 끔)'),
@@ -141,6 +147,8 @@ def generate_launch_description():
                               description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 빈 값 = <log_dir>/pucks_survey.yaml. '
                                           '측량을 끄면 미리 만든 등록표'),
         DeclareLaunchArgument('planner_mode', default_value='per_location', description='계획기 mode: per_location | single_load'),
+        DeclareLaunchArgument('planner_stop_after', default_value='none',
+                              description='부분 실물 시험: none | observe (관측만) | first_pick (박스 1 곳 집기) | first_place (장소 1 곳 놓기 + verify). 그 뒤 복귀'),
         DeclareLaunchArgument('use_localization', default_value='false',
                               description='localization.launch.py (지도 · scan 합치기 · loc_monitor). Nav2 는 따로 (#114)'),
         DeclareLaunchArgument('localization', default_value='amcl', description='위치 추정 방식: amcl | carto (localization.launch.py)'),

@@ -37,3 +37,40 @@ def test_plan_q1(world, mode):
         assert out == sorted(out)                                     # 1 열 -> 2 열 -> 3 열로 꺼내기
     assert p["steps"][0]["type"] == "observe" and p["steps"][-1]["type"] == "return"
     assert {s["at"] for s in p["steps"] if s["type"] == "verify"} == {"L1", "L2", "L3"}
+
+
+@pytest.mark.parametrize("mode", ["per_location", "single_load"])
+@pytest.mark.parametrize("stop", ["observe", "first_pick", "first_place"])
+def test_stop_after(world, mode, stop):
+    """부분 실물 시험: 그 지점까지만 하고 HOME 으로 돌아와 3 s 정지"""
+    from mission_planner.mission_lines import to_lines
+    full = plan(world, PROB, mode)
+    p = plan(world, PROB, mode, stop_after=stop)
+    st = p["steps"]
+    types = [s["type"] for s in st]
+    assert types[0] == "observe" and types[-1] == "return" and p["stop_after"] == stop
+    assert p["warnings"][0].startswith("부분 시험")
+    lines = to_lines(world, p)[0]
+    assert lines[-1] == "wait 3"
+    if stop == "observe":
+        assert types == ["observe", "return"] and lines == ["wait 3"]
+        return
+    assert types[-2] == "navigate" and st[-2]["to"] == "HOME"
+    if stop == "first_pick":
+        picks = [s for s in st if s["type"] == "pick"]
+        first = next(s for s in full["steps"] if s["type"] == "pick")
+        assert picks and {s["at"] for s in picks} == {first["at"]}
+        assert "place" not in types and "verify" not in types
+    else:
+        places = [s for s in st if s["type"] == "place"]
+        L = places[0]["at"]
+        assert {s["at"] for s in places} == {L}
+        assert len(places) == len(full["allocation"][L]["ids"])
+        assert [s["at"] for s in st if s["type"] == "verify"] == [L]
+        assert st[types.index("verify") - 1] == dict(st[types.index("verify") - 1], type="navigate", to=L)
+        assert any(x.startswith("approach_box") for x in lines) and any(x.startswith(f"verify {L} ") for x in lines)
+
+
+def test_stop_after_bad(world):
+    with pytest.raises(ValueError):
+        plan(world, PROB, "per_location", stop_after="half")
