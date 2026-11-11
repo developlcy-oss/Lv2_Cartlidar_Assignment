@@ -204,3 +204,41 @@ TEST(LieUpright, RetreatUpFromRecordedEndPoses)
     }
   }
 }
+
+TEST(LieUpright, VelocityLimitScalesWholeAction)
+{
+  // 관절 목표 변화가 max_step 을 넘으면 행동 전체 (변위 · β · ρ) 를 같은 비율로 줄임: 잡는 점 방향은 그대로, β 는 줄인 만큼만
+  const ArmDiffIK ik;
+  const LieUprightParams p;
+  const Joints5 q = control::kLieReadyPose45;
+  const std::array<float, 6> a{1.f, 0.f, 1.f, 1.f, 0.5f, -1.f};
+  double b_free = p.beta0, r_free = 0.0;
+  const Joints5 t_free = control::lieApplyAction(ik, p, q, q, a, b_free, r_free);
+  double m_free = 0.0;
+  for (size_t k = 0; k < 5; ++k) {m_free = std::max(m_free, std::abs(t_free[k] - q[k]));}
+  ASSERT_GT(m_free, 0.02);
+  // 제한이 넉넉하면 그대로
+  {
+    double b = p.beta0, r = 0.0, s = 0.0;
+    const Joints5 t = control::lieApplyActionLimited(ik, p, q, q, a, b, r, 1.0, &s);
+    EXPECT_DOUBLE_EQ(s, 1.0);
+    for (size_t k = 0; k < 5; ++k) {EXPECT_DOUBLE_EQ(t[k], t_free[k]);}
+    EXPECT_DOUBLE_EQ(b, b_free);
+  }
+  // 제한이 걸리면: 관절 변화 ≤ max_step, β 증가 = s · beta_scale, 잡는 점 이동 방향 = 제한 없을 때와 같음
+  const double max_step = 0.5 * m_free;
+  double b = p.beta0, r = 0.0, s = 0.0;
+  const Joints5 t = control::lieApplyActionLimited(ik, p, q, q, a, b, r, max_step, &s);
+  EXPECT_GT(s, 0.3);
+  EXPECT_LT(s, 0.7);
+  for (size_t k = 0; k < 5; ++k) {EXPECT_LE(std::abs(t[k] - q[k]), max_step + 1e-12);}
+  EXPECT_NEAR(b - p.beta0, s * p.beta_scale, 1e-12);
+  EXPECT_NEAR(r, s * 0.5 * p.rho_scale, 1e-6);
+  const Eigen::Vector3d g0 = ik.forward(q).tcp;
+  const Eigen::Vector3d d_free = ik.forward(t_free).tcp - g0, d_lim = ik.forward(t).tcp - g0;
+  EXPECT_GT(d_free.normalized().dot(d_lim.normalized()), 0.98);
+  // 관절마다 따로 자르면 β 는 다 가는데 (관측) 관절은 덜 감 — 비교용
+  double b_clip = p.beta0, r_clip = 0.0;
+  control::lieApplyAction(ik, p, q, q, a, b_clip, r_clip);
+  EXPECT_GT(b_clip - p.beta0, b - p.beta0);
+}
