@@ -67,6 +67,9 @@ Joints5 lieApplyAction(
   const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & target_prev, const Joints5 & q_meas,
   const std::array<float, 6> & action, double & beta, double & rho);
 
+// 지금 집게 자세 (FK) → β · ρ (학습 set_beta_rho_from, 범위로 자름). 끝난 뒤 위로 뺄 때 자세를 그대로 두려고 씀
+void lieBetaRhoFrom(const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & q, double & beta, double & rho);
+
 // 쥠 판정 (손가락 범위 + 히스테리시스)
 struct LieHoldFilter
 {

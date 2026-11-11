@@ -174,3 +174,33 @@ TEST(LieUpright, ObservationLayout)
   EXPECT_NEAR(o2.at("neighbor_rel")[1], -0.07, 1e-6);
   EXPECT_FLOAT_EQ(o2.at("neighbor_present")[0], 1.f);
 }
+
+TEST(LieUpright, RetreatUpFromRecordedEndPoses)
+{
+  // 노드 ⑤: 끝난 자세의 β · ρ 를 FK 로 다시 정하고 같은 IK 를 측정 없이 이어 (행동 z = +1) 10 스텝 → 잡는 점 5 cm 위, 수평 · 집게 자세 그대로.
+  //   끝 관절 · β · ρ = Isaac r2e 기록 (handoff/r2e_parity ep0 · ep1 · ep2, 노드 끝 판정 스텝)
+  const ArmDiffIK ik;
+  const LieUprightParams p;
+  struct End {Joints5 q; double beta, rho;};
+  const End ends[] = {
+    {{-0.205253, 0.063865, 0.582425, -0.838839, -1.584351}, 1.75, -1.643663},
+    {{-0.192212, -0.271819, 0.674052, -0.588258, -1.619814}, 1.75, -1.679767},
+    {{-0.153493, -0.532791, 0.404224, -0.038677, -1.832891}, 1.75, -1.893},
+  };
+  for (const auto & e : ends) {
+    const auto f0 = ik.forward(e.q);
+    Joints5 q = e.q;
+    double beta = e.beta, rho = e.rho;
+    control::lieBetaRhoFrom(ik, p, e.q, beta, rho);   // 지금 집게 자세 그대로 (정책 β 1.75 는 범위 끝이라 실제 자세와 조금 다름)
+    EXPECT_NEAR(rho, e.rho, 0.1);
+    for (int i = 0; i < 10; ++i) {q = control::lieApplyAction(ik, p, q, q, {0.f, 0.f, 1.f, 0.f, 0.f, 1.f}, beta, rho);}
+    const auto f1 = ik.forward(q);
+    EXPECT_NEAR(f1.tcp.z() - f0.tcp.z(), 0.05, 0.005);
+    EXPECT_LT(std::hypot(f1.tcp.x() - f0.tcp.x(), f1.tcp.y() - f0.tcp.y()), 0.005);
+    EXPECT_LT(rotErr(f1.rot, f0.rot), 0.05);
+    for (size_t k = 0; k < 5; ++k) {
+      EXPECT_GE(q[k], ik.params().lower[k]);
+      EXPECT_LE(q[k], ik.params().upper[k]);
+    }
+  }
+}

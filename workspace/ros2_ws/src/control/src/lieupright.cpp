@@ -65,6 +65,21 @@ Joints5 lieApplyAction(
   return out;
 }
 
+void lieBetaRhoFrom(const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & q, double & beta, double & rho)
+{
+  const ArmFrame f = ik.forward(q);
+  const Eigen::Vector3d & j1 = ik.params().joint1_origin;
+  Eigen::Vector3d h(f.tcp.x() - j1.x(), f.tcp.y() - j1.y(), 0.0);
+  h /= std::max(h.norm(), 1e-6);
+  const Eigen::Vector3d z = Eigen::Vector3d::UnitZ();
+  const Eigen::Vector3d a = f.approach(), c = f.close_axis();
+  beta = std::clamp(std::atan2(a.dot(h), -a.dot(z)), p.beta_min, p.beta_max);
+  const Eigen::Vector3d t = z.cross(h);
+  const Eigen::Vector3d av = -std::cos(beta) * z + std::sin(beta) * h;
+  const Eigen::Vector3d u0 = av.cross(t);
+  rho = std::clamp(std::atan2(c.dot(u0), c.dot(t)), -p.rho_max, p.rho_max);
+}
+
 bool LieHoldFilter::update(double finger_m, const LieUprightParams & p)
 {
   const bool raw = finger_m > p.grasp_lo && finger_m < p.grasp_hi;
