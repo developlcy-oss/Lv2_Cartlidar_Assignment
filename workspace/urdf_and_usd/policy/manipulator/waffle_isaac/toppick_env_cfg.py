@@ -183,7 +183,7 @@ class WaffleTopPickEnvCfg(DirectRLEnvCfg):
     near_dxy_max = 0.02
     near_noise = 0.03
     near_grasp_x = 0.296  # [m] 시작 자세 잡는 점 x (base_link, J1 축 0.20 m)
-    perc_bias = 0.010  # [m] 인식 좌표 에피소드 치우침 (인지 모의 p95 8 mm · 팔 카메라만 13 mm, #71. 이전 0.004)
+    perc_bias = 0.005  # [m] TP10. 실물 목표 σ 2 mm, 10 mm 는 벌림 50 mm (손가락 여유 10 mm) 에서 더듬게 만듦 (TP9 평가 10 mm 39 · 2 mm 52). 이전 0.010 (#71) · 0.004
     perc_jitter = 0.001  # [m] 스텝마다 (고정하지 않는 에피소드만)
     perc_latch_prob = 0.7  # 인식 좌표를 시작 값으로 고정하는 비율 (#82: 45° 자세에서는 퍽이 팔 카메라 화면 밖)
     perc_yaw_bias = 0.05  # [rad] 상자 퍽 면 방향 인식 치우침 (약 3°)
@@ -251,6 +251,8 @@ class WaffleTopPickEnvCfg(DirectRLEnvCfg):
     rew_action_rate = -0.02
     rew_joint_vel = -1e-3
     rew_neighbor_moved = -50.0  # × 스텝당 이동 [m] (#71, 이전 -20)
+    rew_puck_push = -300.0  # TP10. 들기 전 (lift < lift_min) 집을 퍽이 처음 자리에서 밀린 거리 [m] - push_free, 스텝마다. TP9 · 11-10 학습 이어평가 들기 전 밀림 중앙: 넣기 성공 18 ~ 28 mm, 집기 실패 34 ~ 44 mm (-50 이면 보상 2000 의 몇 %)
+    push_free = 0.005  # [m] 이 안은 벌점 없음 (닿기만 해도 1 ~ 2 mm)
     rew_neighbor_toppled = -2.0  # 옆 퍽 넘어져 있는 동안 스텝마다 (큰 종료 벌점은 두지 않음, 부록 B)
     rew_toppled = -2.0
     rew_base_tilt = -8.0

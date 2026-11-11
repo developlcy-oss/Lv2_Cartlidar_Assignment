@@ -66,6 +66,7 @@ class WaffleTopPickEnv(DirectRLEnv):
         self.nb_xy0 = torch.zeros(n, 2, device=dev)
         self.nb_bad = torch.zeros(n, dtype=torch.bool, device=dev)  # 에피소드 중 옆 퍽이 넘어졌거나 밀림
         self.nb_prev = torch.zeros(n, 2, device=dev)
+        self.puck_xy0 = torch.zeros(n, 2, device=dev)  # 집을 퍽 처음 자리 (밀림 벌점, TP10)
         self.root0 = torch.zeros(n, 3, device=dev)
         self.hold = torch.zeros(n, dtype=torch.long, device=dev)
         self.succeeded = torch.zeros(n, dtype=torch.bool, device=dev)
@@ -259,6 +260,7 @@ class WaffleTopPickEnv(DirectRLEnv):
         nb_ok = self.nb_ok()
         self.nb_bad |= ~nb_ok
         toppled = (up < c.topple_cos) & (lift < c.lift_min)
+        push = torch.clamp(torch.linalg.norm(self.puck_pos_w()[:, :2] - self.puck_xy0, dim=1) - c.push_free, min=0.0) * (lift < c.lift_min).float()
         arm_box = self._contact("arm_box_contact")
         body_box = self._contact("body_box_contact")
         base_move = torch.linalg.norm(self.robot.data.root_link_pos_w.torch[:, :2] - self.root0[:, :2], dim=1)
@@ -280,6 +282,7 @@ class WaffleTopPickEnv(DirectRLEnv):
             "action_rate": c.rew_action_rate * torch.sum(torch.square(self.actions - self.prev_actions), dim=1),
             "joint_vel": c.rew_joint_vel * torch.sum(torch.square(self.robot.data.joint_vel.torch[:, self._arm]), dim=1),
             "neighbor_moved": c.rew_neighbor_moved * moved,
+            "puck_push": c.rew_puck_push * push,
             "neighbor_toppled": c.rew_neighbor_toppled * nb_toppled.float(),
             "toppled": c.rew_toppled * toppled.float(),
             "base_tilt": c.rew_base_tilt * tilt,
@@ -298,6 +301,7 @@ class WaffleTopPickEnv(DirectRLEnv):
         log["Metrics/roll_align"] = roll_ok.mean().item()
         log["Metrics/grasped_ratio"] = grasped.float().mean().item()
         log["Metrics/lifted_ratio"] = lifted.float().mean().item()
+        log["Metrics/puck_push_mm"] = (push * 1000).mean().item()
         if holding.any():
             log["Metrics/hand_center_mm"] = dist[holding].mean().item() * 1000  # 쥔 동안 손 안 어긋남 (TP4)
             log["Metrics/hand_tilt_deg"] = math.degrees(hand_tilt[holding].mean().item())
@@ -470,6 +474,7 @@ class WaffleTopPickEnv(DirectRLEnv):
         self._place("puckN", env_ids, nbr, yaw, z)
         self.nb_prev[env_ids] = nbr + org[:, :2]
         self.nb_xy0[env_ids] = nbr + org[:, :2]
+        self.puck_xy0[env_ids] = tgt + org[:, :2]
         self.nb_bad[env_ids] = False
         self.puck_z0[env_ids] = PUCK_Z + org[:, 2]
         self.perc_bias[env_ids] = U(-c.perc_bias, c.perc_bias, (n, 3))
