@@ -50,3 +50,21 @@ def test_upside_down_lidar_mirrors_y():
     T = lc.T2d_from_tf(0.1, 0.0, 1.0, 0.0, 0.0, 0.0)  # roll π
     p = lc.scan_points([1.0], math.pi / 2, 0.0, T, 0.1, 3.5)
     assert np.allclose(p, [[0.1, -1.0]], atol=1e-9)
+
+
+def test_rear_scan_moved_into_front_frame(field):
+    """움직이는 중: 뒤 스캔 시각 자세의 점을 odom 이동만큼 옮기면 앞 스캔 시각 자세에서 맞음 (#151)"""
+    p_front, p_rear = (1.2, 1.5, 0.3), (1.25, 1.52, 0.38)      # 0.05 s 사이 5 cm · 4.6° 움직임
+    pts = scan_from(field, p_rear)
+    raw = lc.residual_multi(field, [(p_front, pts)], 'interp_p75')
+    moved = lc.move_points(pts, lc.se2_compose(lc.se2_inverse(p_front), p_rear))
+    assert lc.residual_multi(field, [(p_front, moved)], 'interp_p75') < 0.02 < raw
+
+
+def test_to_now_compensation():
+    """스캔 시각 자세 ∘ (odom 스캔 시각 → 지금) = 지금 자세 (odom 이 map 과 틀어져 있어도)"""
+    map_odom = (0.4, -0.2, 0.5)
+    o_st, o_now = (1.0, 2.0, 0.1), (1.3, 2.1, 0.6)
+    pose_st, pose_now = lc.se2_compose(map_odom, o_st), lc.se2_compose(map_odom, o_now)
+    got = lc.se2_compose(pose_st, lc.se2_compose(lc.se2_inverse(o_st), o_now))
+    assert np.allclose(got, pose_now, atol=1e-9)
