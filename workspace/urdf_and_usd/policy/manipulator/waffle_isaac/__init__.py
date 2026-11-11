@@ -17,6 +17,13 @@ for _id, _mod, _cfg, _agent in (
     ("Waffle-SidePick-Direct", "sidepick_env:WaffleSidePickEnv", "sidepick_env_cfg:WaffleSidePickEnvCfg", "WaffleSidePickPPORunnerCfg"),
     ("Waffle-Store-Direct", "store_env:WaffleStoreEnv", "store_env_cfg:WaffleStoreEnvCfg", "WaffleStorePPORunnerCfg"),
     ("Waffle-Insert-Direct", "insert_env:WaffleInsertEnv", "insert_env_cfg:WaffleInsertEnvCfg", "WaffleInsertPPORunnerCfg"),
+    ("Waffle-LieUpright-Direct", "lieupright_env:WaffleLieUprightEnv", "lieupright_env_cfg:WaffleLieUprightEnvCfg", "WaffleLieUprightPPORunnerCfg"),  # 2026-11-10 Onbeom #192
+    ("Waffle-LieUprightB2-Direct", "lieupright_env:WaffleLieUprightEnv", "lieupright_env_cfg:WaffleLieUprightB2EnvCfg", "WaffleLieUprightPPORunnerCfg"),  # 2026-11-10 P1 2 회차
+    ("Waffle-LieUprightB3-Direct", "lieupright_env:WaffleLieUprightEnv", "lieupright_env_cfg:WaffleLieUprightB3EnvCfg", "WaffleLieUprightPPORunnerCfg"),  # 2026-11-11 r2d 팔-상자 접촉 종료
+    ("Waffle-LieUprightB4-Direct", "lieupright_env:WaffleLieUprightEnv", "lieupright_env_cfg:WaffleLieUprightB4EnvCfg", "WaffleLieUprightPPORunnerCfg"),  # 2026-11-11 r2e 옆 퍽 벌점 −60
+    ("Waffle-LieUprightB5-Direct", "lieupright_env:WaffleLieUprightEnv", "lieupright_env_cfg:WaffleLieUprightB5EnvCfg", "WaffleLieUprightPPORunnerCfg"),  # 2026-11-11 r2e 2 회차 옆 퍽 여유 퍼텐셜
+    ("Waffle-LieUprightB6-Direct", "lieupright_env:WaffleLieUprightEnv", "lieupright_env_cfg:WaffleLieUprightB6EnvCfg", "WaffleLieUprightPPORunnerCfg"),  # 2026-11-11 r2g 노드 관측 · 속도 상한
+    ("Waffle-LieUprightB7-Direct", "lieupright_env:WaffleLieUprightEnv", "lieupright_env_cfg:WaffleLieUprightB7EnvCfg", "WaffleLieUprightPPORunnerCfg"),  # 2026-11-11 r2g2 잰 상자 · 노드 놓음 규칙
 ):
     gym.register(
         id=_id,
