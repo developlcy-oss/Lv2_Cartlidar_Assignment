@@ -118,6 +118,42 @@ TEST(VerifyRecord, DuplicateAcrossPlaces)
   EXPECT_EQ(j.missing, std::vector<int>({10}));
 }
 
+TEST(VerifyRecord, BoundaryPuckInOnePlaceIsNotDuplicate)
+{
+  // #172: 칸 4 · 5 경계 (중심에서 +0.03) 근처 퍽이 장마다 가까운 칸이 바뀜 → 한 장소 안 두 칸에서 같은 ID
+  VerifyRecorder rec;
+  const auto c = cells_at(1.0, 2.0);
+  rec.start(c, 0.04);
+  for (int f = 0; f < 10; ++f) {
+    const double dx = (f % 2) ? 0.032 : 0.028;   // 홀수 장 = 칸 5, 짝수 장 = 칸 4
+    rec.add_frame({{c[4][0] + dx, c[4][1], PUCK_Z, c[4][0] + dx, c[4][1], 5}});
+  }
+  const auto r = rec.records(2);
+  ASSERT_EQ(r.size(), 1u);
+  EXPECT_EQ(r[0].tag_id, 5);
+  EXPECT_EQ(r[0].seen, 10);
+  EXPECT_EQ(r[0].cell, 4);                              // 같은 횟수면 작은 칸 번호
+  EXPECT_EQ(r[0].split_cells, std::vector<int>({5}));
+  EXPECT_NEAR(r[0].x, c[4][0] + 0.03, 1e-9);            // 두 칸 관측을 합친 평균
+  EXPECT_NEAR(r[0].offset, 0.03, 1e-9);
+  std::map<std::string, std::vector<VerifyPuck>> by_place{{"L1", r}};
+  const auto j = judge_ids(by_place, {5});
+  EXPECT_TRUE(j.passed);
+  EXPECT_TRUE(j.duplicate.empty());
+}
+
+TEST(VerifyRecord, SplitSightingsCountTogetherForMinSeen)
+{
+  VerifyRecorder rec;
+  const auto c = cells_at(1.0, 2.0);
+  rec.start(c, 0.04);
+  rec.add_frame({{c[4][0] + 0.028, c[4][1], PUCK_Z, 0, 0, 3}});   // 칸 4 에서 한 번
+  rec.add_frame({{c[4][0] + 0.032, c[4][1], PUCK_Z, 0, 0, 3}});   // 칸 5 에서 한 번
+  const auto r = rec.records(2);
+  ASSERT_EQ(r.size(), 1u);
+  EXPECT_EQ(r[0].seen, 2);
+}
+
 TEST(VerifyRecord, UnreadTagIsKeptAsMinusOneAndCountsAsMissing)
 {
   std::mt19937 rng(2);
