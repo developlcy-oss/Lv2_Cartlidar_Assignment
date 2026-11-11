@@ -87,10 +87,10 @@ lie_upright:
 #   학습 sidepick_env.py _get_observations 순서 · 단위 · 좌표 (base_link, m, rad). 모두 필수 (obs_dim 33).
 #   ★ 노드 관측 조립은 아직 없음 (#193 PR, Onbeom). 조립 전에는 skill.policies 에 넣지 말 것 (toppick_obs 이름이 아니라 로드 거절).
 #   행동 tcp_delta(4) = toppick_tilt 와 같은 IK (arm_diff_ik, 기울임 45°, 닫는 축 = J1 접선, cart_scale 0.005, rot_weight 0.3, damping 1e-4, lead 0.25 rad),
-#   4 번째 > 0 벌림 0.010 m (61.6 mm) · ≤ 0 닫기 (학습 −0.011, 미션 연결은 −0.0075 가 넣기에 나음 = toppick_rl.closed_m 과 같음).
+#   4 번째 > 0 벌림 0.010 m (61.6 mm) · ≤ 0 닫기 (학습 −0.011. 노드 방식 넣기에서는 −0.011 · −0.0075 차이 거의 없음).
 #   시작 자세 (학습 리셋) = READY_POSE_45 [0, −0.338, 0.559, 0.564, 0] ± 0.08 rad, 손가락 벌림 0.010 -> 정책 전에 이 자세로 옮길 것 (toppick_rl.start_pose 처럼).
-#   Isaac 미션 배치 (정지 0.1272 · 직육면체 ±17° 회전 접근) 집기 -> 칸 넣기 2048 대: 원기둥 1894 (92.5 %) · 직육면체 1688 (82.4 %)
-#   (쥐기 −0.0075, pallet.speed 0.4, 인식 ±1 mm). 집기 통과 98 ~ 99 %.
+#   Isaac 미션 배치 (정지 0.1272 · 직육면체 ±17° 회전 접근) 집기 -> 칸 넣기 (노드 pallet_load 와 같은 궤적 재생 · 처짐 보정, 속도 0.8,
+#   쥐기 끝까지 −0.011, 인식 ±1 mm) 2048 대: 원기둥 2006 (97.9 %) · 직육면체 1980 (96.7 %), 집기 통과 98 ~ 99 %.
 sidepick45_k7:
   model: models/sidepick45_k7.onnx
   rate_hz: 30
