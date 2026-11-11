@@ -78,7 +78,7 @@ Isaac Lab 은 `~/pa-course/IsaacLab-6.1` (다른 곳이면 `ISAACLAB_DIR=` 또�
 정책 [-1, 1]² × (0.3, 1.5)            drive_node skill.max_linear · max_angular
 → |vx| ≤ 0.34, |wz| ≤ 2.0, vx 가속 · 감속 ≤ 1.5 m/s²     diff_drive (controllers_4wd.yaml · drive_belt.yaml)
 → 바퀴 ω = (vx ∓ wz · 0.317/2) / 0.033
-→ 한 바퀴라도 10.996 rad/s 를 넘으면 좌우를 같은 비율로 줄임      펌웨어 비례 축소 (실물 한계 11.87 보다 시뮬 한계가 작아 시뮬 값 사용)
+→ 한 바퀴라도 10.996 rad/s 를 넘으면 좌우를 같은 비율로 줄임      펌웨어 비례 축소 (실물 한계 11.26 보다 시뮬 한계가 작아 시뮬 값 사용)
 ```
 `action_mode="wheels"` (cfg) 는 예전 D1 방식 (행동 = 좌우 바퀴 속도) 으로, 비교용이다.
 

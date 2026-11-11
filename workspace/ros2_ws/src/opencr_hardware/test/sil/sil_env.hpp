@@ -9,6 +9,9 @@ inline uint32_t millis() {return static_cast<uint32_t>(g_board.now_us / 1000);}
 inline void pinMode(int, int) {}
 inline int digitalRead(int) {return g_board.estop_pin_low ? LOW : HIGH;}
 inline float getPowerInVoltage() {return g_board.vin;}
+// 부저 (OpenCR chip.h BDPIN_BUZZER = 31). tone() 은 실물에서 타이머 인터럽트로 울리고 바로 돌아온다 — 여기서는 기록만
+static const int BDPIN_BUZZER = 31;
+inline void tone(int pin, unsigned int freq, unsigned long ms) {g_board.tones.push_back({g_board.now_us, pin, freq, ms});}
 
 // USB CDC (HOST_SERIAL = Serial)
 class SilHostSerial

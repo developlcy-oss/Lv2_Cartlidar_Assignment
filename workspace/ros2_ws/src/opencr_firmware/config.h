@@ -23,6 +23,23 @@
 #define BUS_WATCHDOG_UNIT 25               // Bus Watchdog 25 × 20 ms = 500 ms — OpenCR 루프가 멈추면 모터가 스스로 정지
                                            // (Xmen opencr_control.ino 와 같은 값, 0 이면 끔)
 
+// ---- 배터리 · 부저 (두 보드 공통, 2026-11-11) ----
+// 보드마다 전용 배터리: LiPo 3S 11.1 V 1800 mAh 5C (만충 12.6 V — Dynamixel XM430 입력 10 ~ 14.8 V 안).
+// 판단 · 비프 패턴은 battery_alarm.h. 전압은 OpenCR 코어 getPowerInVoltage() (전원 입력 단자 분압 ADC, 약 0.02 V 단위 ★ 멀티미터와 비교 전).
+// 저전압 · 방전 직전 기준은 호스트 opencr.ros2_control.xacro battery_warn_v · battery_error_v 와 같게 둔다 (test_robot_description 이 비교).
+#define BATTERY_BEEP_ENABLE        1       // 0 이면 부저를 울리지 않음 (판단 · STATE 전압은 그대로)
+#define BATTERY_CELLS              3
+static const float BATTERY_NONE_V  = 6.0f;    // 이보다 낮으면 배터리 없음 (USB 만) → 울리지 않음
+static const float BATTERY_WARN_V  = 11.1f;   // 저전압 (셀 3.70 V, 휴지 전압으로 약 10 % ★)
+static const float BATTERY_CRIT_V  = 10.5f;   // 방전 직전 (셀 3.50 V) — 이 아래로 오래 쓰면 LiPo 손상
+static const float BATTERY_HYST_V  = 0.2f;    // 되돌림 여유 (부하를 빼면 오르는 전압)
+static const uint32_t BATTERY_WARN_HOLD_MS    = 10000;   // 1 초 평균이 기준 밑으로 이만큼 이어져야 (가속 때 처짐 무시)
+static const uint32_t BATTERY_CRIT_HOLD_MS    = 3000;
+static const uint32_t BATTERY_RECOVER_HOLD_MS = 3000;
+static const uint32_t BATTERY_SETTLE_MS       = 1500;    // 배터리를 알아챈 뒤 잔량 비프까지
+static const uint32_t BATTERY_WARN_PERIOD_MS  = 30000;   // 저전압: 30 s 마다 1 번
+static const uint32_t BATTERY_CRIT_PERIOD_MS  = 2000;    // 방전 직전: 2 s 마다 3 번
+
 // ---- 물리 E-stop (권장) ----
 #define ESTOP_PIN_ENABLE  1                // 물리 E-stop 필수 (배선 전에는 핀이 풀업 → 해제로 읽힘)
 #define ESTOP_PIN         50               // OpenCR GPIO ★ (INPUT_PULLUP, 눌리면 LOW)
@@ -58,13 +75,15 @@ static const int8_t  WHEEL_DIR[WHEEL_COUNT] = {+1, +1, -1, -1};  // 왼쪽 +1 ·
 //   모터 Drive Mode 의 반전 비트는 0 이어야 함 (둘 다 반전하면 다시 거꾸로) — 부팅 때 prepareWheelConfig 가 0 으로 맞춤
 static const float   WHEEL_GEAR     = 1.0f;   // 1.0 고정: 펌웨어 CMD · STATE 는 모터 축 기준. 증속벨트 등 기어비는 호스트가 변환
                                               //   (URDF drive 인자 → <param name="wheel_gear">, 2026-10-27). 여기서 바꾸면 두 번 적용됨
-static const int32_t WHEEL_VEL_LIMIT_RAW = 330;   // Goal Velocity 한계 (0.229 rpm 단위) = 75.6 rpm = 모터 7.91 rad/s
-                                                  //   바퀴: direct ≈ 0.261 m/s · belt (× 1.5) ≈ 0.39 m/s (12 V)
-                                                  // (URDF 는 11.1 V 무부하 7.33 rad/s, #15. 이 값이 더 크지만 모터가 먼저 포화되어 실제로는 자르지 않음) ★
+static const int32_t WHEEL_VEL_LIMIT_RAW = 313;   // Goal Velocity 한계 (0.229 rpm 단위) = 71.7 rpm = 모터 7.51 rad/s
+                                                  //   바퀴: direct ≈ 0.248 m/s · belt (× 1.5) ≈ 0.372 m/s (12 V)
+                                                  // 근거 (2026-11-11 T4, 12.1 V 어댑터 · 바퀴 띄움): 네 바퀴 동시 앞 · 뒤 회전 수가 맞는 최대 = 모터 7.61,
+                                                  //   7.71 부터 어긋남 (가장 약한 바퀴가 먼저 포화) → 한 단계 아래 7.51. 이 한계가 모터 포화보다 낮아야
+                                                  //   넘치는 명령을 네 바퀴 같은 비율로 줄여 (D6) 회전 반경이 지켜진다. 배터리 (11.1 V 이하) 에서 다시 잼 ★
                                                   // 모터 EEPROM Velocity Limit (주소 44) 은 이 값 이상이어야 함 — 작으면 부팅 때 이 값으로 올림
 static const uint16_t WHEEL_MODEL = 1030;  // 부팅 점검: 바퀴 XM430-W210 (= 1030, 확정 2026-10-22). W350 이면 1020
 
-// 배터리: OpenCR 코어의 getPowerInVoltage() (전원 입력 단자 분압 ADC). IMU: OpenCR 내장 (cIMU)
+// 배터리: 위 "배터리 · 부저" (두 보드 공통). IMU: OpenCR 내장 (cIMU)
 
 // ======================================================================== 팔 보드 전용 (역할 2)
 #define ARM_COUNT         6                // 패킷의 팔 칸: joint1~5 + 6 번째 칸

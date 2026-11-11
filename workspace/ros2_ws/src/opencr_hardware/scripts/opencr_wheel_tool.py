@@ -24,7 +24,7 @@ from opencr_arm_tool import (CMD_FMT, ERR_ABORT, ERR_TIMEOUT, FLAG_ESTOP, FLAG_T
 ROLE_WHEEL = 1
 WHEEL_COUNT = 4
 WHEEL_NAMES = ['왼쪽 앞', '왼쪽 뒤', '오른쪽 앞', '오른쪽 뒤']
-MAX_SPEED = 3.0      # 이 도구의 상한 rad/s (펌웨어 한계 7.91 rad/s 보다 훨씬 낮게)
+MAX_SPEED = 3.0      # 이 도구의 상한 rad/s (펌웨어 한계 7.51 rad/s 보다 훨씬 낮게)
 MAX_SECONDS = 5.0
 RAMP_S = 0.5         # 가속 · 감속 시간
 

@@ -64,8 +64,12 @@
         <param name="joy_timeout_s">0.5</param>
         <param name="estop_button">6</param>
         <param name="reset_button">7</param>
+        <!-- 배터리: 보드마다 LiPo 3S 11.1 V 1800 mAh (2026-11-11). 경고 · 위험 = 펌웨어 config.h BATTERY_WARN_V · BATTERY_CRIT_V
+             (부저 비프와 같은 기준 — test_robot_description 이 비교). 위험이면 /diagnostics ERROR → mission 정지 -->
         <param name="battery_warn_v">11.1</param>
         <param name="battery_error_v">10.5</param>
+        <param name="battery_cells">3</param>
+        <param name="battery_capacity_ah">1.8</param>
         <!-- 바퀴 각속도 / 모터 각속도. 펌웨어는 모터 축 기준 (WHEEL_GEAR 1.0 고정), 변환은 하드웨어 인터페이스가 한다 -->
         <param name="wheel_gear">${wheel_gear}</param>
         <!-- 팔 대기 자세 (전원을 켜기 전 팔을 놓아 두는 자세) tick 범위, 칸 0~5 = joint1~5 · gripper_roll (ID 11 · 12 · 13 · 16 · 14 · 15).

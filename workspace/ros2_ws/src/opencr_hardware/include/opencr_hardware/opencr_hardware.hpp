@@ -6,6 +6,7 @@
 //   E-stop 은 이 플러그인 한 곳에서 판단 (잠금식, estop_latch.hpp):
 //     /joy 구독 (heartbeat · E-stop · 리셋 버튼) → /e_stop 발행 (TransientLocal, 10 Hz)
 //     /diagnostics 발행 (opencr/link · opencr/motors · opencr/battery · opencr/estop, 1 Hz + 오류 즉시)
+//     /battery/wheel · /battery/arm 발행 (sensor_msgs/BatteryState, 1 Hz — 보드마다 전용 배터리, 2026-11-11)
 //   토픽은 하드웨어 컴포넌트 노드(get_node(), controller_manager executor 가 돌림)에서 처리하고,
 //   read()/write() 실시간 루프와는 atomic 값으로만 주고받는다 (실시간 루프에서 할당 · 발행 없음).
 #pragma once
@@ -26,6 +27,7 @@
 #include "opencr_hardware/serial_port.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rclcpp_lifecycle/state.hpp"
+#include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/bool.hpp"
 
@@ -68,6 +70,8 @@ private:
   void setup_ros_io();             // 하드웨어 컴포넌트 노드에 /joy · /e_stop · /diagnostics
   void publish_estop();
   void publish_diagnostics(bool force);
+  void publish_battery_state(const rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr & pub,
+    const char * location, float v, bool reported, uint8_t level, float percent);
   static int64_t steady_ns();
 
   std::vector<JointMap> joints_;
@@ -83,6 +87,8 @@ private:
   int reset_button_ = 7;
   double battery_warn_v_ = 11.1;
   double battery_error_v_ = 10.5;
+  int battery_cells_ = 3;              // 보드마다 LiPo 3S (2026-11-11) — 잔량 % 추정에만 씀
+  double battery_capacity_ah_ = 1.8;   // BatteryState.design_capacity
   double wheel_gear_ = 1.0;    // 바퀴 각속도 / 모터 각속도 (URDF drive 인자). 펌웨어 STATE · CMD 는 모터 축 기준
   bool listen_only_ = false;   // true: CMD 를 한 번도 보내지 않음 — 토크 · 모션 없이 STATE 수신만 확인
   bool auto_rearm_ = false;    // true: 잠금이 풀리면 리셋 버튼 없이 REARM (조이스틱 없는 벤치 전용, 실기 운용 금지)
@@ -101,6 +107,7 @@ private:
   };
   std::vector<std::unique_ptr<BoardLink>> links_;
   opencr_proto::State latest_{};
+  float arm_battery_raw_ = 0.f;   // 팔 보드 STATE battery_v (latest_ 는 주행 보드 값을 담음 — 예전 계약 그대로)
   bool have_state_ = false;
   rclcpp::Clock steady_{RCL_STEADY_TIME};
   uint8_t seq_ = 0;
@@ -119,13 +126,15 @@ private:
   std::atomic<bool> link_ok_{false};
   std::atomic<uint8_t> fw_error_{0};
   std::atomic<uint8_t> fw_version_{0};
-  std::atomic<float> battery_v_{0.f};
+  std::atomic<float> battery_v_{0.f};       // 주행 보드
+  std::atomic<float> arm_battery_v_{0.f};   // 팔 보드 (예전 팔 펌웨어는 0 → "보고 없음")
   std::atomic<uint32_t> bad_frames_{0};
   std::atomic<int> estop_reason_code_{1};   // 0 없음 · 1 시작 · 2 링크 · 3 물리 · 4 버튼 · 5 joy · 6 팔 HOLD
 
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr estop_pub_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_pub_;
+  rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr bat_wheel_pub_, bat_arm_pub_;
   rclcpp::TimerBase::SharedPtr estop_timer_, diag_timer_;
   uint8_t last_diag_level_ = 0;
 };
