@@ -36,6 +36,14 @@ mission_node:
       expected_ids: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]   # 발제: 퍽 ID 0 ~ 11 을 세 장소에 모두 놓음
       id_min_seen: 2             # (칸, ID) 를 이만큼 봐야 기록 (한 장 오독 제외)
       region_margin: 0.04        # [m] 칸 범위 밖 여유 (perception dice.region_margin_m 과 같게)
+    # 복귀 기록 (채점 "차체 전체가 출발 구역 안에서 3 초 정지"): wait 처음 · 끝의 map -> base_link 로 차체 네 모서리가
+    #   출발 구역 안인지 mission_log "return" 에 남김 (pose · inside · min_margin_m · moved_m · turned_deg). 판정만, 멈추지 않음
+    return_check:
+      enabled: true
+      zone_center: [0.734, 0.95]   # 출발 구역 가운데 (발제 좌표)
+      zone_half: 0.30              # 0.6 m 사각
+      body_x: [-0.2135, 0.1328]    # 차체 외곽 base_link x (B안 판, CHANGES_B.md)
+      body_y_half: 0.1676
     marker:
       ids: [12, 13, 14]          # L1 · L2 · L3 장소 태그 (tag36h11)
       check_before_place: false  # ★ true = 장소 첫 놓기 앞에서 태그 ID 확인 (놓는 자리에서 태그가 보이는지 실물 확인 뒤)
