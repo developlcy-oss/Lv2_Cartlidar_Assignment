@@ -25,6 +25,17 @@ namespace control
 constexpr Joints5 kTopPickReadyPose{0.0, 0.48, -0.76, 1.84, 0.0};   // 관측 기준 (toppick_env_cfg READY_POSE, 기울임 모드도 이 기준)
 constexpr double kNbAbsentX = 0.0;   // 옆 퍽 없음 관측 (toppick_env_cfg NB_ABSENT)
 constexpr double kNbAbsentY = 0.5;
+// 2026-11-11 세운 퍽 45° 집기 k7 (policies.yaml sidepick45_k7, Isaac Waffle-SidePick45Chain-Direct sidepick_env._get_observations):
+//   관측 33 = 같은 식에서 joint_pos_rel 기준 = READY_POSE_45, 옆 퍽 없음 = (0, 0), roll_cos_sin · tilted 없음 (yaml 에 없는 이름은 안 씀)
+constexpr Joints5 kSidePick45ReadyPose{0.0, -0.338, 0.559, 0.564, 0.0};
+
+// 정책마다 다른 관측 기준 (manipulator.yaml <정책 이름>.obs_ref_pose · neighbor_absent)
+struct TopPickLayout
+{
+  Joints5 ref_pose{kTopPickReadyPose};
+  double nb_absent_x{kNbAbsentX};
+  double nb_absent_y{kNbAbsentY};
+};
 
 struct GripperMap
 {
@@ -49,7 +60,8 @@ struct TopPickState
 };
 
 // 이름 → 값 (policies.yaml observation 이름과 같게). ObservationBuilder 가 yaml 순서로 이어 붙임
-std::map<std::string, std::vector<float>> topPickObservation(const ArmDiffIK & ik, const TopPickState & s);
+std::map<std::string, std::vector<float>> topPickObservation(
+  const ArmDiffIK & ik, const TopPickState & s, const TopPickLayout & layout = TopPickLayout{});
 
 // 이 함수가 만드는 관측 이름 · 크기 (노드가 policies.yaml 항목을 확인할 때)
 const std::map<std::string, int> & topPickObservationSizes();

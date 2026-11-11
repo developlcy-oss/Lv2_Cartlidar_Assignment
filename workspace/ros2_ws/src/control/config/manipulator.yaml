@@ -83,6 +83,9 @@ manipulator_node:
       policies_file: ""          # 빈 문자열 = <robot_policy share>/config/policies.yaml (bringup이 같은 파일을 넘김)
       horizon: 1.5               # 스트리밍 1점 궤적 time_from_start = horizon / rate_hz (떨리면 조정)
       max_joint_velocity: 0.5    # rad/s, 정책 목표 한 tick 변화량 ≤ 이 값 / rate_hz ★ 학습 환경 관절 속도 한계와 맞출 것
+      # 2026-11-11 미션 skill toppick_tilt 를 이 정책으로 (빈 값 = toppick_tilt 이름 그대로). k7 쓰려면: enabled true,
+      #   policies 에 sidepick45_k7 추가, toppick_tilt_policy: sidepick45_k7 (정책이 로드 안 되면 고정 동작 집기로 돎)
+      toppick_tilt_policy: ""
 
     arm_base_frame: arm_base_link
     fixed_frame: odom            # 측정 시각 → 현재 변환 기준
@@ -156,6 +159,13 @@ manipulator_node:
       #   학습은 매 에피소드를 이 자세 (± 0.12 rad 잡음) 에서 시작 → target_look 자세에서 바로 돌리면 학습에 없던 상태 (#69)
       start_pose: [0.0, -0.462, 0.771, 0.476, 0.0]
       max_duration: 12.0         # s, 정책을 돌리는 시간 상한 (학습 에피소드 6 s). 넘으면 실패 → mission 이 target_look 부터 다시
+    # 2026-11-11 세운 퍽 45° 집기 k7 (policies.yaml sidepick45_k7, 관측 33, Isaac Waffle-SidePick45Chain-Direct) 정책별 값.
+    #   나머지 (IK · 성공 판정 · 손가락 대응) 는 toppick_rl.* 그대로 (같은 diff IK · 같은 값으로 학습)
+    sidepick45_k7:
+      obs_ref_pose: [0.0, -0.338, 0.559, 0.564, 0.0]   # joint_pos_rel 기준 = READY_POSE_45 (sidepick_env_cfg)
+      neighbor_absent: [0.0, 0.0]                      # 옆 퍽 없음 관측 (toppick 은 (0, 0.5))
+      start_pose: [0.0, -0.338, 0.559, 0.564, 0.0]     # 학습 에피소드 시작 = READY_POSE_45 (± ready_noise 0.08 rad)
+      closed_m: -0.011                                  # 행동 ≤ 0 쥠 (학습 gripper_closed = FINGER_CLOSE). Isaac 넣기 평가 −0.0075 와 차이 작음
     # target_look:<frame>:<x>:<y>:<z> 타겟체크자세 (#82, include/control/target_look_pose.hpp). 집기 전 팔 카메라로 퍽 윗면을 내려다봄
     #   카메라를 퍽 윗면에서 distances 만큼, 광축이 수평 아래 view_angles_deg 로 — 관절 한계 안에서 풀리는 첫 (거리, 각)
     #   인지 #82 타겟체크자세 4 개 (A · B · C앞 · C뒤) 는 모두 약 70° · 0.15~0.21 m (test_target_look_pose 가 같은 카메라 모형인지 확인)
