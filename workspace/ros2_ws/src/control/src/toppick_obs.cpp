@@ -22,12 +22,12 @@ const std::map<std::string, int> & topPickObservationSizes()
   return sizes;
 }
 
-std::map<std::string, std::vector<float>> topPickObservation(const ArmDiffIK & ik, const TopPickState & s)
+std::map<std::string, std::vector<float>> topPickObservation(const ArmDiffIK & ik, const TopPickState & s, const TopPickLayout & layout)
 {
   std::map<std::string, std::vector<float>> o;
   std::vector<float> jp(5), jv(5);
   for (size_t k = 0; k < 5; ++k) {
-    jp[k] = static_cast<float>(s.q[k] - kTopPickReadyPose[k]);
+    jp[k] = static_cast<float>(s.q[k] - layout.ref_pose[k]);
     jv[k] = static_cast<float>(s.qd[k]);
   }
   o["joint_pos_rel"] = jp;
@@ -42,7 +42,7 @@ std::map<std::string, std::vector<float>> topPickObservation(const ArmDiffIK & i
   if (s.neighbor) {
     o["neighbor_rel"] = {static_cast<float>(s.neighbor->x() - s.puck.x()), static_cast<float>(s.neighbor->y() - s.puck.y())};
   } else {
-    o["neighbor_rel"] = {static_cast<float>(kNbAbsentX), static_cast<float>(kNbAbsentY)};
+    o["neighbor_rel"] = {static_cast<float>(layout.nb_absent_x), static_cast<float>(layout.nb_absent_y)};
   }
   o["is_box"] = {s.is_box ? 1.f : 0.f};
   // 기울임 모드 목표 닫는 방향 = J1 접선 (수직 모드 상자 퍽은 학습에서 인식 면 방향이지만 지금 배포는 기울임만)

@@ -484,6 +484,9 @@ private:
     skill_enabled_ = declare_parameter<bool>("skill.enabled", false);
     skill_names_ = declare_parameter<std::vector<std::string>>(
       "skill.policies", std::vector<std::string>{});
+    // 2026-11-11 미션 skill "toppick_tilt" 를 이 이름의 정책으로 돌림 (예 sidepick45_k7). 빈 값 · 로드 안 됨 = 이름 그대로
+    //   (policies.yaml toppick_tilt 정책, 없으면 고정 동작). mission 의 toppick_tilt 실패 처리 (target_look 부터 다시) 는 그대로
+    toppick_tilt_policy_ = declare_parameter<std::string>("skill.toppick_tilt_policy", "");
     // 빈 문자열 = <robot_policy share>/config/policies.yaml (학습 담당이 ONNX와 함께 제공, drive_node와 같은 파일)
     skill_file_ = declare_parameter<std::string>("skill.policies_file", "");
     // 스트리밍 1점 궤적의 time_from_start = horizon / rate_hz (JTC 떨림 방지, 실물 테스트 후 조정)
@@ -657,10 +660,28 @@ private:
           RCLCPP_ERROR(get_logger(), "skill '%s': tcp_delta needs gripper.mode arm_joint", name.c_str());
           continue;
         }
+        // 2026-11-11 정책마다 관측 기준 · 시작 자세 · 쥘 때 손가락 (<이름>.*, 없으면 toppick_rl.* · TopPick 기준).
+        //   세운 퍽 45° k7 (sidepick45_k7) 은 READY_POSE_45 · 옆 퍽 없음 (0, 0) · 시작 READY_POSE_45 · 쥠 −0.011 (manipulator.yaml)
+        TcpPolicyCfg pc;
+        const auto ref = declare_parameter<std::vector<double>>(name + ".obs_ref_pose",
+          std::vector<double>(kTopPickReadyPose.begin(), kTopPickReadyPose.end()));
+        const auto nba = declare_parameter<std::vector<double>>(name + ".neighbor_absent", {kNbAbsentX, kNbAbsentY});
+        pc.start_pose = declare_parameter<std::vector<double>>(name + ".start_pose", rl_start_pose_);
+        pc.closed_m = declare_parameter<double>(name + ".closed_m", rl_closed_m_);
+        if (ref.size() != 5 || nba.size() != 2 || !(pc.start_pose.empty() || pc.start_pose.size() == 5)) {
+          RCLCPP_ERROR(get_logger(), "skill '%s': %s.obs_ref_pose (5) · neighbor_absent (2) · start_pose (5 or []) size", name.c_str(),
+            name.c_str());
+          continue;
+        }
+        for (size_t k = 0; k < 5; ++k) {pc.layout.ref_pose[k] = ref[k];}
+        pc.layout.nb_absent_x = nba[0];
+        pc.layout.nb_absent_y = nba[1];
+        tcp_cfg_[name] = pc;
         skill_ready_.insert(name);
         tcp_skills_.insert(name);
-        RCLCPP_INFO(get_logger(), "skill '%s' loaded (%s, %.0f Hz, tcp_delta + diff IK)", name.c_str(), spec.model.c_str(),
-          spec.rate_hz);
+        RCLCPP_INFO(get_logger(), "skill '%s' loaded (%s, %.0f Hz, tcp_delta + diff IK, obs ref [%.3f %.3f %.3f %.3f %.3f], "
+          "no neighbor (%.2f, %.2f), closed %.4f m)", name.c_str(), spec.model.c_str(), spec.rate_hz, ref[0], ref[1], ref[2], ref[3],
+          ref[4], nba[0], nba[1], pc.closed_m);
         continue;
       }
       if (spec.action_kind != "joint_target" || spec.action_dim != static_cast<int>(joint_names_.size())) {
@@ -1957,19 +1978,33 @@ private:
     RCLCPP_INFO(get_logger(), "skill '%s' start (timeout %.1fs)", gh->get_goal()->policy.c_str(),
       skill_timeout_);
     // 같은 이름 정책이 로드돼 있으면 정책, 아니면 미션 skill 고정 동작 (IK · 팔레트 궤적)
-    if (skill_ready_.count(gh->get_goal()->policy) == 0) {
+    const std::string pname = skillPolicyName(gh->get_goal()->policy);
+    if (skill_ready_.count(pname) == 0) {
       startTaskSkill(*parseTaskSkill(gh->get_goal()->policy));   // accept 때 parseTaskSkill 로 확인함
       return;
     }
-    active_policy_ = policies_.find(gh->get_goal()->policy);   // accept 때 skill_ready_로 확인함
+    active_policy_ = policies_.find(pname);   // accept 때 skill_ready_로 확인함
     skill_rate_ = active_policy_->spec.rate_hz;
     skill_last_cmd_.reset();   // 첫 tick 에 현재 관절각으로 초기화
-    if (tcp_skills_.count(gh->get_goal()->policy)) {
+    if (tcp_skills_.count(pname)) {
+      tcp_active_ = tcp_cfg_.at(pname);
+      if (pname != gh->get_goal()->policy) {
+        RCLCPP_INFO(get_logger(), "skill '%s' -> policy '%s' (skill.toppick_tilt_policy)", gh->get_goal()->policy.c_str(), pname.c_str());
+      }
       if (!startTopPickRl()) {return;}
       moveToRlStart([this]() {startSkillTimer();});   // 학습 시작 자세 · 그리퍼 벌림 뒤 정책 시작
       return;
     }
     startSkillTimer();
+  }
+
+  // 미션 skill 이름 → 돌릴 정책 이름 (skill.toppick_tilt_policy)
+  std::string skillPolicyName(const std::string & skill) const
+  {
+    if (skill == "toppick_tilt" && !toppick_tilt_policy_.empty() && skill_ready_.count(toppick_tilt_policy_)) {
+      return toppick_tilt_policy_;
+    }
+    return skill;
   }
 
   void startSkillTimer()
@@ -1991,18 +2026,20 @@ private:
     }
     const double grip = std::clamp(rl_grip_.toRad(rl_open_m_), lower_[5], upper_[5]);
     gripper_cmd_ = grip;
-    if (rl_start_pose_.empty()) {
+    const auto & start = tcp_active_.start_pose;   // <정책>.start_pose (기본 toppick_rl.start_pose)
+    if (start.empty()) {
       then();
       return;
     }
     std::vector<double> q(joint_names_.size());
-    for (size_t k = 0; k < 5; ++k) {q[k] = ik_signs_[k] * rl_start_pose_[k] + ik_offsets_[k];}
+    for (size_t k = 0; k < 5; ++k) {q[k] = ik_signs_[k] * start[k] + ik_offsets_[k];}
     q[5] = grip;
     if (!withinLimits(q)) {
-      finishSkill(false, "toppick_rl.start_pose outside joint limits");
+      finishSkill(false, "toppick_rl: start_pose outside joint limits");
       return;
     }
-    RCLCPP_INFO(get_logger(), "toppick_rl: move to start pose (READY_TILT) before policy");
+    RCLCPP_INFO(get_logger(), "toppick_rl: move to start pose [%.3f %.3f %.3f %.3f %.3f] before policy", start[0], start[1],
+      start[2], start[3], start[4]);
     sendArm(q, trajDuration(*current, q, min_duration_), [this, then](bool ok, const std::string & msg) {
         if (!ok) {
           finishSkill(false, "toppick_rl start pose: " + msg);
@@ -2201,7 +2238,7 @@ private:
     s.tilted = true;
 
     robot_policy::ObsValues values;
-    for (auto & kv : topPickObservation(diff_ik_, s)) {values[kv.first] = kv.second;}
+    for (auto & kv : topPickObservation(diff_ik_, s, tcp_active_.layout)) {values[kv.first] = kv.second;}
     const auto & spec = active_policy_->spec;
     std::vector<float> obs, raw;
     std::string err;
@@ -2223,7 +2260,7 @@ private:
       const double c = std::clamp(ik_signs_[k] * tgt[k] + ik_offsets_[k], lower_[k], upper_[k]);
       cmd[k] = std::clamp(c, (*skill_last_cmd_)[k] - max_step, (*skill_last_cmd_)[k] + max_step);
     }
-    const double grip = std::clamp(rl_grip_.toRad(a[3] > 0.f ? rl_open_m_ : rl_closed_m_),
+    const double grip = std::clamp(rl_grip_.toRad(a[3] > 0.f ? rl_open_m_ : tcp_active_.closed_m),
       std::min(gripper_open_, gripper_close_), std::max(gripper_open_, gripper_close_));
     cmd[5] = std::clamp(grip, lower_[5], upper_[5]);
     gripper_cmd_ = cmd[5];
@@ -3570,6 +3607,15 @@ private:
     rclcpp::Time t_start{0, 0, RCL_ROS_TIME};        // 정책 시작 (시작 자세 도착) 시각
   };
   std::set<std::string> tcp_skills_;
+  struct TcpPolicyCfg   // 정책마다 다른 값 (<이름>.obs_ref_pose · neighbor_absent · start_pose · closed_m)
+  {
+    TopPickLayout layout;
+    std::vector<double> start_pose;
+    double closed_m{-0.0075};
+  };
+  std::map<std::string, TcpPolicyCfg> tcp_cfg_;
+  TcpPolicyCfg tcp_active_;
+  std::string toppick_tilt_policy_;
   std::optional<TopPickRun> rl_;
   // 누운 직육면체 세워 놓기
   std::optional<LieRun> lie_;

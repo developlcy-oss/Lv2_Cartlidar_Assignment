@@ -66,3 +66,31 @@ TEST(TopPickObs, GripperMapEndpointsAndInverse)
   for (double m : {0.010, -0.0075, -0.003}) {EXPECT_NEAR(g.toMeters(g.toRad(m)), m, 1e-12);}
   EXPECT_GT(g.toRad(-0.0075), g.toRad(0.010));   // 닫기 = 큰 rad (실물 닫힘 +)
 }
+
+// 2026-11-11 세운 퍽 45° k7 (sidepick45_k7, 관측 33): Isaac sidepick_env._get_observations = 같은 식, 기준 자세 READY_POSE_45 ·
+//   옆 퍽 없음 (0, 0). 잡는 점 · 축은 같은 몸 (gripper_roll_link + (0.14, 0, 0), +x · +y) 이라 위 값 그대로
+TEST(TopPickObs, SidePick45Layout)
+{
+  ArmDiffIK ik;
+  TopPickState s;
+  s.q = {0.2, -0.5, 0.8, 0.5, 0.1};
+  s.puck = {0.30, 0.05, 0.10};
+  TopPickLayout k7;
+  k7.ref_pose = kSidePick45ReadyPose;
+  k7.nb_absent_x = 0.0;
+  k7.nb_absent_y = 0.0;
+  const auto o = topPickObservation(ik, s, k7);
+  const double jp[5] = {0.2, -0.162, 0.241, -0.064, 0.1};
+  for (int k = 0; k < 5; ++k) {EXPECT_NEAR(o.at("joint_pos_rel")[k], jp[k], 1e-6);}
+  EXPECT_FLOAT_EQ(o.at("neighbor_rel")[0], 0.0f);
+  EXPECT_FLOAT_EQ(o.at("neighbor_rel")[1], 0.0f);
+  EXPECT_NEAR(o.at("grasp_pos")[0], 0.287312881, 1e-6);
+  // 관측 33 = sidepick45_k7 이름들의 크기 합 (roll_cos_sin · tilted 빼고)
+  int total = 0;
+  for (const char * n : {"joint_pos_rel", "joint_vel", "finger_pos", "puck_pos", "grasp_pos", "puck_minus_grasp", "approach_axis",
+      "close_axis", "neighbor_rel", "is_box", "prev_action"})
+  {
+    total += static_cast<int>(o.at(n).size());
+  }
+  EXPECT_EQ(total, 33);
+}
