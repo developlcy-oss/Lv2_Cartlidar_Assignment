@@ -86,6 +86,7 @@
 #include "control/sag_comp.hpp"
 #include "control/startup_stow.hpp"
 #include "control/toppick_obs.hpp"
+#include "control/lieupright.hpp"
 #include "control/target_look_pose.hpp"
 #include "robot_interfaces/action/arm_pose.hpp"
 #include "robot_interfaces/action/execute_skill.hpp"
@@ -96,6 +97,8 @@
 #include "robot_policy/policy.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "sensor_msgs/msg/range.hpp"
+#include "std_msgs/msg/string.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "tf2/utils.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2_ros/buffer.hpp"
@@ -169,6 +172,23 @@ public:
       [this](diagnostic_msgs::msg::DiagnosticArray::ConstSharedPtr msg) {onDiagnostics(msg);}, sub_opt);
 
     // --- Action 클라이언트 ---
+    if (lie_enabled_) {   // 누운 직육면체: 집는 상자 윗면 측정 (perception place_box, 사전값 토픽)
+      const auto latched = rclcpp::QoS(1).reliable().transient_local();
+      lie_prior_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("/perception/place_box/prior", latched);
+      lie_box_client_ = create_client<std_srvs::srv::Trigger>("/perception/place_box/measure", rclcpp::ServicesQoS(), sensor_cb_group_);
+      lie_box_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/perception/place_box", latched,
+        [this](geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) {
+          std::lock_guard<std::mutex> lock(sensor_mutex_);
+          lie_box_ = msg;
+          lie_box_rx_ = now();
+        }, sub_opt);
+      lie_status_sub_ = create_subscription<std_msgs::msg::String>("/perception/place_box/status", latched,
+        [this](std_msgs::msg::String::ConstSharedPtr msg) {
+          std::lock_guard<std::mutex> lock(sensor_mutex_);
+          lie_status_ = msg;
+          lie_status_rx_ = now();
+        }, sub_opt);
+    }
     arm_client_ = rclcpp_action::create_client<FollowJT>(this, "/arm_controller/follow_joint_trajectory", job_cb_group_);
     gripper_client_ = rclcpp_action::create_client<GripperCmd>(this, "/gripper_controller/gripper_cmd", job_cb_group_);
 
@@ -229,7 +249,7 @@ private:
   enum class PickStep { PLAN, PREGRASP, CORRECT_WAIT, CORRECT_MOVE, OPEN, FINAL, CLOSE, CLOSE_WAIT, LIFT, TASK, TARGET_LOOK_WAIT };
   enum class GripperMode { ARM_JOINT, ACTION, NONE };
   // 미션 skill 종류 (execute_skill 이름)
-  enum class Task { NONE, TARGET_LOOK, LOOK, TOPPICK, PALLET_LOAD, PALLET_UNLOAD, PLACE };
+  enum class Task { NONE, TARGET_LOOK, LOOK, TOPPICK, PALLET_LOAD, PALLET_UNLOAD, PLACE, LIE_UPRIGHT };
   struct TaskSkill
   {
     Task kind{Task::NONE};
@@ -237,7 +257,7 @@ private:
     std::string place, cell;              // place_<L>_<dx>_<dy>: 장소 · "dx,dy" (-1 · 0 · 1)
     std::string frame;                    // place_at · target_look · box_look · barcode_look: 좌표 frame
     std::string look;                     // LOOK: "box_look" · "barcode_look"
-    double x{0.0}, y{0.0}, z{0.0};        // place_at: 칸 중심 · 윗면 높이 / target_look: 퍽 예상 중심
+    double x{0.0}, y{0.0}, z{0.0};        // place_at: 칸 중심 · 윗면 높이 / target_look: 퍽 예상 중심 / lie_upright: 상자 x · y · 요 deg
   };
   // pallet_place_traj.json 의 칸 하나: 구간 (이름 · 그리퍼 hold/open · 경유 관절각 5개)
   struct PalletSegment
@@ -488,8 +508,46 @@ private:
     // 정책을 돌리는 시간 상한 (학습 에피소드 6 s). 넘으면 실패 → mission 이 target_look 부터 다시 (goal timeout 보다 먼저 끝냄)
     rl_max_duration_ = declare_parameter<double>("toppick_rl.max_duration", 12.0);
 
+    // 누운 직육면체 세워 놓기 (lie_upright, lieupright.hpp). 값은 Isaac lieupright_env_cfg (WaffleLieUprightB4 = r2e) 와 같게
+    lie_enabled_ = declare_parameter<bool>("lie_upright.enabled", true);
+    lie_policy_name_ = declare_parameter<std::string>("lie_upright.policy", "lie_upright");
+    lie_file_ = declare_parameter<std::string>("lie_upright.policies_file", "");   // 빈 값 = robot_policy share config/policies.yaml
+    lie_floor_frame_ = declare_parameter<std::string>("lie_upright.floor_frame", "base_footprint");
+    lie_box_top_ = declare_parameter<double>("lie_upright.box_top", 0.07);         // 상자 윗면 (바닥 위, 발제 70 mm)
+    lie_puck_dz_ = declare_parameter<double>("lie_upright.puck_dz", 0.015);        // 관측 누운 퍽 중심 = 윗면 + 15 mm
+    // 세울 자리 D 높이 = 윗면 + 29 mm. 학습 _stand_spot 은 30 + 2 mm 를 생성 높이 (base_link 9.75 mm) 로 뺐는데 차체는 6.75 mm 로
+    //   내려앉아, 실제 base_link 기준 D 는 윗면 + 29 mm 로 학습됨 (RL 261111 1 확인, 11-11). 학습과 같은 입력을 주려고 29 mm
+    lie_spot_dz_ = declare_parameter<double>("lie_upright.spot_dz", 0.029);
+    lie_view_left_ = declare_parameter<std::vector<double>>("lie_upright.view_left", {-0.300, -1.80, 0.50, 1.90, 0.0});
+    lie_view_right_ = declare_parameter<std::vector<double>>("lie_upright.view_right", {0.305, -1.80, 0.50, 1.90, 0.0});
+    lie_view_inline_ = declare_parameter<std::vector<double>>("lie_upright.view_inline", {0.0, -1.80, 0.50, 1.90, 0.0});
+    lie_side_y_ = declare_parameter<double>("lie_upright.side_y", 0.05);           // 사전 상자 중심 |y| 가 이보다 크면 회전 접근
+    lie_box_settle_ = declare_parameter<double>("lie_upright.box_settle", 0.5);
+    lie_box_timeout_ = declare_parameter<double>("lie_upright.box_timeout", 3.0);
+    lie_box_required_ = declare_parameter<bool>("lie_upright.box_required", true);
+    lie_pucks_age_ = declare_parameter<double>("lie_upright.pucks_max_age", 2.0);   // 긴 축 · 옆 퍽을 읽을 /perception/pucks 나이 (s)
+    lie_max_duration_ = declare_parameter<double>("lie_upright.max_duration", 15.0);   // 학습 에피소드 12 s
+    lie_lift_ok_ = declare_parameter<double>("lie_upright.lift_ok", 0.03);
+    lie_clear_dist_ = declare_parameter<double>("lie_upright.clear_distance", 0.03);
+    lie_clear_hold_ = declare_parameter<double>("lie_upright.clear_hold", 1.0);
+    lie_max_joint_vel_ = declare_parameter<double>("lie_upright.max_joint_velocity", 2.0);
+    lie_look_after_ = declare_parameter<bool>("lie_upright.look_after", true);
+    lie_release_xy_ = declare_parameter<double>("lie_upright.release_xy", 0.03);   // 놓음 = 잡는 점이 D 수평 이 안 (학습 spot_tol)
+    lie_release_z_ = declare_parameter<double>("lie_upright.release_z", 0.06);     // · D 위 이 아래. 밖에서 벌리면 떨어뜨림 실패
+    lie_release_beta_ = declare_parameter<double>("lie_upright.release_beta", 1.4);   // · 집게 숙임 β 이 위 (세운 퍽, 수평 1.57)
+    lie_retreat_up_ = declare_parameter<double>("lie_upright.retreat_up", 0.05);   // 끝난 뒤 잡는 점을 위로 (m)
+    lie_retreat_time_ = declare_parameter<double>("lie_upright.retreat_time", 1.0);   // 그 이동 최소 시간 (s)
+    lie_params_.finger_open = declare_parameter<double>("lie_upright.finger_open", lie_params_.finger_open);
+    lie_params_.finger_close = declare_parameter<double>("lie_upright.finger_close", lie_params_.finger_close);
+    lie_params_.grasp_lo = declare_parameter<double>("lie_upright.grasp_finger_min", lie_params_.grasp_lo);
+    lie_params_.grasp_hi = declare_parameter<double>("lie_upright.grasp_finger_max", lie_params_.grasp_hi);
+    for (const auto * v : {&lie_view_left_, &lie_view_right_, &lie_view_inline_}) {
+      if (v->size() != 5) {throw std::invalid_argument("lie_upright.view_* must be [joint1..joint5] (model values)");}
+    }
+
     validateParameters(signs);
     loadPolicies();
+    loadLiePolicy();
     loadPallet();
     loadPlaceCells();
   }
@@ -1089,6 +1147,7 @@ private:
     pick_gh_.reset();
     skill_gh_.reset();
     rl_.reset();
+    lie_.reset();
     // 타이머 콜백 안에서 끝날 수 있으므로 파괴하지 않고 멈추기만 한다 (다음 startSkill에서 교체)
     if (skill_timer_) {skill_timer_->cancel();}
     ++job_id_;
@@ -1168,6 +1227,8 @@ private:
       correctionTick();
     } else if (job_ == Job::SKILL && task_ == Task::TARGET_LOOK && step_ == PickStep::TARGET_LOOK_WAIT) {
       targetLookTick();
+    } else if (job_ == Job::SKILL && task_ == Task::LIE_UPRIGHT && lie_ && lie_->step == LieStep::BOX_WAIT) {
+      lieBoxTick();
     } else if (gripper_wait_ && (now() - wait_since_).seconds() >= gripper_settle_) {
       auto next = std::move(gripper_wait_);   // 닫은 뒤 GripGuard 가 막힘을 잡을 시간을 두고 위치로 판정
       gripper_wait_ = nullptr;
@@ -1959,6 +2020,10 @@ private:
       topPickRlTick(*q, elapsed);
       return;
     }
+    if (lie_ && lie_->step == LieStep::RUN) {
+      lieTick(*q, elapsed);
+      return;
+    }
     // 관측: policies.yaml 순서 · 배치 (required 무효 → abort, 선택 무효 → fill + valid 0)
     PerceptionResult::ConstSharedPtr result;
     sensor_msgs::msg::Range::ConstSharedPtr range;
@@ -2188,9 +2253,496 @@ private:
     endJob();
   }
 
+  // ------------------------------------------------------------------ 누운 직육면체 세워 놓기 (lie_upright, #192 · #193)
+  // 미션 skill "lie_upright:<frame>:<상자 x>:<상자 y>:<상자 요 deg>" (계획기 상자 자리 = 사전값). 바로 앞 target_look 이 누운 퍽을 잡아 둠.
+  //   ① 상자 보기 자세 (lie_upright.view_*, 경우는 사전 상자 옆 위치로 고름) → 인식 /perception/place_box/prior 에 사전값을 내고
+  //      /perception/place_box/measure → /perception/place_box (상자 윗면 중심 · 요). 못 재면 lie_upright.box_required 면 실패, 아니면 사전값
+  //   ② 학습 시작 자세 READY_POSE_45 + 집게 벌림 → ③ 정책 (rate_hz, lieupright.hpp: 관측 45 → 행동 6 → β · ρ · 감쇠 최소제곱 IK)
+  //   ④ 들었다가 (쥠 + 잡는 점 lift_ok 위) 잡는 점이 세울 자리 D 위 (수평 release_xy · 높이 release_z 안, β ≥ release_beta) 에서 벌리면 놓음,
+  //      그 뒤 집게는 늘 벌림. 놓은 뒤 clear_hold 지났고 잡는 점이 D 에서 clear_distance 넘게 떨어져 있으면 끝
+  //   ⑤ 잡는 점을 retreat_up 위로 → D 에서 target_look (세운 퍽을 다시 재서 다음 toppick_tilt 가 씀)
+  //   실패: 시간 (lie_upright.max_duration), 든 뒤 놓기 전에 쥠이 풀림 · D 밖에서 벌림 (떨어뜨림), 관측 · 추론 오류.
+  //   퍽 상태는 실물에서 못 보므로 판정하지 않음 (세운 뒤 D 의 target_look 이 퍽을 찾는지가 확인)
+  enum class LieStep { VIEW, BOX_WAIT, START, RUN };
+  struct LieRun
+  {
+    LieStep step{LieStep::VIEW};
+    Eigen::Vector3d puck{Eigen::Vector3d::Zero()};    // fixed_frame_ 인식 누운 퍽 중심 (target_look)
+    Eigen::Vector3d axis{Eigen::Vector3d::UnitX()};   // fixed_frame_ 긴 축
+    std::optional<Eigen::Vector3d> neighbor;          // fixed_frame_ 옆 퍽
+    geometry_msgs::msg::PoseStamped prior;            // 계획기 상자 자리 (skill 이름의 frame)
+    std::optional<geometry_msgs::msg::PoseStamped> box;   // 잰 상자 (인식 frame), 없으면 사전값
+    rclcpp::Time asked{0, 0, RCL_ROS_TIME};           // 상자 측정 요청 시각
+    bool asked_ok{false};
+    // 정책 (base_link, 시작 때 정함)
+    LieUprightState s;
+    LieHoldFilter hold;
+    std::optional<Joints5> target;
+    std::optional<Joints5> q_prev;
+    rclcpp::Time t_prev{0, 0, RCL_ROS_TIME};
+    rclcpp::Time t_start{0, 0, RCL_ROS_TIME};
+    double grasp_z{0.0};                              // 쥔 순간 잡는 점 높이
+    bool lifted{false}, released{false};
+    double clear{0.0};                                // 놓은 뒤 지난 시간 (s)
+  };
+
+  void loadLiePolicy()
+  {
+    if (!lie_enabled_) {return;}
+    std::string file = lie_file_;
+    if (file.empty()) {
+      file = (ament_index_cpp::get_package_share_path("robot_policy") / "config" / "policies.yaml").string();
+    }
+    std::map<std::string, robot_policy::PolicySpec> specs;
+    std::string err;
+    if (!robot_policy::load_specs(file, specs, err) || !specs.count(lie_policy_name_)) {
+      RCLCPP_ERROR(get_logger(), "lie_upright: policy '%s' not in %s (%s) -> lie_upright skill will fail", lie_policy_name_.c_str(),
+        file.c_str(), err.c_str());
+      return;
+    }
+    const auto & spec = specs.at(lie_policy_name_);
+    bool ok = spec.action_kind == "tcp_delta" && spec.action_dim == 6;
+    for (const auto & o : spec.observation) {
+      const auto it = lieUprightObservationSizes().find(o.name);
+      ok &= it != lieUprightObservationSizes().end() && it->second == o.size && o.required;
+    }
+    if (!ok || gripper_mode_ != GripperMode::ARM_JOINT) {
+      RCLCPP_ERROR(get_logger(), "lie_upright: '%s' needs action tcp_delta(6), lieupright.hpp observations (all required) and "
+        "gripper.mode arm_joint", lie_policy_name_.c_str());
+      return;
+    }
+    auto runner = robot_policy::make_onnx_runner(spec.model, err);
+    if (!runner) {
+      RCLCPP_ERROR(get_logger(), "lie_upright: %s (%s) -> lie_upright skill will fail", err.c_str(), spec.model.c_str());
+      return;
+    }
+    lie_policy_ = std::make_unique<robot_policy::LoadedPolicy>();
+    lie_policy_->spec = spec;
+    lie_policy_->runner = std::move(runner);
+    RCLCPP_INFO(get_logger(), "lie_upright: policy '%s' loaded (%s, %.0f Hz)", lie_policy_name_.c_str(), spec.model.c_str(),
+      spec.rate_hz);
+  }
+
+  // 점 · 방향을 frame 사이로 (지금 TF)
+  std::optional<Eigen::Vector3d> lieToFrame(const Eigen::Vector3d & p, const std::string & from, const std::string & to, bool vec)
+  {
+    try {
+      const auto tf = tf_buffer_->lookupTransform(to, from, tf2::TimePointZero);
+      if (vec) {
+        geometry_msgs::msg::Vector3Stamped a, b;
+        a.vector.x = p.x();
+        a.vector.y = p.y();
+        a.vector.z = p.z();
+        tf2::doTransform(a, b, tf);
+        return Eigen::Vector3d(b.vector.x, b.vector.y, b.vector.z);
+      }
+      geometry_msgs::msg::PointStamped a, b;
+      a.point.x = p.x();
+      a.point.y = p.y();
+      a.point.z = p.z();
+      tf2::doTransform(a, b, tf);
+      return Eigen::Vector3d(b.point.x, b.point.y, b.point.z);
+    } catch (const tf2::TransformException & e) {
+      RCLCPP_WARN(get_logger(), "lie_upright: TF %s -> %s: %s", from.c_str(), to.c_str(), e.what());
+      return std::nullopt;
+    }
+  }
+
+  void startLieUpright(const TaskSkill & t)
+  {
+    step_ = PickStep::TASK;
+    if (!lie_policy_) {
+      finishSkill(false, "lie_upright: policy not loaded (lie_upright.enabled · policies.yaml · ONNX Runtime)");
+      return;
+    }
+    LieRun r;
+    r.prior.header.frame_id = t.frame;
+    r.prior.pose.position.x = t.x;
+    r.prior.pose.position.y = t.y;
+    tf2::Quaternion qy;
+    qy.setRPY(0.0, 0.0, t.z * M_PI / 180.0);
+    r.prior.pose.orientation = tf2::toMsg(qy);
+    // 누운 퍽 = 바로 앞 target_look 값 (fixed_frame_). 긴 축 · 옆 퍽은 그 자리의 /perception/pucks
+    if (!target_look_latch_ || target_look_latch_->header.frame_id != fixed_frame_ ||
+      (now() - target_look_latch_time_).seconds() > toppick_latch_max_age_)
+    {
+      finishSkill(false, "lie_upright: no target_look value for the lying puck (run target_look first)");
+      return;
+    }
+    const auto & lp = target_look_latch_->pose.position;
+    r.puck = Eigen::Vector3d(lp.x, lp.y, lp.z);
+    target_look_latch_.reset();
+    PuckArray::ConstSharedPtr pucks;
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      if (last_pucks_ && measuredAfter(last_pucks_->header.stamp, now() - rclcpp::Duration::from_seconds(lie_pucks_age_))) {
+        pucks = last_pucks_;
+      }
+    }
+    bool axis_ok = false;
+    if (pucks) {
+      try {
+        const auto tf = tf_buffer_->lookupTransform(fixed_frame_, pucks->header.frame_id, tf2::TimePointZero);
+        double self_d = rl_self_match_ * 2.0, nb_d = rl_nb_match_;
+        for (const auto & pk : pucks->pucks) {
+          geometry_msgs::msg::Pose a;
+          tf2::doTransform(pk.pose, a, tf);
+          const Eigen::Vector3d p(a.position.x, a.position.y, a.position.z);
+          const double d = std::hypot(p.x() - r.puck.x(), p.y() - r.puck.y());
+          if (d <= self_d) {
+            self_d = d;
+            if (pk.orientation_valid) {
+              tf2::Quaternion q;
+              tf2::fromMsg(a.orientation, q);
+              const tf2::Vector3 z = tf2::quatRotate(q, tf2::Vector3(0, 0, 1));
+              r.axis = Eigen::Vector3d(z.x(), z.y(), z.z());
+              axis_ok = true;
+            }
+          } else if (d > rl_self_match_ * 2.0 && d < nb_d) {
+            nb_d = d;
+            r.neighbor = p;
+          }
+        }
+      } catch (const tf2::TransformException & e) {
+        RCLCPP_WARN(get_logger(), "lie_upright: TF %s -> %s: %s", pucks->header.frame_id.c_str(), fixed_frame_.c_str(), e.what());
+      }
+    }
+    if (!axis_ok) {
+      finishSkill(false, "lie_upright: long axis of the lying puck not measured (/perception/pucks orientation_valid)");
+      return;
+    }
+    lie_ = r;
+    // ① 상자 보기 자세: 사전 상자 중심의 옆 위치 (base_link y) 로 왼쪽 회전 · 오른쪽 회전 · inline 고름
+    const auto bc = lieToFrame(Eigen::Vector3d(t.x, t.y, 0.0), t.frame, rl_frame_, false);
+    const auto current = currentJoints();
+    if (!bc || !current) {
+      finishSkill(false, "lie_upright: no TF for the box prior or no /joint_states");
+      return;
+    }
+    const std::vector<double> & view = bc->y() < -lie_side_y_ ? lie_view_left_ : bc->y() > lie_side_y_ ? lie_view_right_ : lie_view_inline_;
+    std::vector<double> q(joint_names_.size());
+    for (size_t k = 0; k < 5; ++k) {q[k] = ik_signs_[k] * view[k] + ik_offsets_[k];}
+    q[5] = sixthValue(*current);   // 집게는 지금 그대로
+    if (!withinLimits(q)) {
+      finishSkill(false, "lie_upright.view_* outside joint limits");
+      return;
+    }
+    RCLCPP_INFO(get_logger(), "lie_upright: puck (%.3f, %.3f) %s, neighbor %s, box prior (%.3f, %.3f, %.1f deg) in %s -> box view",
+      r.puck.x(), r.puck.y(), fixed_frame_.c_str(), r.neighbor ? "yes" : "none", t.x, t.y, t.z, t.frame.c_str());
+    sendArm(q, trajDuration(*current, q, min_duration_), [this](bool ok, const std::string & msg) {
+        if (!ok) {
+          finishSkill(false, "lie_upright box view: " + msg);
+          return;
+        }
+        lie_->step = LieStep::BOX_WAIT;
+        wait_since_ = now();
+      });
+  }
+
+  // onTick (20 Hz): settle 뒤 사전값을 내고 측정 요청 → 요청 뒤 받은 상태 · 상자 → 시작 자세
+  void lieBoxTick()
+  {
+    auto & r = *lie_;
+    const double waited = (now() - wait_since_).seconds();
+    if (waited < lie_box_settle_) {return;}
+    if (!r.asked_ok && r.asked.nanoseconds() == 0) {
+      r.asked = now();
+      geometry_msgs::msg::PoseStamped prior = r.prior;
+      prior.header.stamp = now();
+      lie_prior_pub_->publish(prior);
+      if (!lie_box_client_->service_is_ready()) {
+        lieBoxDone("place_box service not available");
+        return;
+      }
+      auto req = std::make_shared<std_srvs::srv::Trigger::Request>();
+      const uint64_t id = job_id_;
+      {
+        std::lock_guard<std::mutex> lock(sensor_mutex_);
+        lie_req_.reset();
+      }
+      // 응답은 sensor_cb_group_ 에서 옴 → 결과만 남기고 (sensor_mutex_) 판단은 이 tick 에서
+      lie_box_client_->async_send_request(req, [this, id](rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture f) {
+          const auto res = f.get();
+          std::lock_guard<std::mutex> lock(sensor_mutex_);
+          lie_req_ = std::make_pair(id, res->success ? std::string() : res->message);
+        });
+      return;
+    }
+    std::optional<std::string> status, refused;
+    geometry_msgs::msg::PoseStamped::ConstSharedPtr box;
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      if (lie_req_ && lie_req_->first == job_id_) {
+        if (lie_req_->second.empty()) {
+          r.asked_ok = true;
+        } else {
+          refused = lie_req_->second;
+        }
+        lie_req_.reset();
+      }
+      if (lie_status_ && lie_status_rx_ > r.asked) {status = lie_status_->data;}
+      box = lie_box_;
+      if (lie_box_ && lie_box_rx_ <= r.asked) {box = nullptr;}
+    }
+    if (refused) {
+      lieBoxDone("place_box measure refused: " + *refused);
+      return;
+    }
+    if (status) {
+      if (status->find("\"ok\": true") != std::string::npos && box) {
+        r.box = *box;
+        lieBoxDone("");
+      } else if (status->find("\"ok\": false") != std::string::npos) {
+        lieBoxDone("place_box: " + *status);
+      }
+      return;   // ok 인데 상자가 아직이면 다음 tick
+    }
+    if (waited > lie_box_settle_ + lie_box_timeout_) {lieBoxDone("place_box: no result within lie_upright.box_timeout");}
+  }
+
+  void lieBoxDone(const std::string & why)
+  {
+    auto & r = *lie_;
+    if (!why.empty()) {
+      if (lie_box_required_) {
+        finishSkill(false, "lie_upright: " + why);
+        return;
+      }
+      RCLCPP_WARN(get_logger(), "lie_upright: %s -> planner box pose", why.c_str());
+    }
+    r.step = LieStep::START;
+    // 상자 · 퍽 · 옆 퍽 · 세울 자리 → base_link (차체는 이 스킬 동안 서 있음)
+    const auto & B = r.box ? *r.box : r.prior;
+    tf2::Quaternion bq;
+    tf2::fromMsg(B.pose.orientation, bq);
+    const tf2::Vector3 bx = tf2::quatRotate(bq, tf2::Vector3(1, 0, 0));
+    const auto c = lieToFrame(Eigen::Vector3d(B.pose.position.x, B.pose.position.y, B.pose.position.z), B.header.frame_id, rl_frame_, false);
+    const auto ax = lieToFrame(Eigen::Vector3d(bx.x(), bx.y(), bx.z()), B.header.frame_id, rl_frame_, true);
+    const auto puck = lieToFrame(r.puck, fixed_frame_, rl_frame_, false);
+    const auto axis = lieToFrame(r.axis, fixed_frame_, rl_frame_, true);
+    // 상자 윗면 높이 (base_link): 바닥 frame 원점 위 box_top 점의 높이 (바닥 frame 과 base_link 는 평행)
+    const auto top = lieToFrame(Eigen::Vector3d(0.0, 0.0, lie_box_top_), lie_floor_frame_, rl_frame_, false);
+    std::optional<Eigen::Vector3d> nb;
+    if (r.neighbor) {nb = lieToFrame(*r.neighbor, fixed_frame_, rl_frame_, false);}
+    if (!c || !ax || !puck || !axis || !top || (r.neighbor && !nb)) {
+      finishSkill(false, "lie_upright: TF to " + rl_frame_ + " failed");
+      return;
+    }
+    // 상자 요는 90° 마다 같음: 사전 요에 가까운 것 (학습 상자 요 = 정지 회전 ± 3°)
+    double yaw = std::atan2(ax->y(), ax->x());
+    const auto pax = lieToFrame([&] {
+        tf2::Quaternion pq;
+        tf2::fromMsg(r.prior.pose.orientation, pq);
+        const tf2::Vector3 v = tf2::quatRotate(pq, tf2::Vector3(1, 0, 0));
+        return Eigen::Vector3d(v.x(), v.y(), v.z());
+      }(), r.prior.header.frame_id, rl_frame_, true);
+    if (pax) {
+      const double py = std::atan2(pax->y(), pax->x());
+      yaw = py + std::remainder(yaw - py, M_PI / 2);
+    }
+    auto & s = r.s;
+    s.box_c = Eigen::Vector2d(c->x(), c->y());
+    s.box_yaw = yaw;
+    const double top_z = top->z();
+    s.puck = Eigen::Vector3d(puck->x(), puck->y(), top_z + lie_puck_dz_);
+    s.long_yaw = std::atan2(axis->y(), axis->x());
+    if (nb) {s.neighbor = Eigen::Vector2d(nb->x(), nb->y());}
+    // 세울 자리: 옆 퍽이 없으면 '있었다면' 자리 = 상자 중심에 대해 누운 퍽의 반대편 (같은 상자 두 칸)
+    const Eigen::Vector2d nb_for_spot = s.neighbor ? *s.neighbor : Eigen::Vector2d(2.0 * s.box_c - s.puck.head<2>());
+    const Eigen::Vector2d d = lieStandSpot(lie_params_, s.box_c, s.box_yaw, nb_for_spot, diff_ik_.params().joint1_origin.x());
+    s.spot = Eigen::Vector3d(d.x(), d.y(), top_z + lie_spot_dz_);
+    RCLCPP_INFO(get_logger(), "lie_upright: box (%.3f, %.3f, %.1f deg) %s, puck (%.3f, %.3f) long axis %.1f deg, stand spot D (%.3f, %.3f, %.3f) "
+      "in %s -> start pose", s.box_c.x(), s.box_c.y(), yaw * 180.0 / M_PI, r.box ? "measured" : "planner", s.puck.x(), s.puck.y(),
+      s.long_yaw * 180.0 / M_PI, d.x(), d.y(), s.spot.z(), rl_frame_.c_str());
+    // ② 학습 시작 자세 + 벌림
+    const auto current = currentJoints();
+    if (!current) {
+      finishSkill(false, "no recent /joint_states for arm joints");
+      return;
+    }
+    std::vector<double> q(joint_names_.size());
+    for (size_t k = 0; k < 5; ++k) {q[k] = ik_signs_[k] * kLieReadyPose45[k] + ik_offsets_[k];}
+    q[5] = std::clamp(rl_grip_.toRad(lie_params_.finger_open), lower_[5], upper_[5]);
+    gripper_cmd_ = q[5];
+    if (!withinLimits(q)) {
+      finishSkill(false, "lie_upright: start pose outside joint limits");
+      return;
+    }
+    sendArm(q, trajDuration(*current, q, min_duration_), [this](bool ok, const std::string & msg) {
+        if (!ok) {
+          finishSkill(false, "lie_upright start pose: " + msg);
+          return;
+        }
+        lie_->step = LieStep::RUN;
+        lie_->t_start = now();
+        active_policy_ = lie_policy_.get();
+        skill_rate_ = lie_policy_->spec.rate_hz;
+        skill_last_cmd_.reset();
+        startSkillTimer();
+      });
+  }
+
+  // ③ 한 tick: 관측 45 → 정책 → 행동 6 → β · ρ · IK → 6 관절 목표 스트리밍
+  void lieTick(const std::vector<double> & q, double elapsed)
+  {
+    auto & r = *lie_;
+    auto & s = r.s;
+    if ((now() - r.t_start).seconds() > lie_max_duration_) {
+      finishSkill(false, "lie_upright: not finished within lie_upright.max_duration " + std::to_string(lie_max_duration_) + " s");
+      return;
+    }
+    std::optional<Joints5> qd_meas = Joints5{};
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      for (size_t k = 0; k < 5; ++k) {
+        const auto it = joint_vel_.find(joint_names_[k]);
+        if (it == joint_vel_.end()) {qd_meas.reset(); break;}
+        (*qd_meas)[k] = it->second / ik_signs_[k];
+      }
+    }
+    for (size_t k = 0; k < 5; ++k) {s.q[k] = (q[k] - ik_offsets_[k]) / ik_signs_[k];}
+    const rclcpp::Time t = now();
+    s.qd = Joints5{};
+    if (qd_meas) {
+      s.qd = *qd_meas;
+    } else if (r.q_prev) {
+      const double dt = std::max((t - r.t_prev).seconds(), 1e-3);
+      for (size_t k = 0; k < 5; ++k) {s.qd[k] = (s.q[k] - (*r.q_prev)[k]) / dt;}
+    }
+    r.q_prev = s.q;
+    r.t_prev = t;
+    s.finger_m = rl_grip_.toMeters(q[5]);
+    s.held = r.hold.update(s.finger_m, lie_params_);
+    const ArmFrame f = diff_ik_.forward(s.q);
+    // 단계 (실물에서 볼 수 있는 것만): 쥔 순간 높이 → 든 뒤 → 벌리면 놓음
+    if (s.held && !r.lifted && r.grasp_z == 0.0) {r.grasp_z = f.tcp.z();}
+    if (!s.held && !r.lifted) {r.grasp_z = 0.0;}   // 들기 전에 풀리면 다시 (학습: 들기 전 놓침은 다시 쥘 수 있음)
+    if (s.held && r.grasp_z != 0.0 && f.tcp.z() > r.grasp_z + lie_lift_ok_) {r.lifted = true;}
+    if (r.lifted && !r.released && !s.held) {
+      finishSkill(false, "lie_upright: grip lost after lifting before release (dropped)");
+      return;
+    }
+
+    robot_policy::ObsValues values;
+    for (auto & kv : lieUprightObservation(diff_ik_, s)) {values[kv.first] = kv.second;}
+    const auto & spec = lie_policy_->spec;
+    std::vector<float> obs, raw;
+    std::string err;
+    if (!robot_policy::ObservationBuilder(spec).build(values, obs, err)) {
+      finishSkill(false, "lie_upright: observation invalid: " + err);
+      return;
+    }
+    if (!lie_policy_->runner->run(obs, raw)) {finishSkill(false, "lie_upright: policy inference failed"); return;}
+    auto a = robot_policy::ActionMapper(spec).map(raw);
+    std::array<float, 6> act{};
+    for (size_t i = 0; i < 6; ++i) {act[i] = std::clamp(a[i], -1.f, 1.f);}
+    if (r.lifted && !r.released && act[5] > 0.f) {
+      // 학습: 놓음 = 퍽이 상자 위에 자리 잡았을 때만 (공중에서 벌리면 떨어뜨림). 실물은 퍽을 못 보므로 잡는 점이 세울 자리 위
+      //   (수평 release_xy · 높이 release_z 안) 이고 집게가 퍽을 세운 자세 (β ≥ release_beta) 일 때만 놓음으로 봄.
+      //   Isaac 기록 세 에피소드: 수평 8 ~ 13 mm, D 위 20 ~ 39 mm, β 1.55 ~ 1.75. 든 직후 (아직 누운 채) 는 D 위 51 ~ 61 mm · β 0.8 ~ 1.0
+      const double dh = std::hypot(f.tcp.x() - s.spot.x(), f.tcp.y() - s.spot.y());
+      const double dz = f.tcp.z() - s.spot.z();
+      char buf[200];
+      std::snprintf(buf, sizeof(buf), "grasp point %.1f mm beside and %.1f mm above the stand spot, beta %.2f rad", dh * 1000.0,
+        dz * 1000.0, s.beta);
+      if (dh > lie_release_xy_ || dz > lie_release_z_ || s.beta < lie_release_beta_) {
+        finishSkill(false, std::string("lie_upright: gripper opened away from the stand spot (dropped): ") + buf);
+        return;
+      }
+      r.released = true;
+      RCLCPP_INFO(get_logger(), "lie_upright: released, %s", buf);
+    }
+    if (r.released) {act[5] = 1.f;}   // 학습: 놓은 뒤 집게는 늘 벌림
+    const Joints5 tgt = lieApplyAction(diff_ik_, lie_params_, r.target ? *r.target : s.q, s.q, act, s.beta, s.rho);
+    s.action = act;
+
+    if (!skill_last_cmd_) {skill_last_cmd_ = q;}
+    const double max_step = lie_max_joint_vel_ / skill_rate_;
+    std::vector<double> cmd(joint_names_.size());
+    Joints5 sent{};
+    for (size_t k = 0; k < 5; ++k) {
+      const double c = std::clamp(ik_signs_[k] * tgt[k] + ik_offsets_[k], lower_[k], upper_[k]);
+      cmd[k] = std::clamp(c, (*skill_last_cmd_)[k] - max_step, (*skill_last_cmd_)[k] + max_step);
+      sent[k] = (cmd[k] - ik_offsets_[k]) / ik_signs_[k];
+    }
+    r.target = sent;   // 학습 arm_target 처럼 다음 스텝 기준 = 실제로 보낸 목표 (속도 제한으로 자르면 자른 값)
+    const double grip = std::clamp(rl_grip_.toRad(act[5] > 0.f ? lie_params_.finger_open : lie_params_.finger_close),
+      std::min(gripper_open_, gripper_close_), std::max(gripper_open_, gripper_close_));
+    cmd[5] = std::clamp(grip, lower_[5], upper_[5]);
+    gripper_cmd_ = cmd[5];
+    skill_last_cmd_ = cmd;
+    last_sent_ = cmd;
+    trajectory_msgs::msg::JointTrajectory jt;
+    jt.joint_names = joint_names_;
+    trajectory_msgs::msg::JointTrajectoryPoint point;
+    point.positions = cmd;
+    point.time_from_start = rclcpp::Duration::from_seconds(skill_horizon_ / skill_rate_);
+    jt.points.push_back(point);
+    jt_pub_->publish(jt);
+    stream_active_ = true;
+
+    // ④ 끝: 놓은 뒤 clear_hold 지났고 잡는 점이 D 에서 clear_distance 넘게 (학습 성공 = 놓은 뒤 퍽이 서고 손이 퍽에서 3 cm 넘게 1 s.
+    //   실물은 퍽을 못 보므로 놓은 시각부터 셈 → 학습 성공 시점보다 앞서 끝남, Isaac 기록 세 에피소드에서 3 ~ 5 스텝 앞)
+    if (r.released) {r.clear += 1.0 / skill_rate_;}
+    if (r.released && r.clear >= lie_clear_hold_ && (f.tcp - s.spot).norm() > lie_clear_dist_) {
+      if (skill_timer_) {skill_timer_->cancel();}
+      holdAtMeasured();
+      char buf[200];
+      std::snprintf(buf, sizeof(buf), "lie_upright: placed and released (%.1f s), hand %.3f m from stand spot", (now() - r.t_start).seconds(),
+        (f.tcp - s.spot).norm());
+      RCLCPP_INFO(get_logger(), "%s", buf);
+      // ⑤ 잡는 점을 retreat_up 만큼 위로 (지금 집게 자세에서 β · ρ 를 다시 정하고 같은 IK 를 측정 없이 이어 계산, 세운 퍽 · 상자를 치지 않게)
+      //   → D 에서 target_look
+      Joints5 qu = s.q, tu = s.q;
+      double bu = s.beta, ru = s.rho;
+      lieBetaRhoFrom(diff_ik_, lie_params_, s.q, bu, ru);   // 지금 집게 자세 그대로 (정책 β · ρ 목표와 조금 다를 수 있음)
+      const int n_up = static_cast<int>(std::ceil(lie_retreat_up_ / lie_params_.cart_scale - 1e-9));
+      for (int i = 0; i < n_up; ++i) {
+        tu = lieApplyAction(diff_ik_, lie_params_, tu, qu, {0.f, 0.f, 1.f, 0.f, 0.f, 1.f}, bu, ru);
+        qu = tu;
+      }
+      const double rise = diff_ik_.forward(qu).tcp.z() - f.tcp.z();
+      std::vector<double> qcmd(joint_names_.size());
+      for (size_t k = 0; k < 5; ++k) {qcmd[k] = ik_signs_[k] * qu[k] + ik_offsets_[k];}
+      qcmd[5] = cmd[5];
+      if (!withinLimits(qcmd) || rise < 0.8 * lie_retreat_up_) {
+        std::snprintf(buf, sizeof(buf), "lie_upright: cannot retreat up %.0f mm after release (rise %.0f mm or joint limits)",
+          lie_retreat_up_ * 1000.0, rise * 1000.0);
+        finishSkill(false, buf);
+        return;
+      }
+      const std::string done = buf;
+      const Eigen::Vector3d spot = s.spot;
+      const auto current = currentJoints();
+      sendArm(qcmd, trajDuration(current ? *current : q, qcmd, lie_retreat_time_), [this, done, spot](bool ok, const std::string & msg) {
+          if (!ok) {
+            finishSkill(false, "lie_upright retreat up: " + msg);
+            return;
+          }
+          if (!lie_look_after_) {
+            finishSkill(true, done);
+            return;
+          }
+          TaskSkill look;
+          look.kind = Task::TARGET_LOOK;
+          look.frame = rl_frame_;
+          look.x = spot.x();
+          look.y = spot.y();
+          look.z = spot.z();
+          lie_.reset();
+          task_ = Task::TARGET_LOOK;
+          startTargetLook(look);
+        });
+      return;
+    }
+    auto fb = std::make_shared<ExecuteSkill::Feedback>();
+    fb->progress = static_cast<float>(std::clamp(elapsed / skill_timeout_, 0.0, 1.0));
+    skill_gh_->publish_feedback(fb);
+  }
+
   // ------------------------------------------------------------------ 미션 skill (execute_skill 이름)
   // "toppick_tilt" · "pallet_load_3_1_tilt" · "pallet_unload_2_0_tilt" · "place_L1_m1_p1_tilt" · "place_at:odom:x:y:z" ·
-  // "target_look:base_footprint:x:y:z" · "box_look:map:x:y:z" · "barcode_look:map:x:y:z"
+  // "target_look:base_footprint:x:y:z" · "box_look:map:x:y:z" · "barcode_look:map:x:y:z" · "lie_upright:base_footprint:x:y:yaw_deg"
   static std::optional<TaskSkill> parseTaskSkill(const std::string & name)
   {
     TaskSkill t;
@@ -2206,12 +2758,13 @@ private:
         return out;
       };
     if (name.rfind("place_at:", 0) == 0 || name.rfind("target_look:", 0) == 0 || name.rfind("box_look:", 0) == 0 ||
-      name.rfind("barcode_look:", 0) == 0)
+      name.rfind("barcode_look:", 0) == 0 || name.rfind("lie_upright:", 0) == 0)
     {
       const auto f = parts(name, ':');   // place_at | target_look | box_look | barcode_look : frame : x : y : z
       if (f.size() != 5 || f[1].empty()) {return std::nullopt;}
       try {
-        t.kind = f[0] == "target_look" ? Task::TARGET_LOOK : f[0] == "place_at" ? Task::PLACE : Task::LOOK;
+        t.kind = f[0] == "target_look" ? Task::TARGET_LOOK : f[0] == "place_at" ? Task::PLACE :
+          f[0] == "lie_upright" ? Task::LIE_UPRIGHT : Task::LOOK;
         t.look = f[0];
         t.frame = f[1];
         t.x = std::stod(f[2]);
@@ -2253,6 +2806,9 @@ private:
         return;
       case Task::LOOK:
         startLook(t);
+        return;
+      case Task::LIE_UPRIGHT:
+        startLieUpright(t);
         return;
       case Task::TOPPICK: {
           geometry_msgs::msg::PoseStamped target;   // 비면 ② 추적 위치 (use_alignment 면 ① 먼저)
@@ -2902,6 +3458,24 @@ private:
   };
   std::set<std::string> tcp_skills_;
   std::optional<TopPickRun> rl_;
+  // 누운 직육면체 세워 놓기
+  std::optional<LieRun> lie_;
+  std::unique_ptr<robot_policy::LoadedPolicy> lie_policy_;
+  LieUprightParams lie_params_;
+  bool lie_enabled_{true}, lie_box_required_{true}, lie_look_after_{true};
+  std::string lie_policy_name_{"lie_upright"}, lie_file_, lie_floor_frame_{"base_footprint"};
+  std::vector<double> lie_view_left_, lie_view_right_, lie_view_inline_;
+  double lie_box_top_{0.07}, lie_puck_dz_{0.015}, lie_spot_dz_{0.029}, lie_side_y_{0.05}, lie_box_settle_{0.5}, lie_box_timeout_{3.0};
+  double lie_pucks_age_{2.0}, lie_max_duration_{15.0}, lie_lift_ok_{0.03}, lie_clear_dist_{0.03}, lie_clear_hold_{1.0};
+  double lie_max_joint_vel_{2.0}, lie_release_xy_{0.03}, lie_release_z_{0.06}, lie_release_beta_{1.4}, lie_retreat_up_{0.05}, lie_retreat_time_{1.0};
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr lie_prior_pub_;
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr lie_box_client_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr lie_box_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr lie_status_sub_;
+  geometry_msgs::msg::PoseStamped::ConstSharedPtr lie_box_;   // sensor_mutex_
+  std_msgs::msg::String::ConstSharedPtr lie_status_;
+  rclcpp::Time lie_box_rx_{0, 0, RCL_ROS_TIME}, lie_status_rx_{0, 0, RCL_ROS_TIME};
+  std::optional<std::pair<uint64_t, std::string>> lie_req_;   // 측정 요청 응답 (작업 id, 거절 이유 · 빈 값 = 받음)
   ArmDiffIK diff_ik_;
   GripperMap rl_grip_;
   std::array<double, 5> ik_signs_{1.0, 1.0, 1.0, 1.0, 1.0}, ik_offsets_{};

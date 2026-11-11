@@ -52,3 +52,33 @@ toppick_tilt:
   action: tcp_delta(4)
   action_low: [-1.0, -1.0, -1.0, -1.0]
   action_high: [1.0, 1.0, 1.0, 1.0]
+
+# 상자 위 누운 직육면체를 쥐고 들어 손 안에서 세운 뒤 상자 위 세울 자리 D 에 세워 놓고 손을 뺌 (#192 · #193, Isaac Waffle-LieUprightB4-Direct = r2e,
+#   학습 lieupright_env.py · 넘겨받은 묶음 lv2_next_module 261110_2010_lie_rl/handoff). 다시 집기는 이 정책 밖 (미션 toppick_tilt 고정 동작).
+#   manipulator_node 는 skill.enabled 와 따로 lie_upright.enabled 로 로드 (미션 skill "lie_upright:<frame>:x:y:yaw_deg", control/lieupright.hpp).
+#   관측 = base_link (m, rad), 모두 필수. 행동 tcp_delta(6): 잡는 점 변위 x · y · z × 0.005 m, 집게 숙임 β 변화 × 0.05 rad,
+#   집게 롤 ρ 변화 × 0.06 rad, 집게 > 0 벌림 0.010 · ≤ 0 닫음 −0.011 (손가락 m). β · ρ 는 적분 (시작 π/4 · 0), 자세 + 변위 → 감쇠 최소제곱 IK
+lie_upright:
+  model: models/lieupright_r2e.onnx
+  rate_hz: 30
+  obs_dim: 45
+  observation:
+    - {name: joint_pos_rel, size: 5, required: true}       # joint1~5 − READY_POSE_45 [0, −0.338, 0.559, 0.564, 0]
+    - {name: joint_vel, size: 5, required: true}           # rad/s
+    - {name: finger_pos, size: 1, required: true}          # gripper_left_joint (m)
+    - {name: puck_pos, size: 3, required: true}            # 인식 누운 퍽 중심 (z = 상자 윗면 + 15 mm)
+    - {name: long_axis_cos_sin2, size: 2, required: true}  # 긴 축 요 θ 의 cos 2θ · sin 2θ
+    - {name: grasp_pos, size: 3, required: true}           # 잡는 점 (FK)
+    - {name: approach_axis, size: 3, required: true}       # gripper_roll_link +x
+    - {name: close_axis, size: 3, required: true}          # gripper_roll_link +y
+    - {name: stand_spot, size: 3, required: true}          # 세울 자리 D (z = 상자 윗면 + 29 mm, 학습과 같게)
+    - {name: neighbor_rel, size: 2, required: true}        # 옆 퍽 xy − 인식 퍽 xy (없으면 0, 0)
+    - {name: neighbor_present, size: 1, required: true}
+    - {name: box_center, size: 2, required: true}          # 상자 중심 xy
+    - {name: box_yaw_cos_sin, size: 2, required: true}
+    - {name: held, size: 1, required: true}                # 쥠: 손가락 −10.8 ~ −3 mm 연속 8 스텝 1, 연속 3 스텝 아니면 0
+    - {name: rho_cos_sin_beta, size: 3, required: true}    # cos ρ, sin ρ, β
+    - {name: prev_action, size: 6, required: true}         # 직전 행동 (자른 값, 놓은 뒤 집게 = 1, 첫 스텝 (0, 0, 0, 0, 0, 1))
+  action: tcp_delta(6)
+  action_low: [-1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+  action_high: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0]

@@ -22,6 +22,8 @@
 //   /perception/place_box/measure (서비스, Trigger): 팔 카메라가 켜진 모드(READ_TAG · ARM_ALIGN)에서 팔 영상 arm.place_box.frames 장마다
 //              장소 상자 윗면을 찾아(place_box.hpp, 깊이 없이 윗면 높이 평면) odom 으로 모아 중앙값 → /perception/place_box (PoseStamped) ·
 //              /perception/place_box/cells (PoseArray, 칸 9 개) · /perception/place_box/status (String JSON, 실패 포함). 셋 다 latched
+//              사전값: 측정 요청 전 arm.place_box.prior_max_age 안에 받은 /perception/place_box/prior (PoseStamped, 상자 중심 · 요)
+//              가 있으면 그 측정만 그 값 (누운 퍽 스킬의 집는 상자), 없으면 arm.place_box.prior · prior_yaw (장소 상자)
 //   READ_TAG : 왜곡 보정 원본에서 AprilTag → tag_id · tag_pose (Arducam 광학 프레임 기준, x 오른쪽 · y 아래 · z 앞)
 //              퍽 태그(tag.*)와 장소 태그(marker.*)를 각자 크기로 찾아 가장 크게 보이는 것 하나 (read_tag.hpp)
 //   /perception/pucks (토픽, PuckArray): SEARCH_* 또는 READ_TAG 가 켜져 있으면 result 와 같은 주기로 발행한다
@@ -578,19 +580,47 @@ public:
     pb_.max_spread_m = declare_parameter("arm.place_box.max_spread_m", pb_.max_spread_m);
     pb_.max_spread_rad = declare_parameter("arm.place_box.max_spread_deg", pb_.max_spread_rad * 180.0 / M_PI) * M_PI / 180.0;
     pb_.pitch = declare_parameter("arm.place_box.cell_pitch", pb_.pitch);
+    pb_prior_max_age_ = declare_parameter("arm.place_box.prior_max_age", pb_prior_max_age_);
     {
       const auto latched = rclcpp::QoS(1).reliable().transient_local();
       pb_box_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("/perception/place_box", latched);
       pb_cells_pub_ = create_publisher<geometry_msgs::msg::PoseArray>("/perception/place_box/cells", latched);
       pb_status_pub_ = create_publisher<std_msgs::msg::String>("/perception/place_box/status", latched);
     }
+    {
+      rclcpp::SubscriptionOptions o;
+      o.callback_group = ctl_cbg_;
+      pb_prior_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/perception/place_box/prior",
+        rclcpp::QoS(1).reliable().transient_local(),
+        [this](geometry_msgs::msg::PoseStamped::ConstSharedPtr m) {pb_prior_msg_ = m; pb_prior_rx_ = now();}, o);
+    }
     pb_srv_ = create_service<std_srvs::srv::Trigger>("/perception/place_box/measure",
         [this](std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr res) {
           if (!(mode_ & ARM_BITS)) {res->success = false; res->message = "팔 카메라가 꺼져 있음 (READ_TAG 또는 ARM_ALIGN 을 켜고 부를 것)"; return;}
+          // 이번 측정의 사전값: 최근 /perception/place_box/prior (pb_.frame 으로 옮김) 또는 파라미터
+          pb_.cur_prior = pb_.prior;
+          pb_.cur_prior_yaw = pb_.prior_yaw;
+          std::string from = "파라미터";
+          if (pb_prior_msg_ && (now() - pb_prior_rx_).seconds() <= pb_prior_max_age_) {
+            const auto T = lookup_at(pb_.frame, pb_prior_msg_->header.frame_id, rclcpp::Time(0, 0, get_clock()->get_clock_type()));
+            if (!T) {res->success = false; res->message = "사전값 TF " + pb_prior_msg_->header.frame_id + " -> " + pb_.frame + " 없음"; return;}
+            const auto & pp = pb_prior_msg_->pose;
+            const tf2::Vector3 c = *T * tf2::Vector3(pp.position.x, pp.position.y, pp.position.z);
+            tf2::Quaternion q;
+            tf2::fromMsg(pp.orientation, q);
+            const tf2::Vector3 ax = T->getBasis() * tf2::quatRotate(q, tf2::Vector3(1, 0, 0));
+            pb_.cur_prior = cv::Point2d(c.x(), c.y());
+            pb_.cur_prior_yaw = std::atan2(ax.y(), ax.x());
+            from = "/perception/place_box/prior";
+            pb_prior_msg_.reset();   // 한 번만 씀
+          }
           pb_.samples.clear();
           pb_.need = std::max(1, pb_.frames);
           res->success = true;
-          res->message = "장소 상자 측정 시작: 팔 영상 " + std::to_string(pb_.need) + " 장 → /perception/place_box/status";
+          char pr[96];
+          std::snprintf(pr, sizeof(pr), " (사전값 %s: %.3f, %.3f, %.1f°)", from.c_str(), pb_.cur_prior.x, pb_.cur_prior.y,
+            pb_.cur_prior_yaw * 180.0 / M_PI);
+          res->message = "장소 상자 측정 시작: 팔 영상 " + std::to_string(pb_.need) + " 장 → /perception/place_box/status" + pr;
         }, rclcpp::ServicesQoS(), ctl_cbg_);
     dice_srv_ = create_service<CheckDice>(names::PERCEPTION_CHECK_DICE,
         [this](CheckDice::Request::SharedPtr req, CheckDice::Response::SharedPtr res) {on_check_dice(*req, *res);},
@@ -1915,7 +1945,7 @@ private:
     cv::Matx33d K;
     for (int i = 0; i < 9; ++i) {K(i / 3, i % 3) = newK_.at<double>(i / 3, i % 3);}
     const tf2::Vector3 & o = T_pc->getOrigin();
-    const auto r = find_place_box(u, K, R, cv::Vec3d(o.x(), o.y(), o.z()), pb_.prior, pb_.prior_yaw, pb_.cfg);
+    const auto r = find_place_box(u, K, R, cv::Vec3d(o.x(), o.y(), o.z()), pb_.cur_prior, pb_.cur_prior_yaw, pb_.cfg);
     --pb_.need;
     if (r.ok) {
       const tf2::Vector3 c = *T_op * tf2::Vector3(r.x, r.y, pb_.cfg.height);
@@ -2181,6 +2211,8 @@ private:
     std::string frame = "base_footprint";   // 윗면 높이 기준 (z = 바닥 위)
     cv::Point2d prior{0.2553, 0.0};          // 최종 자리 (앞 끝 0.1328 + 면 0.02 + 반 변 0.1025) 의 상자 중심
     double prior_yaw = 0.0;
+    cv::Point2d cur_prior{0.2553, 0.0};      // 이번 측정의 사전값 (서비스에서 정함, ctl_cbg_)
+    double cur_prior_yaw = 0.0;
     int frames = 3;
     double max_spread_m = 0.003, max_spread_rad = 1.0 * M_PI / 180.0, pitch = 0.06;
     int need = 0;                            // 남은 장 수 (ctl_cbg_ 에서만)
@@ -2190,6 +2222,10 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pb_cells_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pb_status_pub_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr pb_srv_;
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pb_prior_sub_;
+  geometry_msgs::msg::PoseStamped::ConstSharedPtr pb_prior_msg_;   // ctl_cbg_
+  rclcpp::Time pb_prior_rx_{0, 0, RCL_ROS_TIME};
+  double pb_prior_max_age_ = 5.0;   // [s]
   MonoCamera bc_arm_;                          // 바코드 읽기용 팔 카메라 구독 (영상 · 처리 기록이 arm_ 과 따로)
   DepthCamera * bc_cam_ = nullptr;
   int bc_frames_ = 5, bc_min_valid_ = 0;
