@@ -1,4 +1,4 @@
-// 누운 직육면체 세워 놓기 정책 (policies.yaml lie_upright, Isaac Waffle-LieUprightB4-Direct = r2e, #192 · #193) — ROS 없는 순수 C++
+// 누운 직육면체 세워 놓기 정책 (policies.yaml lie_upright, Isaac Waffle-LieUprightB7-Direct = r2g2, #192 · #193) — ROS 없는 순수 C++
 //   manipulator_node 가 30 Hz 로: 관측 45 조립 → 정책 → 행동 6 → 집게 자세 (β 숙임 · ρ 롤) + 잡는 점 변위 → 감쇠 최소제곱 IK → 관절 목표.
 //   학습 환경 lieupright_env.py (_pre_physics_step · _ik_pose · target_R_base · _get_observations · _stand_spot · _update_hold) 와 같은 식 · 순서.
 //

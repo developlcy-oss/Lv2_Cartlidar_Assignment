@@ -514,7 +514,7 @@ private:
     // 정책을 돌리는 시간 상한 (학습 에피소드 6 s). 넘으면 실패 → mission 이 target_look 부터 다시 (goal timeout 보다 먼저 끝냄)
     rl_max_duration_ = declare_parameter<double>("toppick_rl.max_duration", 12.0);
 
-    // 누운 직육면체 세워 놓기 (lie_upright, lieupright.hpp). 값은 Isaac lieupright_env_cfg (WaffleLieUprightB4 = r2e) 와 같게
+    // 누운 직육면체 세워 놓기 (lie_upright, lieupright.hpp). 값은 Isaac lieupright_env_cfg (WaffleLieUprightB7 = r2g2) 와 같게
     lie_enabled_ = declare_parameter<bool>("lie_upright.enabled", true);
     lie_policy_name_ = declare_parameter<std::string>("lie_upright.policy", "lie_upright");
     lie_file_ = declare_parameter<std::string>("lie_upright.policies_file", "");   // 빈 값 = robot_policy share config/policies.yaml
@@ -540,7 +540,7 @@ private:
     lie_clear_hold_ = declare_parameter<double>("lie_upright.clear_hold", 1.0);
     // 팔 관절 목표 변화 한계 (rad/s) · 방식. Isaac r2e 평가 (접촉 없는 성공, 512 × 3 seed, 제한 없음 96.4 %):
     //   clip (관절마다 자름) 4.0 95.8 % · 3.0 79.4 % · 2.0 4.5 %, scale (행동 전체 비율) 4.0 95.2 % · 3.0 95.4 % · 2.0 90.6 %.
-    //   기본 = scale · 3.0 (11-11 결정). 실물 관절 속도 (#201) 가 3.0 rad/s 를 못 내면 다시 정함
+    //   기본 = scale · 3.0 (11-11 결정, r2g2 는 이 값으로 학습 → 3.0 넘게 올리려면 다시 평가). 실물 관절 속도 (#201) 가 3.0 rad/s 를 못 내면 다시 정함
     lie_max_joint_vel_ = declare_parameter<double>("lie_upright.max_joint_velocity", 3.0);
     {
       const auto m = declare_parameter<std::string>("lie_upright.velocity_limit", "scale");   // clip | scale (lieApplyActionLimited)
@@ -2658,7 +2658,7 @@ private:
       // 학습: 놓음 = 퍽이 상자 위에 자리 잡았을 때만 (공중에서 벌리면 떨어뜨림). 실물은 퍽을 못 보므로 잡는 점이 세울 자리 위
       //   (수평 release_xy · 높이 release_z 안) 이고 집게가 퍽을 세운 자세 (β ≥ release_beta) 일 때만 놓음으로 봄.
       //   수평은 퍽 중심 추정 (잡는 점 + 집게 방향 × release_center_offset, 학습 잡는 점 = 퍽 중심 − a × 11 mm) 으로 D 와 비교
-      //   (학습 '세울 자리 3 cm 안' 은 퍽 중심 기준). Isaac 기록 세 에피소드: 추정 중심-D 3 ~ 12 mm, D 위 20 ~ 39 mm, β 1.55 ~ 1.75.
+      //   (학습 '세울 자리 3 cm 안' 은 퍽 중심 기준). Isaac r2e 기록 세 에피소드: 추정 중심-D 3 ~ 12 mm, D 위 20 ~ 39 mm, β 1.55 ~ 1.75.
       //   든 직후 (아직 누운 채) 는 D 위 51 ~ 61 mm · β 0.8 ~ 1.0
       const Eigen::Vector3d pc = f.tcp + f.approach() * lie_release_center_offset_;
       const double dh = std::hypot(pc.x() - s.spot.x(), pc.y() - s.spot.y());
@@ -2706,7 +2706,7 @@ private:
     stream_active_ = true;
 
     // ④ 끝: 놓은 뒤 clear_hold 지났고 잡는 점이 D 에서 clear_distance 넘게 (학습 성공 = 놓은 뒤 퍽이 서고 손이 퍽에서 3 cm 넘게 1 s.
-    //   실물은 퍽을 못 보므로 놓은 시각부터 셈 → 학습 성공 시점보다 앞서 끝남, Isaac 기록 세 에피소드에서 3 ~ 5 스텝 앞)
+    //   실물은 퍽을 못 보므로 놓은 시각부터 셈 → 학습 성공 시점보다 앞서 끝남, Isaac r2e 기록 세 에피소드에서 3 ~ 5 스텝 앞)
     if (r.released) {r.clear += 1.0 / skill_rate_;}
     if (r.released && r.clear >= lie_clear_hold_ && (f.tcp - s.spot).norm() > lie_clear_dist_) {
       if (skill_timer_) {skill_timer_->cancel();}
