@@ -45,6 +45,13 @@ public:
     }
   }
 
+  // 경유점 하나를 dt 초 뒤에 (2026-11-11 놓기 직선 구간: moveTool 과 같은 시간 규칙을 밖에서 계산)
+  void moveTo(const Arm5 & q, double dt, double grip)
+  {
+    const auto & prev = pts_.back();
+    pts_.push_back({prev.t + std::max(1e-3, dt), q, grip});
+  }
+
   // 같은 자리에서 duration 동안 (그리퍼는 그동안 grip 으로 바뀜)
   void hold(double duration, double grip)
   {
@@ -95,6 +102,7 @@ public:
   }
 
   const Arm5 & bias() const {return bias_;}
+  void setBias(const Arm5 & b) {bias_ = b;}   // 앞 스트림 bias 이어 쓰기 (꺼내기 → 놓기)
 
 private:
   double ki_, bias_max_;

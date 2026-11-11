@@ -417,6 +417,7 @@ private:
     place_release_ = declare_parameter<double>("place.release_position", gripper_open_);   // rad, 기본 = 끝까지 (이전 동작)
     place_radial_a_ = declare_parameter<double>("place.radial_offset_mm", 0.0);              // J1 거리 0.2665 m 칸에서 바깥으로 [mm]
     place_radial_b_ = declare_parameter<double>("place.radial_offset_slope_mm", 0.0);        // 칸 (0.06 m) 멀어질 때마다 더할 값 [mm]
+    place_sag_ = declare_parameter<bool>("place.sag", true);   // 2026-11-11 놓기도 처짐 보정 스트리밍 (sag.enabled 일 때)
     // 바닥 frame (z = 바닥). arm_base_link 높이 = 이 frame → arm_base_link TF, 없으면 arm_base_height
     floor_frame_ = declare_parameter<std::string>("floor_frame", "base_footprint");
     arm_base_height_ = declare_parameter<double>("arm_base_height", 0.120);   // ★ base_link 바닥 위 0.00675 + 0.1135 (B안)
@@ -982,6 +983,7 @@ private:
     const std::vector<trajectory_msgs::msg::JointTrajectoryPoint> & points, double duration,
     Done done, std::function<void(double)> on_progress = nullptr)
   {
+    sag_end_plan_.reset();   // 처짐 bias 를 뺀 궤적이 나감 -> 다음 놓기 스트림은 bias 를 새로 맞춤
     if (jobCanceling()) {
       return;
     }
@@ -2986,6 +2988,8 @@ private:
     sag_tl_ = tl;
     sag_int_ = SagIntegrator(sag_ki_, sag_bias_max_);
     sag_load_ = load;
+    sag_done_msg_ = load ? "loaded" : "unloaded";
+    sag_end_plan_.reset();
     sag_start_ = sag_last_ = now();
     RCLCPP_INFO(get_logger(), "pallet %s: stream %.1f s (settle %.1f s, ki %.1f, %.0f Hz)", load ? "load" : "unload",
       tl.duration(), sag_settle_, sag_ki_, sag_rate_);
@@ -3058,9 +3062,11 @@ private:
     if (t >= sag_tl_->duration()) {
       const auto & b = sag_int_.bias();
       RCLCPP_INFO(get_logger(), "pallet: sag bias [%.3f %.3f %.3f %.3f %.3f] rad", b[0], b[1], b[2], b[3], b[4]);
+      sag_end_plan_ = sag_tl_->points().back().q;   // 다음 놓기 스트림이 이 bias 를 이어 씀
+      sag_end_bias_ = b;
       sag_tl_.reset();
       stream_active_ = false;   // 성공: 마지막 점 (계획 끝 + 처짐 bias) 유지 — 측정 자세로 내리면 bias 만큼 처짐
-      finishSkill(true, sag_load_ ? "loaded" : "unloaded");
+      finishSkill(true, sag_done_msg_);
     }
   }
 
@@ -3169,6 +3175,10 @@ private:
       return;
     }
     RCLCPP_INFO(get_logger(), "place: tip (%.3f, %.3f, %.3f) in %s", tip.x(), tip.y(), tip.z(), base_frame_.c_str());
+    if (sag_enabled_ && place_sag_ && gripper_mode_ != GripperMode::ACTION) {
+      runPlaceStream(*current, *q_pre, pre, tip, back);
+      return;
+    }
     sendArm(*q_pre, trajDuration(*current, *q_pre, min_duration_),
       [this, pre, tip, back](bool ok, const std::string & msg) {
         if (!ok) {
@@ -3186,6 +3196,74 @@ private:
               });
           });
       });
+  }
+
+  // 2026-11-11 놓기 처짐 보정 스트리밍 (palletStreamTick 공용). 처짐 보정 없이 놓으면 꺼내기 bias 가 빠지며 팔이 약 10 mm 처져
+  //   퍽이 윗면을 누르고 넘어짐 (Isaac dice_place_check.py --unload: 꺼내기 → 놓기 판 전체 2.8 %, 이걸로 --place_sag ki).
+  //   꺼내기 스트림이 끝 자세 (계획 + bias) 를 그대로 유지 중이면 그 bias 를 이어 쓰고, 아니면 sag.settle_time 먼저 맞춤.
+  //   시간표: pre (max_joint_vel) → tip 직선 (moveTool 규칙) → 벌림 (gripper.move_time) → 머묾 (pallet.place_dwell) → back 직선 → transit
+  void runPlaceStream(
+    const std::vector<double> & current, const std::vector<double> & q_pre,
+    const Eigen::Vector3d & pre, const Eigen::Vector3d & tip, const Eigen::Vector3d & back)
+  {
+    auto arm5 = [](const std::vector<double> & q) {Arm5 a{}; for (size_t j = 0; j < 5; ++j) {a[j] = q[j];} return a;};
+    const double hold = gripper_close_;
+    SagIntegrator integ(sag_ki_, sag_bias_max_);
+    std::optional<JointTimeline> tlo;
+    if (sag_end_plan_) {
+      double d = 0.0;
+      for (size_t j = 0; j < 5; ++j) {d = std::max(d, std::abs(current[j] - (*sag_end_plan_)[j]));}
+      if (d < 0.02) {
+        tlo.emplace(*sag_end_plan_, hold);
+        integ.setBias(sag_end_bias_);
+      }
+    }
+    sag_end_plan_.reset();
+    const bool carried = tlo.has_value();
+    if (!carried) {
+      tlo.emplace(arm5(current), hold);
+      tlo->hold(sag_settle_, hold);
+    }
+    JointTimeline & tl = *tlo;
+    tl.moveThrough({arm5(q_pre)}, max_joint_vel_, hold, min_duration_);
+    std::vector<double> seed = q_pre;
+    auto line = [&](const Eigen::Vector3d & a, const Eigen::Vector3d & b, double grip) -> bool {
+        const double length = (b - a).norm();
+        const int n = std::max(1, static_cast<int>(std::ceil(length / cartesian_step_)));
+        const double segment_min_time = (length / n) / cartesian_speed_;
+        for (int i = 1; i <= n; ++i) {
+          const auto q = solveArm(a + (b - a) * (static_cast<double>(i) / n), pitch_, seed);
+          if (!q) {return false;}
+          double max_delta = 0.0;
+          for (size_t j = 0; j < 5; ++j) {max_delta = std::max(max_delta, std::abs((*q)[j] - seed[j]));}
+          if (max_delta > max_waypoint_joint_step_) {return false;}
+          tl.moveTo(arm5(*q), std::max(segment_min_time, max_delta / max_joint_vel_), grip);
+          seed = *q;
+        }
+        return true;
+      };
+    if (!line(pre, tip, hold)) {
+      finishSkill(false, "place: IK on straight path to tip");
+      return;
+    }
+    tl.hold(gripper_move_time_, place_release_);   // 벌림
+    tl.hold(pallet_dwell_, place_release_);        // 머묾
+    if (!line(tip, back, place_release_)) {
+      finishSkill(false, "place: IK on straight path back");
+      return;
+    }
+    if (transit_tilt_.size() == 5) {tl.moveThrough({arm5(transit_tilt_)}, max_joint_vel_, place_release_, min_duration_);}
+    sag_tl_ = tl;
+    sag_int_ = integ;
+    sag_check_t_.reset();
+    sag_done_msg_ = "placed";
+    sag_start_ = sag_last_ = now();
+    RCLCPP_INFO(get_logger(), "place: stream %.1f s (%s, ki %.1f, %.0f Hz)", tl.duration(),
+      carried ? "bias carried" : "settle", sag_ki_, sag_rate_);
+    const uint64_t id = job_id_;
+    skill_timer_ = rclcpp::create_timer(
+      this, get_clock(), rclcpp::Duration::from_seconds(1.0 / sag_rate_),
+      [this, id]() {if (id == job_id_) {palletStreamTick();}}, job_cb_group_);
   }
 
   // ------------------------------------------------------------------ box_look · barcode_look (#65)
@@ -3435,6 +3513,10 @@ private:
   SagIntegrator sag_int_{4.0, 0.15};
   std::optional<double> sag_check_t_;              // 꺼내기 쥠 확인 시각
   bool sag_load_{true};
+  std::string sag_done_msg_{"unloaded"};           // 스트림 성공 메시지 (loaded · unloaded · placed)
+  std::optional<Arm5> sag_end_plan_;               // 마지막 스트림 끝 계획 자세 (그 bias 로 유지 중일 때만)
+  Arm5 sag_end_bias_{};
+  bool place_sag_{true};
   rclcpp::Time sag_start_{0, 0, RCL_ROS_TIME}, sag_last_{0, 0, RCL_ROS_TIME};
   std::vector<double> transit_tilt_;                                   // 팔레트 궤적 이동 자세 (5 관절)
   std::string place_cells_file_, place_cells_frame_, floor_frame_;

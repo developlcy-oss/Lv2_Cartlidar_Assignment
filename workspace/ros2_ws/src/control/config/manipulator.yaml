@@ -211,7 +211,10 @@ manipulator_node:
       retreat_distance: 0.04     # 놓은 뒤 빠지기 (m)
       # 2026-11-11 Isaac 주사위 연속 놓기 2048 대 (IsaacLab .../manipulator/dice_place_check.py): 판 전체 33.6 % -> 90.0 %
       release_position: 0.0798   # rad, 놓을 때 벌림 = pallet.release_position (36.4 mm). 끝까지 (−0.764, 81.6 mm) 면 먼저 놓은 옆 퍽을 밂 (칸 간격 60 mm)
-      radial_offset_mm: 7.7      # ★ 퍽 쥔 팔 처짐으로 J1 쪽으로 덜 감 -> 바깥으로 (가운데 칸 J1 0.2665 m 기준, 실측 뒤 고침)
-      radial_offset_slope_mm: -2.7   # ★ 칸 (60 mm) 멀어질 때마다 (앞줄 +10.4 · 먼 줄 +5.0 mm)
+      # 2026-11-11 꺼내기 -> 놓기 연결 (dice_place_check.py --unload): 놓기도 처짐 보정 스트리밍 (sag) 하면 판 전체 2.8 % -> 93.1 % (216 대) · 95.8 % (2048 대).
+      #   이전 바깥 보정 7.7 · −2.7 mm 는 처짐 보정 없는 놓기용 (꺼내기 없이 맞춘 값, 연결에서는 틀림) -> sag 켜면 0
+      sag: true                  # 놓기 (place_*) 도 처짐 보정 스트리밍 (sag.enabled 일 때), 꺼내기 끝 bias 이어 씀
+      radial_offset_mm: 0.0      # ★ J1 바깥 보정 (가운데 칸 J1 0.2665 m 기준, 실측 뒤 고침)
+      radial_offset_slope_mm: 0.0   # ★ 칸 (60 mm) 멀어질 때마다
     floor_frame: base_footprint  # 바닥 frame. arm_base_link 높이 = 이 frame → arm_base_link TF
     arm_base_height: 0.120       # TF 가 없을 때 arm_base_link 바닥 높이 (B안 base_link 0.00675 + 0.1135) ★
