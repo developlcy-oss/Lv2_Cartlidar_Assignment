@@ -524,9 +524,11 @@ private:
     // 세울 자리 D 높이 = 윗면 + 29 mm. 학습 _stand_spot 은 30 + 2 mm 를 생성 높이 (base_link 9.75 mm) 로 뺐는데 차체는 6.75 mm 로
     //   내려앉아, 실제 base_link 기준 D 는 윗면 + 29 mm 로 학습됨 (RL 261111 1 확인, 11-11). 학습과 같은 입력을 주려고 29 mm
     lie_spot_dz_ = declare_parameter<double>("lie_upright.spot_dz", 0.029);
-    lie_view_left_ = declare_parameter<std::vector<double>>("lie_upright.view_left", {-0.300, -1.80, 0.50, 1.90, 0.0});
-    lie_view_right_ = declare_parameter<std::vector<double>>("lie_upright.view_right", {0.305, -1.80, 0.50, 1.90, 0.0});
-    lie_view_inline_ = declare_parameter<std::vector<double>>("lie_upright.view_inline", {0.0, -1.80, 0.50, 1.90, 0.0});
+    // 상자 보기 자세 (모델 값): 집는 상자 윗면 + 여유 15 mm 가 편 영상 (fx 602 · fy 793) 안, 모의 팔-몸체 접촉 0 N · 자기 충돌 근사 65 mm
+    //   (11-11 Isaac B안. 옛 [∓0.30, −1.80, 0.50, 1.90, 0] 은 몸체에 닿음 7.9 N). place_box 모의 렌더 120 장 중심 0.71 mm · 요 0.14° 안
+    lie_view_left_ = declare_parameter<std::vector<double>>("lie_upright.view_left", {-0.300, -1.25, 0.15, 1.85, 0.0});
+    lie_view_right_ = declare_parameter<std::vector<double>>("lie_upright.view_right", {0.300, -1.25, 0.15, 1.85, 0.0});
+    lie_view_inline_ = declare_parameter<std::vector<double>>("lie_upright.view_inline", {0.0, -1.25, 0.15, 1.85, 0.0});
     lie_side_y_ = declare_parameter<double>("lie_upright.side_y", 0.05);           // 사전 상자 중심 |y| 가 이보다 크면 회전 접근
     lie_box_settle_ = declare_parameter<double>("lie_upright.box_settle", 0.5);
     lie_box_timeout_ = declare_parameter<double>("lie_upright.box_timeout", 3.0);
@@ -536,11 +538,20 @@ private:
     lie_lift_ok_ = declare_parameter<double>("lie_upright.lift_ok", 0.03);
     lie_clear_dist_ = declare_parameter<double>("lie_upright.clear_distance", 0.03);
     lie_clear_hold_ = declare_parameter<double>("lie_upright.clear_hold", 1.0);
-    lie_max_joint_vel_ = declare_parameter<double>("lie_upright.max_joint_velocity", 2.0);
+    // 팔 관절 목표 변화 한계 (rad/s) · 방식. Isaac r2e 평가 (접촉 없는 성공, 512 × 3 seed, 제한 없음 96.4 %):
+    //   clip (관절마다 자름) 4.0 95.8 % · 3.0 79.4 % · 2.0 4.5 %, scale (행동 전체 비율) 4.0 95.2 % · 3.0 95.4 % · 2.0 90.6 %.
+    //   기본 = scale · 3.0 (11-11 결정). 실물 관절 속도 (#201) 가 3.0 rad/s 를 못 내면 다시 정함
+    lie_max_joint_vel_ = declare_parameter<double>("lie_upright.max_joint_velocity", 3.0);
+    {
+      const auto m = declare_parameter<std::string>("lie_upright.velocity_limit", "scale");   // clip | scale (lieApplyActionLimited)
+      if (m != "clip" && m != "scale") {throw std::invalid_argument("lie_upright.velocity_limit must be clip | scale");}
+      lie_vel_scale_ = m == "scale";
+    }
     lie_look_after_ = declare_parameter<bool>("lie_upright.look_after", true);
     lie_release_xy_ = declare_parameter<double>("lie_upright.release_xy", 0.03);   // 놓음 = 잡는 점이 D 수평 이 안 (학습 spot_tol)
     lie_release_z_ = declare_parameter<double>("lie_upright.release_z", 0.06);     // · D 위 이 아래. 밖에서 벌리면 떨어뜨림 실패
-    lie_release_beta_ = declare_parameter<double>("lie_upright.release_beta", 1.4);   // · 집게 숙임 β 이 위 (세운 퍽, 수평 1.57)
+    lie_release_beta_ = declare_parameter<double>("lie_upright.release_beta", 1.4);
+    lie_release_center_offset_ = declare_parameter<double>("lie_upright.release_center_offset", 0.011);   // 잡는 점 → 퍽 중심 (집게 방향, grasp_dz_a)   // · 집게 숙임 β 이 위 (세운 퍽, 수평 1.57)
     lie_retreat_up_ = declare_parameter<double>("lie_upright.retreat_up", 0.05);   // 끝난 뒤 잡는 점을 위로 (m)
     lie_retreat_time_ = declare_parameter<double>("lie_upright.retreat_time", 1.0);   // 그 이동 최소 시간 (s)
     lie_params_.finger_open = declare_parameter<double>("lie_upright.finger_open", lie_params_.finger_open);
@@ -2265,7 +2276,7 @@ private:
   //   ① 상자 보기 자세 (lie_upright.view_*, 경우는 사전 상자 옆 위치로 고름) → 인식 /perception/place_box/prior 에 사전값을 내고
   //      /perception/place_box/measure → /perception/place_box (상자 윗면 중심 · 요). 못 재면 lie_upright.box_required 면 실패, 아니면 사전값
   //   ② 학습 시작 자세 READY_POSE_45 + 집게 벌림 → ③ 정책 (rate_hz, lieupright.hpp: 관측 45 → 행동 6 → β · ρ · 감쇠 최소제곱 IK)
-  //   ④ 들었다가 (쥠 + 잡는 점 lift_ok 위) 잡는 점이 세울 자리 D 위 (수평 release_xy · 높이 release_z 안, β ≥ release_beta) 에서 벌리면 놓음,
+  //   ④ 들었다가 (쥠 + 잡는 점 lift_ok 위) 퍽 중심 추정이 D 수평 release_xy 안 · 잡는 점이 D 위 release_z 아래 · β ≥ release_beta 에서 벌리면 놓음,
   //      그 뒤 집게는 늘 벌림. 놓은 뒤 clear_hold 지났고 잡는 점이 D 에서 clear_distance 넘게 떨어져 있으면 끝
   //   ⑤ 잡는 점을 retreat_up 위로 → D 에서 target_look (세운 퍽을 다시 재서 다음 toppick_tilt 가 씀)
   //   실패: 시간 (lie_upright.max_duration), 든 뒤 놓기 전에 쥠이 풀림 · D 밖에서 벌림 (떨어뜨림), 관측 · 추론 오류.
@@ -2646,11 +2657,14 @@ private:
     if (r.lifted && !r.released && act[5] > 0.f) {
       // 학습: 놓음 = 퍽이 상자 위에 자리 잡았을 때만 (공중에서 벌리면 떨어뜨림). 실물은 퍽을 못 보므로 잡는 점이 세울 자리 위
       //   (수평 release_xy · 높이 release_z 안) 이고 집게가 퍽을 세운 자세 (β ≥ release_beta) 일 때만 놓음으로 봄.
-      //   Isaac 기록 세 에피소드: 수평 8 ~ 13 mm, D 위 20 ~ 39 mm, β 1.55 ~ 1.75. 든 직후 (아직 누운 채) 는 D 위 51 ~ 61 mm · β 0.8 ~ 1.0
-      const double dh = std::hypot(f.tcp.x() - s.spot.x(), f.tcp.y() - s.spot.y());
+      //   수평은 퍽 중심 추정 (잡는 점 + 집게 방향 × release_center_offset, 학습 잡는 점 = 퍽 중심 − a × 11 mm) 으로 D 와 비교
+      //   (학습 '세울 자리 3 cm 안' 은 퍽 중심 기준). Isaac 기록 세 에피소드: 추정 중심-D 3 ~ 12 mm, D 위 20 ~ 39 mm, β 1.55 ~ 1.75.
+      //   든 직후 (아직 누운 채) 는 D 위 51 ~ 61 mm · β 0.8 ~ 1.0
+      const Eigen::Vector3d pc = f.tcp + f.approach() * lie_release_center_offset_;
+      const double dh = std::hypot(pc.x() - s.spot.x(), pc.y() - s.spot.y());
       const double dz = f.tcp.z() - s.spot.z();
       char buf[200];
-      std::snprintf(buf, sizeof(buf), "grasp point %.1f mm beside and %.1f mm above the stand spot, beta %.2f rad", dh * 1000.0,
+      std::snprintf(buf, sizeof(buf), "puck center (est.) %.1f mm beside, grasp point %.1f mm above the stand spot, beta %.2f rad", dh * 1000.0,
         dz * 1000.0, s.beta);
       if (dh > lie_release_xy_ || dz > lie_release_z_ || s.beta < lie_release_beta_) {
         finishSkill(false, std::string("lie_upright: gripper opened away from the stand spot (dropped): ") + buf);
@@ -2660,7 +2674,10 @@ private:
       RCLCPP_INFO(get_logger(), "lie_upright: released, %s", buf);
     }
     if (r.released) {act[5] = 1.f;}   // 학습: 놓은 뒤 집게는 늘 벌림
-    const Joints5 tgt = lieApplyAction(diff_ik_, lie_params_, r.target ? *r.target : s.q, s.q, act, s.beta, s.rho);
+    // 관절 속도 제한: scale = 행동 전체를 같은 비율로 줄임 (β · ρ 관측이 실제 집게와 맞음), clip = 관절마다 자름 (아래 cmd)
+    const Joints5 tgt = lie_vel_scale_ ?
+      lieApplyActionLimited(diff_ik_, lie_params_, r.target ? *r.target : s.q, s.q, act, s.beta, s.rho, lie_max_joint_vel_ / skill_rate_) :
+      lieApplyAction(diff_ik_, lie_params_, r.target ? *r.target : s.q, s.q, act, s.beta, s.rho);
     s.action = act;
 
     if (!skill_last_cmd_) {skill_last_cmd_ = q;}
@@ -3558,12 +3575,12 @@ private:
   std::optional<LieRun> lie_;
   std::unique_ptr<robot_policy::LoadedPolicy> lie_policy_;
   LieUprightParams lie_params_;
-  bool lie_enabled_{true}, lie_box_required_{true}, lie_look_after_{true};
+  bool lie_enabled_{true}, lie_box_required_{true}, lie_look_after_{true}, lie_vel_scale_{true};
   std::string lie_policy_name_{"lie_upright"}, lie_file_, lie_floor_frame_{"base_footprint"};
   std::vector<double> lie_view_left_, lie_view_right_, lie_view_inline_;
   double lie_box_top_{0.07}, lie_puck_dz_{0.015}, lie_spot_dz_{0.029}, lie_side_y_{0.05}, lie_box_settle_{0.5}, lie_box_timeout_{3.0};
   double lie_pucks_age_{2.0}, lie_max_duration_{15.0}, lie_lift_ok_{0.03}, lie_clear_dist_{0.03}, lie_clear_hold_{1.0};
-  double lie_max_joint_vel_{2.0}, lie_release_xy_{0.03}, lie_release_z_{0.06}, lie_release_beta_{1.4}, lie_retreat_up_{0.05}, lie_retreat_time_{1.0};
+  double lie_max_joint_vel_{3.0}, lie_release_xy_{0.03}, lie_release_z_{0.06}, lie_release_beta_{1.4}, lie_release_center_offset_{0.011}, lie_retreat_up_{0.05}, lie_retreat_time_{1.0};
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr lie_prior_pub_;
   rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr lie_box_client_;
   rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr lie_box_sub_;

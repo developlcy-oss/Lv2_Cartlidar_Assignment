@@ -67,6 +67,15 @@ Joints5 lieApplyAction(
   const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & target_prev, const Joints5 & q_meas,
   const std::array<float, 6> & action, double & beta, double & rho);
 
+// 관절 속도 제한이 있는 한 스텝: 관절 목표 변화가 max_step 을 넘으면 행동 (잡는 점 변위 · β · ρ 변화) 을 같은 비율 s 로 줄여 다시 풂.
+//   관절마다 따로 자르면 잡는 점이 정책이 뜻한 방향과 다르게 움직이고, 퍽이 손 안에서 덜 선 채 벌리는 실패가 늘었음
+//   (Isaac r2e 접촉 없는 성공: 관절마다 자름 3.0 rad/s 79.4 % · 2.0 4.5 %, 비율로 줄임 3.0 95.4 % · 2.0 90.6 %, 제한 없음 96.4 %).
+//   관측 β 와 실제 집게 자세 차이는 어느 방식이든 작았음 (최대 0.06 rad). 비율로 줄이면 β · ρ 는 줄인 만큼만 감.
+//   s 는 이분법 (iters 번), 그래도 넘는 몫은 관절별로 자름 (안전). 쓴 비율을 scale_used 에 (1 = 줄이지 않음)
+Joints5 lieApplyActionLimited(
+  const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & target_prev, const Joints5 & q_meas,
+  const std::array<float, 6> & action, double & beta, double & rho, double max_step, double * scale_used = nullptr, int iters = 8);
+
 // 지금 집게 자세 (FK) → β · ρ (학습 set_beta_rho_from, 범위로 자름). 끝난 뒤 위로 뺄 때 자세를 그대로 두려고 씀
 void lieBetaRhoFrom(const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & q, double & beta, double & rho);
 

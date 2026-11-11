@@ -65,6 +65,46 @@ Joints5 lieApplyAction(
   return out;
 }
 
+Joints5 lieApplyActionLimited(
+  const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & target_prev, const Joints5 & q_meas,
+  const std::array<float, 6> & action, double & beta, double & rho, double max_step, double * scale_used, int iters)
+{
+  auto step_size = [&](const Joints5 & t) {
+      double m = 0.0;
+      for (size_t k = 0; k < 5; ++k) {m = std::max(m, std::abs(t[k] - target_prev[k]));}
+      return m;
+    };
+  auto run = [&](double sc, double & b, double & r) {
+      std::array<float, 6> a = action;
+      for (size_t i = 0; i < 5; ++i) {a[i] = static_cast<float>(std::clamp(static_cast<double>(a[i]), -1.0, 1.0) * sc);}
+      b = beta;
+      r = rho;
+      return lieApplyAction(ik, p, target_prev, q_meas, a, b, r);
+    };
+  double b = 0.0, r = 0.0, used = 1.0;
+  Joints5 t = run(1.0, b, r);
+  if (max_step > 0.0 && step_size(t) > max_step) {
+    double lo = 0.0, hi = 1.0;
+    double bl = 0.0, rl = 0.0;
+    Joints5 tl = run(0.0, bl, rl);
+    for (int i = 0; i < iters; ++i) {
+      const double mid = 0.5 * (lo + hi);
+      double bm = 0.0, rm = 0.0;
+      const Joints5 tm = run(mid, bm, rm);
+      if (step_size(tm) <= max_step) {lo = mid; tl = tm; bl = bm; rl = rm;} else {hi = mid;}
+    }
+    used = lo;
+    t = tl;
+    b = bl;
+    r = rl;
+    for (size_t k = 0; k < 5; ++k) {t[k] = std::clamp(t[k], target_prev[k] - max_step, target_prev[k] + max_step);}
+  }
+  beta = b;
+  rho = r;
+  if (scale_used) {*scale_used = used;}
+  return t;
+}
+
 void lieBetaRhoFrom(const ArmDiffIK & ik, const LieUprightParams & p, const Joints5 & q, double & beta, double & rho)
 {
   const ArmFrame f = ik.forward(q);
