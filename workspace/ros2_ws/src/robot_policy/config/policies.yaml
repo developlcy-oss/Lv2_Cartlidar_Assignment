@@ -71,7 +71,7 @@ lie_upright:
     - {name: grasp_pos, size: 3, required: true}           # 잡는 점 (FK)
     - {name: approach_axis, size: 3, required: true}       # gripper_roll_link +x
     - {name: close_axis, size: 3, required: true}          # gripper_roll_link +y
-    - {name: stand_spot, size: 3, required: true}          # 세울 자리 D (세운 퍽 중심)
+    - {name: stand_spot, size: 3, required: true}          # 세울 자리 D (z = 상자 윗면 + 29 mm, 학습과 같게)
     - {name: neighbor_rel, size: 2, required: true}        # 옆 퍽 xy − 인식 퍽 xy (없으면 0, 0)
     - {name: neighbor_present, size: 1, required: true}
     - {name: box_center, size: 2, required: true}          # 상자 중심 xy
