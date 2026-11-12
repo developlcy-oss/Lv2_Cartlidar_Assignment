@@ -10,9 +10,12 @@ localization:=carto — Cartographer 순수 위치 추정(기본으로는 안 �
   scan_body_mask(차체 가림 지움 → /scan_*_filtered) → cartographer_node(maps/carto_map.pbstream 고정, map_frame carto_map)
   → carto_start(출발 자세에서 궤적 시작) → /tracked_pose → map_odom_relay(map → odom). 정적 TF map → carto_map(지도 맞춤 값).
 loc_monitor(use_loc_monitor, 기본 true): 위치 잃음 감지 · 다시 찾기. 두 방식 모두 지원(다시 넣기만 다름).
-  gate_in 을 주면 그 속도 명령을 받아 OK · SUSPECT 가 아닐 때 0 으로 바꿔 gate_out 으로 낸다(기본 none = 게이트 끔, /localization/lock 만 냄)."""
+  gate_in 을 주면 그 속도 명령을 받아 OK · SUSPECT 가 아닐 때 0 으로 바꿔 gate_out 으로 낸다(기본 none = 게이트 끔, /localization/lock 만 냄).
+lifecycle_delay(기본 3.0 s): 지도 서버 · AMCL 을 켜 주는 lifecycle_manager 를 이만큼 늦게 띄움. 노드가 한꺼번에 뜰 때 change_state 응답이
+  DDS 에서 버려져("failed to send response … client will not receive response") 지도 서버가 안 켜지던 일(Gazebo 11-12, 10 번 중 2 번).
+  navigation.launch.py 와 같은 인자 이름이라 명령 줄에서 한 번 주면 둘 다 같은 값."""
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, OpaqueFunction, TimerAction
 from launch.conditions import IfCondition
 from launch.substitutions import AndSubstitution, EqualsSubstitution, LaunchConfiguration as LC, PathJoinSubstitution
 from launch_ros.actions import Node
@@ -63,7 +66,13 @@ def generate_launch_description():
         DeclareLaunchArgument('loc_event_log', default_value='none', description='loc_monitor 사건 기록 jsonl(none = 안 씀)'),
         DeclareLaunchArgument('gate_in', default_value='none', description='loc_monitor 명령 게이트 입력(none = 끔)'),
         DeclareLaunchArgument('gate_out', default_value='/cmd_vel_nav'),
+        DeclareLaunchArgument('lifecycle_delay', default_value='3.0',
+                              description='지도 서버 · AMCL 의 lifecycle_manager 를 이만큼 늦게 시작[s](시작 때 DDS 응답 유실 줄이기, 0 = 바로)'),
     ]
+    # lifecycle_delay 는 여기서(포함 범위 안에서) 숫자로 읽어 둠. TimerAction 에 LaunchConfiguration 을 그대로 주면 나중에 읽어
+    # 다른 launch 에 포함됐을 때 "launch configuration 'lifecycle_delay' does not exist" 로 타이머가 안 터짐(Gazebo 11-12)
+    delay = lambda node: OpaqueFunction(function=lambda context: [
+        TimerAction(period=float(LC('lifecycle_delay').perform(context)), actions=[node])])
     map_servers = ['map_server', 'map_objects_server']
     return LaunchDescription(args + [
         Node(package='localization', executable='scan_body_mask', name='scan_body_mask', output='screen',
@@ -73,8 +82,8 @@ def generate_launch_description():
              parameters=[sim, {'yaml_filename': LC('map'), 'topic_name': 'map', 'frame_id': 'map'}]),
         Node(package='nav2_map_server', executable='map_server', name='map_objects_server', output='screen', condition=IfCondition(LC('use_map_server')),
              parameters=[sim, {'yaml_filename': LC('objects_map'), 'topic_name': 'map_objects', 'frame_id': 'map'}]),
-        Node(package='nav2_lifecycle_manager', executable='lifecycle_manager', name='lifecycle_manager_maps', output='screen',
-             condition=IfCondition(LC('use_map_server')), parameters=[sim, {'autostart': True, 'node_names': map_servers}]),
+        delay(Node(package='nav2_lifecycle_manager', executable='lifecycle_manager', name='lifecycle_manager_maps', output='screen',
+                   condition=IfCondition(LC('use_map_server')), parameters=[sim, {'autostart': True, 'node_names': map_servers}])),
         # Cartographer
         Node(package='cartographer_ros', executable='cartographer_node', name='cartographer_node', output='screen', parameters=[sim], condition=carto,
              arguments=['-configuration_directory', LC('carto_config_dir'), '-configuration_basename', LC('carto_config'),
@@ -92,8 +101,8 @@ def generate_launch_description():
              parameters=[LC('amcl_params'), sim, {'initial_pose.x': ParameterValue(LC('start_x'), value_type=float),
                                                   'initial_pose.y': ParameterValue(LC('start_y'), value_type=float),
                                                   'initial_pose.yaw': ParameterValue(LC('start_yaw'), value_type=float)}]),
-        Node(package='nav2_lifecycle_manager', executable='lifecycle_manager', name='lifecycle_manager_amcl', output='screen', condition=amcl_node,
-             parameters=[sim, {'autostart': True, 'node_names': ['amcl']}]),
+        delay(Node(package='nav2_lifecycle_manager', executable='lifecycle_manager', name='lifecycle_manager_amcl', output='screen',
+                   condition=amcl_node, parameters=[sim, {'autostart': True, 'node_names': ['amcl']}])),
         # 위치 잃음 감지 · 다시 찾기
         Node(package='localization', executable='loc_monitor', name='loc_monitor', output='screen', condition=IfCondition(LC('use_loc_monitor')),
              parameters=[sim, align, {'backend': LC('localization'), 'map': LC('loc_map'), 'mission_frame': 'map',
