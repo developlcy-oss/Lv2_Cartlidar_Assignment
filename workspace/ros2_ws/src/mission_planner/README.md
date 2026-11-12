@@ -15,7 +15,7 @@
 ```bash
 colcon build --packages-select mission_planner && source install/setup.bash
 mission_make_maps                                   # worlds/dice_mission.sdf 가 바뀌면 (지도 · 자세표 다시)
-mission_plan --problem config/problem_q1_example.yaml --mode per_location --out /tmp/plan   # plan.json · signal.json · allocation.json
+mission_plan --problem config/problem_q1_example.yaml --mode hybrid --out /tmp/plan   # plan.json · signal.json · allocation.json
 mission_plan --problem <문제>.yaml --mode compare   # 두 운영 방식 비용 비교
 mission_submit --problem <문제>.yaml --out <저장소>/submission/review   # 발제 후 검토 제출물 5 종 (problem.md · signals.json · placement.csv · 할당 정답표 · 검증 기록)
 mission_challenge_b --out <저장소>/challenge/B      # 도전 B 제출물 (cases.json · expected.json · results.csv · report.md)
@@ -48,14 +48,20 @@ python3 -m pytest test                               # 시험 19 개 (할당 6 �
 
 | mode | 내용 | 팔레트 |
 |---|---|---|
-| `per_location` (기본) | L 마다 그 그룹 퍽 박스들을 돌고 → L 에 놓기 (3 번 왕복) | 한 번에 6 개 이하 → 수직 칸 8 개만 (기울임 칸 안 씀) |
+| `hybrid` (기본, 팀 결정 2026-11-12) | 박스를 돌며 싣다가 어떤 L 의 퍽이 다 실리면 그 L 에 들러 한 번에 다 내리고 이어 감 (L 은 한 번씩) | 퍽 단위 LIFO (나중 배달 퍽이 아래 = 뒤 열). 칸 = 실린 동안 위에 놓인 퍽 수의 최대로 정함 (`hybrid.assign_slots`) |
+| `per_location` | L 마다 그 그룹 퍽 박스들을 돌고 → L 에 놓기 (3 번 왕복) | 한 번에 6 개 이하 → 2 · 1 열 8 칸만 |
 | `single_load` | 12 개 모두 싣고 → L 3 곳 | 3 열 → 2 열 → 1 열로 싣고 1 → 2 → 3 열로 꺼냄 (먼저 배달할 L 을 1 열에), 열마다 3 · 4 번째는 기울임 칸 |
 
 방문 순서 = 일반화 TSP (박스 = 묶음, 접근 면 = 선택지, Held-Karp 정확해). L 순서 · 열 나누기는 전부 나열.
+hybrid: L 배달 순서 (a, b, c) 마다 경로는 꼭 `HOME → C1 → B1 → A → La → C2 → B2 → Lb → C3 → Lc` 꼴 (런 = 한 그룹을 박스 순서 자유로 집기,
+C2 는 B1 이 비었을 때만). 그룹마다 Held-Karp 표 (`hybrid._hk`, 같은 그룹 구성은 재사용) 를 numpy 로 만들고 (C1, B1) 모든 조합을 배열로 한 번에 셈.
+비용 = 경로 + 3 열 칸 × `ROW3_PENALTY_M` 2.8 m (칸당 약 14 s × 0.2 m/s, 가정). 퍽 단위 완전 탐색 (상태 = 실은 퍽 집합) 과 무작위 14 문제에서 경로가 같음,
+계산은 할당 전부 봐도 0.01 s 안팎 (PC, 완전 탐색은 할당 3 개에 약 25 s). 비용표 (`hybrid.Nodes`) 는 World 만들 때 (노드 시작) 미리 셈.
 비용 = stage 사이 A* (로봇 반지름 0.19 m 부풀림, 시야선 당김) 길이 + 회전 0.1 m/rad + 들어가고 나오기 2 × (standoff − gap).
 놓는 칸 순서 = J1 에서 먼 칸부터. 마지막 L 에서 나머지 L 을 다시 들러 새 관측 (재검증) → 출발 구역.
 
-Q1 예제 (설명용 색 · 모양): per_location 비용 66.5 (주행 44.5 m), single_load 57.5.
+Q1 예제 (설명용 색 · 모양, 2026-11-12): hybrid 53.1, per_location 62.6, single_load 54.4 (경로 비용 m).
+시간 가정 (0.2 m/s, 정차 15 s, 3 열 칸 +7 s) 으로 Q1 + 무작위 13 문제 평균: hybrid 412 s, per_location 470 s, single_load 481 s (14 문제 모두 hybrid 가 가장 빠름).
 
 ## AMCL
 
@@ -74,7 +80,7 @@ Q1 예제 (설명용 색 · 모양): per_location 비용 66.5 (주행 44.5 m), s
 ## mission_node 연동 (plan 모드)
 
 ```bash
-ros2 launch mission_planner planner.launch.py pucks_file:=<퍽 등록표>.yaml [mode:=per_location] [log_dir:=/tmp/mission_log]
+ros2 launch mission_planner planner.launch.py pucks_file:=<퍽 등록표>.yaml [mode:=hybrid] [log_dir:=/tmp/mission_log]
 ros2 launch mission mission_bringup.launch.py                    # 기본 source:=plan = mission_plan.yaml 덧씌움 (옛 태그 미션표는 source:=tag)
 ros2 service call /mission/start std_srvs/srv/Trigger
 ```
@@ -117,7 +123,8 @@ Q1 예제 105 단계 **DONE** (sim 약 455 s): goto 18 번 모두 도착 (AMCL �
 - 모든 집기 · 놓기 45° (2026-11-03): 팔레트 12 칸은 Isaac 24/24 (#75). 박스 위 집기 · L 칸 놓기 45° 와 상자 퍽 ±17° 회전 집기는 Isaac · 실물 확인 전.
   J1 거리 범위 0.12 ~ 0.35 m (윗면 70 mm). 모든 final = FINE 자리 (앞 끝 - 면 0.1272, #64 안 A): 박스 퍽 J1 0.270 m, inline 0.227 / 0.306, L1 · L2 · L3 칸 0.206 ~ 0.332 m.
   TopPick 다시 학습 필요 (#78): tilt_prob 1.0, 실제 배치 gap 0.1272, 회전 뒤 상자 퍽은 옆 퍽이 접선 방향. 회전 skill 은 drive #77.
-- per_location 은 팔레트 2 · 1 열 8 칸만 씀 (3 열 놓기는 쥔 구간 0.4 rad/s 라 칸당 약 6 s 더 걸림).
+- per_location 은 팔레트 2 · 1 열 8 칸만 씀 (3 열 놓기는 쥔 구간 0.4 rad/s 라 칸당 약 6 s 더 걸림). hybrid 는 동시에 8 개를 넘을 때만 3 열 (벌점으로 피함).
+- hybrid 는 한 박스의 두 퍽을 서로 다른 때 집을 수 있음 → 누운 퍽 순서 제약 (#193, 같은 박스 세운 퍽 먼저) 을 넣을 자리는 `hybrid.plan_hybrid` 런 나누기.
 - 45° 로 놓은 상자 퍽은 칸에서 J1→칸 방향으로 돌아 앉음 (L1 · L3 최대 23°, L2 16°). 칸 판정에 퍽 방향이 들어가는지 확인.
 - manipulator: 위 skill 이름은 manipulator_node 에 있음 (PR #94, 팔레트 구간 순서는 #75 Isaac 확인본). 팔레트 궤적 원본은 `urdf_and_usd/policy/manipulator/pallet_place_traj.json`.
 - approach FINE 자리를 그대로 집기 · 놓기 자세로 씀 (#64 안 A). TFmini 는 0.10 m 안을 못 재 obstacle_stop 이 막으므로 더 붙지 않음.

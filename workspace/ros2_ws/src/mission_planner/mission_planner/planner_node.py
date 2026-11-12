@@ -7,7 +7,7 @@
 기록 (log_dir): signal.json · allocation.json · plan.json · mission_lines.txt (발제 제출물 형식)
 파라미터:
   pucks_file  퍽 12 개 등록표 (placement.csv 를 옮긴 yaml: pucks [{id, color, shape, box, side}]). signal · barcode 키가 있어도 무시 (관측값을 씀)
-  mode        per_location | single_load
+  mode        hybrid (기본, 팀 결정 2026-11-12) | per_location | single_load
   stop_after  none | observe | first_pick | first_place  부분 실물 시험 (planner.cut_steps): 그 지점까지만 하고 복귀
   fine_distance · skill_timeout · return_wait   mission_lines.to_lines 인자
   sdf         경기장 (비우면 패키지 worlds/dice_mission.sdf)
@@ -36,7 +36,7 @@ class PlannerNode(Node):
     def __init__(self):
         super().__init__("mission_planner_node")
         self.pucks_file = self.declare_parameter("pucks_file", "").value
-        self.mode = self.declare_parameter("mode", "per_location").value
+        self.mode = self.declare_parameter("mode", "hybrid").value
         self.stop_after = self.declare_parameter("stop_after", "none").value
         self.fine = float(self.declare_parameter("fine_distance", 0.13).value)
         self.skill_timeout = float(self.declare_parameter("skill_timeout", 40.0).value)
