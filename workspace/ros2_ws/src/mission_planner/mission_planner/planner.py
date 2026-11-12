@@ -307,7 +307,7 @@ def _steps(world, mode, alloc, group_of_L, r):
         pk = a.extra["pucks"][p.side]
         turn = pk["turn_deg"] if p.shape == "box" else 0.0  # 상자 퍽: 면을 J1→퍽 방향에 맞추는 제자리 회전
         steps.append(dict(type="pick", at=key, puck=p.id, color=p.color, shape=p.shape, pose=p.pose, box=p.box, side=p.side,
-                          j1_dist=pk["dist"], tilt=True, turn_deg=turn, slot=list(slot)))
+                          j1_dist=pk["dist"], tilt=True, turn_deg=turn, turn_range_deg=list(a.extra["turn_range_deg"]), slot=list(slot)))
         pallet[slot] = p
         if a.extra.get("inline"):
             warn.append(f"퍽 {p.id}: 박스 {p.box} 는 ±Y 면이 막혀 {a.extra['side']} 면 (두 퍽 앞뒤) 에서 집음, J1 거리 {pk['dist']:.3f}")

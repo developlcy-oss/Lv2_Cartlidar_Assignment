@@ -128,6 +128,10 @@ Q1 예제 105 단계 **DONE** (sim 약 455 s): goto 18 번 모두 도착 (AMCL �
   같은 정차는 세운 퍽부터 (모든 방식). hybrid 는 런 나누기에서 어기는 후보를 빼서 늘 지킴 (무작위 40 문제: 18 문제 경로가 바뀜, 평균 +0.66 m · 최대 +4.1 m).
   per_location · single_load 는 정차 사이 순서를 보장하지 않아 어기면 경고. inline 박스 (B6 W 면) 에서 먼 세운 퍽을 먼저 집게 되면 경고 (실물 확인).
   미션 줄은 누운 퍽도 아직 `toppick_tilt` (누운 퍽 스킬 연결은 #193 에서 정함, 계획 경고로 알림).
+- 시작 박스가 돌아 놓일 때 (#226, 가정 ±45°): 박스 접근마다 `turn_range_deg` (접근 자세표 · pick 단계) = 집기 자리에서 로봇 중심 둘레로 돌아도
+  외곽 + 1 cm 가 안 닿는 범위 (박스 요 −45 ~ +45° 를 15° 마다 돌려 본 교집합). 지금 경기장은 모든 박스 접근이 ±45° (가까운 것은 대상 박스뿐,
+  여유 5 cm 면 ±28°). mission 이 잰 상자 요 β 로 `turn_deg + β` 를 정하고 이 범위 · drive `turn.max_deg` 30° 로 자르면 됨.
+  상자가 돌면 퍽도 박스 중심 둘레로 0.08 sin(β/2) (45° 에서 31 mm) 옮겨지므로 target_look 예상 자리는 잰 상자로 다시 셈 (match_distance 0.04).
 - 45° 로 놓은 상자 퍽은 칸에서 J1→칸 방향으로 돌아 앉음 (L1 · L3 최대 23°, L2 16°). 칸 판정에 퍽 방향이 들어가는지 확인.
 - manipulator: 위 skill 이름은 manipulator_node 에 있음 (PR #94, 팔레트 구간 순서는 #75 Isaac 확인본). 팔레트 궤적 원본은 `urdf_and_usd/policy/manipulator/pallet_place_traj.json`.
 - approach FINE 자리를 그대로 집기 · 놓기 자세로 씀 (#64 안 A). TFmini 는 0.10 m 안을 못 재 obstacle_stop 이 막으므로 더 붙지 않음.
