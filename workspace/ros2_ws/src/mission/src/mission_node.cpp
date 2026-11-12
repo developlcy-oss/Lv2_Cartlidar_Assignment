@@ -71,7 +71,18 @@
 //                                 잰 장소의 place_<L>_<dx>_<dy>_tilt 는 place_at:<frame>:x:y:z 로, verify 칸도 같은 frame 칸으로 바꿈
 //                                 (칸 = 잰 중심 + 지도 축 칸 오프셋을 상자가 돈 만큼 (±45°) 돌림). 실패 · 지도 칸에서 max_shift 넘게 떨어짐 →
 //                                 place_box.required 면 단계 실패, 아니면 기록하고 지도 좌표 그대로
-//   check_marker <L>              marker.check_before_place 면 그 장소 첫 place_<L>_* skill 앞에 자동으로 붙음:
+//   비스듬히 서기 (oblique.enabled, include/mission/oblique.hpp) — 켜면 measure_box 가 그 장소 approach_box 앞 (대기 자리) 으로
+//     옮겨 붙고 (뒤의 approach_box · 놓기는 그대로), 순서가 바뀜:
+//     ① SEARCH_FRONT + /perception/place_box/prior (지도 칸 중심) → /perception/place_box/measure_front → status ok (camera front) + 상자
+//     ② 잰 중심 · 요를 base 로: beta = 상자 요 - 차체 요 (±45°)
+//     ③ 차체 x 축이 중심을 지나게 제자리 회전 phi = atan2(c_y, c_x - icr_x) (|phi| > min_turn_deg 면 /drive/navigate 같은 x, y · yaw + phi)
+//     ④ 축을 따라 중심이 R_look = front + view_gap + half (|cos b| + |sin b|) 에 오게 align BOX (TFmini 목표 = R_look - half / cos b - tf_x).
+//        |b| > tf_max_beta_deg 면 odom 직진이 없어 (#225) 같은 TFmini 목표로 대신하고 경고
+//     ⑤ execute_skill box_look:map:cx:cy:z:<place_look 거리>:<각> (잰 중심) → place_box.mode → /perception/place_box/measure (팔, 기존과 같음)
+//     verify 앞에 끼우는 접근은 approach_view <L> (같은 계산의 보기 자리, 잰 요가 없으면 b = 0), verify box_look 은 tag_look 거리 · 각으로 잰 중심을 봄.
+//     결정마다 mission_log "oblique" 줄
+//   approach_view <L>             (oblique 전용, 자동으로만 붙음) 주행 자세 → align BOX, 목표 = 보기 자리 TFmini 거리
+//   check_marker <L>             marker.check_before_place 면 그 장소 첫 place_<L>_* skill 앞에 자동으로 붙음:
 //                                 READ_MARKER → 기대 ID 를 보면 성공, 다른 ID 면 실패 (엉뚱한 장소에 놓지 않게)
 //
 // 기록 (log_dir, include/mission/episode_log.hpp): 에피소드 (/mission/start 로 새로 시작한 미션) 마다 <log_dir>/<YYMMDD_HHMM>/ 하나
@@ -142,6 +153,7 @@
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 
+#include "mission/oblique.hpp"
 #include "mission/return_check.hpp"
 #include "mission/verify_record.hpp"
 #include "mission/survey_pucks.hpp"
@@ -254,6 +266,12 @@ public:
       dice_client_ = create_client<CheckDice>("/perception/check_dice", rclcpp::ServicesQoS(), mission_cb_group_);
       if (place_box_enabled_) {
         place_box_client_ = create_client<Trigger>("/perception/place_box/measure", rclcpp::ServicesQoS(), mission_cb_group_);
+        if (oblique_enabled_) {   // 비스듬히 서기: 앞 D435 로 대기 자리에서 먼저 잼 (사전값 = 지도 칸 중심, perception 이 5 s 안 것만 씀)
+          pb_front_client_ =
+            create_client<Trigger>("/perception/place_box/measure_front", rclcpp::ServicesQoS(), mission_cb_group_);
+          pb_prior_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("/perception/place_box/prior",
+              rclcpp::QoS(1).reliable().transient_local());
+        }
       }
       if (survey_enabled_) {
         survey_start_client_ = create_client<Trigger>("/perception/survey/start", rclcpp::ServicesQoS(), mission_cb_group_);
@@ -488,7 +506,20 @@ private:
     place_box_max_shift_ = declare_parameter<double>("place_box.max_shift", 0.10);
     place_box_required_ = declare_parameter<bool>("place_box.required", false);
     timeout_["measure_box"] = declare_parameter<double>("timeout.measure_box", 15.0);
-    timeout_["survey"] = declare_parameter<double>("timeout.survey", 20.0);          // start · finish 서비스
+    // 비스듬히 서기 (oblique.*): 꺼져 있으면 지금 흐름 그대로
+    oblique_enabled_ = declare_parameter<bool>("oblique.enabled", false);
+    ob_view_gap_ = declare_parameter<double>("oblique.view_gap", 0.35);
+    ob_place_look_ = declare_parameter<std::vector<double>>("oblique.place_look", {0.44, 50.0});
+    ob_tag_look_ = declare_parameter<std::vector<double>>("oblique.tag_look", {0.40, 55.0});
+    ob_tf_max_beta_ = declare_parameter<double>("oblique.tf_max_beta_deg", 30.0) * M_PI / 180.0;
+    ob_min_turn_ = declare_parameter<double>("oblique.min_turn_deg", 0.5) * M_PI / 180.0;
+    ob_front_timeout_ = declare_parameter<double>("oblique.front_timeout_s", 5.0);
+    ob_step_timeout_ = declare_parameter<double>("oblique.timeout", 90.0);
+    ob_geom_.front = declare_parameter<double>("oblique.front_x", ob_geom_.front);
+    ob_geom_.half = declare_parameter<double>("oblique.box_half", ob_geom_.half);
+    ob_geom_.tf_x = declare_parameter<double>("oblique.tfmini_x", ob_geom_.tf_x);
+    ob_geom_.icr_x = declare_parameter<double>("oblique.icr_x", ob_geom_.icr_x);
+    timeout_["survey"] =declare_parameter<double>("timeout.survey", 20.0);          // start · finish 서비스
     timeout_["survey_view"] = declare_parameter<double>("timeout.survey_view", 30.0);
   }
 
@@ -625,6 +656,24 @@ private:
         }
         loadPlaceCenters();
       }
+      if (oblique_enabled_) {
+        auto look_ok = [](const std::vector<double> & v) {
+            return v.size() == 2 && v[0] > 0.0 && v[1] > 0.0 && v[1] <= 90.0;
+          };
+        if (!look_ok(ob_place_look_) || !look_ok(ob_tag_look_)) {
+          throw std::invalid_argument("oblique.place_look · tag_look must be [distance > 0, angle_deg (0, 90]]");
+        }
+        // 보기 자리 TFmini 목표가 drive FINE 하한 0.13 이상 (b = 0 에서 가장 짧음: view_gap + front - tf_x)
+        if (!(ob_view_gap_ + ob_geom_.front - ob_geom_.tf_x >= 0.13) || !(ob_geom_.half > 0.0)) {
+          throw std::invalid_argument("oblique.view_gap + front_x - tfmini_x must be >= 0.13, box_half > 0");
+        }
+        if (!(ob_tf_max_beta_ >= 0.0) || !(ob_min_turn_ >= 0.0) || !(ob_front_timeout_ > 0.0) || !(ob_step_timeout_ > 0.0)) {
+          throw std::invalid_argument("oblique.tf_max_beta_deg · min_turn_deg >= 0, front_timeout_s · timeout > 0");
+        }
+        if (!place_box_enabled_) {
+          RCLCPP_WARN(get_logger(), "oblique.enabled 이지만 place_box 가 꺼져 있음 -> 비스듬히 서기 안 함");
+        }
+      }
     }
     // 미션표의 위치 이름 · 단계 인자 확인 (현장에서 오타로 멈추지 않게 시작 때 거부)
     for (const auto & [id, steps] : missions_) {
@@ -714,7 +763,7 @@ private:
         bad("mode= takes names joined by '+' (OFF · SEARCH_FRONT · ARM_ALIGN · READ_TAG · SEARCH_REAR · "
           "READ_MARKER · READ_SIGNAL · READ_BARCODE), no numbers");
       }
-    } else if (s.type == "check_marker" || s.type == "measure_box") {
+    } else if (s.type == "check_marker" || s.type == "measure_box" || s.type == "approach_view") {
       if (s.args.size() != 1 || markerIdOf(s.args[0]) < 0) {bad("needs <L1|L2|L3>");}
     } else if (s.type == "survey_view") {
       if (s.args.size() != 2 || !isNumber(s.args[0], v) || v < 1 || v > 6) {bad("needs <box 1-6> <arm_pose>");}
@@ -1039,7 +1088,9 @@ private:
     const Step & s = steps_[step_idx_];
     if (s.type == "skill") {return skillTimeout(s) + skill_timeout_margin_;}
     if (s.type == "wait") {return std::stod(s.args[0]) + 5.0;}
+    if (s.type == "measure_box" && oblique_enabled_) {return ob_step_timeout_;}   // 앞 재기 + 회전 + 접근 + 팔 보기 + 재기
     const std::string key = s.type == "goto" ? "navigate" : s.type == "pick_target" ? "pick" :
+      s.type == "approach_view" ? "approach_box" :
       (s.type == "survey_start" || s.type == "survey_finish") ? "survey" : s.type;
     auto it = timeout_.find(key);
     return it != timeout_.end() ? it->second : 60.0;
@@ -1088,6 +1139,7 @@ private:
     marker_checked_.clear();
     box_attempted_.clear();
     box_meas_.clear();
+    ob_front_.clear();
     verify_records_.clear();
     mismatch_logged_cycles_ = -1;
     retry_count_.clear();
@@ -1120,6 +1172,7 @@ private:
     watching_ = false;
     rotating_ = false;
     rotations_ = 0;
+    ob_stage_ = ObStage::NONE;
     stopVerifyRecord();
     const Step & s = steps_[idx];
     RCLCPP_INFO(get_logger(), "-> [%zu] %s", idx, s.text.c_str());
@@ -1140,7 +1193,15 @@ private:
     } else if (s.type == "search") {
       // ① 주행 자세 완료 → ② OFF(추적 초기화) → ③ SEARCH_FRONT | SEARCH_REAR → tickSearch
       sendArmPose(travel_pose_);
-    } else if (s.type == "approach" || s.type == "approach_box") {
+    } else if (s.type == "approach_box" && needsObliqueMeasure(idx)) {
+      // 비스듬히 서기: 장소 상자 재기를 정밀 접근 앞 (대기 자리, 앞 D435 로 상자가 다 보임) 으로 옮김
+      const std::string L = placeOfUnload(idx + 1);
+      box_attempted_.insert(L);
+      steps_.insert(steps_.begin() + static_cast<std::ptrdiff_t>(idx), parseStep("measure_box " + L));
+      enterStep(idx);
+      return;
+    } else if (s.type == "approach" || s.type == "approach_box" || s.type == "approach_view") {
+      // approach_view: approach_box 와 같고 목표 = 보기 자리 TFmini 거리 (비스듬히 서기, viewAlignTarget)
       // approach: ① 주행 자세 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ 정렬 자세 (align.arm_pose) → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
       // approach_box: ① 주행 자세 완료 → ② align box_only (인식 모드와 상관없음, #160)
       sendArmPose(travel_pose_);
@@ -1169,6 +1230,13 @@ private:
       dice_pending_ = false;
       if (s.type == "observe" && observe_arm_pose_ == "barcode_look") {
         sendLook("barcode_look", barcode_point_[0], barcode_point_[1], barcode_point_[2]);
+      } else if (s.type == "verify" && verify_arm_pose_ == "box_look" && oblique_enabled_) {
+        // 비스듬히 서기: 잰 상자 중심 (없으면 지도 칸) 을 tag_look 거리 · 각으로 봄
+        double x = std::stod(s.args[1]), y = std::stod(s.args[2]), z = std::stod(s.args[3]), yaw = 0.0, top = place_top_z_;
+        const bool measured = boxInMap(s.args[0], x, y, yaw, top);
+        if (measured) {z = top - (place_top_z_ - z);}
+        logEvent("oblique", obliqueLookJson("verify_look", s.args[0], measured ? "measured" : "map", x, y, z, ob_tag_look_));
+        sendLook("box_look", x, y, z, ob_tag_look_[0], ob_tag_look_[1]);
       } else if (s.type == "verify" && verify_arm_pose_ == "box_look") {
         sendLook("box_look", std::stod(s.args[1]), std::stod(s.args[2]), std::stod(s.args[3]));
       } else {
@@ -1197,6 +1265,13 @@ private:
     } else if (s.type == "check_marker") {
       drive_done_ = true;
       setModeThen(Mode::READ_MARKER, [this]() {beginWatch();});
+    } else if (s.type == "measure_box" && oblique_enabled_) {
+      // 비스듬히 서기: ① SEARCH_FRONT → 사전값 · measure_front → tickMeasureBox (앞 결과) → ② 회전 → ③ 접근 → ④ 팔 보기 → ⑤ 팔 재기
+      drive_done_ = true;
+      pb_requested_ = false;
+      ob_stage_ = ObStage::FRONT;
+      box_attempted_.insert(s.args[0]);
+      setModeThen(Mode::SEARCH_FRONT, [this]() {startFrontMeasure();});
     } else if (s.type == "measure_box") {
       // ① 팔 place_box.arm_pose → ② place_box.mode → ③ tickMeasureBox (settle → measure → 결과)
       drive_done_ = true;
@@ -1257,6 +1332,17 @@ private:
           requestSnapshot("before_r" + r + "_B" + box,
             "\"event\": \"before\", \"box\": " + box + ", \"round\": " + r);   // 이동 전 (시작 박스 보기 자세)
         });
+    } else if (s.type == "measure_box" && ob_stage_ != ObStage::NONE) {
+      // 비스듬히 서기: 회전 (navigate) · 접근 (align BOX) · 팔 보기 (box_look) 결과가 오면 다음
+      if (ob_stage_ == ObStage::TURN) {
+        obliqueAdvance();
+      } else if (ob_stage_ == ObStage::ADVANCE) {
+        obliqueLook();
+      } else if (ob_stage_ == ObStage::LOOK) {
+        ob_stage_ = ObStage::ARM;   // 여기부터 기존 팔 재기 (place_box.mode → settle → measure)
+        pb_requested_ = false;
+        setModeThen(*parseModeNames(place_box_mode_text_), [this]() {beginWatch();});
+      }
     } else if (s.type == "measure_box" && phase_ == 1) {
       setModeThen(*parseModeNames(place_box_mode_text_), [this]() {beginWatch();});
     } else if (s.type == "approach") {
@@ -1282,6 +1368,12 @@ private:
       } else {
         stepSucceeded();
       }
+    } else if (s.type == "approach_view") {
+      if (phase_ == 1) {
+        sendAlign(AlignStage::BOX, viewAlignTarget(s.args[0]));   // 주행 자세 완료 → 보기 자리까지
+      } else {
+        stepSucceeded();
+      }
     }
   }
 
@@ -1289,7 +1381,7 @@ private:
   {
     const auto & t = steps_[step_idx_].type;
     return t == "search" || t == "approach" || t == "approach_box" || t == "observe" || t == "verify" || t == "survey_view" ||
-           t == "measure_box";
+           t == "measure_box" || t == "approach_view";
   }
 
   void stepSucceeded()
@@ -1532,21 +1624,37 @@ private:
   // pallet_unload_* 이고 다음 단계가 아직 재지 않은 장소의 place_<L>_* 면 true (퍽을 쥐기 전에 잼)
   bool needsBoxMeasure(size_t idx) const
   {
-    if (!plan_mode_ || !place_box_enabled_ || idx + 1 >= steps_.size()) {return false;}
+    if (!plan_mode_ || !place_box_enabled_) {return false;}
+    const std::string L = placeOfUnload(idx);
+    return !L.empty() && place_centers_.count(L) > 0 && box_attempted_.count(L) == 0;
+  }
+
+  // steps_[idx] 가 pallet_unload_* 이고 다음이 place_<L>_* 면 L, 아니면 빈 문자열
+  std::string placeOfUnload(size_t idx) const
+  {
+    if (idx + 1 >= steps_.size()) {return "";}
     const Step & s = steps_[idx];
     const Step & n = steps_[idx + 1];
-    if (s.args.size() < 2 || s.args[0] != "manipulator" || s.args[1].rfind("pallet_unload_", 0) != 0) {return false;}
+    if (s.type != "skill" || s.args.size() < 2 || s.args[0] != "manipulator" || s.args[1].rfind("pallet_unload_", 0) != 0) {
+      return "";
+    }
     if (n.type != "skill" || n.args.size() < 2 || n.args[0] != "manipulator" || n.args[1].rfind("place_L", 0) != 0 ||
       n.args[1].size() < 8)
     {
-      return false;
+      return "";
     }
-    const std::string L = n.args[1].substr(6, 2);
-    return place_centers_.count(L) > 0 && box_attempted_.count(L) == 0;
+    return n.args[1].substr(6, 2);
+  }
+
+  // 비스듬히 서기: approach_box 바로 뒤가 아직 재지 않은 장소의 첫 꺼내기 · 놓기면 true (재기를 이 접근 앞으로)
+  bool needsObliqueMeasure(size_t idx) const
+  {
+    return oblique_enabled_ && steps_[idx].type == "approach_box" && needsBoxMeasure(idx + 1);
   }
 
   void tickMeasureBox()
   {
+    if (ob_stage_ == ObStage::FRONT) {tickFrontMeasure(); return;}
     if (!watching_) {return;}
     if (!pb_requested_) {
       if ((now() - view_since_).seconds() < place_box_settle_) {return;}
@@ -1614,6 +1722,206 @@ private:
     RCLCPP_WARN(get_logger(), "measure_box %s 실패 -> 지도 좌표로 놓음: %s", L.c_str(), why.c_str());
     logEvent("measure_box", "\"place\": \"" + L + "\", \"ok\": false, \"fallback\": \"map\", \"why\": \"" + escape(why) + "\"");
     stepSucceeded();
+  }
+
+  // ------------------------------------------------------------------ 비스듬히 서기 (oblique.*, oblique.hpp)
+  // ① 사전값 (지도 칸 중심, 요 0) 을 내고 앞 D435 재기 요청. 결과는 tickFrontMeasure
+  void startFrontMeasure()
+  {
+    const std::string L = steps_[step_idx_].args[0];
+    const auto & c = place_centers_.at(L);
+    geometry_msgs::msg::PoseStamped prior;
+    prior.header.frame_id = map_frame_;
+    prior.header.stamp = now();
+    prior.pose.position.x = c.first;
+    prior.pose.position.y = c.second;
+    prior.pose.position.z = place_top_z_;
+    prior.pose.orientation.w = 1.0;
+    pb_prior_pub_->publish(prior);
+    pb_requested_ = true;
+    pb_request_t_ = now();
+    watching_ = true;
+    RCLCPP_INFO(get_logger(), "비스듬히 서기 %s: 앞 D435 로 상자 재기 (사전값 지도 칸 %.3f, %.3f)", L.c_str(), c.first, c.second);
+    callTrigger(pb_front_client_, "/perception/place_box/measure_front", [this](bool ok, const std::string & msg) {
+        if (!ok) {measureBoxFailed("measure_front: " + msg);}
+      });
+  }
+
+  // 앞 D435 결과: status ok · camera front + 상자 자세 (odom). oblique.front_timeout_s 안에 없으면 실패 (measureBoxFailed)
+  void tickFrontMeasure()
+  {
+    if (!watching_ || !pb_requested_) {return;}
+    std::string status;
+    geometry_msgs::msg::PoseStamped::ConstSharedPtr pose;
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      if (pb_status_ && pb_status_rx_ >= pb_request_t_) {status = pb_status_->data;}
+      if (pb_pose_ && pb_pose_rx_ >= pb_request_t_) {pose = pb_pose_;}
+    }
+    const bool late = (now() - pb_request_t_).seconds() > ob_front_timeout_;
+    if (!status.empty() && status.find("\"ok\": true") == std::string::npos) {measureBoxFailed("front status " + status); return;}
+    if (!status.empty() && status.find("\"camera\": \"front\"") == std::string::npos) {
+      measureBoxFailed("front status (camera front 아님) " + status);
+      return;
+    }
+    if (status.empty() || !pose) {   // status 가 상자 자세보다 먼저 옴
+      if (late) {measureBoxFailed("measure_front: " + std::to_string(ob_front_timeout_) + " s 안에 결과 없음");}
+      return;
+    }
+    watching_ = false;
+    obliqueFrontDone(*pose);
+  }
+
+  // ② 잰 중심 · 요를 base 로 → beta · 회전각. ③ 회전이 필요하면 /drive/navigate (같은 x, y · yaw + phi), 아니면 바로 접근
+  void obliqueFrontDone(const geometry_msgs::msg::PoseStamped & pose)
+  {
+    const std::string L = steps_[step_idx_].args[0];
+    const auto & center = place_centers_.at(L);
+    const auto tm = lookupTf(map_frame_, pose.header.frame_id, pose.header.stamp);
+    const auto tb = lookupTf(base_frame_, pose.header.frame_id, pose.header.stamp);
+    if (!tm || !tb) {
+      measureBoxFailed("tf " + map_frame_ + " / " + base_frame_ + " <- " + pose.header.frame_id + " 없음");
+      return;
+    }
+    const tf2::Vector3 p(pose.pose.position.x, pose.pose.position.y, pose.pose.position.z);
+    const tf2::Vector3 pm = *tm * p, pb = *tb * p;
+    const double yaw = tf2::getYaw(pose.pose.orientation);
+    const double shift = std::hypot(pm.x() - center.first, pm.y() - center.second);
+    ob_ = ObMeas{};
+    ob_.cx = pb.x();
+    ob_.cy = pb.y();
+    ob_.beta = oblique_fold45(yaw + tf2::getYaw(tb->getRotation()));
+    ob_.phi = oblique_turn(ob_geom_, ob_.cx, ob_.cy);
+    ob_.turned = std::abs(ob_.phi) > ob_min_turn_;
+    ObBox b;
+    b.x = pm.x();
+    b.y = pm.y();
+    b.z = pm.z();
+    b.yaw = oblique_fold45(yaw + tf2::getYaw(tm->getRotation()));
+    if (shift > place_box_max_shift_) {
+      std::ostringstream o;
+      o << std::fixed << std::setprecision(4) << "\"event\": \"front\", \"place\": \"" << L << "\", \"ok\": false, \"map\": ["
+        << b.x << ", " << b.y << "], \"shift\": " << shift;
+      logEvent("oblique", o.str());
+      measureBoxFailed("front: box " + std::to_string(shift) + " m from map cell (> place_box.max_shift)");
+      return;
+    }
+    ob_front_[L] = b;
+    if (!ob_.turned) {
+      RCLCPP_INFO(get_logger(), "비스듬히 서기 %s: 상자 중심 base (%.3f, %.3f), beta %.1f° -> 회전 생략 (%.2f° <= min_turn_deg)",
+        L.c_str(), ob_.cx, ob_.cy, ob_.beta * 180.0 / M_PI, ob_.phi * 180.0 / M_PI);
+      obliqueAdvance();
+      return;
+    }
+    const auto bp = basePose();
+    if (!bp) {measureBoxFailed("tf " + map_frame_ + " -> " + base_frame_ + " 없음 (회전 목표)"); return;}
+    RCLCPP_INFO(get_logger(), "비스듬히 서기 %s: 상자 중심 base (%.3f, %.3f), beta %.1f° -> 제자리 %.1f° 회전 (/drive/navigate)",
+      L.c_str(), ob_.cx, ob_.cy, ob_.beta * 180.0 / M_PI, ob_.phi * 180.0 / M_PI);
+    ob_stage_ = ObStage::TURN;
+    sendNavigate({(*bp)[0], (*bp)[1], (*bp)[2] + ob_.phi});
+  }
+
+  // ④ 축을 따라 보기 자리까지: align BOX (TFmini 목표). |beta| > tf_max_beta_deg 면 odom 직진이 없어 같은 목표로 대신 (#225)
+  void obliqueAdvance()
+  {
+    const std::string L = steps_[step_idx_].args[0];
+    ob_stage_ = ObStage::ADVANCE;
+    const double beta = ob_.turned ? oblique_fold45(ob_.beta - ob_.phi) : ob_.beta;   // 회전 뒤 상자 요 - 차체 요
+    const double r_now = ob_.turned ? oblique_range_after_turn(ob_geom_, ob_.cx, ob_.cy) : ob_.cx;
+    const double r_look = oblique_look_range(ob_geom_, ob_view_gap_, beta);
+    const double target = oblique_tf_target(ob_geom_, r_look, beta);
+    const bool tfmini = std::abs(beta) <= ob_tf_max_beta_;
+    if (!tfmini) {
+      RCLCPP_WARN(get_logger(), "비스듬히 서기 %s: |beta| %.1f° > %.1f° — odom 직진 없음(#225): 같은 TFmini 로 감(tfmini_wide), 빔이 모서리에 걸릴 수 있음",
+        L.c_str(), std::abs(beta) * 180.0 / M_PI, ob_tf_max_beta_ * 180.0 / M_PI);
+    }
+    const auto & b = ob_front_.at(L);
+    std::ostringstream o;
+    o << std::fixed << std::setprecision(4) << "\"event\": \"place\", \"place\": \"" << L << "\", \"beta_deg\": "
+      << ob_.beta * 180.0 / M_PI << ", \"beta_view_deg\": " << beta * 180.0 / M_PI << ", \"turn_deg\": "
+      << (ob_.turned ? ob_.phi * 180.0 / M_PI : 0.0) << ", \"phi_deg\": " << ob_.phi * 180.0 / M_PI << ", \"turned\": "
+      << (ob_.turned ? "true" : "false") << ", \"center_base\": [" << ob_.cx << ", " << ob_.cy << "], \"map\": [" << b.x << ", "
+      << b.y << ", " << b.yaw * 180.0 / M_PI << "], \"range_now\": " << r_now << ", \"R_look\": " << r_look
+      << ", \"advance_m\": " << r_now - r_look << ", \"align_target\": " << target << ", \"method\": \""
+      << (tfmini ? "tfmini" : "tfmini_wide") << "\"";
+    logEvent("oblique", o.str());
+    RCLCPP_INFO(get_logger(), "비스듬히 서기 %s: beta %.1f°, 중심 %.3f -> R_look %.3f m (%+.3f m), align BOX %.3f m (%s)", L.c_str(),
+      beta * 180.0 / M_PI, r_now, r_look, r_now - r_look, target, tfmini ? "tfmini" : "tfmini_wide");
+    sendAlign(AlignStage::BOX, target);
+  }
+
+  // ⑤ 팔로 잰 중심 (앞 D435 값, 지도) 을 place_look 거리 · 각으로 봄. 결과 → 기존 팔 재기 (advancePhase)
+  void obliqueLook()
+  {
+    const std::string L = steps_[step_idx_].args[0];
+    ob_stage_ = ObStage::LOOK;
+    const auto & b = ob_front_.at(L);
+    logEvent("oblique", obliqueLookJson("place_look", L, "front", b.x, b.y, place_top_z_, ob_place_look_));
+    sendLook("box_look", b.x, b.y, place_top_z_, ob_place_look_[0], ob_place_look_[1]);
+  }
+
+  // verify 앞 보기 자리 TFmini 목표. beta = 잰 상자 요 (팔 재기 > 앞 재기) - 지금 차체 요, 잰 값이 없으면 0
+  double viewAlignTarget(const std::string & L)
+  {
+    double x = 0.0, y = 0.0, yaw = 0.0, z = 0.0;
+    std::string src = "none";
+    double beta = 0.0;
+    const auto bp = basePose();
+    if (boxInMap(L, x, y, yaw, z, &src) && bp) {
+      beta = oblique_fold45(yaw - (*bp)[2]);
+    } else {
+      src = "none";
+    }
+    const double r_look = oblique_look_range(ob_geom_, ob_view_gap_, beta);
+    const double target = oblique_tf_target(ob_geom_, r_look, beta);
+    const bool tfmini = std::abs(beta) <= ob_tf_max_beta_;
+    if (!tfmini) {
+      RCLCPP_WARN(get_logger(), "비스듬히 서기 verify %s: |beta| %.1f° > %.1f° — odom 직진 없음(#225): 같은 TFmini 로 감(tfmini_wide), 빔이 모서리에 걸릴 수 있음",
+        L.c_str(), std::abs(beta) * 180.0 / M_PI, ob_tf_max_beta_ * 180.0 / M_PI);
+    }
+    std::ostringstream o;
+    o << std::fixed << std::setprecision(4) << "\"event\": \"verify_approach\", \"place\": \"" << L << "\", \"beta_src\": \"" << src
+      << "\", \"beta_deg\": " << beta * 180.0 / M_PI << ", \"turn_deg\": 0.0, \"R_look\": " << r_look << ", \"align_target\": "
+      << target << ", \"method\": \"" << (tfmini ? "tfmini" : "tfmini_wide") << "\"";
+    logEvent("oblique", o.str());
+    RCLCPP_INFO(get_logger(), "비스듬히 서기 verify %s: beta %.1f° (%s) -> align BOX %.3f m", L.c_str(), beta * 180.0 / M_PI,
+      src.c_str(), target);
+    return target;
+  }
+
+  // 장소 L 의 잰 상자 (지도: 중심 · 윗면 높이 · 요). 팔 재기 (box_meas_) 가 있으면 그것, 없으면 앞 D435 재기. 둘 다 없으면 false
+  bool boxInMap(const std::string & L, double & x, double & y, double & yaw, double & z, std::string * src = nullptr)
+  {
+    const auto m = box_meas_.find(L);
+    if (m != box_meas_.end()) {
+      if (const auto t = lookupTf(map_frame_, m->second.frame, builtin_interfaces::msg::Time())) {
+        const tf2::Vector3 p = *t * tf2::Vector3(m->second.cx, m->second.cy, m->second.z);
+        x = p.x();
+        y = p.y();
+        z = p.z();
+        yaw = m->second.axis + tf2::getYaw(t->getRotation());
+        if (src) {*src = "arm";}
+        return true;
+      }
+    }
+    const auto f = ob_front_.find(L);
+    if (f == ob_front_.end()) {return false;}
+    x = f->second.x;
+    y = f->second.y;
+    z = f->second.z;
+    yaw = f->second.yaw;
+    if (src) {*src = "front";}
+    return true;
+  }
+
+  std::string obliqueLookJson(
+    const std::string & event, const std::string & L, const std::string & src, double x, double y, double z,
+    const std::vector<double> & look) const
+  {
+    std::ostringstream o;
+    o << std::fixed << std::setprecision(4) << "\"event\": \"" << event << "\", \"place\": \"" << L << "\", \"aim_src\": \"" << src
+      << "\", \"aim_map\": [" << x << ", " << y << ", " << z << "], \"look_dist\": " << look[0] << ", \"look_deg\": " << look[1];
+    return o.str();
   }
 
   // 잰 장소의 place_<L>_<dx>_<dy>_tilt -> place_at:<frame>:x:y:z (z = 잰 윗면 높이)
@@ -1713,16 +2021,18 @@ private:
     if (verify_approach_ <= 0.0) {return 0;}
     std::ostringstream line;
     line << "approach_box " << verify_approach_;
+    const bool view = oblique_enabled_ && place_box_enabled_;   // 비스듬히 서기: 보기 자리까지만 (approach_view <L>)
     int inserted = 0;
     bool approached = false;   // plan 직전 = 출발 자리 (정렬 안 함)
     for (size_t i = 0; i < steps.size(); ++i) {
       const auto & t = steps[i].type;
       if (t == "goto" || t == "navigate") {
         approached = false;
-      } else if (t == "approach" || t == "approach_box") {
+      } else if (t == "approach" || t == "approach_box" || t == "approach_view") {
         approached = true;
       } else if (t == "verify" && !approached) {
-        steps.insert(steps.begin() + static_cast<std::ptrdiff_t>(i), parseStep(line.str()));
+        steps.insert(steps.begin() + static_cast<std::ptrdiff_t>(i),
+          parseStep(view ? "approach_view " + steps[i].args[0] : line.str()));
         approached = true;
         ++inserted;
         ++i;
@@ -1732,10 +2042,12 @@ private:
   }
 
   // #65: 팔 카메라로 지도 좌표 점을 보는 manipulator skill (box_look · barcode_look). 결과는 팔 결과로 (sequenced → advancePhase)
-  void sendLook(const std::string & look, double x, double y, double z)
+  //   dist · deg > 0 이면 box_look 7 칸 (:거리:각, 이번 호출만 그 거리 · 각, 비스듬히 서기)
+  void sendLook(const std::string & look, double x, double y, double z, double dist = 0.0, double deg = 0.0)
   {
     std::ostringstream name;
     name << std::fixed << std::setprecision(4) << look << ":" << map_frame_ << ":" << x << ":" << y << ":" << z;
+    if (dist > 0.0 && deg > 0.0) {name << ":" << std::setprecision(3) << dist << ":" << std::setprecision(1) << deg;}
     Step st;
     st.type = "skill";
     st.args = {"manipulator", name.str()};
@@ -1772,7 +2084,9 @@ private:
         }
         if (added.empty()) {finish(Run::FAILED, "plan returned no steps"); return;}
         const int inserted = insertVerifyApproach(added);
-        if (inserted > 0) {
+        if (inserted > 0 && oblique_enabled_ && place_box_enabled_) {
+          RCLCPP_INFO(get_logger(), "plan: approach_view (보기 자리, 비스듬히 서기) inserted before %d verify step(s)", inserted);
+        } else if (inserted > 0) {
           RCLCPP_INFO(get_logger(), "plan: approach_box %.2f m inserted before %d verify step(s)", verify_approach_, inserted);
         }
         RCLCPP_INFO(get_logger(), "plan -> %zu step(s)", added.size());
@@ -2487,6 +2801,25 @@ private:
   geometry_msgs::msg::PoseStamped::ConstSharedPtr pb_pose_;
   std_msgs::msg::String::ConstSharedPtr pb_status_;
   rclcpp::Time pb_pose_rx_{0, 0, RCL_ROS_TIME}, pb_status_rx_{0, 0, RCL_ROS_TIME}, pb_request_t_{0, 0, RCL_ROS_TIME};
+  // 비스듬히 서기 (oblique.*)
+  enum class ObStage { NONE, FRONT, TURN, ADVANCE, LOOK, ARM };   // measure_box 안 순서 (NONE = 끔 · 기존 흐름)
+  struct ObMeas                                                   // 이번 measure_box 의 앞 D435 결과 (base 기준)
+  {
+    double cx{0.0}, cy{0.0};   // 상자 중심
+    double beta{0.0};          // 상자 요 - 차체 요 (±45°)
+    double phi{0.0};           // 회전각 (icr_x 둘레)
+    bool turned{false};
+  };
+  struct ObBox {double x{0.0}, y{0.0}, z{0.0}, yaw{0.0};};        // 앞 D435 로 잰 상자 (지도, 요 ±45°)
+  bool oblique_enabled_{false};
+  ObliqueGeom ob_geom_;
+  double ob_view_gap_{0.35}, ob_tf_max_beta_{0.0}, ob_min_turn_{0.0}, ob_front_timeout_{5.0}, ob_step_timeout_{90.0};
+  std::vector<double> ob_place_look_, ob_tag_look_;
+  ObStage ob_stage_{ObStage::NONE};
+  ObMeas ob_;
+  std::map<std::string, ObBox> ob_front_;
+  rclcpp::Client<Trigger>::SharedPtr pb_front_client_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pb_prior_pub_;
   bool survey_enabled_{false};
   std::vector<int64_t> survey_boxes_;
   std::vector<double> survey_poses_;

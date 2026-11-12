@@ -55,6 +55,23 @@ mission_node:
       settle_s: 0.5              # 팔 자세 · 모드 뒤 재기 전 기다림
       max_shift: 0.10            # [m] 잰 중심이 지도 칸 중심에서 이보다 멀면 잘못 잰 것으로 봄
       required: false            # true = 못 재면 단계 실패 (재시도), false = 기록하고 지도 좌표로 놓음
+    # 비스듬히 서기 (place_box 를 켰을 때만): 상자가 돌아 있어도 차체 축이 상자 중심을 지나게 서서 팔로 봄.
+    #   켜면 measure_box 가 그 장소 approach_box 앞 (대기 자리) 으로 옮겨 붙음: 앞 D435 재기 (/perception/place_box/measure_front) →
+    #   제자리 회전 (/drive/navigate) → 축을 따라 보기 자리까지 align BOX → box_look (place_look) → 기존 팔 재기. 뒤 approach_box · 놓기는 그대로.
+    #   verify 앞 접근은 approach_view <L> (보기 자리), verify box_look 은 tag_look 으로 잰 중심을 봄. 꺼져 있으면 지금 흐름 그대로
+    oblique:
+      enabled: false             # ★ 시험은 -p oblique.enabled:=true (perception measure_front · manipulator box_look 7 칸이 있어야 함)
+      view_gap: 0.35             # [m] 보기 자리: 차체 앞 끝 → 상자 가장 가까운 점
+      place_look: [0.44, 50.0]   # 놓기 전 팔 재기 box_look [카메라 → 조준점 m, 수평 아래 각 deg]
+      tag_look: [0.40, 55.0]     # verify 태그 읽기 box_look [m, deg]
+      tf_max_beta_deg: 30.0      # |상자 요 - 차체 요| 가 이보다 크면 TFmini 빔이 모서리에 걸릴 수 있음 (odom 직진 #225 이 없어 경고만)
+      min_turn_deg: 0.5          # 회전각이 이 이하면 돌지 않음
+      front_timeout_s: 5.0       # measure_front 뒤 결과 (status · 상자) 를 기다리는 시간
+      timeout: 90.0              # measure_box 단계 전체 (앞 재기 + 회전 + 접근 + 팔 보기 + 팔 재기)
+      front_x: 0.1328            # [m] base_link → 차체 앞 끝 (control robot_geometry.yaml base.front_offset)
+      box_half: 0.1025           # [m] 장소 상자 반 변 (205 상자)
+      tfmini_x: 0.13             # [m] 1층 TFmini 렌즈 x
+      icr_x: -0.0658             # [m] 제자리 회전 중심 x (control robot_geometry.yaml base.icr_x 와 같게)
     # 기록 루트 (앞 ~ = HOME, Jetson 저장소 경로 기준). 미션 (/mission/start 로 새로 시작) 마다 <log_dir>/<YYMMDD_HHMM>/ 하나에
     #   mission_log.jsonl (관측 · 측량 · 계획 · 재검증 · 사진 요청 · 끝) · images/ (이동 전후 팔 카메라 사진) ·
     #   planner/ (계획기 기록 사본) · 퍽 등록표 사본. PAUSED 재개는 같은 폴더. 비우면 기록 · 사진 안 함.
