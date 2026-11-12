@@ -7,6 +7,9 @@
 //      퍽 색(빨강 · 초록, 검출기 HSV 범위) 화소는 표본에서 뺌 — 놓인 퍽은 원근으로 바깥에 기울어 보여 테두리를 가림
 //   3) 테두리 밝기 기울기 중앙값으로 다시 다듬고, 변마다 경계점(화소 이하)을 정사각형에 Huber 가중 최소제곱으로 맞춤
 //   4) 정사각형은 90° 마다 같음 → 사전 요 ±45° 안에서 고름 (상자가 그보다 많이 돌지 않는다고 가정)
+//   5) 화면 밖 (카메라 영상 밖 · 정사영 범위 밖) 으로 나가는 후보는 뺌 (max_offview). 퍽에 가려 표본이 적은 변과 화면 밖 변을
+//      같은 '대비 0' 으로 두면, 윗면 변이 퍽에 많이 가릴 때 화면 밖으로 나간 엉뚱한 사각형 (앞 옆면 · 바닥 경계) 이 이길 수 있어서.
+//      box_look 자세는 윗면 전체가 화면 안 (가장자리 30 px 넘게) 이 되게 고르므로 참 윗면은 빠지지 않는다.
 //   근거(모의, Isaac Sim 렌더 2026-11-03, 상자 요 ±30° · 옆 ±5 cm · 놓인 퍽 0 ~ 9 개, 카메라 윗면 위 0.20 m):
 //      Python 시제품 판정용 120/120 — 중심 최대 0.68 mm · 요 0.37° · 칸 0.78 mm (lv2_next_module 261103_1114_place_box)
 #pragma once
@@ -37,6 +40,7 @@ struct PlaceBoxConfig
   double lam = 2.0;            // 안쪽 색 불일치 벌점
   double beta = 2.0;           // 가장 약한 변 대비 가중
   int mask_grow = 3;           // 퍽 색 화소 부풀림 [화소]
+  double max_offview = 0.02;   // 변마다 화면 밖 표본 비율이 이것보다 크면 그 후보를 뺌 (안 · 밖 띠 포함)
   // 퍽 색 HSV (OpenCV H 0~179). perception.yaml 검출기 범위와 같게
   std::vector<std::array<int, 6>> puck_hsv{{0, 80, 35, 10, 255, 255}, {170, 80, 35, 179, 255, 255}, {40, 80, 35, 85, 255, 255}};
 };
@@ -93,9 +97,10 @@ inline bool at(const View & V, const cv::Point2d & p, int & u, int & v)
 {
   u = static_cast<int>(std::lround(p.x));
   v = static_cast<int>(std::lround(p.y));
+  const bool in_span = u >= 0 && v >= 0 && u < V.n && v < V.n;   // 정사영 범위 밖은 화면 밖과 같이 봄
   u = std::clamp(u, 0, V.n - 1);
   v = std::clamp(v, 0, V.n - 1);
-  return V.valid.at<uchar>(v, u) != 0;
+  return in_span && V.valid.at<uchar>(v, u) != 0;
 }
 
 // 자리 잡기 점수 (중심 c, 각 th)
@@ -110,16 +115,18 @@ inline double side_score(const View & V, const PlaceBoxConfig & cfg, cv::Point2d
   std::array<bool, 4> has{};
   for (int si = 0; si < 4; ++si) {
     std::array<std::vector<double>, 3> din, ddf;
-    int cnt = 0;
+    int cnt = 0, offv = 0;
     for (int i = 0; i < k; ++i) {
       const cv::Point2d p = c + off[si * k + i];
       int ui, vi, uo, vo;
       const bool okin = at(V, p - nrm[si] * cfg.band_px, ui, vi), okout = at(V, p + nrm[si] * cfg.band_px, uo, vo);
-      if (!okin || !okout || V.mask.at<uchar>(vi, ui) || V.mask.at<uchar>(vo, uo)) {continue;}
+      if (!okin || !okout) {++offv; continue;}   // 화면 밖 (가린 것과 따로 셈)
+      if (V.mask.at<uchar>(vi, ui) || V.mask.at<uchar>(vo, uo)) {continue;}   // 퍽에 가림
       const cv::Vec3f a = V.lab.at<cv::Vec3f>(vi, ui), b = V.lab.at<cv::Vec3f>(vo, uo);
       for (int ch = 0; ch < 3; ++ch) {din[ch].push_back(a[ch]); ddf[ch].push_back(a[ch] - b[ch]);}
       ++cnt;
     }
+    if (offv > cfg.max_offview * k) {return -std::numeric_limits<double>::infinity();}   // 화면 밖으로 나가는 후보는 뺌
     seen[si] = static_cast<double>(cnt) / k;
     has[si] = cnt > 0;
     cv::Vec3d md;
