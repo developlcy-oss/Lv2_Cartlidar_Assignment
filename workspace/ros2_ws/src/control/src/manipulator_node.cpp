@@ -258,6 +258,7 @@ private:
     std::string frame;                    // place_at · target_look · box_look · barcode_look: 좌표 frame
     std::string look;                     // LOOK: "box_look" · "barcode_look"
     double x{0.0}, y{0.0}, z{0.0};        // place_at: 칸 중심 · 윗면 높이 / target_look: 퍽 예상 중심 / lie_upright: 상자 x · y · 요 deg
+    std::optional<double> look_dist, look_deg;   // box_look:frame:x:y:z:<dist>:<angle_deg> — 이번 호출만 거리 · 각 하나로 (없으면 설정 목록)
   };
   // pallet_place_traj.json 의 칸 하나: 구간 (이름 · 그리퍼 hold/open · 경유 관절각 5개)
   struct PalletSegment
@@ -2830,8 +2831,8 @@ private:
     if (name.rfind("place_at:", 0) == 0 || name.rfind("target_look:", 0) == 0 || name.rfind("box_look:", 0) == 0 ||
       name.rfind("barcode_look:", 0) == 0 || name.rfind("lie_upright:", 0) == 0)
     {
-      const auto f = parts(name, ':');   // place_at | target_look | box_look | barcode_look : frame : x : y : z
-      if (f.size() != 5 || f[1].empty()) {return std::nullopt;}
+      const auto f = parts(name, ':');   // place_at | target_look | box_look | barcode_look : frame : x : y : z [: dist : angle_deg (box_look 만)]
+      if (!(f.size() == 5 || (f.size() == 7 && f[0] == "box_look")) || f[1].empty()) {return std::nullopt;}
       try {
         t.kind = f[0] == "target_look" ? Task::TARGET_LOOK : f[0] == "place_at" ? Task::PLACE :
           f[0] == "lie_upright" ? Task::LIE_UPRIGHT : Task::LOOK;
@@ -2840,6 +2841,11 @@ private:
         t.x = std::stod(f[2]);
         t.y = std::stod(f[3]);
         t.z = std::stod(f[4]);
+        if (f.size() == 7) {
+          t.look_dist = std::stod(f[5]);
+          t.look_deg = std::stod(f[6]);
+          if (!(*t.look_dist > 0.0) || !(*t.look_deg > 0.0 && *t.look_deg <= 90.0)) {return std::nullopt;}
+        }
       } catch (const std::exception &) {
         return std::nullopt;
       }
@@ -3371,7 +3377,12 @@ private:
     }
     std::optional<std::vector<double>> q;
     TargetLookCandidate used{};
-    for (const auto & c : targetLookCandidates(aim, look_params_.at(t.look))) {
+    auto lp = look_params_.at(t.look);
+    if (t.look_dist && t.look_deg) {   // 이번 호출이 정한 거리 · 각 하나만 (min_clearance · 카메라 장착은 설정 그대로)
+      lp.distances = {*t.look_dist};
+      lp.view_angles = {*t.look_deg * M_PI / 180.0};
+    }
+    for (const auto & c : targetLookCandidates(aim, lp)) {
       q = solveArm(c.tool, c.pitch, *current);
       if (q) {
         used = c;
