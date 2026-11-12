@@ -129,7 +129,7 @@ static bool setupMotor(uint8_t id, uint8_t mode, bool is_arm, uint16_t model)
   }
   if (is_arm) {
     dxl.writeControlTableItem(PROFILE_VELOCITY, id, 0);   // 궤적 보간은 arm_controller 가 함
-    dxl.writeControlTableItem(PROFILE_ACCELERATION, id, 0);
+    dxl.writeControlTableItem(PROFILE_ACCELERATION, id, 0);   // 관절별 값 (ARM_PROFILE_ACCEL) 은 writeArmGains 가 다시 씀
   }
   return keep;
 }
@@ -150,14 +150,14 @@ static void checkArmLimits(int i)
   if (lo > (a < b ? a : b) || hi < (a < b ? b : a)) {g_config_error = true;}
 }
 
-// 팔: 위치 P · I · D 게인 (RAM, 토크 ON 중에도 쓸 수 있음) 을 config 값으로 쓰고 다시 읽어 확인. 다르면 점검 실패
+// 팔: 위치 P · I · D 게인 · Profile Acceleration (RAM, 토크 ON 중에도 쓸 수 있음) 을 config 값으로 쓰고 다시 읽어 확인. 다르면 점검 실패
 static void writeArmGains(int i)
 {
   const uint8_t id = ARM_IDS[i];
   if (!dxl.ping(id)) {return;}   // 응답 없음은 setupMotor 가 이미 알림
-  const uint8_t items[3] = {POSITION_P_GAIN, POSITION_I_GAIN, POSITION_D_GAIN};
-  const uint16_t gains[3] = {ARM_POS_P_GAIN[i], ARM_POS_I_GAIN[i], ARM_POS_D_GAIN[i]};
-  for (int k = 0; k < 3; ++k) {
+  const uint8_t items[4] = {POSITION_P_GAIN, POSITION_I_GAIN, POSITION_D_GAIN, PROFILE_ACCELERATION};
+  const uint16_t gains[4] = {ARM_POS_P_GAIN[i], ARM_POS_I_GAIN[i], ARM_POS_D_GAIN[i], ARM_PROFILE_ACCEL[i]};
+  for (int k = 0; k < 4; ++k) {
     dxl.writeControlTableItem(items[k], id, gains[k]);
     const int32_t v = dxl.readControlTableItem(items[k], id);
     if (dxl.getLastLibErrCode() != DXL_LIB_OK || v != gains[k]) {g_config_error = true;}
@@ -282,13 +282,18 @@ static void readState()
 }
 
 // keep_grip (ESTOP · 토크 OFF 요청 HOLD): 그리퍼 목표가 현재에서 GRIP_STALL_TICKS 안이면 (쥐는 중이거나 멈춤) 그대로 둔다 —
-//   현재 위치로 바꾸면 쥐는 힘이 0 이 되어 퍽을 놓칠 수 있음. 멀리 가던 중이면 현재 위치에서 멈춤
+//   현재 위치로 바꾸면 쥐는 힘이 0 이 되어 퍽을 놓칠 수 있음. 멀리 가던 중이면 현재 위치에서 멈춤.
+//   관절 1 ~ 5 도 같은 때 멈춰 있고 목표가 현재에서 ESTOP_KEEP_GOAL_TICKS 안이면 (중력 처짐만큼 차이) 마지막 목표를 유지 —
+//   처진 현재 위치를 목표로 잡으면 거기서 또 처져 멈출 때 '툭' 내려가고, REARM 뒤 원래 목표로 덜컹 올라감 (2026-11-12 실물)
 static void holdArmAtPresent(bool keep_grip = false)
 {
   if (BOARD_ROLE != opencr_proto::ROLE_ARM) {return;}
   for (int i = 0; i < ARM_COUNT; ++i) {
     const int32_t d = g_arm_goal_raw[i] - g_present[i].position;
     if (keep_grip && i == GRIP_SLOT && d <= GRIP_STALL_TICKS && d >= -GRIP_STALL_TICKS) {continue;}
+    const int32_t v = g_present[i].velocity;
+    if (keep_grip && i != GRIP_SLOT && d <= ESTOP_KEEP_GOAL_TICKS && d >= -ESTOP_KEEP_GOAL_TICKS &&
+        v <= ESTOP_STILL_VEL_RAW && v >= -ESTOP_STILL_VEL_RAW) {continue;}
     g_arm_goal_raw[i] = g_present[i].position;
   }
 }
@@ -381,7 +386,8 @@ static void applySafety()
   if (BOARD_ROLE == opencr_proto::ROLE_WHEEL && (g_safety.timeout() || g_safety.estop())) {
     for (int i = 0; i < WHEEL_COUNT; ++i) {g_wheel_goal_raw[i] = 0;}
   }
-  // 무수신: 팔은 마지막 승인 목표 유지. ESTOP · 토크 OFF 요청: 현재 자세에서 멈춤 (위치를 모르면 마지막 목표 유지).
+  // 무수신: 팔은 마지막 승인 목표 유지. ESTOP · 토크 OFF 요청: 현재 자세에서 멈춤 (위치를 모르면 마지막 목표 유지,
+  //   멈춰 있고 목표와 현재 차이가 처짐 정도 (ESTOP_KEEP_GOAL_TICKS) 안이면 마지막 목표 유지).
   // 토크는 끄지 않는다 (카트리지 낙하 방지). HOLD 는 REARM 상승 에지로만 풀린다
   if (g_safety.entered_stop_hold() && g_positions_valid) {holdArmAtPresent(true);}
 }
