@@ -570,6 +570,11 @@ public:
     pb_.cfg.box = declare_parameter("arm.place_box.box", pb_.cfg.box);
     pb_.cfg.height = declare_parameter("arm.place_box.height", pb_.cfg.height);
     pb_.cfg.search = declare_parameter("arm.place_box.search", pb_.cfg.search);
+    // 윗면 크기 배율 후보: 팔은 정기구학 카메라 높이가 실제와 다를 수 있어 여럿 (place_box.hpp 6), 앞 D435 는 고정 장착이라 1 만
+    //   (먼 상자에서 배율 잡음 0.5 % 가 시차 보정으로 약 4 mm 가 되므로 앞은 배율을 풀지 않음)
+    pb_.cfg_front = pb_.cfg;
+    pb_.cfg.scales = declare_parameter("arm.place_box.scales", pb_.cfg.scales);
+    pb_.cfg_front.scales = declare_parameter("arm.place_box.front_scales", std::vector<double>{1.0});
     pb_.frame = declare_parameter("arm.place_box.frame", pb_.frame);
     {
       const auto pr = declare_parameter("arm.place_box.prior", std::vector<double>{0.3625, 0.0});
@@ -1990,7 +1995,7 @@ private:
     const tf2::Matrix3x3 & b = T_pc->getBasis();
     const cv::Matx33d R(b[0][0], b[0][1], b[0][2], b[1][0], b[1][1], b[1][2], b[2][0], b[2][1], b[2][2]);
     const tf2::Vector3 & o = T_pc->getOrigin();
-    const auto r = find_place_box(u, K, R, cv::Vec3d(o.x(), o.y(), o.z()), pb_.cur_prior, pb_.cur_prior_yaw, pb_.cfg);
+    const auto r = find_place_box(u, K, R, cv::Vec3d(o.x(), o.y(), o.z()), pb_.cur_prior, pb_.cur_prior_yaw, pb_.front ? pb_.cfg_front : pb_.cfg);
     --pb_.need;
     if (r.ok) {
       const tf2::Vector3 c = *T_op * tf2::Vector3(r.x, r.y, pb_.cfg.height);
@@ -2252,7 +2257,8 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::Range>::SharedPtr plane_range_pub_;
   struct PlaceBoxState
   {
-    PlaceBoxConfig cfg;
+    PlaceBoxConfig cfg;         // 팔 영상
+    PlaceBoxConfig cfg_front;   // 앞 D435 (배율만 다름)
     std::string frame = "base_footprint";   // 윗면 높이 기준 (z = 바닥 위)
     cv::Point2d prior{0.2553, 0.0};          // 최종 자리 (앞 끝 0.1328 + 면 0.02 + 반 변 0.1025) 의 상자 중심
     double prior_yaw = 0.0;

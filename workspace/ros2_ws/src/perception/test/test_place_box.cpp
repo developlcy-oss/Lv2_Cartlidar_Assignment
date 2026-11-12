@@ -16,14 +16,15 @@ const cv::Vec3d kT(0.255, 0.0, 0.28);
 const cv::Matx33d kK(420, 0, 640, 0, 420, 360, 0, 0, 1);
 
 // 화소마다 시선을 윗면 높이 → 상자 안이면 상자 색, 아니면 바닥 높이 → 바닥 색. pucks: 윗면 위 빨간 원 (반지름 15 mm, 위에서 본 모양만)
-cv::Mat render(double cx, double cy, double yaw, const std::vector<cv::Point2d> & pucks)
+// cam_dz: 그리는 카메라만 이만큼 높임 (찾을 때는 kT 그대로 → 정기구학 카메라 높이 오차 흉내)
+cv::Mat render(double cx, double cy, double yaw, const std::vector<cv::Point2d> & pucks, double cam_dz = 0.0)
 {
   cv::Mat img(720, 1280, CV_8UC3);
   const double c = std::cos(yaw), s = std::sin(yaw);
   for (int v = 0; v < img.rows; ++v) {
     for (int u = 0; u < img.cols; ++u) {
       const cv::Vec3d d = kR * cv::Vec3d((u + 0.5 - kK(0, 2)) / kK(0, 0), (v + 0.5 - kK(1, 2)) / kK(1, 1), 1.0);
-      const double st = (kTop - kT[2]) / d[2];
+      const double st = (kTop - kT[2] - cam_dz) / d[2];
       const double X = kT[0] + st * d[0] - cx, Y = kT[1] + st * d[1] - cy;
       const double lx = c * X + s * Y, ly = -s * X + c * Y;
       cv::Vec3b col(115, 115, 115);   // 바닥 (BGR)
@@ -63,6 +64,20 @@ TEST(PlaceBox, PuckColoredPixelsIgnored)
   EXPECT_NEAR(r.x, cx, 0.0015);
   EXPECT_NEAR(r.y, cy, 0.0015);
   EXPECT_NEAR(r.yaw, yaw, 0.2 * CV_PI / 180);
+}
+
+// 카메라 높이가 실제와 ±8 mm 다르면 윗면이 몇 % 크거나 작게 보임 → 크기 배율을 찾고 중심 시차를 고침
+TEST(PlaceBox, CameraHeightErrorScaleCorrected)
+{
+  const double cx = 0.30, cy = 0.05, yaw = 0.3;
+  for (const double dz : {-0.008, 0.008}) {
+    const auto r = find_place_box(render(cx, cy, yaw, {}, dz), kK, kR, kT, cv::Point2d(0.2553, 0.0), 0.0);
+    ASSERT_TRUE(r.ok);
+    EXPECT_NEAR(r.scale, (kT[2] - kTop) / (kT[2] + dz - kTop), 0.005);
+    EXPECT_NEAR(r.x, cx, 0.0015);
+    EXPECT_NEAR(r.y, cy, 0.0015);
+    EXPECT_NEAR(r.yaw, yaw, 0.2 * CV_PI / 180);
+  }
 }
 
 // 칸 순서 = 행 우선 (dx 바깥, dy 안쪽), 간격 0.06, 요 0 이면 축 그대로
