@@ -87,7 +87,9 @@
   <!-- D435: realsense2_camera (camera_name top_camera_front · top_camera_rear) 의 TF 뿌리는 <camera_name>_link = 왼쪽 IR (깊이 원점).
        그 아래 광학 프레임은 드라이버가 공장 외부 보정값으로 낸다 (여기서 또 만들면 TF 부모가 둘이 된다).
        기준 모델 top_camera_*_link 는 두 IR 의 가운데라, 왼쪽 IR (광학 x −0.02502 = 카메라 기준 왼쪽) 로 옮겼다: 앞 y +0.02502 · 뒤 y −0.02502 -->
-  <xacro:fixed_link name="top_camera_front_link" parent="base_link" xyz="-0.0480903 0.0250244 0.4836226" rpy="0 0.6144098 0"/>
+  <!-- 앞 D435 피치는 실물 실측값 (2026-11-12): 기준 모델 0.6144098 (35.20°) 보다 2.59° 덜 숙여져 0.5692410 (32.62°).
+       노트북 화면 태그 판 PnP 4 번(−2.50 ~ −2.65°) · 깊이 책상 평면(−2.42°)이 같은 값. 롤은 한계 0.7° 안이라 그대로, 요는 아직 재지 않음. 뒤 D435 는 재지 않음 -->
+  <xacro:fixed_link name="top_camera_front_link" parent="base_link" xyz="-0.0480903 0.0250244 0.4836226" rpy="0 0.5692410 0"/>
   <xacro:fixed_link name="top_camera_rear_link"  parent="base_link" xyz="-0.2079097 -0.0250168 0.4836226" rpy="0 0.6144098 3.141593"/>
   <!-- 팔 받침: joint2 축이 기준 모델과 같은 자리 (base_link 기준 0.096 0 0.1905) 에 오게 둔다.
        기준 모델은 arm_base_link → joint2 0.0595 이지만 이 파일 · manipulator.yaml 링크 길이는 그대로 둔다 (0.077) -->
