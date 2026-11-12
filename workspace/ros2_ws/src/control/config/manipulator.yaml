@@ -35,7 +35,7 @@ manipulator_node:
     poses:
       names: [STOW, DRIVE, ALIGN, READY, PLACE, TAG_VIEW, BOX_VIEW, TRANSIT_TILT]
       # STOW = 실물 대기 자세 (#166 · #144): J1 +90° 쪽, 차체 오른쪽 위에 접힘. 값 = opencr.ros2_control.xacro
-      #   arm_standby_min_tick · max_tick 의 가운데 = (tick − 2048) × 2π/4096. 전원을 끄기 전 이 자세로 접어 둠 (켤 때 이 범위 밖이면 하드웨어가 거부)
+      #   arm_standby_min_tick · max_tick 의 가운데 = (tick − 2048) × 2π/4096 (관절 1 ~ 5, 그리퍼는 아무 값이나 허용 · 0.923 = 닫힘). 전원을 끄기 전 이 자세로 접어 둠 (켤 때 범위 밖이면 하드웨어가 거부)
       STOW: [1.554, -2.088, 1.549, -1.868, 0.043, 0.923]
       # 주행 자세 (#114 → #144): 주행 중 팔. 대기 → 주행은 J3 → J2 → J1 → J4 한 관절씩 실물 확인 (0.1 rad/s, #165)
       DRIVE: [-0.0245, -1.6122, 1.2901, 1.1888, 0.0, 0.923]
