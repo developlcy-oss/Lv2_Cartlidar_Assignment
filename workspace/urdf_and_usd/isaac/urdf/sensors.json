@@ -22,9 +22,9 @@
    "body": "base_link",
    "usd_body": "Geometry/base_link",
    "pos": [
-    0.1089,
+    0.1318,
     0.0,
-    0.0755
+    0.0675
    ],
    "quat_xyzw": [
     1.0,
@@ -35,18 +35,16 @@
    "occluder_boxes": [
     "static_433",
     "static_434",
-    "belt_block_FL",
-    "belt_sled_FL",
-    "belt_block_FR",
-    "belt_sled_FR",
-    "belt_block_RL",
-    "belt_sled_RL",
-    "belt_block_RR",
-    "belt_sled_RR",
+    "belt_motor_FL",
+    "belt_motor_FR",
+    "belt_motor_RL",
+    "belt_motor_RR",
     "light_part157",
     "light_part176",
-    "light_bracket_L",
-    "light_bracket_R",
+    "light_corner_FL",
+    "light_corner_FR",
+    "light_corner_RL",
+    "light_corner_RR",
     "lds_rear_head",
     "opencr_upper"
    ]
@@ -57,9 +55,9 @@
    "body": "base_link",
    "usd_body": "Geometry/base_link",
    "pos": [
-    -0.1089,
+    -0.1318,
     0.0,
-    0.0755
+    0.0675
    ],
    "quat_xyzw": [
     0.0,
@@ -70,18 +68,16 @@
    "occluder_boxes": [
     "static_433",
     "static_434",
-    "belt_block_FL",
-    "belt_sled_FL",
-    "belt_block_FR",
-    "belt_sled_FR",
-    "belt_block_RL",
-    "belt_sled_RL",
-    "belt_block_RR",
-    "belt_sled_RR",
+    "belt_motor_FL",
+    "belt_motor_FR",
+    "belt_motor_RL",
+    "belt_motor_RR",
     "light_part157",
     "light_part176",
-    "light_bracket_L",
-    "light_bracket_R",
+    "light_corner_FL",
+    "light_corner_FR",
+    "light_corner_RL",
+    "light_corner_RR",
     "lds_front_head",
     "opencr_upper"
    ]
@@ -467,63 +463,13 @@
    ]
   },
   {
-   "name": "belt_block_FL",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    0.0925,
-    0.11735,
-    0.0569
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.025,
-    0.0423,
-    0.0838
-   ],
-   "z_range": [
-    0.015,
-    0.0988
-   ]
-  },
-  {
-   "name": "belt_sled_FL",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    0.045,
-    0.1176,
-    0.0465
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.056,
-    0.0428,
-    0.063
-   ],
-   "z_range": [
-    0.015,
-    0.078
-   ]
-  },
-  {
    "name": "belt_guard_FL",
    "link": "base_link",
    "shape": "box",
    "pos": [
-    0.063,
+    0.06175,
     0.14265,
-    0.032415
+    0.03228
    ],
    "quat_xyzw": [
     0.0,
@@ -532,13 +478,13 @@
     1.0
    ],
    "size": [
-    0.088,
+    0.0855,
     0.0189,
-    0.04283
+    0.04256
    ],
    "z_range": [
     0.011,
-    0.05383
+    0.05356
    ]
   },
   {
@@ -546,8 +492,8 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    0.047044,
-    0.1188,
+    0.0468,
+    0.1232,
     0.04425
    ],
    "quat_xyzw": [
@@ -564,56 +510,6 @@
    "z_range": [
     0.021,
     0.0675
-   ]
-  },
-  {
-   "name": "belt_block_FR",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    0.0925,
-    -0.11735,
-    0.0569
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.025,
-    0.0423,
-    0.0838
-   ],
-   "z_range": [
-    0.015,
-    0.0988
-   ]
-  },
-  {
-   "name": "belt_sled_FR",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    0.045,
-    -0.1176,
-    0.0465
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.056,
-    0.0428,
-    0.063
-   ],
-   "z_range": [
-    0.015,
-    0.078
    ]
   },
   {
@@ -621,9 +517,9 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    0.063,
+    0.06175,
     -0.14265,
-    0.032415
+    0.03228
    ],
    "quat_xyzw": [
     0.0,
@@ -632,13 +528,13 @@
     1.0
    ],
    "size": [
-    0.088,
+    0.0855,
     0.0189,
-    0.04283
+    0.04256
    ],
    "z_range": [
     0.011,
-    0.05383
+    0.05356
    ]
   },
   {
@@ -646,8 +542,8 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    0.047044,
-    -0.1188,
+    0.0468,
+    -0.1232,
     0.04425
    ],
    "quat_xyzw": [
@@ -664,56 +560,6 @@
    "z_range": [
     0.021,
     0.0675
-   ]
-  },
-  {
-   "name": "belt_block_RL",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    -0.0675,
-    0.11735,
-    0.0569
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.025,
-    0.0423,
-    0.0838
-   ],
-   "z_range": [
-    0.015,
-    0.0988
-   ]
-  },
-  {
-   "name": "belt_sled_RL",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    -0.02,
-    0.1176,
-    0.0465
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.056,
-    0.0428,
-    0.063
-   ],
-   "z_range": [
-    0.015,
-    0.078
    ]
   },
   {
@@ -721,9 +567,9 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    -0.038,
+    -0.03675,
     0.14265,
-    0.032415
+    0.03228
    ],
    "quat_xyzw": [
     0.0,
@@ -732,13 +578,13 @@
     1.0
    ],
    "size": [
-    0.088,
+    0.0855,
     0.0189,
-    0.04283
+    0.04256
    ],
    "z_range": [
     0.011,
-    0.05383
+    0.05356
    ]
   },
   {
@@ -746,8 +592,8 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    -0.022044,
-    0.1188,
+    -0.0218,
+    0.1232,
     0.04425
    ],
    "quat_xyzw": [
@@ -764,56 +610,6 @@
    "z_range": [
     0.021,
     0.0675
-   ]
-  },
-  {
-   "name": "belt_block_RR",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    -0.0675,
-    -0.11735,
-    0.0569
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.025,
-    0.0423,
-    0.0838
-   ],
-   "z_range": [
-    0.015,
-    0.0988
-   ]
-  },
-  {
-   "name": "belt_sled_RR",
-   "link": "base_link",
-   "shape": "box",
-   "pos": [
-    -0.02,
-    -0.1176,
-    0.0465
-   ],
-   "quat_xyzw": [
-    0.0,
-    0.0,
-    0.0,
-    1.0
-   ],
-   "size": [
-    0.056,
-    0.0428,
-    0.063
-   ],
-   "z_range": [
-    0.015,
-    0.078
    ]
   },
   {
@@ -821,9 +617,9 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    -0.038,
+    -0.03675,
     -0.14265,
-    0.032415
+    0.03228
    ],
    "quat_xyzw": [
     0.0,
@@ -832,13 +628,13 @@
     1.0
    ],
    "size": [
-    0.088,
+    0.0855,
     0.0189,
-    0.04283
+    0.04256
    ],
    "z_range": [
     0.011,
-    0.05383
+    0.05356
    ]
   },
   {
@@ -846,8 +642,8 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    -0.022044,
-    -0.1188,
+    -0.0218,
+    -0.1232,
     0.04425
    ],
    "quat_xyzw": [
@@ -864,6 +660,56 @@
    "z_range": [
     0.021,
     0.0675
+   ]
+  },
+  {
+   "name": "lidar_bracket_front",
+   "link": "base_link",
+   "shape": "box",
+   "pos": [
+    0.12625,
+    0.0,
+    0.102
+   ],
+   "quat_xyzw": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "size": [
+    0.0435,
+    0.06,
+    0.016
+   ],
+   "z_range": [
+    0.094,
+    0.11
+   ]
+  },
+  {
+   "name": "lidar_bracket_rear",
+   "link": "base_link",
+   "shape": "box",
+   "pos": [
+    -0.12625,
+    0.0,
+    0.102
+   ],
+   "quat_xyzw": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "size": [
+    0.0435,
+    0.06,
+    0.016
+   ],
+   "z_range": [
+    0.094,
+    0.11
    ]
   },
   {
@@ -873,7 +719,7 @@
    "pos": [
     -0.0415,
     0.0,
-    0.0165
+    0.01725
    ],
    "quat_xyzw": [
     0.0,
@@ -883,12 +729,12 @@
    ],
    "size": [
     0.179,
-    0.11,
-    0.009
+    0.13,
+    0.0105
    ],
    "z_range": [
     0.012,
-    0.021
+    0.0225
    ]
   },
   {
@@ -942,12 +788,12 @@
    ]
   },
   {
-   "name": "light_bracket_L",
+   "name": "light_corner_FL",
    "link": "base_link",
    "shape": "box",
    "pos": [
-    -0.001075,
-    0.1085,
+    0.060175,
+    0.1115,
     0.057
    ],
    "quat_xyzw": [
@@ -957,8 +803,8 @@
     1.0
    ],
    "size": [
-    0.21765,
-    0.049,
+    0.09515,
+    0.055,
     0.09
    ],
    "z_range": [
@@ -967,12 +813,12 @@
    ]
   },
   {
-   "name": "light_bracket_R",
+   "name": "light_corner_FR",
    "link": "base_link",
    "shape": "box",
    "pos": [
-    -0.001075,
-    -0.1085,
+    0.060175,
+    -0.1115,
     0.057
    ],
    "quat_xyzw": [
@@ -982,8 +828,58 @@
     1.0
    ],
    "size": [
-    0.21765,
-    0.049,
+    0.09515,
+    0.055,
+    0.09
+   ],
+   "z_range": [
+    0.012,
+    0.102
+   ]
+  },
+  {
+   "name": "light_corner_RL",
+   "link": "base_link",
+   "shape": "box",
+   "pos": [
+    -0.04875,
+    0.1115,
+    0.057
+   ],
+   "quat_xyzw": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "size": [
+    0.1223,
+    0.055,
+    0.09
+   ],
+   "z_range": [
+    0.012,
+    0.102
+   ]
+  },
+  {
+   "name": "light_corner_RR",
+   "link": "base_link",
+   "shape": "box",
+   "pos": [
+    -0.04875,
+    -0.1115,
+    0.057
+   ],
+   "quat_xyzw": [
+    0.0,
+    0.0,
+    0.0,
+    1.0
+   ],
+   "size": [
+    0.1223,
+    0.055,
     0.09
    ],
    "z_range": [
@@ -996,7 +892,7 @@
    "link": "base_link",
    "shape": "box",
    "pos": [
-    -0.026392,
+    -0.025742,
     0.0,
     0.1125
    ],
@@ -1007,7 +903,7 @@
     1.0
    ],
    "size": [
-    0.205815,
+    0.204515,
     0.21154,
     0.003
    ],
@@ -1321,9 +1217,9 @@
    "link": "lds_front",
    "shape": "box",
    "pos": [
-    0.1089,
+    0.1318,
     0.0,
-    0.09145
+    0.08345
    ],
    "quat_xyzw": [
     1.0,
@@ -1337,8 +1233,8 @@
     0.0211
    ],
    "z_range": [
-    0.0809,
-    0.102
+    0.0729,
+    0.094
    ]
   },
   {
@@ -1346,9 +1242,9 @@
    "link": "lds_front",
    "shape": "cylinder",
    "pos": [
-    0.1089,
+    0.1318,
     -0.0,
-    0.07425
+    0.06625
    ],
    "quat_xyzw": [
     1.0,
@@ -1362,8 +1258,8 @@
     0.0133
    ],
    "z_range": [
-    0.0676,
-    0.0809
+    0.0596,
+    0.0729
    ]
   },
   {
@@ -1371,9 +1267,9 @@
    "link": "lds_rear",
    "shape": "box",
    "pos": [
-    -0.1089,
+    -0.1318,
     -0.0,
-    0.09145
+    0.08345
    ],
    "quat_xyzw": [
     0.0,
@@ -1387,8 +1283,8 @@
     0.0211
    ],
    "z_range": [
-    0.0809,
-    0.102
+    0.0729,
+    0.094
    ]
   },
   {
@@ -1396,9 +1292,9 @@
    "link": "lds_rear",
    "shape": "cylinder",
    "pos": [
-    -0.1089,
+    -0.1318,
     0.0,
-    0.07425
+    0.06625
    ],
    "quat_xyzw": [
     0.0,
@@ -1412,8 +1308,8 @@
     0.0133
    ],
    "z_range": [
-    0.0676,
-    0.0809
+    0.0596,
+    0.0729
    ]
   },
   {
@@ -1606,7 +1502,12 @@
    "height": 720,
    "update_rate_hz": 30,
    "hfov_rad": 1.2735,
-   "intrinsics": [865.4327, 865.5612, 584.1243, 359.3632],
+   "intrinsics": [
+    865.4327,
+    865.5612,
+    584.1243,
+    359.3632
+   ],
    "clip_m": [
     0.02,
     5.0

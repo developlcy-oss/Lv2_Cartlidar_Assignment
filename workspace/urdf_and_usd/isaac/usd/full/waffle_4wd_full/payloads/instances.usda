@@ -228,6 +228,30 @@ def Scope "Instances"
         }
     }
 
+    def Xform "lidar_brackets" (
+        prepend references = @./geometries.usd@</Geometries/lidar_brackets>
+    )
+    {
+        over "lidar_brackets" (
+            apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            custom rel material:binding
+            prepend rel material:binding = </Instances/lidar_brackets/VisualMaterials/a_pla_gold>
+            custom string urdf:name = "lidar_brackets"
+        }
+
+        def Scope "VisualMaterials"
+        {
+            def Material "a_pla_gold" (
+                instanceable = true
+                prepend references = @./materials.usda@</Materials/a_pla_gold>
+            )
+            {
+            }
+        }
+    }
+
     def Xform "deck_tray" (
         prepend references = @./geometries.usd@</Geometries/deck_tray>
     )
@@ -1845,11 +1869,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull00" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull00>
+    def Xform "corner_FL_hull00" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull00>
     )
     {
-        over "bracket_L_hull00" (
+        over "corner_FL_hull00" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1858,11 +1882,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull01" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull01>
+    def Xform "corner_FL_hull01" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull01>
     )
     {
-        over "bracket_L_hull01" (
+        over "corner_FL_hull01" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1871,11 +1895,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull02" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull02>
+    def Xform "corner_FL_hull02" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull02>
     )
     {
-        over "bracket_L_hull02" (
+        over "corner_FL_hull02" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1884,11 +1908,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull03" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull03>
+    def Xform "corner_FL_hull03" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull03>
     )
     {
-        over "bracket_L_hull03" (
+        over "corner_FL_hull03" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1897,11 +1921,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull04" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull04>
+    def Xform "corner_FL_hull04" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull04>
     )
     {
-        over "bracket_L_hull04" (
+        over "corner_FL_hull04" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1910,11 +1934,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull05" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull05>
+    def Xform "corner_FL_hull05" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull05>
     )
     {
-        over "bracket_L_hull05" (
+        over "corner_FL_hull05" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1923,11 +1947,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull06" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull06>
+    def Xform "corner_FL_hull06" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull06>
     )
     {
-        over "bracket_L_hull06" (
+        over "corner_FL_hull06" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1936,11 +1960,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull07" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull07>
+    def Xform "corner_FL_hull07" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull07>
     )
     {
-        over "bracket_L_hull07" (
+        over "corner_FL_hull07" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1949,11 +1973,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull08" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull08>
+    def Xform "corner_FL_hull08" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull08>
     )
     {
-        over "bracket_L_hull08" (
+        over "corner_FL_hull08" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1962,11 +1986,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull09" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull09>
+    def Xform "corner_FL_hull09" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull09>
     )
     {
-        over "bracket_L_hull09" (
+        over "corner_FL_hull09" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1975,11 +1999,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull10" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull10>
+    def Xform "corner_FL_hull10" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull10>
     )
     {
-        over "bracket_L_hull10" (
+        over "corner_FL_hull10" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -1988,11 +2012,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull11" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull11>
+    def Xform "corner_FL_hull11" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull11>
     )
     {
-        over "bracket_L_hull11" (
+        over "corner_FL_hull11" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2001,11 +2025,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull12" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull12>
+    def Xform "corner_FL_hull12" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull12>
     )
     {
-        over "bracket_L_hull12" (
+        over "corner_FL_hull12" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2014,11 +2038,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull13" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull13>
+    def Xform "corner_FL_hull13" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull13>
     )
     {
-        over "bracket_L_hull13" (
+        over "corner_FL_hull13" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2027,11 +2051,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull14" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull14>
+    def Xform "corner_FL_hull14" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull14>
     )
     {
-        over "bracket_L_hull14" (
+        over "corner_FL_hull14" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2040,11 +2064,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull15" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull15>
+    def Xform "corner_FL_hull15" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull15>
     )
     {
-        over "bracket_L_hull15" (
+        over "corner_FL_hull15" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2053,11 +2077,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull16" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull16>
+    def Xform "corner_FL_hull16" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull16>
     )
     {
-        over "bracket_L_hull16" (
+        over "corner_FL_hull16" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2066,11 +2090,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull17" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull17>
+    def Xform "corner_FL_hull17" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull17>
     )
     {
-        over "bracket_L_hull17" (
+        over "corner_FL_hull17" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2079,11 +2103,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull18" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull18>
+    def Xform "corner_FL_hull18" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull18>
     )
     {
-        over "bracket_L_hull18" (
+        over "corner_FL_hull18" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2092,11 +2116,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull19" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull19>
+    def Xform "corner_FL_hull19" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull19>
     )
     {
-        over "bracket_L_hull19" (
+        over "corner_FL_hull19" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2105,11 +2129,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull20" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull20>
+    def Xform "corner_FL_hull20" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull20>
     )
     {
-        over "bracket_L_hull20" (
+        over "corner_FL_hull20" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2118,11 +2142,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull21" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull21>
+    def Xform "corner_FL_hull21" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull21>
     )
     {
-        over "bracket_L_hull21" (
+        over "corner_FL_hull21" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2131,11 +2155,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull22" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull22>
+    def Xform "corner_FL_hull22" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull22>
     )
     {
-        over "bracket_L_hull22" (
+        over "corner_FL_hull22" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2144,11 +2168,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull23" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull23>
+    def Xform "corner_FL_hull23" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull23>
     )
     {
-        over "bracket_L_hull23" (
+        over "corner_FL_hull23" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2157,11 +2181,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull24" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull24>
+    def Xform "corner_FL_hull24" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull24>
     )
     {
-        over "bracket_L_hull24" (
+        over "corner_FL_hull24" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2170,11 +2194,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull25" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull25>
+    def Xform "corner_FL_hull25" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull25>
     )
     {
-        over "bracket_L_hull25" (
+        over "corner_FL_hull25" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2183,11 +2207,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull26" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull26>
+    def Xform "corner_FL_hull26" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull26>
     )
     {
-        over "bracket_L_hull26" (
+        over "corner_FL_hull26" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2196,11 +2220,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull27" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull27>
+    def Xform "corner_FL_hull27" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull27>
     )
     {
-        over "bracket_L_hull27" (
+        over "corner_FL_hull27" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2209,11 +2233,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull28" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull28>
+    def Xform "corner_FL_hull28" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull28>
     )
     {
-        over "bracket_L_hull28" (
+        over "corner_FL_hull28" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2222,11 +2246,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull29" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull29>
+    def Xform "corner_FL_hull29" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull29>
     )
     {
-        over "bracket_L_hull29" (
+        over "corner_FL_hull29" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2235,11 +2259,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_L_hull30" (
-        prepend references = @./geometries.usd@</Geometries/bracket_L_hull30>
+    def Xform "corner_FL_hull30" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull30>
     )
     {
-        over "bracket_L_hull30" (
+        over "corner_FL_hull30" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2248,11 +2272,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull00" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull00>
+    def Xform "corner_FL_hull31" (
+        prepend references = @./geometries.usd@</Geometries/corner_FL_hull31>
     )
     {
-        over "bracket_R_hull00" (
+        over "corner_FL_hull31" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2261,11 +2285,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull01" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull01>
+    def Xform "corner_FR_hull00" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull00>
     )
     {
-        over "bracket_R_hull01" (
+        over "corner_FR_hull00" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2274,11 +2298,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull02" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull02>
+    def Xform "corner_FR_hull01" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull01>
     )
     {
-        over "bracket_R_hull02" (
+        over "corner_FR_hull01" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2287,11 +2311,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull03" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull03>
+    def Xform "corner_FR_hull02" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull02>
     )
     {
-        over "bracket_R_hull03" (
+        over "corner_FR_hull02" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2300,11 +2324,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull04" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull04>
+    def Xform "corner_FR_hull03" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull03>
     )
     {
-        over "bracket_R_hull04" (
+        over "corner_FR_hull03" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2313,11 +2337,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull05" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull05>
+    def Xform "corner_FR_hull04" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull04>
     )
     {
-        over "bracket_R_hull05" (
+        over "corner_FR_hull04" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2326,11 +2350,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull06" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull06>
+    def Xform "corner_FR_hull05" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull05>
     )
     {
-        over "bracket_R_hull06" (
+        over "corner_FR_hull05" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2339,11 +2363,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull07" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull07>
+    def Xform "corner_FR_hull06" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull06>
     )
     {
-        over "bracket_R_hull07" (
+        over "corner_FR_hull06" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2352,11 +2376,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull08" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull08>
+    def Xform "corner_FR_hull07" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull07>
     )
     {
-        over "bracket_R_hull08" (
+        over "corner_FR_hull07" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2365,11 +2389,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull09" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull09>
+    def Xform "corner_FR_hull08" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull08>
     )
     {
-        over "bracket_R_hull09" (
+        over "corner_FR_hull08" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2378,11 +2402,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull10" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull10>
+    def Xform "corner_FR_hull09" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull09>
     )
     {
-        over "bracket_R_hull10" (
+        over "corner_FR_hull09" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2391,11 +2415,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull11" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull11>
+    def Xform "corner_FR_hull10" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull10>
     )
     {
-        over "bracket_R_hull11" (
+        over "corner_FR_hull10" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2404,11 +2428,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull12" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull12>
+    def Xform "corner_FR_hull11" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull11>
     )
     {
-        over "bracket_R_hull12" (
+        over "corner_FR_hull11" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2417,11 +2441,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull13" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull13>
+    def Xform "corner_FR_hull12" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull12>
     )
     {
-        over "bracket_R_hull13" (
+        over "corner_FR_hull12" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2430,11 +2454,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull14" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull14>
+    def Xform "corner_FR_hull13" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull13>
     )
     {
-        over "bracket_R_hull14" (
+        over "corner_FR_hull13" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2443,11 +2467,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull15" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull15>
+    def Xform "corner_FR_hull14" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull14>
     )
     {
-        over "bracket_R_hull15" (
+        over "corner_FR_hull14" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2456,11 +2480,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull16" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull16>
+    def Xform "corner_FR_hull15" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull15>
     )
     {
-        over "bracket_R_hull16" (
+        over "corner_FR_hull15" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2469,11 +2493,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull17" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull17>
+    def Xform "corner_FR_hull16" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull16>
     )
     {
-        over "bracket_R_hull17" (
+        over "corner_FR_hull16" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2482,11 +2506,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull18" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull18>
+    def Xform "corner_FR_hull17" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull17>
     )
     {
-        over "bracket_R_hull18" (
+        over "corner_FR_hull17" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2495,11 +2519,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull19" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull19>
+    def Xform "corner_FR_hull18" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull18>
     )
     {
-        over "bracket_R_hull19" (
+        over "corner_FR_hull18" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2508,11 +2532,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull20" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull20>
+    def Xform "corner_FR_hull19" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull19>
     )
     {
-        over "bracket_R_hull20" (
+        over "corner_FR_hull19" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2521,11 +2545,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull21" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull21>
+    def Xform "corner_FR_hull20" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull20>
     )
     {
-        over "bracket_R_hull21" (
+        over "corner_FR_hull20" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2534,11 +2558,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull22" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull22>
+    def Xform "corner_FR_hull21" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull21>
     )
     {
-        over "bracket_R_hull22" (
+        over "corner_FR_hull21" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2547,11 +2571,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull23" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull23>
+    def Xform "corner_FR_hull22" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull22>
     )
     {
-        over "bracket_R_hull23" (
+        over "corner_FR_hull22" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2560,11 +2584,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull24" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull24>
+    def Xform "corner_FR_hull23" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull23>
     )
     {
-        over "bracket_R_hull24" (
+        over "corner_FR_hull23" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2573,11 +2597,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull25" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull25>
+    def Xform "corner_FR_hull24" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull24>
     )
     {
-        over "bracket_R_hull25" (
+        over "corner_FR_hull24" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2586,11 +2610,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull26" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull26>
+    def Xform "corner_FR_hull25" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull25>
     )
     {
-        over "bracket_R_hull26" (
+        over "corner_FR_hull25" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2599,11 +2623,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull27" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull27>
+    def Xform "corner_FR_hull26" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull26>
     )
     {
-        over "bracket_R_hull27" (
+        over "corner_FR_hull26" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2612,11 +2636,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull28" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull28>
+    def Xform "corner_FR_hull27" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull27>
     )
     {
-        over "bracket_R_hull28" (
+        over "corner_FR_hull27" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2625,11 +2649,11 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull29" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull29>
+    def Xform "corner_FR_hull28" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull28>
     )
     {
-        over "bracket_R_hull29" (
+        over "corner_FR_hull28" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {
@@ -2638,11 +2662,869 @@ def Scope "Instances"
         }
     }
 
-    def Xform "bracket_R_hull30" (
-        prepend references = @./geometries.usd@</Geometries/bracket_R_hull30>
+    def Xform "corner_FR_hull29" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull29>
     )
     {
-        over "bracket_R_hull30" (
+        over "corner_FR_hull29" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_FR_hull30" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull30>
+    )
+    {
+        over "corner_FR_hull30" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_FR_hull31" (
+        prepend references = @./geometries.usd@</Geometries/corner_FR_hull31>
+    )
+    {
+        over "corner_FR_hull31" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull00" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull00>
+    )
+    {
+        over "corner_RL_hull00" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull01" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull01>
+    )
+    {
+        over "corner_RL_hull01" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull02" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull02>
+    )
+    {
+        over "corner_RL_hull02" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull03" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull03>
+    )
+    {
+        over "corner_RL_hull03" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull04" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull04>
+    )
+    {
+        over "corner_RL_hull04" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull05" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull05>
+    )
+    {
+        over "corner_RL_hull05" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull06" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull06>
+    )
+    {
+        over "corner_RL_hull06" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull07" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull07>
+    )
+    {
+        over "corner_RL_hull07" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull08" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull08>
+    )
+    {
+        over "corner_RL_hull08" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull09" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull09>
+    )
+    {
+        over "corner_RL_hull09" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull10" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull10>
+    )
+    {
+        over "corner_RL_hull10" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull11" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull11>
+    )
+    {
+        over "corner_RL_hull11" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull12" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull12>
+    )
+    {
+        over "corner_RL_hull12" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull13" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull13>
+    )
+    {
+        over "corner_RL_hull13" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull14" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull14>
+    )
+    {
+        over "corner_RL_hull14" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull15" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull15>
+    )
+    {
+        over "corner_RL_hull15" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull16" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull16>
+    )
+    {
+        over "corner_RL_hull16" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull17" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull17>
+    )
+    {
+        over "corner_RL_hull17" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull18" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull18>
+    )
+    {
+        over "corner_RL_hull18" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull19" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull19>
+    )
+    {
+        over "corner_RL_hull19" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull20" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull20>
+    )
+    {
+        over "corner_RL_hull20" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull21" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull21>
+    )
+    {
+        over "corner_RL_hull21" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull22" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull22>
+    )
+    {
+        over "corner_RL_hull22" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull23" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull23>
+    )
+    {
+        over "corner_RL_hull23" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull24" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull24>
+    )
+    {
+        over "corner_RL_hull24" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull25" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull25>
+    )
+    {
+        over "corner_RL_hull25" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull26" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull26>
+    )
+    {
+        over "corner_RL_hull26" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull27" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull27>
+    )
+    {
+        over "corner_RL_hull27" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull28" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull28>
+    )
+    {
+        over "corner_RL_hull28" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull29" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull29>
+    )
+    {
+        over "corner_RL_hull29" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull30" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull30>
+    )
+    {
+        over "corner_RL_hull30" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RL_hull31" (
+        prepend references = @./geometries.usd@</Geometries/corner_RL_hull31>
+    )
+    {
+        over "corner_RL_hull31" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull00" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull00>
+    )
+    {
+        over "corner_RR_hull00" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull01" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull01>
+    )
+    {
+        over "corner_RR_hull01" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull02" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull02>
+    )
+    {
+        over "corner_RR_hull02" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull03" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull03>
+    )
+    {
+        over "corner_RR_hull03" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull04" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull04>
+    )
+    {
+        over "corner_RR_hull04" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull05" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull05>
+    )
+    {
+        over "corner_RR_hull05" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull06" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull06>
+    )
+    {
+        over "corner_RR_hull06" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull07" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull07>
+    )
+    {
+        over "corner_RR_hull07" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull08" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull08>
+    )
+    {
+        over "corner_RR_hull08" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull09" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull09>
+    )
+    {
+        over "corner_RR_hull09" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull10" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull10>
+    )
+    {
+        over "corner_RR_hull10" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull11" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull11>
+    )
+    {
+        over "corner_RR_hull11" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull12" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull12>
+    )
+    {
+        over "corner_RR_hull12" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull13" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull13>
+    )
+    {
+        over "corner_RR_hull13" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull14" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull14>
+    )
+    {
+        over "corner_RR_hull14" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull15" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull15>
+    )
+    {
+        over "corner_RR_hull15" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull16" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull16>
+    )
+    {
+        over "corner_RR_hull16" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull17" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull17>
+    )
+    {
+        over "corner_RR_hull17" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull18" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull18>
+    )
+    {
+        over "corner_RR_hull18" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull19" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull19>
+    )
+    {
+        over "corner_RR_hull19" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull20" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull20>
+    )
+    {
+        over "corner_RR_hull20" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull21" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull21>
+    )
+    {
+        over "corner_RR_hull21" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull22" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull22>
+    )
+    {
+        over "corner_RR_hull22" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull23" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull23>
+    )
+    {
+        over "corner_RR_hull23" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull24" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull24>
+    )
+    {
+        over "corner_RR_hull24" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull25" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull25>
+    )
+    {
+        over "corner_RR_hull25" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull26" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull26>
+    )
+    {
+        over "corner_RR_hull26" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull27" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull27>
+    )
+    {
+        over "corner_RR_hull27" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull28" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull28>
+    )
+    {
+        over "corner_RR_hull28" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull29" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull29>
+    )
+    {
+        over "corner_RR_hull29" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull30" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull30>
+    )
+    {
+        over "corner_RR_hull30" (
+            apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
+        )
+        {
+            token physics:approximation = "convexHull"
+            token purpose = "guide"
+        }
+    }
+
+    def Xform "corner_RR_hull31" (
+        prepend references = @./geometries.usd@</Geometries/corner_RR_hull31>
+    )
+    {
+        over "corner_RR_hull31" (
             apiSchemas = ["PhysicsCollisionAPI", "NewtonCollisionAPI", "PhysicsMeshCollisionAPI", "NewtonMeshCollisionAPI"]
         )
         {

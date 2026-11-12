@@ -124,7 +124,10 @@ Q1 예제 105 단계 **DONE** (sim 약 455 s): goto 18 번 모두 도착 (AMCL �
   J1 거리 범위 0.12 ~ 0.35 m (윗면 70 mm). 모든 final = FINE 자리 (앞 끝 - 면 0.1272, #64 안 A): 박스 퍽 J1 0.270 m, inline 0.227 / 0.306, L1 · L2 · L3 칸 0.206 ~ 0.332 m.
   TopPick 다시 학습 필요 (#78): tilt_prob 1.0, 실제 배치 gap 0.1272, 회전 뒤 상자 퍽은 옆 퍽이 접선 방향. 회전 skill 은 drive #77.
 - per_location 은 팔레트 2 · 1 열 8 칸만 씀 (3 열 놓기는 쥔 구간 0.4 rad/s 라 칸당 약 6 s 더 걸림). hybrid 는 동시에 8 개를 넘을 때만 3 열 (벌점으로 피함).
-- hybrid 는 한 박스의 두 퍽을 서로 다른 때 집을 수 있음 → 누운 퍽 순서 제약 (#193, 같은 박스 세운 퍽 먼저) 을 넣을 자리는 `hybrid.plan_hybrid` 런 나누기.
+- 누운 퍽 순서 (#193): 등록표 `pose` (standing | lying, 없으면 standing — 측량 등록표 그대로) 를 읽어 같은 박스는 세운 퍽을 먼저 집음.
+  같은 정차는 세운 퍽부터 (모든 방식). hybrid 는 런 나누기에서 어기는 후보를 빼서 늘 지킴 (무작위 40 문제: 18 문제 경로가 바뀜, 평균 +0.66 m · 최대 +4.1 m).
+  per_location · single_load 는 정차 사이 순서를 보장하지 않아 어기면 경고. inline 박스 (B6 W 면) 에서 먼 세운 퍽을 먼저 집게 되면 경고 (실물 확인).
+  미션 줄은 누운 퍽도 아직 `toppick_tilt` (누운 퍽 스킬 연결은 #193 에서 정함, 계획 경고로 알림).
 - 45° 로 놓은 상자 퍽은 칸에서 J1→칸 방향으로 돌아 앉음 (L1 · L3 최대 23°, L2 16°). 칸 판정에 퍽 방향이 들어가는지 확인.
 - manipulator: 위 skill 이름은 manipulator_node 에 있음 (PR #94, 팔레트 구간 순서는 #75 Isaac 확인본). 팔레트 궤적 원본은 `urdf_and_usd/policy/manipulator/pallet_place_traj.json`.
 - approach FINE 자리를 그대로 집기 · 놓기 자세로 씀 (#64 안 A). TFmini 는 0.10 m 안을 못 재 obstacle_stop 이 막으므로 더 붙지 않음.

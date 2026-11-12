@@ -6,7 +6,7 @@ ROS 2 Lyrical · Gazebo Sim 10.5 (ros-lyrical-ros-gz) 에서 시험했다.
 - 팀 261028 확정본 + 증속벨트 v4.2 · 바닥 브라켓 v4 · 하단 전장 (OpenCR 2층 · Jetson · TFmini 받침대) + **B안 상판 팔레트 v3** (칸 12, 조인트1 중심 3열).
   261028 에서 바뀐 것 · 질량 · 점검 결과 · 확인할 것은 **`CHANGES_B.md`**.
 - 팔레트 칸 12곳 자리 (base_link 기준) 는 `config/pallet_slots.yaml`. 팔레트는 `base_link` 에 합쳐져 있어 따로 링크가 없다.
-- xacro 인자 `pucks:=true` 면 칸마다 퍽 하나 (`puck_{R,G,B}_{1..4}`, 겉모양 · 질량만) 를 넣는다. 펼친 URDF 는 `waffle_4wd.urdf` (빈 팔레트) · `waffle_4wd_loaded.urdf` (퍽 12개).
+- xacro 인자 `pucks:=true` 면 칸마다 퍽 하나 (`puck_{R,G,B}_{1..4}`, 겉모양 · 질량 · 충돌 형상, 몸체에 고정, #220) 를 넣는다. 펼친 URDF 는 `waffle_4wd.urdf` (빈 팔레트) · `waffle_4wd_loaded.urdf` (퍽 12개).
 - 센서 사양 (실물 값 · 출처) 과 Gazebo 값은 `config/sensors.yaml` 에 있다.
 - `urdf/` · `meshes/` · `config/gz_bridge.yaml` · `config/camera_info_fix.yaml` 은 저장소 밖 생성기 결과다 (맨 아래 "다시 만들기"). 직접 고치지 말 것.
 
@@ -66,7 +66,7 @@ ros2 topic pub --once /arm/joint2/cmd_pos std_msgs/msg/Float64 "{data: 0.5}"    
 | 프로파일 기둥 · 가로대 · D435 2대 | 캐리어를 따라 x +12.5 mm |
 | 하판 전장 | Jetson (−79.5, 0), OpenCR 2층 `opencr_lower_link` · `opencr_upper_link`, TFmini 받침대 (렌즈 `tfmini_link` (0.130, 0, 0.0243) m), 배터리는 질량만 |
 | IMU | **하나**: `imu_link` = 아래층 OpenCR 칩 → `/imu/data` (팀의 두 IMU 평균 노드는 시뮬에서 쓰지 않음) |
-| 질량 | **4.264 kg** (퍽 12개 4.444 kg) |
+| 질량 | **4.293 kg** (퍽 12개 4.473 kg, 2026-11-12) |
 
 관절 이름 (바퀴 4, joint1~5, gripper_roll, 손가락 2) 과 팀 코드 frame (`base_link`, `base_footprint`, `imu_link`, `laser_front/rear`, `tfmini_link`, `arm_base_link`, `tool_link`, `arm_camera_link`,
 `top_camera_{front,rear}_color_optical_frame`) 은 261028 과 같다. `base_link` 원점도 같다 (판 가운데, 지면 위 6.75 mm). robot_state_publisher 가 루트 관성 KDL 경고를 내지만 동작에는 영향 없음.
@@ -75,7 +75,7 @@ ros2 topic pub --once /arm/joint2/cmd_pos std_msgs/msg/Float64 "{data: 0.5}"    
 
 | 센서 | 실물 사양 (출처는 `config/sensors.yaml`) | Gazebo | 토픽 · frame |
 |---|---|---|---|
-| LDS-03 x 2 (ROBOTIS, = COIN-D4) | 0.05~12 m, 360° · 0.9° (400 점), 10 Hz, ±10 mm (~1 m) · ±20 mm, UART 115200 bps 8N1 (USB2LDS), 5 V 240~320 mA, 42 g | gpu_lidar 400 점 10 Hz, 잡음 σ 10 mm | `/scan_front` · `/scan_rear` (LaserScan), `laser_front` · `laser_rear` (뒤집힘 roll π), 스캔면 바닥 위 82.2 mm |
+| LDS-03 x 2 (ROBOTIS, = COIN-D4) | 0.05~12 m, 360° · 0.9° (400 점), 10 Hz, ±10 mm (~1 m) · ±20 mm, UART 115200 bps 8N1 (USB2LDS), 5 V 240~320 mA, 42 g | gpu_lidar 400 점 10 Hz, 잡음 σ 10 mm | `/scan_front` · `/scan_rear` (LaserScan), `laser_front` · `laser_rear` (뒤집힘 roll π), LDS-03 브라켓 v2 (±0.1318, 0, 0.0675), 스캔면 바닥 위 74.3 mm |
 | TFmini Plus (Benewake) | 0.1~12 m (흰 판), ±5 cm (~6 m) · ±1 %, 시야각 3.6°, 100 Hz (1~1000), UART 115200 bps 8N1, 5 V ≤110 mA, 12 g | 광선 1 개 gpu_lidar 100 Hz, 잡음 σ 25 mm → Range 변환 노드 | `/tfmini/range` (Range), `tfmini_link` (렌즈 가운데, +x 앞), 바닥 위 31 mm |
 | D435 x 2 (Intel RealSense) | 깊이 화각 87° × 58°, 컬러 69° × 42°, 기준선 50 mm, 깊이 최소 0.28 m (최대 해상도) ~ 10 m | 640 × 480 30 Hz: 컬러 (fx 616.8) + 컬러에 맞춘 깊이 + IR 좌우 (fx 386.6) | `/top_camera_{front,rear}/` + `color/image_raw` · `color/camera_info` · `aligned_depth_to_color/image_raw` · `aligned_depth_to_color/camera_info` · `depth/color/points` · `infra1/image_rect_raw` · `infra1/camera_info` · `infra2/…` |
 | 팔 카메라 (Arducam UC-684 B0201) | 대각 화각 120° (판매 정보) | 1280 × 720 30 Hz, 가로 113° 바늘구멍 (가정) | `/arm_camera/image_raw` · `/arm_camera/camera_info`, `arm_camera_optical_frame` |
@@ -120,7 +120,7 @@ B안 판 점검 (2026-11-02, 직진 · 회전 · 센서 주기 · Isaac 3판) �
 - **camera_info**: Gazebo 가 같은 링크의 카메라마다 엉뚱한 기준선을 P 에 넣어서 `scripts/camera_info_fix.py` 가 실물 드라이버처럼 고친다 (infra2 만 Tx = −fx × 0.050).
 - D435 640 × 480 내부 값 (fx 615 · 383 대표값), Arducam 해상도 · 화각, IMU 칩 자리 · 축 방향, 잡음 값은 가정 → 실물 camera_info · 실측으로 바꿀 것.
 - LDS-03 앞뒤 자리는 임시 (귀 구멍이 판 구멍과 안 맞아 테이프 고정 검토 중), 테이프 두께 0 mm 로 둠. LDS-03 0° 방향 = 모델 +x 가정.
-- 스캔면 (82.2 mm) 이 70 mm 박스보다 높아 LiDAR 로 박스는 안 보임 (사용자 결정).
+- 스캔면 (74.3 mm, 2026-11-12 LDS-03 브라켓 v2) 이 70 mm 박스보다 높아 LiDAR 로 박스는 안 보임 (사용자 결정). 여유 4.3 mm 라 실물 높이 확인 ★
 - `collision:=light` 는 브라켓 · 블록 · 받침 · 모터 · 덮개 등을 상자로, 팔레트를 바닥판 상자 + 칸마다 칸 방향 상자 (칸 속 · 손가락 홈 무시) 로 둔다. **퍽 집기 · 팔레트 시험은 `collision:=full`** (팔레트 CoACD 볼록 조각, 전체 478 조각).
 - Gazebo 는 팔 · 손가락 관절 물리 한계를 1 mm · 0.001 rad 넓혀 띄운다 (xacro `limit_margin:=0.001`): 한계 끝에 닿으면 Gazebo (DART) 에서
   속도 명령으로 빠져나오지 못하고 걸려서 (2026-10-28 시험). URDF 한계값을 그대로 명령해도 된다. `.urdf` 의 한계값은 그대로.
@@ -147,7 +147,7 @@ B안 판 점검 (2026-11-02, 직진 · 회전 · 센서 주기 · Isaac 3판) �
 | `rviz/display.rviz` · `rviz/gazebo.rviz` | RViz 설정 |
 | `worlds/dice_mission.sdf` | 주사위 기억 로봇 경기장 (발제 v5) |
 | `scripts/` | `keyboard_teleop.py` (키보드 조작), `tfmini_scan_to_range.py`, `camera_info_fix.py` (Gazebo 보조 노드), `slider_to_gazebo.py` |
-| `meshes/` | `b` (차체 · 증속벨트 · 브라켓 · 하판 · 팔레트, 충돌 조각 `b/collision` = 브라켓 · 팔레트 CoACD), `main` (바퀴 · OpenCR), `arm` (arm_bench), `parts` (LDS-03 · TFmini · Jetson), `collision` (TO 캐리어 볼록 조각, 261028 것 +12.5 mm) |
+| `meshes/` | `b` (차체 · 증속벨트 · 브라켓 · 하판 · 팔레트, 충돌 조각 `b/collision` = 증속벨트 모서리 · 팔레트 CoACD), `main` (바퀴 · OpenCR), `arm` (arm_bench), `parts` (LDS-03 · TFmini · Jetson), `collision` (TO 캐리어 볼록 조각, 261028 것 +12.5 mm) |
 | `CHANGES_B.md` | 261028 → B안 바뀐 것 · 질량 · 충돌 · 점검 · 확인할 것 |
 
 ## 다시 만들기

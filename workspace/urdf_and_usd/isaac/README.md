@@ -23,7 +23,7 @@ cd workspace/urdf_and_usd/isaac
 |---|---|
 | `usd/light/waffle_4wd_light/waffle_4wd_light.usda` | 가벼운 판: 차체 충돌 = 상자 (팔레트 = 바닥판 상자 + 칸마다 꽉 찬 상자). 주행 · 미로 학습 기본 |
 | `usd/full/waffle_4wd_full/waffle_4wd_full.usda` | 정밀 판: 차체 · 팔레트 충돌 = CoACD 볼록 조각 (전체 478). 퍽 집기 · 팔레트 · 벽 가까이 시험 |
-| `usd/loaded/waffle_4wd_loaded/waffle_4wd_loaded.usda` | 가벼운 판 + 팔레트 칸마다 퍽 (12개, 원기둥 12 g · 사각 18 g, 겉모양 · 질량만). 퍽 실은 주행 |
+| `usd/loaded/waffle_4wd_loaded/waffle_4wd_loaded.usda` | 가벼운 판 + 팔레트 칸마다 퍽 (12개, 원기둥 12 g · 사각 18 g, 몸체에 고정 · 충돌 형상 있음 #220 — 팔이 실린 퍽에 닿으면 자기 충돌로 잡힘). 퍽 실은 주행 |
 | `robot_params.json` | 물리값 (value · 단위 · 근거 status · 출처 source) |
 | `waffle_4wd_isaac/robot_cfg.py` | Isaac Lab 관절체 설정 `WAFFLE_4WD_CFG` (가벼운) · `WAFFLE_4WD_FULL_CFG` (정밀) · `WAFFLE_4WD_LOADED_CFG` (퍽 12개), 시작 자세 `pose()` |
 | `waffle_4wd_isaac/sensors_cfg.py` | LDS-03 ×2 · TFmini · IMU · D435 ×2 · 팔 카메라 설정, LiDAR 자기 가림 |
@@ -92,7 +92,7 @@ cam = S.d435_cfg("{ENV_REGEX_NS}/Robot", "front", "color")                 # rgb
 
 | 센서 | 붙는 몸체 · 위치 [m] | 시뮬 값 | 기본 |
 |---|---|---|---|
-| LDS-03 앞 · 뒤 | base_link (±0.1089, 0, 0.0755), 상판 밑에 뒤집어. 스캔면 지면 위 0.0823 | 400 광선 (0.9°), 0.05 ~ 12 m, 10 Hz, 광선 시작 반경 25 mm | 켬 |
+| LDS-03 앞 · 뒤 | base_link (±0.1318, 0, 0.0675) (브라켓 v2, 2026-11-12), 상판 밑에 뒤집어. 스캔면 지면 위 0.0743 | 400 광선 (0.9°), 0.05 ~ 12 m, 10 Hz, 광선 시작 반경 25 mm | 켬 |
 | TFmini Plus | base_link (0.130, 0, 0.0243) +x | 광선 1개, 0.1 ~ 12 m, 100 Hz | 켬 |
 | IMU | base_link (0.0095, 0, 0.0202) = 아래층 OpenCR 칩 (`imu_link`, 하나뿐) | 100 Hz | 켬 |
 | D435 앞 · 뒤 컬러 + 깊이 | base_link, 컬러 optical frame 그대로 (깊이 = frame 기준, 더할 것 없음) | 640 × 480, 30 Hz, 가로 화각 0.9571 rad, 0.105 ~ 10 m | 끔 |
@@ -104,7 +104,7 @@ cam = S.d435_cfg("{ENV_REGEX_NS}/Robot", "front", "color")                 # rgb
 | 항목 | 가벼운 판 | 정밀 판 |
 |---|---|---|
 | USD 안 값 = robot_params.json | 같음 (관절 12, 팔끼리 뺀 쌍 28, 마찰 1.0) | 같음 |
-| 질량 · 가만히 | 3.8613 kg (10-30 퍽 플레이트 판) — **B안 판은 4.264 kg (loaded 4.444), 아래 6-1** | 같음 |
+| 질량 · 가만히 | 3.8613 kg (10-30 퍽 플레이트 판) — **B안 판은 4.293 kg (loaded 4.473, 2026-11-12), 아래 6-1** | 같음 |
 | 주행 자세 처짐 (J2 · J3 · J4) | 0.007 · 0.047 · 0.015 rad | 같음 |
 | 자세 이동 zero → stow → zero → drive | 가장 큰 오차 0.059 rad (영 자세 J2 처짐) | 같음 |
 | 직진 0.1 m/s × 3 s | 0.298 m (미끄럼 없을 때 0.300) | 0.298 m |
