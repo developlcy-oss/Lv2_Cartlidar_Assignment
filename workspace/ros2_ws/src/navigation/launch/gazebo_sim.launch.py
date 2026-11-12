@@ -30,8 +30,10 @@ def generate_launch_description():
         launch_arguments={'x': LC('x'), 'y': LC('y'), 'yaw': LC('yaw'), 'gui': LC('gui'), 'rviz': LC('rviz')}.items())
     # 로봇이 Gazebo 에 생긴 뒤 (/joint_states 가 나오기 시작) 보낸다. 브리지 구독은 그 전부터 있어서 -w 1 만으로는
     # 생성 전에 보낸 명령이 버려진다 (2026-11-04: joint2 가 0 으로 남아 팔이 차체를 뚫음 — 이 모델은 팔 · 차체 자기 충돌 없음)
+    # echo 에 메시지 형을 줘야 /joint_states 가 아직 없을 때 기다린다. 형이 없으면 "Could not determine the type" 로 바로 끝나
+    # 팔 자세를 하나도 안 보냄 (2026-11-12 Gazebo 창 실행: 창을 띄우면 브리지가 늦게 떠서 남)
     arm = ExecuteProcess(
-        cmd=['bash', '-c', 'ros2 topic echo --once /joint_states > /dev/null && sleep 1 && ' + ' && '.join(
+        cmd=['bash', '-c', 'ros2 topic echo --once /joint_states sensor_msgs/msg/JointState > /dev/null && sleep 1 && ' + ' && '.join(
             f'ros2 topic pub --times 3 -r 2 -w 1 /arm/{j}/cmd_pos std_msgs/msg/Float64 "{{data: {v}}}"' for j, v in ARM_DRIVE.items())],
         output='screen')
     nav = IncludeLaunchDescription(

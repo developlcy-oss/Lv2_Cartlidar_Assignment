@@ -4,6 +4,9 @@
 #   속도 명령 토픽 이름 (중간 · 최종 /cmd_vel_nav) 은 launch 가 정한다
 #   ★ = 임시값 (실측 · 실물 튜닝으로 바꿈). 차체 외곽 = B안 (mission_planner poses.py: 앞 0.1328 · 뒤 -0.2135 · 반폭 0.1676)
 #   odom_topic 은 실물 EKF (/odometry/filtered) 기준. Gazebo 는 launch 인자 odom_topic:=/odom 으로 덮어씀
+#   속도 한계 (MPPI vx_max · wz_max, RotationShim rotate_to_heading_angular_vel, behavior max_rotational_vel, smoother max · min_velocity) 는
+#   launch 인자 max_vx · max_wz · rotate_wz 로 함께 덮어쓸 수 있음 (navigation.launch.py). 여기 값은 인자를 비웠을 때의 기본값.
+#   실물 diff_drive 상한: vx 0.34 (drive_belt.yaml) · wz 1.0 (controllers_4wd.yaml, 11-12 벨트 때문에 2.0 → 1.0)
 
 bt_navigator:
   ros__parameters:
@@ -12,7 +15,8 @@ bt_navigator:
     odom_topic: /odometry/filtered
     bt_loop_duration: 10
     default_server_timeout: 20
-    wait_for_service_timeout: 5000   # ms. 1000 이면 시작 때 planner 의 is_path_valid 를 못 찾아 bt_navigator 활성화 실패 (Gazebo 11-10). Jetson 은 시작이 더 느림
+    wait_for_service_timeout: 15000  # ms. BT 를 만들 때 서버 (follow_path · spin · compute_path_to_pose …) 를 기다리는 시간. 1000 이면 is_path_valid 를 못 찾아 활성화 실패 (Gazebo 11-10),
+                                     #   5000 도 Gazebo 띄우기 10 번 중 2 번 실패 (11-12, 노드가 한꺼번에 뜰 때 늦게 찾음) → 15000. 시작 때만 기다리고 주행 중에는 영향 없음
     navigators: ["navigate_to_pose", "navigate_through_poses"]
     navigate_to_pose:
       plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
@@ -70,7 +74,7 @@ controller_server:
           plugin: "mppi::DiffDriveMotionModel"
         vx_max: 0.2                        # ★ 처음은 낮게 (diff_drive 0.34 · drive skill 0.3 m/s)
         vx_min: -0.1                       # ★ 좁은 곳에서 조금 후진 허용
-        wz_max: 1.0                        # ★ (diff_drive 2.0 rad/s)
+        wz_max: 1.0                        # ★ = 실물 diff_drive 상한 1.0 rad/s (모터 3.2, 벨트). 실물에서 낮출 때는 launch 인자 max_wz
         ax_max: 1.5                        # diff_drive linear.x.max_acceleration 과 같게
         ax_min: -1.5
         az_max: 2.0
@@ -106,12 +110,12 @@ controller_server:
           cost_power: 1
           cost_weight: 3.0
           threshold_to_consider: 0.15      # ★ 기본 0.5. 목표 0.5 m 안에서 방향 벌점이 켜지면 옆에 있는 목표 앞에서 멈춤 (Gazebo 2026-11-04)
-        PathAlignCritic:
-          enabled: true
-          cost_power: 1
-          cost_weight: 14.0
+        PathAlignCritic:                   # 2026-11-12 무게 14 → 28 · 검사 점 간격 4 → 2: 모서리를 일찍 꺾어 기둥에 붙던 것 (Smac 경로보다 안쪽으로 질러감) 막음.
+          enabled: true                    #   Gazebo: 북쪽 통로 B3:N → B4:S 멈춤 3/5 → 0/5, B2:S → B6:W 기둥 모서리 멈춤 3/3 → 0/3 (여유 3 → 6 ~ 8 cm),
+          cost_power: 1                    #   12 목표 12/12 × 2 (시간 −1 ~ −3 %), 미션 Q1 전체 DONE (이 값 없이는 B2:S → B6:W 에서 FAILED 2/2)
+          cost_weight: 28.0
           max_path_occupancy_ratio: 0.05
-          trajectory_point_step: 4
+          trajectory_point_step: 2
           threshold_to_consider: 0.15      # ★ 기본 0.5. 목표 근처까지 Smac 경로를 따르게
           offset_from_furthest: 20
           use_path_orientations: false
