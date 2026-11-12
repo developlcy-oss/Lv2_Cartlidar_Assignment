@@ -4,7 +4,7 @@
         string creator = "URDF USD Converter v0.3.2"
     }
     defaultPrim = "waffle_4wd"
-    doc = """Generated from Composed Stage of root layer /home/pa8/Downloads/Claude outputs/puck_storage_design/시뮬레이션_모델_B안/isaac/usd/light/waffle_4wd_light/payloads/base.usd
+    doc = """Generated from Composed Stage of root layer /home/pa8/git/Lv2_Cartlidar_Assignment/workspace/urdf_and_usd/isaac/usd/light/waffle_4wd_light/payloads/base.usd
 """
     endTimeCode = 1000000
     kilogramsPerUnit = 1
@@ -138,6 +138,17 @@ def Xform "waffle_4wd" (
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
+            def Xform "lidar_brackets" (
+                instanceable = true
+                prepend references = @./instances.usda@</Instances/lidar_brackets>
+            )
+            {
+                quatd xformOp:orient = (1, 0, 0, 0)
+                double3 xformOp:scale = (1, 1, 1)
+                double3 xformOp:translate = (0, 0, 0)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
             def Xform "deck_tray" (
                 instanceable = true
                 prepend references = @./instances.usda@</Instances/deck_tray>
@@ -178,7 +189,7 @@ def Xform "waffle_4wd" (
             {
                 quatd xformOp:orient = (0, 1, 0, 0)
                 double3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0.1089, 0, 0.0755)
+                double3 xformOp:translate = (0.1318, 0, 0.0675)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -190,7 +201,7 @@ def Xform "waffle_4wd" (
             {
                 quatd xformOp:orient = (0, 0, 1, 0)
                 double3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (-0.1089, 0, 0.0755)
+                double3 xformOp:translate = (-0.1318, 0, 0.0675)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3696,32 +3707,6 @@ def Xform "waffle_4wd" (
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "belt_block_FL" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.025, 0.0423, 0.0838)
-                double3 xformOp:translate = (0.0925, 0.11735, 0.0569)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "belt_sled_FL" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.056, 0.0428, 0.063)
-                double3 xformOp:translate = (0.045, 0.1176, 0.0465)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
             def Cube "belt_guard_FL" (
                 prepend apiSchemas = ["PhysicsCollisionAPI"]
             )
@@ -3730,8 +3715,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.088, 0.0189, 0.04283)
-                double3 xformOp:translate = (0.063, 0.14265, 0.032415)
+                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
+                double3 xformOp:translate = (0.06175, 0.14265, 0.03228)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3744,33 +3729,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (0.0470443, 0.1188, 0.04425)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "belt_block_FR" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.025, 0.0423, 0.0838)
-                double3 xformOp:translate = (0.0925, -0.11735, 0.0569)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "belt_sled_FR" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.056, 0.0428, 0.063)
-                double3 xformOp:translate = (0.045, -0.1176, 0.0465)
+                double3 xformOp:translate = (0.0468002, 0.1232, 0.04425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3782,8 +3741,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.088, 0.0189, 0.04283)
-                double3 xformOp:translate = (0.063, -0.14265, 0.032415)
+                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
+                double3 xformOp:translate = (0.06175, -0.14265, 0.03228)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3796,33 +3755,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (0.0470443, -0.1188, 0.04425)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "belt_block_RL" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.025, 0.0423, 0.0838)
-                double3 xformOp:translate = (-0.0675, 0.11735, 0.0569)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "belt_sled_RL" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.056, 0.0428, 0.063)
-                double3 xformOp:translate = (-0.02, 0.1176, 0.0465)
+                double3 xformOp:translate = (0.0468002, -0.1232, 0.04425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3834,8 +3767,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.088, 0.0189, 0.04283)
-                double3 xformOp:translate = (-0.038, 0.14265, 0.032415)
+                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
+                double3 xformOp:translate = (-0.03675, 0.14265, 0.03228)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3848,33 +3781,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (-0.0220443, 0.1188, 0.04425)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "belt_block_RR" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.025, 0.0423, 0.0838)
-                double3 xformOp:translate = (-0.0675, -0.11735, 0.0569)
-                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
-            }
-
-            def Cube "belt_sled_RR" (
-                prepend apiSchemas = ["PhysicsCollisionAPI"]
-            )
-            {
-                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
-                uniform token purpose = "guide"
-                double size = 1
-                quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.056, 0.0428, 0.063)
-                double3 xformOp:translate = (-0.02, -0.1176, 0.0465)
+                double3 xformOp:translate = (-0.0218002, 0.1232, 0.04425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3886,8 +3793,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.088, 0.0189, 0.04283)
-                double3 xformOp:translate = (-0.038, -0.14265, 0.032415)
+                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
+                double3 xformOp:translate = (-0.03675, -0.14265, 0.03228)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3900,7 +3807,33 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (-0.0220443, -0.1188, 0.04425)
+                double3 xformOp:translate = (-0.0218002, -0.1232, 0.04425)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "lidar_bracket_front" (
+                prepend apiSchemas = ["PhysicsCollisionAPI"]
+            )
+            {
+                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                uniform token purpose = "guide"
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0435, 0.06, 0.016)
+                double3 xformOp:translate = (0.12625, 0, 0.102)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "lidar_bracket_rear" (
+                prepend apiSchemas = ["PhysicsCollisionAPI"]
+            )
+            {
+                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                uniform token purpose = "guide"
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.0435, 0.06, 0.016)
+                double3 xformOp:translate = (-0.12625, 0, 0.102)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3913,8 +3846,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.179, 0.11, 0.009)
-                double3 xformOp:translate = (-0.0415, 0, 0.0165)
+                float3 xformOp:scale = (0.179, 0.13, 0.0105)
+                double3 xformOp:translate = (-0.0415, 0, 0.01725)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3944,7 +3877,7 @@ def Xform "waffle_4wd" (
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "light_bracket_L" (
+            def Cube "light_corner_FL" (
                 prepend apiSchemas = ["PhysicsCollisionAPI"]
             )
             {
@@ -3952,12 +3885,12 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.21765, 0.049, 0.09)
-                double3 xformOp:translate = (-0.001075, 0.1085, 0.057)
+                float3 xformOp:scale = (0.09515, 0.055, 0.09)
+                double3 xformOp:translate = (0.060175, 0.1115, 0.057)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
-            def Cube "light_bracket_R" (
+            def Cube "light_corner_FR" (
                 prepend apiSchemas = ["PhysicsCollisionAPI"]
             )
             {
@@ -3965,8 +3898,34 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.21765, 0.049, 0.09)
-                double3 xformOp:translate = (-0.001075, -0.1085, 0.057)
+                float3 xformOp:scale = (0.09515, 0.055, 0.09)
+                double3 xformOp:translate = (0.060175, -0.1115, 0.057)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "light_corner_RL" (
+                prepend apiSchemas = ["PhysicsCollisionAPI"]
+            )
+            {
+                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                uniform token purpose = "guide"
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.1223, 0.055, 0.09)
+                double3 xformOp:translate = (-0.04875, 0.1115, 0.057)
+                uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
+            }
+
+            def Cube "light_corner_RR" (
+                prepend apiSchemas = ["PhysicsCollisionAPI"]
+            )
+            {
+                float3[] extent = [(-0.5, -0.5, -0.5), (0.5, 0.5, 0.5)]
+                uniform token purpose = "guide"
+                double size = 1
+                quatf xformOp:orient = (1, 0, 0, 0)
+                float3 xformOp:scale = (0.1223, 0.055, 0.09)
+                double3 xformOp:translate = (-0.04875, -0.1115, 0.057)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3978,8 +3937,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.2058153, 0.21154, 0.003)
-                double3 xformOp:translate = (-0.02639235, 0, 0.112500001)
+                float3 xformOp:scale = (0.2045153, 0.21154, 0.003)
+                double3 xformOp:translate = (-0.02574235, 0, 0.112500001)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -4148,7 +4107,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1.7948966e-9, 1, 0, 0)
                 float3 xformOp:scale = (0.0382, 0.0382, 0.0211)
-                double3 xformOp:translate = (0.1089, 5.725719883e-11, 0.09145)
+                double3 xformOp:translate = (0.1318, 5.725719883e-11, 0.08345)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -4163,7 +4122,7 @@ def Xform "waffle_4wd" (
                 double radius = 0.01765
                 quatf xformOp:orient = (1.7948966e-9, 1, 0, 0)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (0.1089, -4.487241287e-12, 0.07425)
+                double3 xformOp:translate = (0.1318, -4.487241287e-12, 0.06625)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -4176,7 +4135,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (6.123234e-17, 1.7948966e-9, 1, 1.7948966e-9)
                 float3 xformOp:scale = (0.0382, 0.0382, 0.0211)
-                double3 xformOp:translate = (-0.1089, -5.725719883e-11, 0.09145)
+                double3 xformOp:translate = (-0.1318, -5.725719883e-11, 0.08345)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -4191,7 +4150,7 @@ def Xform "waffle_4wd" (
                 double radius = 0.01765
                 quatf xformOp:orient = (6.123234e-17, 1.7948966e-9, 1, 1.7948966e-9)
                 float3 xformOp:scale = (1, 1, 1)
-                double3 xformOp:translate = (-0.1089, 4.487241287e-12, 0.07425)
+                double3 xformOp:translate = (-0.1318, 4.487241287e-12, 0.06625)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

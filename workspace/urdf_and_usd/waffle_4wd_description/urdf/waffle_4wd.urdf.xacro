@@ -105,9 +105,9 @@
   </material>
   <link name="${prefix}base_link">
     <inertial>
-      <origin xyz="-0.0325041035 0.00181661145 0.125280342" rpy="0 0 0"/>
-      <mass value="2.99219009"/>
-      <inertia ixx="0.104882525" ixy="-0.000298775759" ixz="0.0255275731" iyy="0.100770921" iyz="0.000741797653" izz="0.0502252907"/>
+      <origin xyz="-0.0347290281 0.00179869208 0.124150507" rpy="0 0 0"/>
+      <mass value="3.02198924"/>
+      <inertia ixx="0.10585823" ixy="-0.000310620883" ixz="0.0250939734" iyy="0.101644259" iyz="0.000735654328" izz="0.0514031721"/>
     </inertial>
     <visual name="body_keep">
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -171,6 +171,13 @@
         <mesh filename="package://waffle_4wd_description/meshes/b/bolts.stl" scale="1 1 1"/>
       </geometry>
       <material name="a_black"/>
+    </visual>
+    <visual name="lidar_brackets">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/lidar_brackets.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="a_pla_gold"/>
     </visual>
     <visual name="deck_tray">
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -247,106 +254,70 @@
         <box size="0.02 0.27900000000000003 0.02"/>
       </geometry>
     </collision>
-    <collision name="belt_block_FL">
-      <origin xyz="0.0925 0.11735 0.0569" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.025 0.0423 0.0838"/>
-      </geometry>
-    </collision>
-    <collision name="belt_sled_FL">
-      <origin xyz="0.045 0.1176 0.0465" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.056 0.0428 0.063"/>
-      </geometry>
-    </collision>
     <collision name="belt_guard_FL">
-      <origin xyz="0.063 0.14265 0.032415" rpy="0 0 0"/>
+      <origin xyz="0.06175 0.14265 0.03228" rpy="0 0 0"/>
       <geometry>
-        <box size="0.088 0.0189 0.04283"/>
+        <box size="0.0855 0.0189 0.04256"/>
       </geometry>
     </collision>
     <collision name="belt_motor_FL">
-      <origin xyz="0.0470443 0.1188 0.04425" rpy="0 0 0"/>
+      <origin xyz="0.0468002 0.1232 0.04425" rpy="0 0 0"/>
       <geometry>
         <box size="0.0285 0.0404 0.0465"/>
-      </geometry>
-    </collision>
-    <collision name="belt_block_FR">
-      <origin xyz="0.0925 -0.11735 0.0569" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.025 0.0423 0.0838"/>
-      </geometry>
-    </collision>
-    <collision name="belt_sled_FR">
-      <origin xyz="0.045 -0.1176 0.0465" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.056 0.0428 0.063"/>
       </geometry>
     </collision>
     <collision name="belt_guard_FR">
-      <origin xyz="0.063 -0.14265 0.032415" rpy="0 0 0"/>
+      <origin xyz="0.06175 -0.14265 0.03228" rpy="0 0 0"/>
       <geometry>
-        <box size="0.088 0.0189 0.04283"/>
+        <box size="0.0855 0.0189 0.04256"/>
       </geometry>
     </collision>
     <collision name="belt_motor_FR">
-      <origin xyz="0.0470443 -0.1188 0.04425" rpy="0 0 0"/>
+      <origin xyz="0.0468002 -0.1232 0.04425" rpy="0 0 0"/>
       <geometry>
         <box size="0.0285 0.0404 0.0465"/>
-      </geometry>
-    </collision>
-    <collision name="belt_block_RL">
-      <origin xyz="-0.0675 0.11735 0.0569" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.025 0.0423 0.0838"/>
-      </geometry>
-    </collision>
-    <collision name="belt_sled_RL">
-      <origin xyz="-0.02 0.1176 0.0465" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.056 0.0428 0.063"/>
       </geometry>
     </collision>
     <collision name="belt_guard_RL">
-      <origin xyz="-0.038 0.14265 0.032415" rpy="0 0 0"/>
+      <origin xyz="-0.03675 0.14265 0.03228" rpy="0 0 0"/>
       <geometry>
-        <box size="0.088 0.0189 0.04283"/>
+        <box size="0.0855 0.0189 0.04256"/>
       </geometry>
     </collision>
     <collision name="belt_motor_RL">
-      <origin xyz="-0.0220443 0.1188 0.04425" rpy="0 0 0"/>
+      <origin xyz="-0.0218002 0.1232 0.04425" rpy="0 0 0"/>
       <geometry>
         <box size="0.0285 0.0404 0.0465"/>
-      </geometry>
-    </collision>
-    <collision name="belt_block_RR">
-      <origin xyz="-0.0675 -0.11735 0.0569" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.025 0.0423 0.0838"/>
-      </geometry>
-    </collision>
-    <collision name="belt_sled_RR">
-      <origin xyz="-0.02 -0.1176 0.0465" rpy="0 0 0"/>
-      <geometry>
-        <box size="0.056 0.0428 0.063"/>
       </geometry>
     </collision>
     <collision name="belt_guard_RR">
-      <origin xyz="-0.038 -0.14265 0.032415" rpy="0 0 0"/>
+      <origin xyz="-0.03675 -0.14265 0.03228" rpy="0 0 0"/>
       <geometry>
-        <box size="0.088 0.0189 0.04283"/>
+        <box size="0.0855 0.0189 0.04256"/>
       </geometry>
     </collision>
     <collision name="belt_motor_RR">
-      <origin xyz="-0.0220443 -0.1188 0.04425" rpy="0 0 0"/>
+      <origin xyz="-0.0218002 -0.1232 0.04425" rpy="0 0 0"/>
       <geometry>
         <box size="0.0285 0.0404 0.0465"/>
       </geometry>
     </collision>
-    <collision name="deck_tray">
-      <origin xyz="-0.0415 0 0.0165" rpy="0 0 0"/>
+    <collision name="lidar_bracket_front">
+      <origin xyz="0.12625 0 0.102" rpy="0 0 0"/>
       <geometry>
-        <box size="0.179 0.11 0.009"/>
+        <box size="0.0435 0.06 0.016"/>
+      </geometry>
+    </collision>
+    <collision name="lidar_bracket_rear">
+      <origin xyz="-0.12625 0 0.102" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.0435 0.06 0.016"/>
+      </geometry>
+    </collision>
+    <collision name="deck_tray">
+      <origin xyz="-0.0415 0 0.01725" rpy="0 0 0"/>
+      <geometry>
+        <box size="0.179 0.13 0.0105"/>
       </geometry>
     </collision>
     <xacro:if value="${collision == 'full'}">
@@ -734,376 +705,772 @@
           <mesh filename="package://waffle_4wd_description/meshes/collision/base_link_part176_hull31.stl" scale="1 1 1"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull00">
+      <collision name="corner_FL_hull00">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull00.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull00.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull01">
+      <collision name="corner_FL_hull01">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull01.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull01.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull02">
+      <collision name="corner_FL_hull02">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull02.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull02.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull03">
+      <collision name="corner_FL_hull03">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull03.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull03.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull04">
+      <collision name="corner_FL_hull04">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull04.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull04.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull05">
+      <collision name="corner_FL_hull05">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull05.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull05.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull06">
+      <collision name="corner_FL_hull06">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull06.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull06.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull07">
+      <collision name="corner_FL_hull07">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull07.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull07.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull08">
+      <collision name="corner_FL_hull08">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull08.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull08.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull09">
+      <collision name="corner_FL_hull09">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull09.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull09.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull10">
+      <collision name="corner_FL_hull10">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull10.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull10.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull11">
+      <collision name="corner_FL_hull11">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull11.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull11.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull12">
+      <collision name="corner_FL_hull12">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull12.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull12.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull13">
+      <collision name="corner_FL_hull13">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull13.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull13.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull14">
+      <collision name="corner_FL_hull14">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull14.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull14.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull15">
+      <collision name="corner_FL_hull15">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull15.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull15.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull16">
+      <collision name="corner_FL_hull16">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull16.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull16.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull17">
+      <collision name="corner_FL_hull17">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull17.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull17.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull18">
+      <collision name="corner_FL_hull18">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull18.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull18.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull19">
+      <collision name="corner_FL_hull19">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull19.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull19.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull20">
+      <collision name="corner_FL_hull20">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull20.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull20.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull21">
+      <collision name="corner_FL_hull21">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull21.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull21.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull22">
+      <collision name="corner_FL_hull22">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull22.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull22.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull23">
+      <collision name="corner_FL_hull23">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull23.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull23.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull24">
+      <collision name="corner_FL_hull24">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull24.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull24.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull25">
+      <collision name="corner_FL_hull25">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull25.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull25.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull26">
+      <collision name="corner_FL_hull26">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull26.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull26.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull27">
+      <collision name="corner_FL_hull27">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull27.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull27.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull28">
+      <collision name="corner_FL_hull28">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull28.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull28.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull29">
+      <collision name="corner_FL_hull29">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull29.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull29.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_L_hull30">
+      <collision name="corner_FL_hull30">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_L_hull30.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull30.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull00">
+      <collision name="corner_FL_hull31">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull00.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FL_hull31.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull01">
+      <collision name="corner_FR_hull00">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull01.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull00.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull02">
+      <collision name="corner_FR_hull01">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull02.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull01.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull03">
+      <collision name="corner_FR_hull02">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull03.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull02.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull04">
+      <collision name="corner_FR_hull03">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull04.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull03.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull05">
+      <collision name="corner_FR_hull04">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull05.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull04.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull06">
+      <collision name="corner_FR_hull05">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull06.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull05.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull07">
+      <collision name="corner_FR_hull06">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull07.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull06.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull08">
+      <collision name="corner_FR_hull07">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull08.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull07.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull09">
+      <collision name="corner_FR_hull08">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull09.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull08.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull10">
+      <collision name="corner_FR_hull09">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull10.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull09.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull11">
+      <collision name="corner_FR_hull10">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull11.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull10.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull12">
+      <collision name="corner_FR_hull11">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull12.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull11.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull13">
+      <collision name="corner_FR_hull12">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull13.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull12.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull14">
+      <collision name="corner_FR_hull13">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull14.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull13.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull15">
+      <collision name="corner_FR_hull14">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull15.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull14.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull16">
+      <collision name="corner_FR_hull15">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull16.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull15.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull17">
+      <collision name="corner_FR_hull16">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull17.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull16.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull18">
+      <collision name="corner_FR_hull17">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull18.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull17.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull19">
+      <collision name="corner_FR_hull18">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull19.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull18.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull20">
+      <collision name="corner_FR_hull19">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull20.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull19.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull21">
+      <collision name="corner_FR_hull20">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull21.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull20.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull22">
+      <collision name="corner_FR_hull21">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull22.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull21.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull23">
+      <collision name="corner_FR_hull22">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull23.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull22.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull24">
+      <collision name="corner_FR_hull23">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull24.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull23.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull25">
+      <collision name="corner_FR_hull24">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull25.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull24.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull26">
+      <collision name="corner_FR_hull25">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull26.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull25.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull27">
+      <collision name="corner_FR_hull26">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull27.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull26.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull28">
+      <collision name="corner_FR_hull27">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull28.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull27.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull29">
+      <collision name="corner_FR_hull28">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull29.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull28.stl"/>
         </geometry>
       </collision>
-      <collision name="bracket_R_hull30">
+      <collision name="corner_FR_hull29">
         <origin xyz="0 0 0" rpy="0 0 0"/>
         <geometry>
-          <mesh filename="package://waffle_4wd_description/meshes/b/collision/bracket_R_hull30.stl"/>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull29.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_FR_hull30">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull30.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_FR_hull31">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_FR_hull31.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull00">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull00.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull01">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull01.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull02">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull02.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull03">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull03.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull04">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull04.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull05">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull05.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull06">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull06.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull07">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull07.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull08">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull08.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull09">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull09.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull10">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull10.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull11">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull11.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull12">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull12.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull13">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull13.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull14">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull14.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull15">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull15.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull16">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull16.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull17">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull17.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull18">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull18.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull19">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull19.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull20">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull20.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull21">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull21.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull22">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull22.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull23">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull23.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull24">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull24.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull25">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull25.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull26">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull26.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull27">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull27.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull28">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull28.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull29">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull29.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull30">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull30.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RL_hull31">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RL_hull31.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull00">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull00.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull01">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull01.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull02">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull02.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull03">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull03.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull04">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull04.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull05">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull05.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull06">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull06.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull07">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull07.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull08">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull08.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull09">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull09.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull10">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull10.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull11">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull11.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull12">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull12.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull13">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull13.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull14">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull14.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull15">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull15.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull16">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull16.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull17">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull17.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull18">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull18.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull19">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull19.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull20">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull20.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull21">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull21.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull22">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull22.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull23">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull23.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull24">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull24.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull25">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull25.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull26">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull26.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull27">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull27.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull28">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull28.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull29">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull29.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull30">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull30.stl"/>
+        </geometry>
+      </collision>
+      <collision name="corner_RR_hull31">
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="package://waffle_4wd_description/meshes/b/collision/corner_RR_hull31.stl"/>
         </geometry>
       </collision>
       <collision name="pallet_base_hull00">
@@ -1960,22 +2327,34 @@
           <box size="0.0579999909 0.0527000278 0.110000001"/>
         </geometry>
       </collision>
-      <collision name="light_bracket_L">
-        <origin xyz="-0.001075 0.1085 0.057" rpy="0 0 0"/>
+      <collision name="light_corner_FL">
+        <origin xyz="0.060175 0.1115 0.057" rpy="0 0 0"/>
         <geometry>
-          <box size="0.21765 0.049 0.09"/>
+          <box size="0.09515 0.055 0.09"/>
         </geometry>
       </collision>
-      <collision name="light_bracket_R">
-        <origin xyz="-0.001075 -0.1085 0.057" rpy="0 0 0"/>
+      <collision name="light_corner_FR">
+        <origin xyz="0.060175 -0.1115 0.057" rpy="0 0 0"/>
         <geometry>
-          <box size="0.21765 0.049 0.09"/>
+          <box size="0.09515 0.055 0.09"/>
+        </geometry>
+      </collision>
+      <collision name="light_corner_RL">
+        <origin xyz="-0.04875 0.1115 0.057" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1223 0.055 0.09"/>
+        </geometry>
+      </collision>
+      <collision name="light_corner_RR">
+        <origin xyz="-0.04875 -0.1115 0.057" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.1223 0.055 0.09"/>
         </geometry>
       </collision>
       <collision name="light_pallet_base">
-        <origin xyz="-0.02639235 0 0.112500001" rpy="0 0 0"/>
+        <origin xyz="-0.02574235 0 0.112500001" rpy="0 0 0"/>
         <geometry>
-          <box size="0.2058153 0.21154 0.003"/>
+          <box size="0.2045153 0.21154 0.003"/>
         </geometry>
       </collision>
       <collision name="light_cup_R_1">
@@ -3725,9 +4104,9 @@
   <link name="${prefix}laser_rear"/>
   <link name="${prefix}tfmini_bracket">
     <inertial>
-      <origin xyz="0.0112239518 -1.00388144e-06 0.00578210733" rpy="0 0 0"/>
-      <mass value="0.00581164257"/>
-      <inertia ixx="1.47919655e-06" ixy="-3.92288805e-11" ixz="1.5302121e-07" iyy="5.70176184e-07" iyz="1.88253266e-09" izz="1.57024916e-06"/>
+      <origin xyz="0.0112301831 -1.22587929e-06 0.00577747606" rpy="0 0 0"/>
+      <mass value="0.00581055957"/>
+      <inertia ixx="1.47852177e-06" ixy="-4.79393944e-11" ixz="1.52947672e-07" iyy="5.7004713e-07" iyz="2.29890815e-09" izz="1.56983789e-06"/>
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
@@ -3918,7 +4297,7 @@
     <limit lower="${-0.794600 - limit_margin}" upper="${0.954100 + limit_margin}" effort="4.1" velocity="4.8"/>
   </joint>
   <joint name="${prefix}lds_front_joint" type="fixed">
-    <origin xyz="0.1089 0 0.0755" rpy="3.14159265 0 0"/>
+    <origin xyz="0.1318 0 0.0675" rpy="3.14159265 0 0"/>
     <parent link="${prefix}base_link"/>
     <child link="${prefix}lds_front"/>
   </joint>
@@ -3928,7 +4307,7 @@
     <child link="${prefix}laser_front"/>
   </joint>
   <joint name="${prefix}lds_rear_joint" type="fixed">
-    <origin xyz="-0.1089 0 0.0755" rpy="3.14159265 0 3.14159265"/>
+    <origin xyz="-0.1318 0 0.0675" rpy="3.14159265 0 3.14159265"/>
     <parent link="${prefix}base_link"/>
     <child link="${prefix}lds_rear"/>
   </joint>
@@ -4301,17 +4680,7 @@
       <gz_frame_id>${prefix}arm_camera_optical_frame</gz_frame_id>
       <camera>
         <camera_info_topic>arm_camera/camera_info</camera_info_topic>
-        <horizontal_fov>1.2735</horizontal_fov>
-        <lens>
-          <type>gnomonical</type>
-          <intrinsics>   <!-- 실물 보정 (#143 arm_camera_1280x720.yaml)을 180° 돌려 발행하는 값 (#147), 왜곡은 넣지 않음 (#145) -->
-            <fx>865.4327</fx>
-            <fy>865.5612</fy>
-            <cx>584.1243</cx>
-            <cy>359.3632</cy>
-            <s>0</s>
-          </intrinsics>
-        </lens>
+        <horizontal_fov>1.2735</horizontal_fov><lens><type>gnomonical</type><intrinsics><fx>865.4327</fx><fy>865.5612</fy><cx>584.1243</cx><cy>359.3632</cy><s>0</s></intrinsics></lens>
         <image>
           <width>1280</width>
           <height>720</height>
@@ -4554,6 +4923,12 @@
         </geometry>
         <material name="puck_R"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.015" length="0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_R_1_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4573,6 +4948,12 @@
         </geometry>
         <material name="puck_R"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.03 0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_R_2_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4592,6 +4973,12 @@
         </geometry>
         <material name="puck_R"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.015" length="0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_R_3_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4611,6 +4998,12 @@
         </geometry>
         <material name="puck_R"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.03 0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_R_4_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4630,6 +5023,12 @@
         </geometry>
         <material name="puck_G"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.03 0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_G_1_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4649,6 +5048,12 @@
         </geometry>
         <material name="puck_G"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.015" length="0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_G_2_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4668,6 +5073,12 @@
         </geometry>
         <material name="puck_G"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.03 0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_G_3_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4687,6 +5098,12 @@
         </geometry>
         <material name="puck_G"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.015" length="0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_G_4_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4706,6 +5123,12 @@
         </geometry>
         <material name="puck_B"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.015" length="0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_B_1_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4725,6 +5148,12 @@
         </geometry>
         <material name="puck_B"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.03 0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_B_2_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4744,6 +5173,12 @@
         </geometry>
         <material name="puck_B"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <cylinder radius="0.015" length="0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_B_3_joint" type="fixed">
       <parent link="${prefix}base_link"/>
@@ -4763,6 +5198,12 @@
         </geometry>
         <material name="puck_B"/>
       </visual>
+      <collision>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <box size="0.03 0.03 0.06"/>
+        </geometry>
+      </collision>
     </link>
     <joint name="${prefix}puck_B_4_joint" type="fixed">
       <parent link="${prefix}base_link"/>

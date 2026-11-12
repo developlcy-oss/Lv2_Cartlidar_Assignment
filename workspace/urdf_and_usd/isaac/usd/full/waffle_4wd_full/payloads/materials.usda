@@ -243,6 +243,39 @@ def Scope "Materials"
         }
     }
 
+    def Material "a_pla_gold"
+    {
+        color3f inputs:diffuseColor = (0.6920712, 0.38005632, 0.015325204)
+        float inputs:metallic = 0
+        float inputs:opacity = 1
+        float inputs:roughness = 0.5
+        token inputs:wrapMode = "repeat"
+        token outputs:displacement (
+            displayGroup = "Outputs"
+        )
+        prepend token outputs:displacement.connect = </Materials/a_pla_gold/PreviewSurface.outputs:displacement>
+        token outputs:surface (
+            displayGroup = "Outputs"
+        )
+        prepend token outputs:surface.connect = </Materials/a_pla_gold/PreviewSurface.outputs:surface>
+        token outputs:volume (
+            displayGroup = "Outputs"
+        )
+
+        def Shader "PreviewSurface" (
+            apiSchemas = ["NodeDefAPI"]
+        )
+        {
+            token info:id = "UsdPreviewSurface"
+            prepend color3f inputs:diffuseColor.connect = </Materials/a_pla_gold.inputs:diffuseColor>
+            prepend float inputs:metallic.connect = </Materials/a_pla_gold.inputs:metallic>
+            prepend float inputs:opacity.connect = </Materials/a_pla_gold.inputs:opacity>
+            prepend float inputs:roughness.connect = </Materials/a_pla_gold.inputs:roughness>
+            token outputs:displacement
+            token outputs:surface
+        }
+    }
+
     def Material "a_pla_peru"
     {
         color3f inputs:diffuseColor = (0.6038274, 0.23302203, 0.05087609)

@@ -228,6 +228,30 @@ def Scope "Instances"
         }
     }
 
+    def Xform "lidar_brackets" (
+        prepend references = @./geometries.usd@</Geometries/lidar_brackets>
+    )
+    {
+        over "lidar_brackets" (
+            apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            custom rel material:binding
+            prepend rel material:binding = </Instances/lidar_brackets/VisualMaterials/a_pla_gold>
+            custom string urdf:name = "lidar_brackets"
+        }
+
+        def Scope "VisualMaterials"
+        {
+            def Material "a_pla_gold" (
+                instanceable = true
+                prepend references = @./materials.usda@</Materials/a_pla_gold>
+            )
+            {
+            }
+        }
+    }
+
     def Xform "deck_tray" (
         prepend references = @./geometries.usd@</Geometries/deck_tray>
     )
