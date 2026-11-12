@@ -80,7 +80,7 @@ def _pick_tour(world, start, pucks, end, precedence_groups=None):
     for ci, key in seq:
         ps = by_box[boxes[ci]]
         a = world.approaches[key]
-        ps = sorted(ps, key=lambda p: a.extra["pucks"][p.side]["dist"])  # inline 이면 가까운 퍽부터
+        ps = sorted(ps, key=lambda p: (p.pose == "lying", a.extra["pucks"][p.side]["dist"]))  # 세운 퍽 먼저 (#193), inline 이면 가까운 퍽부터
         stops.append((key, ps))
     return c, stops
 
@@ -202,6 +202,8 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
         n_alloc += 1
         if mode == "hybrid":
             r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes)
+            if r is None:   # 누운 퍽 순서를 지키는 나누기가 없음 -> 순서 없이 (경고)
+                r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, lying_after=False)
         elif mode == "per_location":
             r = _plan_per_location(world, alloc, group_of_L)
         else:
@@ -270,6 +272,24 @@ def cut_steps(world, steps, stop_after="none"):
     return out
 
 
+def _lying_order_warnings(world, steps):
+    """#193: 같은 박스는 세운 퍽 먼저. 어긴 박스 · inline 박스에서 먼 세운 퍽을 먼저 집는 경우를 경고로"""
+    warn, order = [], {}
+    for k, s in enumerate(steps):
+        if s["type"] == "pick":
+            order.setdefault(s["box"], []).append((k, s))
+    for b, picks in order.items():
+        st = [k for k, s in picks if s["pose"] == "standing"]
+        ly = [k for k, s in picks if s["pose"] == "lying"]
+        if st and ly and min(ly) < max(st):
+            warn.append(f"박스 {b}: 누운 퍽을 세운 퍽보다 먼저 집음 (#193 순서 못 지킴)")
+        if st and ly and world.approaches[picks[0][1]["at"]].extra.get("inline"):
+            d = {s["pose"]: s["j1_dist"] for _, s in picks}
+            if d["standing"] > d["lying"]:
+                warn.append(f"박스 {b}: inline 정차에서 먼 세운 퍽을 가까운 누운 퍽 너머로 먼저 집음 (실물 확인)")
+    return warn
+
+
 def _steps(world, mode, alloc, group_of_L, r):
     """실행 단계 목록 (navigate · pick · place · verify · return) + 경고."""
     steps, warn = [dict(type="observe", at="HOME", note="바코드 -> 12 회 점멸 -> 3 초 소등 확인 뒤 출발")], []
@@ -286,7 +306,7 @@ def _steps(world, mode, alloc, group_of_L, r):
         a = world.approaches[key]
         pk = a.extra["pucks"][p.side]
         turn = pk["turn_deg"] if p.shape == "box" else 0.0  # 상자 퍽: 면을 J1→퍽 방향에 맞추는 제자리 회전
-        steps.append(dict(type="pick", at=key, puck=p.id, color=p.color, shape=p.shape, box=p.box, side=p.side,
+        steps.append(dict(type="pick", at=key, puck=p.id, color=p.color, shape=p.shape, pose=p.pose, box=p.box, side=p.side,
                           j1_dist=pk["dist"], tilt=True, turn_deg=turn, slot=list(slot)))
         pallet[slot] = p
         if a.extra.get("inline"):
@@ -351,6 +371,10 @@ def _steps(world, mode, alloc, group_of_L, r):
             place(L, unload)
         if n_comb > 400:
             warn.append(f"열 나누기 경우 {n_comb} 중 400 개만 봄")
+    warn += _lying_order_warnings(world, steps)
+    lying = sorted(s["puck"] for s in steps if s["type"] == "pick" and s["pose"] == "lying")
+    if lying:
+        warn.append(f"누운 퍽 {lying}: 순서만 반영 (세운 퍽 다음). 미션 줄은 아직 toppick_tilt — 누운 퍽 스킬 연결은 #193")
     for L in vorder:
         nav(L)
         steps.append(dict(type="verify", at=L, note="새 카메라 관측으로 칸별 퍽 ID · 위치 기록 (목표 복사 금지)"))

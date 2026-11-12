@@ -8,6 +8,9 @@ L 배달 순서 (a, b, c) 를 정하면 가능한 경로는 꼭 이 꼴이다 (�
 빠르게 (Jetson): 런은 박스 단위 (같은 그룹 · 같은 박스 퍽은 한 정차에서 이어 집음).
   그룹마다 Held-Karp 표 HK[u, S, v] (u 에서 박스 집합 S 를 다 돌고 접근 자세 v 에서 끝나는 최소 비용) 를 numpy 로 한 번 만들고
   (그룹 퍽 구성이 같으면 할당이 달라도 재사용), (C1, B1) 모든 조합을 배열 연산으로 한 번에 셈. C2 만 부분집합 열거 (≤ 3^6).
+누운 퍽 순서 (#193): 같은 박스에 세운 퍽과 누운 퍽이 있으면 세운 퍽을 먼저 집음 (누운 퍽을 세우고 다시 잡을 때 옆 퍽에 안 걸리게).
+  같은 그룹이면 같은 정차에서 세운 퍽부터, 다른 그룹이면 세운 퍽의 런이 누운 퍽의 런보다 앞인 나누기만 씀
+  (런 자리: C1 0, B1 1, A 2, C2 3, B2 4, C3 5).
 비용 = 경로 비용 [m] + 3 열 칸 수 × ROW3_PENALTY_M (3 열은 싣기 · 꺼내기가 칸당 약 7 s 더 느림, #75. 0.2 m/s 로 바꾸면 약 2.8 m).
 """
 from __future__ import annotations
@@ -96,9 +99,34 @@ def _subset_counts(cnt):
     return out
 
 
-def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_M):
+def _order_constraints(groups):
+    """groups = [(박스 목록, …), …] (A, B, C 순) -> [(세운 퍽 그룹, 박스 비트, 누운 퍽 그룹, 박스 비트)] (그룹이 다른 짝만)"""
+    out = []
+    where = {}
+    for g, (boxes, _, by) in enumerate(groups):
+        for j, b in enumerate(boxes):
+            for p in by[b]:
+                where[p.id] = (g, j, p)
+    for gs, js, ps in where.values():
+        for gl, jl, pl in where.values():
+            if ps.pose == "standing" and pl.pose == "lying" and ps.box == pl.box and gs != gl:
+                out.append((gs, js, gl, jl))
+    return out
+
+
+def _run_pos(g, j, C1, B1, C2):
+    """그룹 g (0 A · 1 B · 2 C) 의 박스 비트 j 가 들어간 런 자리 (배열 · 정수 모두)"""
+    if g == 0:
+        return 2
+    if g == 1:
+        return np.where((B1 >> j) & 1, 1, 4)
+    return np.where((C1 >> j) & 1, 0, np.where((C2 >> j) & 1, 3, 5))
+
+
+def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_M, lying_after=True):
     """-> (비용, 사건 목록, verify 순서, 정보) 또는 None.
-    사건 = ("pick", 접근 키, [퍽, …]) | ("place", L). 정보 = dict(perm, path_m, row3, peak)."""
+    사건 = ("pick", 접근 키, [퍽, …]) | ("place", L). 정보 = dict(perm, path_m, row3, peak).
+    lying_after: 같은 박스 세운 퍽 먼저 (#193). 지킬 수 있는 나누기가 없으면 None"""
     from .planner import _verify_and_return
     places = list(group_of_L)
     nodes = nodes or Nodes(world, places)
@@ -107,7 +135,9 @@ def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_
     best = None
     for perm in permutations(places):
         La, Lb, Lc = (ix[L] for L in perm)
-        (bA, cA, byA), (bB, cB, byB), (bC, cC, byC) = (_group_boxes(alloc[group_of_L[L]]) for L in perm)
+        groups = [_group_boxes(alloc[group_of_L[L]]) for L in perm]
+        (bA, cA, byA), (bB, cB, byB), (bC, cC, byC) = groups
+        cons = _order_constraints(groups) if lying_after else []
         hA, hB, hC = _hk(nodes, bA), _hk(nodes, bB), _hk(nodes, bC)
         fA, fB, fC = (1 << len(bA)) - 1, (1 << len(bB)) - 1, (1 << len(bC)) - 1
         nA, nB, nC = int(cA.sum()), _subset_counts(cB), _subset_counts(cC)
@@ -121,24 +151,33 @@ def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_
         gB = (hB[La, :, :] + D[:, Lb][None, :]).min(axis=1)                        # (B2,) La →B2→ Lb (C2 = ∅)
         T2 = (hB[:, fB, :] + D[:, Lb][None, :]).min(axis=1)                        # (x,) x →B→ Lb
         X = (hC[La, :, :] + T2[None, :]).min(axis=1)                               # (C2,) La →C2→ x →B→ Lb
-        G0 = np.full(fC + 1, INF)
+        G0 = np.full(fC + 1, INF)                                                  # B1 = ∅: C1 마다 C2 ⊆ 남은 C 중 최소
         G0c2 = np.zeros(fC + 1, dtype=int)
-        for R in range(fC + 1):                                                    # B1 = ∅: C2 ⊆ R
+        for C1 in range(fC + 1):
+            R = fC & ~C1
             sub = R
             while True:
-                c = X[sub] + tailC[R & ~sub]
-                if c < G0[R]:
-                    G0[R], G0c2[R] = c, sub
+                if all(_run_pos(gs, js, C1, 0, sub) < _run_pos(gl, jl, C1, 0, sub) for gs, js, gl, jl in cons):
+                    c = X[sub] + tailC[R & ~sub]
+                    if c < G0[C1]:
+                        G0[C1], G0c2[C1] = c, sub
                 if sub == 0:
                     break
                 sub = (sub - 1) & R
         C1s = np.arange(fC + 1)
         B1s = np.arange(fB + 1)
         R = fC & ~C1s                                                              # 남은 C
-        total = F + np.where(B1s[None, :] == 0, G0[R][:, None], gB[fB & ~B1s][None, :] + tailC[R][:, None])
+        rest1 = gB[fB & ~B1s][None, :] + tailC[R][:, None]                         # B1 ≠ ∅ (C2 = ∅)
+        if cons:
+            ok1 = np.ones((fC + 1, fB + 1), dtype=bool)
+            C1g, B1g = C1s[:, None], B1s[None, :]
+            for gs, js, gl, jl in cons:
+                ok1 &= _run_pos(gs, js, C1g, B1g, 0) < _run_pos(gl, jl, C1g, B1g, 0)
+            rest1 = np.where(ok1, rest1, INF)
+        total = F + np.where(B1s[None, :] == 0, G0[C1s][:, None], rest1)
         # 3 열: 동시에 실린 퍽 최대 − 8 (La 직전 C1 + B1 + A, Lb 직전 C1 + C2 + B, Lc 직전 C)
         h1 = nC[C1s][:, None] + nB[B1s][None, :] + nA
-        c2n = np.where(B1s[None, :] == 0, nC[G0c2[R]][:, None], 0)
+        c2n = np.where(B1s[None, :] == 0, nC[G0c2[C1s]][:, None], 0)
         h2 = nC[C1s][:, None] + c2n + nB[fB]
         peak = np.maximum(np.maximum(h1, h2), nC[fC])
         row3 = np.maximum(0, peak - 8)
@@ -147,7 +186,7 @@ def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_
         if not np.isfinite(score[i, j]):
             continue
         if best is None or score[i, j] < best[0]:
-            c2 = int(G0c2[fC & ~i]) if j == 0 else 0
+            c2 = int(G0c2[i]) if j == 0 else 0
             best = (float(score[i, j]), perm, int(i), int(j), c2, float(total[i, j] + vr), int(row3[i, j]), int(peak[i, j]), vorder)
     if best is None:
         return None
@@ -194,7 +233,7 @@ def _rebuild(nodes, alloc, group_of_L, perm, C1, B1, C2):
             hk = _hk(nodes, boxes)
             for b, key in reversed(_hk_path(nodes, boxes, hk, u, S, v)):
                 ext = nodes.world.approaches[key].extra["pucks"]
-                seq.append(("pick", key, sorted(by[b], key=lambda p: ext[p.side]["dist"])))   # 싣는 순서 = 칸 배정 순서
+                seq.append(("pick", key, sorted(by[b], key=lambda p: (p.pose == "lying", ext[p.side]["dist"]))))   # 세운 퍽 먼저 (#193), 그다음 가까운 퍽. 싣는 순서 = 칸 배정 순서
         v = u
     seq.reverse()
     return seq

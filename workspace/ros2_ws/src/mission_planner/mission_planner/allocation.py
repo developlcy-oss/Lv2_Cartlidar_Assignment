@@ -14,6 +14,7 @@ GROUPS = ("R", "Y", "G")
 BARCODES = {"P2-01": "asc", "P2-03": "asc", "P2-02": "desc", "P2-04": "desc"}
 COLORS = ("red", "green")
 SHAPES = ("cylinder", "box")
+POSES = ("standing", "lying")   # 박스 위 퍽 자세 (#193: 같은 박스는 세운 퍽 먼저)
 
 
 class MissionError(ValueError):
@@ -27,15 +28,17 @@ class Puck:
     shape: str   # cylinder | box
     box: int     # 시작 박스 1 ~ 6
     side: int    # 박스 중심 X 기준 -1 (X − 40 mm) | +1 (X + 40 mm)
+    pose: str = "standing"   # standing | lying (측량 등록표 pose, 없거나 null 이면 standing, #193)
 
 
 def parse_pucks(rows):
-    pucks = [Puck(int(r["id"]), str(r["color"]), str(r["shape"]), int(r["box"]), int(r["side"])) for r in rows]
+    pucks = [Puck(int(r["id"]), str(r["color"]), str(r["shape"]), int(r["box"]), int(r["side"]), str(r.get("pose") or "standing"))
+             for r in rows]
     ids = [p.id for p in pucks]
     if len(pucks) != 12 or sorted(ids) != list(range(12)):
         raise MissionError(f"퍽 ID 는 0 ~ 11 이 한 번씩이어야 함: {sorted(ids)}")
     for p in pucks:
-        if p.color not in COLORS or p.shape not in SHAPES or not 1 <= p.box <= 6 or p.side not in (-1, 1):
+        if p.color not in COLORS or p.shape not in SHAPES or not 1 <= p.box <= 6 or p.side not in (-1, 1) or p.pose not in POSES:
             raise MissionError(f"퍽 {p.id} 속성 오류: {p}")
     slots = [(p.box, p.side) for p in pucks]
     if len(set(slots)) != 12:
