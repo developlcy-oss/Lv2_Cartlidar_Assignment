@@ -17,8 +17,10 @@ diff_drive_controller:
     cmd_vel_timeout: 0.5
     linear.x.max_acceleration: 1.5
     linear.x.max_deceleration: -1.5   # diff_drive 6.x 이름 (예전 min_acceleration 은 인자가 없어 무시됨). 음수
-    angular.z.max_velocity: 2.0
-    angular.z.min_velocity: -2.0
+    # 회전 상한 = 모든 입력 (조이스틱 · Nav2 · drive_node · 정책) 의 마지막 벽. 2.0 → 1.0 (2026-11-12): 벨트 구동에서 모터 = 로봇 회전 × 3.20,
+    #   11-11 바닥 제자리 회전 모터 3.0 에서 뒤 바퀴 출렁 · 7.0 에서 벨트 빠짐 → 2.0 (모터 6.4) 은 위험 영역. 1.0 = 모터 3.2 = Nav2 wz_max 기본값
+    angular.z.max_velocity: 1.0
+    angular.z.min_velocity: -1.0
 
 arm_controller:
   ros__parameters:
