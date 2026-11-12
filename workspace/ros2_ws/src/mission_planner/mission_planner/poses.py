@@ -20,6 +20,7 @@
 """
 from __future__ import annotations
 
+import dataclasses
 import math
 from dataclasses import dataclass, field
 
@@ -196,6 +197,33 @@ def rotate_clear(solids, pose: Pose, margin=ROTATE_MARGIN, step_deg=10):
     return all(footprint_clear(solids, Pose(pose.x, pose.y, pose.yaw + math.radians(d)), margin) for d in range(0, 360, step_deg))
 
 
+TURN_RANGE_LIMIT = 45.0   # [deg] 회전 범위 탐색 한계 (상자 요 가정 ±45°, #226)
+TURN_RANGE_MARGIN = 0.01  # [m] 회전 범위 판정 외곽 여유 (실물 회전 중심 · odom 오차)
+BOX_YAWS = tuple(range(-45, 46, 15))   # [deg] 회전 범위를 볼 시작 박스 요 (사람이 돌려 놓음, 가정 ±45°)
+
+
+def turn_range(solids, final: Pose, target=None, box_yaws=BOX_YAWS, limit=TURN_RANGE_LIMIT, step=1.0, margin=TURN_RANGE_MARGIN):
+    """집기 자리 final 에서 로봇 중심 둘레로 돌아도 외곽 + margin 이 안 닿는 연속 범위 [lo, hi] [deg] (+ = 왼쪽, 0 을 포함).
+    target (그 박스 Solid) 을 주면 박스를 box_yaws 만큼 돌린 경우마다 재고 모두에서 되는 범위 (교집합).
+    #226: 시작 박스가 돌아 놓이면 mission 이 잰 상자 요로 회전각을 다시 정함 (기본 turn_deg + β) -> 이 범위 · drive turn.max_deg 로 자름.
+    박스가 돌면 퍽도 박스 중심 둘레로 0.08 sin(β/2) (45° 에서 31 mm) 옮겨짐 -> target_look 예상 자리는 잰 상자로 다시 셈 (mission)."""
+    cx, cy = final.tf(CENTER_X, 0.0)
+    reach = math.hypot((FRONT - REAR) / 2, HALF_W) + margin + 0.01   # 외곽이 중심 둘레로 쓸고 지나는 반지름
+    solids = [s for s in solids if np.hypot(*(s.footprint() - (cx, cy)).T).min() < reach + 0.15 or s is target]   # 돌아도 닿을 수 있는 것만
+    cases = [solids] if target is None else [
+        [dataclasses.replace(s, yaw=s.yaw + math.radians(b)) if s is target else s for s in solids] for b in box_yaws]
+    lo, hi = -limit, limit
+    for sol in cases:
+        if not footprint_clear(sol, final, margin):
+            return [0.0, 0.0]
+        for sign in (-1, 1):
+            last, d = 0.0, step
+            while d <= limit + 1e-9 and footprint_clear(sol, turned(final, sign * d), margin):
+                last, d = d, d + step
+            lo, hi = (max(lo, -last), hi) if sign < 0 else (lo, min(hi, last))
+    return [lo, hi]
+
+
 def make_approaches(solids, gap=0.02, standoffs=STANDOFFS, margin=0.05):
     """접근 자세표 (solids = 주행 높이 장애물). stage = 외곽 + margin 이 비고 그 자리에서 제자리 한 바퀴 돌 수 있는 (rotate_clear)
     가장 큰 standoff (0.45 부터 0.01 m 씩 줄임). 돌 수 있는 자리가 없으면 외곽만 보는 가장 큰 standoff (note 에 남김).
@@ -233,7 +261,9 @@ def make_approaches(solids, gap=0.02, standoffs=STANDOFFS, margin=0.05):
                 d, fwd, lat = j1_dist(a.final, cx + sx * PUCK_DX, cy)
                 t = 0.0 if side in ("W", "E") else turn_deg(lat)  # inline: 퍽이 J1 앞 일직선 (lat 0)
                 pk[sx] = dict(dist=round(d, 4), fwd=round(fwd, 4), lat=round(lat, 4), turn_deg=round(t, 2))
-            a.extra = {**a.extra, "box": b, "side": side, "inline": side in ("W", "E"), "pucks": pk}
+            a.extra = {**a.extra, "box": b, "side": side, "inline": side in ("W", "E"), "pucks": pk,
+                       "turn_range_deg": turn_range(solids, a.final, target=next(
+                           (s for s in solids if abs(s.x - cx) < 1e-6 and abs(s.y - cy) < 1e-6 and s.sx > 0), None))}
             bad = [f"{v['dist']:.3f}" for v in pk.values() if reach_mode(v["dist"]) != "tilt"]
             if a.ok and bad:
                 a.ok, a.note = False, f"퍽 J1 거리 {', '.join(bad)} 가 45° 범위 {REACH_TILT_MIN} ~ {REACH_TILT} 밖"

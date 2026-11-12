@@ -2,10 +2,18 @@
 # mission_planner/config/amcl.yaml(**삭제됨**)에서 출발해 Isaac 모의 녹화 재생으로 맞춘 값. 그 파일과 다른 점:
 #   robot_model_type OmniMotionModel · alpha5 0.1 — 4 륜 스키드 차체는 회전 중심이 base_link 뒤(모의 x −0.0658 m)라 제자리 회전 때
 #     base_link 가 옆으로 움직이는데, 차동 모델은 이 옆 이동을 표현하지 못해 옆 방향 오차가 커졌다(옴니 모델로 위치 RMSE 약 절반).
-#   update_min_d · update_min_a 0 — 매 스캔 갱신(정밀 정렬 구간에서도 따라오게). Jetson CPU 부하는 측정하지 않았다.
+#   update_min_d · update_min_a 0 — 매 스캔 갱신(정밀 정렬 구간에서도 따라오게).
 #   laser_likelihood_max_dist 2.0.
-#   scan_topic /scan_merged — 이 패키지의 scan_merge(차체 가림 지운 앞 · 뒤 스캔을 움직임 보정해 합침), map_topic /map(maps/slam_walls_001).
-#   초기 자세 = 모의 출발 자세(base_link). launch 인자 start_x/y/yaw 로 덮어씀.
+#   scan_topic /scan_merged — 이 패키지의 scan_merge(차체 가림 지운 앞 · 뒤 스캔을 움직임 보정해 합침, frame base_link).
+#   map_topic /map — 실물 bringup · Gazebo 기본은 도면 SDF 지도 mission_planner/maps/map_amcl (0.025 m, #163).
+#     localization.launch.py 를 단독으로 띄울 때의 기본만 Isaac SLAM 지도 maps/slam_walls_001 (동쪽으로 갈수록 SDF 와 8 ~ 15 cm 어긋남).
+#   초기 자세 = 출발 구역 가운데 (0.69365, 0.95, π) (base_link). launch 인자 start_x/y/yaw 로 덮어씀.
+# 2026-11-12 Gazebo (SDF 지도, 12 목표): AMCL 오차 평균 1.6 ~ 1.8 cm · 최대 4.2 ~ 4.3 cm. CPU 는 노트북 한 코어의 약 6 % (scan 노드 · loc_monitor 보다 가벼움).
+# ★ 실물에서 볼 것 (값은 모의 기준):
+#   - sigma_hit 0.03 · alpha* — 모의 잡음 · 미끄럼 기준. 실물 LDS-03 잡음 · 경기장 시공 오차 · 바닥 미끄럼이 더 크면 rosbag 재생으로 다시 맞춤.
+#   - update_min_* 0 — 멈춘 동안에도 매 스캔 다시 뽑음 → 실물 잡음에서 입자가 한 점에 몰리는지 (/particle_cloud) 확인.
+#     몰리면 후보 update_min_d 0.02 · update_min_a 0.035 (Gazebo 에서 정확도 차이 없음 확인, 멈춘 동안 /amcl_pose 를 안 내도 loc_monitor 는 map→odom TF 로 판단, #129).
+#   - laser_min_range 0.12 · laser_max_range 8.0 ↔ LDS-03 실제 range_min · range_max (/scan_front 에서 읽기).
 amcl:
   ros__parameters:
     use_sim_time: false

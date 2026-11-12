@@ -112,3 +112,24 @@ sidepick45_k7:
   action: tcp_delta(4)
   action_low: [-1.0, -1.0, -1.0, -1.0]
   action_high: [1.0, 1.0, 1.0, 1.0]
+
+# 2026-11-12 k8 = k7 + 인식 오차 ±5 mm 이어 학습 600 반복 (Isaac, 노드 조건 2048 대: ±2 mm 98.4 · 96.6 %, ±5 mm 93.6 · 94.7 %, k7 보다 모두 나음). 관측 · 행동 k7 과 같음
+sidepick45_k8:
+  model: models/sidepick45_k8.onnx
+  rate_hz: 30
+  obs_dim: 33
+  observation:
+    - {name: joint_pos_rel, size: 5, required: true}      # joint1~5 − READY_POSE_45 [0, −0.338, 0.559, 0.564, 0] (lie_upright 와 같은 기준)
+    - {name: joint_vel, size: 5, required: true}          # rad/s
+    - {name: finger_pos, size: 1, required: true}         # gripper_left_joint (m, 벌림 mm = 41.6 + 2000 x 값)
+    - {name: puck_pos, size: 3, required: true}           # 인식 퍽 중심 (base_link). 학습: 참값 + 에피소드 치우침 ±1 mm + 스텝 ±1 mm, 지연 3 ~ 9 스텝 · 갱신 3 ~ 10 스텝 · 끊김 (#191)
+    - {name: grasp_pos, size: 3, required: true}          # 잡는 점 = gripper_roll_link + (0.14, 0, 0) (FK)
+    - {name: puck_minus_grasp, size: 3, required: true}   # puck_pos − grasp_pos
+    - {name: approach_axis, size: 3, required: true}      # gripper_roll_link +x (base_link)
+    - {name: close_axis, size: 3, required: true}         # gripper_roll_link +y
+    - {name: neighbor_rel, size: 2, required: true}       # 옆 퍽 − 퍽 (x, y). 옆 퍽 없음 = (0, 0) (toppick 의 (0, 0.5) 와 다름)
+    - {name: is_box, size: 1, required: true}             # 직육면체 퍽 1, 원기둥 0
+    - {name: prev_action, size: 4, required: true}        # 직전 정책 출력 ([-1, 1] 자른 값). 첫 스텝 (0, 0, 0, 1)
+  action: tcp_delta(4)
+  action_low: [-1.0, -1.0, -1.0, -1.0]
+  action_high: [1.0, 1.0, 1.0, 1.0]

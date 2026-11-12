@@ -21,6 +21,7 @@ struct SilMotor
   int32_t pos_p_gain = 800;            // 위치 게인 (RAM, 공장값 800 · 0 · 0)
   int32_t pos_i_gain = 0;
   int32_t pos_d_gain = 0;
+  int32_t profile_accel = 0;           // Profile Acceleration (RAM, 공장값 0)
   bool ignore_gain_writes = false;     // 시험용: 게인 쓰기가 반영되지 않는 모터
   int32_t pwm_limit = 885;             // EEPROM PWM Limit (공장값 885 = 100 %). 시험이 그리퍼는 config.h GRIP_PWM_LIMIT_MAX 로 바꿔 넣는다
   // 막힘 · 속도 모델 (토크 ON + motors_follow_goals 일 때): SyncWrite 마다 목표 쪽으로 max_step tick 까지 (0 = 바로 도달),

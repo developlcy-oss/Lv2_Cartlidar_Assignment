@@ -117,7 +117,8 @@ def generate_launch_description():
             return []
         log_dir, pucks = log_paths(context)
         args = {'use_sim_time': LaunchConfiguration('use_sim_time'), 'pucks_file': pucks,
-                'mode': LaunchConfiguration('planner_mode'), 'stop_after': LaunchConfiguration('planner_stop_after')}
+                'mode': LaunchConfiguration('planner_mode'), 'stop_after': LaunchConfiguration('planner_stop_after'),
+                'avoid_slots': LaunchConfiguration('planner_avoid_slots')}
         if log_dir:
             args['log_dir'] = os.path.join(log_dir, 'planner')
         return [IncludeLaunchDescription(
@@ -126,12 +127,13 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
+        # 2026-11-12 sim 은 diag_timeout 기본값 (PythonExpression) 이 읽으므로 그보다 먼저 선언 (sim:= 안 주면 'launch configuration sim does not exist')
+        DeclareLaunchArgument('sim', default_value='false',
+                              description='① 을 Isaac Sim 브리지에 연결 (TopicBasedSystem). use_sim_time:=true 와 함께'),
         DeclareLaunchArgument('diag_timeout',
                               default_value=PythonExpression(["'3.0' if '", LaunchConfiguration('use_hardware'), "'.lower() == 'true' and '",
                                                               LaunchConfiguration('sim'), "'.lower() != 'true' else '0.0'"]),
                               description='mission_node diagnostics.timeout [s]: opencr/* 진단이 이만큼 끊기면 안전 정지. 기본 실물 3.0 · sim · 하드웨어 없음 0 (끔)'),
-        DeclareLaunchArgument('sim', default_value='false',
-                              description='① 을 Isaac Sim 브리지에 연결 (TopicBasedSystem). use_sim_time:=true 와 함께'),
         DeclareLaunchArgument('use_teleop', default_value='true', description='조이스틱 (끄면 E-stop heartbeat 검사도 끔)'),
         DeclareLaunchArgument('use_perception', default_value='true', description='⑦ 카메라 3대 · 검출'),
         DeclareLaunchArgument('use_tfmini', default_value='true',
@@ -146,6 +148,8 @@ def generate_launch_description():
         DeclareLaunchArgument('pucks_file', default_value='',
                               description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 빈 값 = <log_dir>/pucks_survey.yaml. '
                                           '측량을 끄면 미리 만든 등록표'),
+        DeclareLaunchArgument('planner_avoid_slots', default_value='',
+                              description="계획기: 싣지 않을 팔레트 칸 '열:칸,…' (예 2:1,2:2 = G_2 · G_3, #219). 빈 값 = 모두 씀"),
         DeclareLaunchArgument('planner_mode', default_value='hybrid', description='계획기 mode: hybrid (기본) | per_location | single_load'),
         DeclareLaunchArgument('planner_stop_after', default_value='none',
                               description='부분 실물 시험: none | observe (관측만) | first_pick (박스 1 곳 집기) | first_place (장소 1 곳 놓기 + verify). 그 뒤 복귀'),

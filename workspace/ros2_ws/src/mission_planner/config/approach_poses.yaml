@@ -33,6 +33,9 @@ B1:S:
       fwd: 0.2665
       lat: -0.04
       turn_deg: -17.06
+  turn_range_deg:
+  - -45.0
+  - 45.0
   turn_clearance: 0.08
 B1:N:
   kind: box
@@ -65,6 +68,9 @@ B1:N:
       fwd: 0.2665
       lat: 0.04
       turn_deg: 17.06
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B2:S:
   kind: box
   ok: true
@@ -96,6 +102,9 @@ B2:S:
       fwd: 0.2665
       lat: -0.04
       turn_deg: -17.06
+  turn_range_deg:
+  - -45.0
+  - 45.0
   turn_clearance: 0.08
 B2:N:
   kind: box
@@ -124,6 +133,9 @@ B2:N:
       fwd: 0.2665
       lat: 0.04
       turn_deg: 17.06
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B3:S:
   kind: box
   ok: true
@@ -155,6 +167,9 @@ B3:S:
       fwd: 0.2665
       lat: -0.04
       turn_deg: -17.06
+  turn_range_deg:
+  - -45.0
+  - 45.0
   turn_clearance: 0.08
 B3:N:
   kind: box
@@ -187,6 +202,9 @@ B3:N:
       fwd: 0.2665
       lat: 0.04
       turn_deg: 17.06
+  turn_range_deg:
+  - -45.0
+  - 45.0
   turn_clearance: 0.08
 B4:S:
   kind: box
@@ -219,6 +237,9 @@ B4:S:
       fwd: 0.2665
       lat: -0.04
       turn_deg: -17.06
+  turn_range_deg:
+  - -45.0
+  - 45.0
   turn_clearance: 0.08
 B4:N:
   kind: box
@@ -251,6 +272,9 @@ B4:N:
       fwd: 0.2665
       lat: 0.04
       turn_deg: 17.06
+  turn_range_deg:
+  - -45.0
+  - 45.0
   turn_clearance: 0.08
 B5:S:
   kind: box
@@ -283,6 +307,9 @@ B5:S:
       fwd: 0.2665
       lat: -0.04
       turn_deg: -17.06
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B5:N:
   kind: box
   ok: true
@@ -314,6 +341,9 @@ B5:N:
       fwd: 0.2665
       lat: 0.04
       turn_deg: 17.06
+  turn_range_deg:
+  - -45.0
+  - 45.0
   turn_clearance: 0.08
 B6:S:
   kind: box
@@ -342,6 +372,9 @@ B6:S:
       fwd: 0.2665
       lat: -0.04
       turn_deg: -17.06
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B6:N:
   kind: box
   ok: false
@@ -373,6 +406,9 @@ B6:N:
       fwd: 0.2665
       lat: 0.04
       turn_deg: 17.06
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B6:W:
   kind: box
   ok: true
@@ -404,6 +440,9 @@ B6:W:
       fwd: 0.3065
       lat: 0.0
       turn_deg: 0.0
+  turn_range_deg:
+  - -45.0
+  - 45.0
 B6:E:
   kind: box
   ok: false
@@ -431,6 +470,9 @@ B6:E:
       fwd: 0.2265
       lat: -0.0
       turn_deg: 0.0
+  turn_range_deg:
+  - -45.0
+  - 45.0
 L1:
   kind: place
   ok: true

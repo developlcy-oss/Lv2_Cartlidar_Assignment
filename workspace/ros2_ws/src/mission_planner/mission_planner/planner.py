@@ -27,7 +27,8 @@ from .arena import build_maps, load_sdf
 from .pathcost import CostModel
 from .poses import PLACES, REACH_TILT, REACH_TILT_MIN, make_approaches, place_order
 
-ROW_ORDER = [1, 2, 0, 3]  # 같은 열 안 싣는 순서 (pallet_traj.py: J1 각이 큰 칸부터 = 1, 2 다음 0, 3)
+from . import slots as slots_mod  # noqa: E402
+from .slots import ROW_ORDER, SLOT_SHAPE  # noqa: E402  같은 열 안 싣는 순서 · 칸 모양 (#230)
 FULL_SEQ = [(r, i) for r in (3, 2, 1) for i in ROW_ORDER]  # single_load 싣는 칸 (12)
 TILT_SLOTS = set(FULL_SEQ)  # 12 칸 모두 45° (pallet_traj.py TILT_SLOTS, Isaac 24/24)
 PER_LOC_SEQ = [(r, i) for r in (2, 1) for i in ROW_ORDER]  # per_location 싣는 칸 (빠른 2 · 1 열 8 칸)
@@ -186,9 +187,39 @@ def _product_limited(lists, limit):
     return out
 
 
-def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_after="none"):
+def parse_slots(text):
+    """'2:1,2:2' -> [(2, 1), (2, 2)] (빈 문자열 = 없음). 팔레트 칸 (열 1 ~ 3, 칸 0 ~ 3)"""
+    out = []
+    for tok in (t.strip() for t in str(text or "").split(",")):
+        if not tok:
+            continue
+        try:
+            r, i = (int(v) for v in tok.split(":"))
+        except ValueError:
+            raise ValueError(f"avoid_slots {tok!r}: '열:칸' (예 2:1)") from None
+        if (r, i) not in FULL_SEQ:
+            raise ValueError(f"avoid_slots {tok!r}: 열 1 ~ 3, 칸 0 ~ 3")
+        out.append((r, i))
+    return out
+
+
+def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_after="none", avoid_slots=(), shape_slots=True,
+         row_rule="free"):
+    """avoid_slots: 싣지 않을 팔레트 칸 [(열, 칸)] (#219: 주행 · 정렬 자세 팔이 실린 퍽에 닿는 칸, 예 G_2 · G_3 = (2, 1) · (2, 2)).
+    shape_slots: 퍽 모양 = 칸 모양 (#230, 안 되면 경고). row_rule: 같은 열 안 싣기 · 꺼내기 차례 free | fixed (ROW_ORDER)."""
     if mode not in MODES:
         raise ValueError(f"mode {mode!r}: {' | '.join(MODES)}")
+    avoid = sorted(set(map(tuple, avoid_slots)))
+    if any(s not in FULL_SEQ for s in avoid):
+        raise ValueError(f"avoid_slots {avoid}: 열 1 ~ 3, 칸 0 ~ 3")
+    if avoid and mode == "single_load":
+        raise MissionError(f"single_load 는 12 칸을 모두 씀 -> avoid_slots {avoid} 와 함께 못 씀")
+    if row_rule not in ("free", "fixed"):
+        raise ValueError(f"row_rule {row_rule!r}: free | fixed")
+    front_cap = sum(1 for s in FULL_SEQ if s[0] < 3 and s not in avoid)
+    shape_caps = {shp: (sum(1 for s in FULL_SEQ if s[0] < 3 and s not in avoid and SLOT_SHAPE[s] == shp),
+                        sum(1 for s in FULL_SEQ if s not in avoid and SLOT_SHAPE[s] == shp))
+                  for shp in hyb.SHAPES} if shape_slots else None
     if stop_after not in STOP_AFTER:
         raise ValueError(f"stop_after {stop_after!r}: {' | '.join(STOP_AFTER)}")
     counts = count_signal(problem["signal"])
@@ -198,24 +229,37 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
     group_of_L = {f"L{k + 1}": g for k, (g, _) in enumerate(groups)}
     best = None
     n_alloc = 0
+    cands = []   # hybrid: 추정 점수 상위 몇 개는 실제 칸 배정으로 다시 셈 (#230)
     for alloc, yshape in enumerate_allocations(pucks, counts, limit=alloc_limit):
         n_alloc += 1
         if mode == "hybrid":
-            r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes)
+            kw = dict(front_cap=front_cap, capacity=12 - len(avoid), shape_caps=shape_caps)
+            r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, **kw)
             if r is None:   # 누운 퍽 순서를 지키는 나누기가 없음 -> 순서 없이 (경고)
-                r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, lying_after=False)
+                r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, lying_after=False, **kw)
         elif mode == "per_location":
             r = _plan_per_location(world, alloc, group_of_L)
         else:
             r = _plan_single_load(world, alloc, group_of_L)
-        if r is not None and (best is None or r[0] < best[1][0]):
+        if r is not None and mode == "hybrid":
+            cands.append((r[0], n_alloc, alloc, r, yshape))
+        elif r is not None and (best is None or r[0] < best[1][0]):
             best = (alloc, r, yshape)
+    if mode == "hybrid" and cands:
+        # 탐색의 3 열 · 모양 넘침은 동시 적재 수로 본 추정 (아래 경계) -> 상위 RESCORE_TOP 개는 실제 칸 배정 값으로 다시 고름
+        for _, _, alloc, r, yshape in sorted(cands, key=lambda c: c[:2])[:RESCORE_TOP]:
+            out = _steps(world, mode, alloc, group_of_L, r, avoid, row_rule, shape_slots)
+            true = r[3]["path_m"] + out[2]["row3"] * hyb.ROW3_PENALTY_M + (out[2]["mismatch"] * hyb.SHAPE_PENALTY_M if shape_slots else 0.0)
+            if best is None or true < best[3] - 1e-9:
+                best = (alloc, r, yshape, true, out)
     if best is None:
         raise MissionError("경로를 찾지 못함")
-    alloc, r, yshape = best
-    steps, warnings = _steps(world, mode, alloc, group_of_L, r)
-    if mode == "hybrid" and r[3]["row3"]:
-        warnings.append(f"hybrid: 3 열 칸 {r[3]['row3']} 개 사용 (동시에 실린 퍽 최대 {r[3]['peak']})")
+    alloc, r, yshape = best[:3]
+    steps, warnings, sinfo = best[4] if len(best) > 3 else _steps(world, mode, alloc, group_of_L, r, avoid, row_rule, shape_slots)
+    if avoid:
+        warnings.append(f"팔레트 칸 {avoid} 안 씀 (avoid_slots, #219)")
+    if mode == "hybrid" and sinfo["row3"]:
+        warnings.append(f"hybrid: 3 열 칸 {sinfo['row3']} 개 사용 (동시에 실린 퍽 최대 {r[3]['peak']}, 모양 맞추기 포함)")
     steps = cut_steps(world, steps, stop_after)
     if stop_after != "none":
         warnings = [f"부분 시험 stop_after={stop_after}: 미션 전체가 아님 (cost_m 은 전체 계획 값)"] + warnings
@@ -227,12 +271,14 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
         allocation={L: dict(group=g, ids=[p.id for p in alloc[g]], y_shape=yshape if g == "Y" else None,
                             colors=[p.color for p in alloc[g]], shapes=[p.shape for p in alloc[g]]) for L, g in group_of_L.items()},
         cost_m=round(r[3]["path_m"] if mode == "hybrid" else r[0], 3), allocations_checked=n_alloc,
-        hybrid=dict(r[3], objective=round(r[0], 3)) if mode == "hybrid" else None,
+        hybrid=dict(r[3], objective=round(r[0], 3), objective_true=round(best[3], 3)) if mode == "hybrid" else None,
+        pallet=dict(sinfo, row_rule=row_rule, shape_slots=shape_slots),
         steps=steps, warnings=warnings,
     )
 
 
 STOP_AFTER = ("none", "observe", "first_pick", "first_place")
+RESCORE_TOP = 5   # hybrid: 실제 칸 배정으로 다시 셀 할당 수
 
 
 def _nav_step(world, cur, to):
@@ -290,7 +336,7 @@ def _lying_order_warnings(world, steps):
     return warn
 
 
-def _steps(world, mode, alloc, group_of_L, r):
+def _steps(world, mode, alloc, group_of_L, r, avoid=(), row_rule="free", shape_slots=True):
     """실행 단계 목록 (navigate · pick · place · verify · return) + 경고."""
     steps, warn = [dict(type="observe", at="HOME", note="바코드 -> 12 회 점멸 -> 3 초 소등 확인 뒤 출발")], []
     cur = "HOME"
@@ -307,7 +353,7 @@ def _steps(world, mode, alloc, group_of_L, r):
         pk = a.extra["pucks"][p.side]
         turn = pk["turn_deg"] if p.shape == "box" else 0.0  # 상자 퍽: 면을 J1→퍽 방향에 맞추는 제자리 회전
         steps.append(dict(type="pick", at=key, puck=p.id, color=p.color, shape=p.shape, pose=p.pose, box=p.box, side=p.side,
-                          j1_dist=pk["dist"], tilt=True, turn_deg=turn, slot=list(slot)))
+                          j1_dist=pk["dist"], tilt=True, turn_deg=turn, turn_range_deg=list(a.extra["turn_range_deg"]), slot=list(slot)))
         pallet[slot] = p
         if a.extra.get("inline"):
             warn.append(f"퍽 {p.id}: 박스 {p.box} 는 ±Y 면이 막혀 {a.extra['side']} 면 (두 퍽 앞뒤) 에서 집음, J1 거리 {pk['dist']:.3f}")
@@ -322,55 +368,55 @@ def _steps(world, mode, alloc, group_of_L, r):
                 warn.append(f"{L} 칸 {cell}: J1 거리 {info['dist']:.3f} m -> {info['mode']} (45° 범위 {REACH_TILT_MIN} ~ {REACH_TILT}) - 퍽 {p.id} 놓기 불가")
             del pallet[slot]
 
+    # 먼저 싣기 · 내리기 차례 (seq) 와 방식이 원래 정한 칸 (init) 을 만들고, 칸은 slots.assign 이 다시 고름 (#230)
+    seq, init = [], None   # ("pick", 퍽, 접근 키) | ("place", L, [퍽, …])
     if mode == "hybrid":
         total, events, vorder, info = r
-        owner = {p.id: L for L in group_of_L for p in alloc[group_of_L[L]]}
-        slot_of = hyb.assign_slots(events, owner, ROW_ORDER)
-        loaded = []
         for ev in events:
             if ev[0] == "pick":
-                key = ev[1]
-                nav(key)
-                for p in ev[2]:   # hybrid._rebuild 가 가까운 퍽부터 정렬 (칸 배정과 같은 순서)
-                    pick(key, p, slot_of[p.id])
-                    loaded.append(p)
+                seq += [("pick", p, ev[1]) for p in ev[2]]   # hybrid._rebuild 가 가까운 퍽부터 정렬
             else:
-                L = ev[1]
-                nav(L)
-                place(L, [(slot_of[p.id], p) for p in reversed(loaded) if owner[p.id] == L])  # 나중에 실은 것부터
-                loaded = [p for p in loaded if owner[p.id] != L]
+                seq.append(("place", ev[1], list(alloc[group_of_L[ev[1]]])))
     elif mode == "per_location":
         total, trips, vorder = r
+        loc_seq = [s for s in PER_LOC_SEQ if s not in avoid]
+        need = max(sum(len(ps) for _, ps in stops) for _, stops in trips)
+        if need > len(loc_seq):   # 빼고 모자라면 3 열 (깊은 열부터 싣기 = 앞에 둠)
+            loc_seq = [s for s in FULL_SEQ if s[0] == 3 and s not in avoid][:need - len(loc_seq)] + loc_seq
+        init = {}
         for L, stops in trips:
-            seq = iter(PER_LOC_SEQ)
-            loaded = []
+            it = iter(loc_seq)
             for key, ps in stops:
-                nav(key)
                 for p in ps:
-                    s = next(seq)
-                    pick(key, p, s)
-                    loaded.append((s, p))
-            nav(L)
-            place(L, loaded[::-1])  # 나중에 실은 것부터 꺼냄
+                    init[p.id] = next(it)
+                    seq.append(("pick", p, key))
+            seq.append(("place", L, [p for _, ps in stops for p in ps]))
     else:
         total, phases, perm, combo, vorder, n_comb = r
-        slots_of_row = {row: [(row, i) for i in ROW_ORDER] for row in (1, 2, 3)}
-        loaded = {}
+        init = {}
         for row, stops in phases:
-            it = iter(slots_of_row[row])
+            it = iter([(row, i) for i in ROW_ORDER])
             for key, ps in stops:
-                nav(key)
                 for p in ps:
-                    s = next(it)
-                    pick(key, p, s)
-                    loaded[p.id] = s
-        for L in perm:
-            nav(L)
-            ps = alloc[group_of_L[L]]
-            unload = sorted(((loaded[p.id], p) for p in ps), key=lambda t: (t[0][0], -ROW_ORDER.index(t[0][1])))  # 1 열부터, 열 안은 실은 반대
-            place(L, unload)
+                    init[p.id] = next(it)
+                    seq.append(("pick", p, key))
+        seq += [("place", L, list(alloc[group_of_L[L]])) for L in perm]
         if n_comb > 400:
             warn.append(f"열 나누기 경우 {n_comb} 중 400 개만 봄")
+    slot_of, unload, sinfo = slots_mod.assign(seq, avoid, row_rule=row_rule, shape=shape_slots, init=init)
+    by_id = {e[1].id: e[1] for e in seq if e[0] == "pick"}
+    for k, e in enumerate(seq):
+        if e[0] == "pick":
+            nav(e[2])
+            pick(e[2], e[1], slot_of[e[1].id])
+        else:
+            nav(e[1])
+            place(e[1], [(slot_of[q], by_id[q]) for q in unload[k]])
+    if shape_slots and sinfo["mismatch"]:
+        bad = sorted(q for q, s in slot_of.items() if SLOT_SHAPE[s] != by_id[q].shape)
+        warn.append(f"퍽 {bad}: 모양이 다른 팔레트 칸에 실음 (싣는 차례 · 열 규칙상 못 맞춤, #230)")
+    if not sinfo["complete"]:
+        warn.append(f"팔레트 칸 찾기 {sinfo['nodes']} 노드에서 멈춤 (지금까지 가장 좋은 배정)")
     warn += _lying_order_warnings(world, steps)
     lying = sorted(s["puck"] for s in steps if s["type"] == "pick" and s["pose"] == "lying")
     if lying:
@@ -380,4 +426,4 @@ def _steps(world, mode, alloc, group_of_L, r):
         steps.append(dict(type="verify", at=L, note="새 카메라 관측으로 칸별 퍽 ID · 위치 기록 (목표 복사 금지)"))
     nav("HOME")
     steps.append(dict(type="return", at="HOME", note="차체 전체가 출발 구역 안에서 3 초 정지"))
-    return steps, sorted(set(warn))
+    return steps, sorted(set(warn)), sinfo

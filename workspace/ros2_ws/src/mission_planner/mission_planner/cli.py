@@ -70,16 +70,24 @@ def plan_cmd(argv=None):
     ap.add_argument("--sdf", default=default_sdf())
     ap.add_argument("--stop_after", default="none", choices=["none", "observe", "first_pick", "first_place"],
                     help="부분 실물 시험: 그 지점까지만 하고 복귀 (단계 문장도 출력)")
+    ap.add_argument("--avoid_slots", default="", help="싣지 않을 팔레트 칸 '열:칸,…' (예 2:1,2:2 = G_2 · G_3, #219)")
+    ap.add_argument("--row_rule", default="free", choices=["free", "fixed"],
+                    help="같은 열 안 싣기 · 꺼내기 차례: free (자유, 기본) | fixed (ROW_ORDER 1,2,0,3) (#230)")
+    ap.add_argument("--no_shape_slots", action="store_true", help="퍽 모양 = 칸 모양 맞추기 끄기 (#230, 비교용)")
     ap.add_argument("--out", default=None, help="이 폴더에 plan.json · signal.json · allocation.json")
     a = ap.parse_args(argv)
-    from .planner import World, plan
+    from .planner import World, parse_slots, plan
 
     prob = yaml.safe_load(open(a.problem, encoding="utf-8"))
     w = World(a.sdf)
     try:
+        avoid = parse_slots(a.avoid_slots)
         modes = ["hybrid", "per_location", "single_load"] if a.mode == "compare" else [a.mode]
-        plans = {m: plan(w, prob, m, stop_after=a.stop_after) for m in modes}
-    except MissionError as e:
+        if avoid and a.mode == "compare":
+            modes.remove("single_load")
+        plans = {m: plan(w, prob, m, stop_after=a.stop_after, avoid_slots=avoid, shape_slots=not a.no_shape_slots,
+                          row_rule=a.row_rule) for m in modes}
+    except (MissionError, ValueError) as e:
         print(f"[오류] {e} -> 안전 정지", file=sys.stderr)
         return 2
     for m, p in plans.items():

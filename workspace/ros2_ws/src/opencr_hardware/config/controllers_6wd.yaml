@@ -29,6 +29,11 @@ arm_controller:
     command_interfaces: [position]
     state_interfaces: [position, velocity]
     allow_partial_joints_goal: false
+    # 2026-11-12 실물 cart11 (#165 · #190): 관절 2 · 3 이 중력으로 1 ~ 3° 처진 실측 위치에서 새 궤적 보간을 시작하면 명령이 튀어
+    #   다른 관절이 움직일 때마다 평균 1.3° · 최대 5° 덜컹 -> 직전 원하는 상태에서 시작 (측정 도구에서 평균 0.05°, 30 배 감소).
+    #   ★ 파라미터 이름 젯슨에서 확인: ros2 param list /arm_controller | grep -iE 'interpolate|open_loop' (Jazzy 이후 interpolate_from_desired_state,
+    #   그 전 open_loop_control). E-stop · HOLD · REARM 뒤 원하는 상태가 오래된 값이면 튈 수 있음 -> 시작 정리 (startup STOW) 동작 확인
+    interpolate_from_desired_state: true
     constraints:
       goal_time: 1.0
       stopped_velocity_tolerance: 0.05

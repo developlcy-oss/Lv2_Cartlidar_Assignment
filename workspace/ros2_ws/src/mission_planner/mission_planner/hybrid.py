@@ -11,7 +11,10 @@ L 배달 순서 (a, b, c) 를 정하면 가능한 경로는 꼭 이 꼴이다 (�
 누운 퍽 순서 (#193): 같은 박스에 세운 퍽과 누운 퍽이 있으면 세운 퍽을 먼저 집음 (누운 퍽을 세우고 다시 잡을 때 옆 퍽에 안 걸리게).
   같은 그룹이면 같은 정차에서 세운 퍽부터, 다른 그룹이면 세운 퍽의 런이 누운 퍽의 런보다 앞인 나누기만 씀
   (런 자리: C1 0, B1 1, A 2, C2 3, B2 4, C3 5).
-비용 = 경로 비용 [m] + 3 열 칸 수 × ROW3_PENALTY_M (3 열은 싣기 · 꺼내기가 칸당 약 7 s 더 느림, #75. 0.2 m/s 로 바꾸면 약 2.8 m).
+비용 = 경로 비용 [m] + 3 열 칸 수 × ROW3_PENALTY_M (3 열은 싣기 · 꺼내기가 칸당 약 7 s 더 느림, #75. 0.2 m/s 로 바꾸면 약 2.8 m)
+     + 모양 넘침 × SHAPE_PENALTY_M (#230: 칸 모양이 열마다 직육면체 2 · 원기둥 2 라 한 모양이 동시에 그 모양 칸 수를 넘으면
+       모양이 다른 칸에 실어야 함). 3 열 칸 수도 모양별로 셈 (1 · 2 열의 그 모양 칸을 넘는 만큼).
+칸 자체는 slots.assign 이 고름 (모양 · 열 규칙).
 """
 from __future__ import annotations
 
@@ -21,6 +24,8 @@ from itertools import permutations
 import numpy as np
 
 ROW3_PENALTY_M = 2.8   # [m] 3 열 칸 하나 (싣기 + 꺼내기 약 14 s × 0.2 m/s, 가정)
+SHAPE_PENALTY_M = 5.0  # [m] 모양 다른 칸에 실을 퍽 하나 (#230 모의: 모양 무시 79 % vs 모양대로 98 %, 가정)
+SHAPES = ("box", "cylinder")
 INF = math.inf
 
 
@@ -123,10 +128,19 @@ def _run_pos(g, j, C1, B1, C2):
     return np.where((C1 >> j) & 1, 0, np.where((C2 >> j) & 1, 3, 5))
 
 
-def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_M, lying_after=True):
+def _shape_counts(g, shape):
+    """그룹 (박스 목록, …, 박스 -> 퍽) 의 부분집합 S -> 그 모양 퍽 수"""
+    boxes, _, by = g
+    return _subset_counts(np.array([sum(p.shape == shape for p in by[b]) for b in boxes], dtype=int))
+
+
+def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_M, lying_after=True, front_cap=8, capacity=12,
+                shape_caps=None, shape_penalty=SHAPE_PENALTY_M):
     """-> (비용, 사건 목록, verify 순서, 정보) 또는 None.
     사건 = ("pick", 접근 키, [퍽, …]) | ("place", L). 정보 = dict(perm, path_m, row3, peak).
-    lying_after: 같은 박스 세운 퍽 먼저 (#193). 지킬 수 있는 나누기가 없으면 None"""
+    lying_after: 같은 박스 세운 퍽 먼저 (#193). 지킬 수 있는 나누기가 없으면 None.
+    front_cap = 1 · 2 열에서 쓸 칸 수 (넘으면 3 열 벌점), capacity = 쓸 칸 전부 (넘으면 못 함) — avoid_slots (#219)
+    shape_caps = {모양: (1 · 2 열 그 모양 칸 수, 전체 그 모양 칸 수)} (#230), None 이면 모양 안 봄"""
     from .planner import _verify_and_return
     places = list(group_of_L)
     nodes = nodes or Nodes(world, places)
@@ -180,19 +194,28 @@ def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_
         c2n = np.where(B1s[None, :] == 0, nC[G0c2[C1s]][:, None], 0)
         h2 = nC[C1s][:, None] + c2n + nB[fB]
         peak = np.maximum(np.maximum(h1, h2), nC[fC])
-        row3 = np.maximum(0, peak - 8)
-        score = total + vr + row3 * row3_penalty
+        row3 = np.maximum(0, peak - front_cap)
+        over = np.zeros_like(row3)
+        for shp, (fcap, cap) in (shape_caps or {}).items():   # 모양별 동시 적재 (같은 세 시점)
+            sA, sB, sC = (int(_shape_counts(groups[0], shp)[fA]), _shape_counts(groups[1], shp), _shape_counts(groups[2], shp))
+            s1 = sC[C1s][:, None] + sB[B1s][None, :] + sA
+            s2 = sC[C1s][:, None] + np.where(B1s[None, :] == 0, sC[G0c2[C1s]][:, None], 0) + sB[fB]
+            sp = np.maximum(np.maximum(s1, s2), sC[fC])
+            row3 = np.maximum(row3, np.minimum(sp, cap) - fcap)
+            over = over + np.maximum(0, sp - cap)
+        score = np.where(peak <= capacity, total + vr + row3 * row3_penalty + over * shape_penalty, INF)
         i, j = np.unravel_index(int(np.argmin(score)), score.shape)
         if not np.isfinite(score[i, j]):
             continue
         if best is None or score[i, j] < best[0]:
             c2 = int(G0c2[i]) if j == 0 else 0
-            best = (float(score[i, j]), perm, int(i), int(j), c2, float(total[i, j] + vr), int(row3[i, j]), int(peak[i, j]), vorder)
+            best = (float(score[i, j]), perm, int(i), int(j), c2, float(total[i, j] + vr), int(row3[i, j]), int(peak[i, j]), vorder,
+                    int(over[i, j]))
     if best is None:
         return None
-    score, perm, C1, B1, C2, path_m, row3, peak, vorder = best
+    score, perm, C1, B1, C2, path_m, row3, peak, vorder, over = best
     events = _rebuild(nodes, alloc, group_of_L, perm, C1, B1, C2)
-    return score, events, vorder, dict(perm=list(perm), path_m=round(path_m, 3), row3=row3, peak=peak)
+    return score, events, vorder, dict(perm=list(perm), path_m=round(path_m, 3), row3=row3, peak=peak, shape_over=over)
 
 
 def _rebuild(nodes, alloc, group_of_L, perm, C1, B1, C2):
@@ -237,26 +260,3 @@ def _rebuild(nodes, alloc, group_of_L, perm, C1, B1, C2):
         v = u
     seq.reverse()
     return seq
-
-
-def assign_slots(events, owner, row_order):
-    """LIFO 스택 위치로 팔레트 칸 정하기 -> {퍽 id: (열, 칸)}. owner = {퍽 id: L}.
-    퍽 p 의 A_p = 실려 있는 동안 p 위에 놓인 퍽 수의 최대. 열 = A_p // 4 + 1 (위 = 앞 열), 열 안 칸 = row_order[3 − A_p % 4]
-    (같은 열은 깊은 퍽부터 실음 = row_order 순서). 아래 퍽일수록 뒤 열이라 싣고 꺼낼 때 앞 열은 늘 비어 있음
-    (위 퍽의 A 는 아래 퍽보다 작고, 같은 열에 동시에 있는 퍽은 A 가 서로 달라 4 개를 넘지 않음)."""
-    stack, above = [], {}
-    for ev in events:
-        if ev[0] == "pick":
-            for p in ev[2]:
-                stack.append(p.id)
-                above[p.id] = 0
-                for k, q in enumerate(stack):
-                    above[q] = max(above[q], len(stack) - 1 - k)
-        else:
-            mine = [q for q in stack if owner[q] == ev[1]]
-            if stack[len(stack) - len(mine):] != mine:
-                raise RuntimeError(f"hybrid: {ev[1]} 퍽이 스택 맨 위가 아님 {stack}")
-            stack = stack[:len(stack) - len(mine)]
-    if max(above.values(), default=0) >= 12:
-        raise RuntimeError("hybrid: 팔레트 12 칸 초과")
-    return {q: (a // 4 + 1, row_order[3 - a % 4]) for q, a in above.items()}

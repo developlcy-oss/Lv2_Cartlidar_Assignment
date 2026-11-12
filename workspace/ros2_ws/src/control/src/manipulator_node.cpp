@@ -83,6 +83,7 @@
 #include "rclcpp_components/register_node_macro.hpp"
 #include "ament_index_cpp/get_package_share_path.hpp"
 #include "control/arm_ik.hpp"
+#include "control/grasp_detector.hpp"
 #include "control/sag_comp.hpp"
 #include "control/startup_stow.hpp"
 #include "control/toppick_obs.hpp"
@@ -97,6 +98,7 @@
 #include "robot_policy/policy.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "sensor_msgs/msg/range.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "tf2/utils.hpp"
@@ -235,6 +237,14 @@ public:
     jt_pub_ = create_publisher<trajectory_msgs::msg::JointTrajectory>(
       "/arm_controller/joint_trajectory", rclcpp::QoS(10));
 
+    // 연속 쥠 신호 (#201, arm_joint 만): 정책 · 진단용. latched 아님 (매 주기 발행)
+    if (gripper_mode_ == GripperMode::ARM_JOINT) {
+      grasp_pub_ = create_publisher<std_msgs::msg::Bool>("/manipulator/grasped", rclcpp::QoS(10));
+      grasp_timer_ = rclcpp::create_timer(
+        this, get_clock(), rclcpp::Duration::from_seconds(1.0 / grasp_rate_), [this]() {graspTick();},
+        job_cb_group_);   // gripper_cmd_ (마지막 집게 명령) 을 쓰는 작업과 같은 그룹 — 락 없이 읽음
+    }
+
     // cancel 처리 · 미세 보정 대기용 (20Hz)
     tick_timer_ = rclcpp::create_timer(
       this, get_clock(), rclcpp::Duration::from_seconds(0.05), [this]() {onTick();},
@@ -258,6 +268,7 @@ private:
     std::string frame;                    // place_at · target_look · box_look · barcode_look: 좌표 frame
     std::string look;                     // LOOK: "box_look" · "barcode_look"
     double x{0.0}, y{0.0}, z{0.0};        // place_at: 칸 중심 · 윗면 높이 / target_look: 퍽 예상 중심 / lie_upright: 상자 x · y · 요 deg
+    std::optional<double> look_dist, look_deg;   // box_look:frame:x:y:z:<dist>:<angle_deg> — 이번 호출만 거리 · 각 하나로 (없으면 설정 목록)
   };
   // pallet_place_traj.json 의 칸 하나: 구간 (이름 · 그리퍼 hold/open · 경유 관절각 5개)
   struct PalletSegment
@@ -342,6 +353,15 @@ private:
     gripper_settle_ = declare_parameter<double>("gripper.settle_time", 0.4);    // arm_joint: 닫은 뒤 판정까지 (GripGuard 0.3 s)
     // arm_joint: 닫힘 명령보다 이만큼 넘게 덜 닫혔으면 퍽을 잡음 (퍽 30 mm 에서 약 +0.51 rad 에서 막힘, 벤치)
     grasp_margin_ = declare_parameter<double>("gripper.grasp_margin", 0.15);
+    // arm_joint: 이보다 덜 닫힌 채 멈춤 = 퍽보다 큰 물체에 막힘 · 안 닫힘 → 쥠 아님 (쥠 범위 하한, grasp_detector.hpp, #201 ★ 실측)
+    grasp_min_position_ = declare_parameter<double>("gripper.grasp_min_position", 0.30);
+    // 연속 쥠 신호 /manipulator/grasped (정책 · 진단): 범위 안이 on_time 이어지면 1, 밖이 off_time 이어지면 0
+    grasp_on_time_ = declare_parameter<double>("gripper.grasp_on_time", 0.26);
+    grasp_off_time_ = declare_parameter<double>("gripper.grasp_off_time", 0.10);
+    grasp_rate_ = declare_parameter<double>("gripper.grasp_rate", 30.0);
+    // 마지막 닫기 명령보다 이만큼 넘게 덜 닫힌 채 멈춰야 쥠 (정책의 덜 닫는 명령에서 빈손을 쥠으로 보지 않게, #201 ★ 실측)
+    grasp_cmd_margin_ = declare_parameter<double>("gripper.grasp_cmd_margin", 0.03);
+    grasp_signal_ = GraspHysteresis(grasp_on_time_, grasp_off_time_);
     // 닫았는데 끝까지 닫힘 = 빈손 → pick 실패
     gripper_fail_on_empty_ = declare_parameter<bool>("gripper.fail_on_empty", true);
 
@@ -417,6 +437,7 @@ private:
     place_release_ = declare_parameter<double>("place.release_position", gripper_open_);   // rad, 기본 = 끝까지 (이전 동작)
     place_radial_a_ = declare_parameter<double>("place.radial_offset_mm", 0.0);              // J1 거리 0.2665 m 칸에서 바깥으로 [mm]
     place_radial_b_ = declare_parameter<double>("place.radial_offset_slope_mm", 0.0);        // 칸 (0.06 m) 멀어질 때마다 더할 값 [mm]
+    place_lateral_ = declare_parameter<double>("place.lateral_offset_mm", 0.0);   // 2026-11-12 놓는 점을 로봇 왼쪽 (+y) 으로 [mm]
     place_sag_ = declare_parameter<bool>("place.sag", true);   // 2026-11-11 놓기도 처짐 보정 스트리밍 (sag.enabled 일 때)
     // 바닥 frame (z = 바닥). arm_base_link 높이 = 이 frame → arm_base_link TF, 없으면 arm_base_height
     floor_frame_ = declare_parameter<std::string>("floor_frame", "base_footprint");
@@ -581,8 +602,14 @@ private:
         file = (ament_index_cpp::get_package_share_path("control") / "config" / "pallet_place_traj.json").string();
       }
       const YAML::Node doc = YAML::LoadFile(file);
+      // 2026-11-12 궤적 파일 관절값 = 모델 (URDF) 값 -> 명령값 (sign x q + ik.joint_offsets, IK · 정책 명령과 같은 변환).
+      //   실물 관절 영점 차이를 URDF 를 고치지 않고 ik.joint_offsets 로 흡수 (오프셋 0 이면 이전과 같음)
+      auto to_cmd = [this](std::vector<double> v) {
+          for (size_t k = 0; k < 5 && k < v.size(); ++k) {v[k] = ik_signs_[k] * v[k] + ik_offsets_[k];}
+          return v;
+        };
       if (doc["transit"] && doc["transit"]["q_front_tilt"]) {
-        transit_tilt_ = doc["transit"]["q_front_tilt"].as<std::vector<double>>();
+        transit_tilt_ = to_cmd(doc["transit"]["q_front_tilt"].as<std::vector<double>>());
       }
       for (const auto & slot : doc["slots"]) {
         std::vector<PalletSegment> segs;
@@ -591,11 +618,12 @@ private:
           seg.name = g["name"].as<std::string>();
           seg.hold = g["gripper"].as<std::string>() == "hold";
           seg.q = g["q"].as<std::vector<std::vector<double>>>();
+          for (auto & q : seg.q) {q = to_cmd(q);}
           segs.push_back(seg);
         }
         const std::pair<int, int> key{slot["row"].as<int>(), slot["index"].as<int>()};
         pallet_[key] = segs;
-        if (slot["q_front"]) {pallet_front_[key] = slot["q_front"].as<std::vector<double>>();}   // 꺼내기 끝 자세
+        if (slot["q_front"]) {pallet_front_[key] = to_cmd(slot["q_front"].as<std::vector<double>>());}   // 꺼내기 끝 자세
       }
       RCLCPP_INFO(get_logger(), "pallet: %zu slot(s) from %s", pallet_.size(), file.c_str());
     } catch (const std::exception & e) {
@@ -668,6 +696,7 @@ private:
         const auto nba = declare_parameter<std::vector<double>>(name + ".neighbor_absent", {kNbAbsentX, kNbAbsentY});
         pc.start_pose = declare_parameter<std::vector<double>>(name + ".start_pose", rl_start_pose_);
         pc.closed_m = declare_parameter<double>(name + ".closed_m", rl_closed_m_);
+        pc.max_joint_vel = declare_parameter<double>(name + ".max_joint_velocity", rl_max_joint_vel_);
         if (ref.size() != 5 || nba.size() != 2 || !(pc.start_pose.empty() || pc.start_pose.size() == 5)) {
           RCLCPP_ERROR(get_logger(), "skill '%s': %s.obs_ref_pose (5) · neighbor_absent (2) · start_pose (5 or []) size", name.c_str(),
             name.c_str());
@@ -770,6 +799,15 @@ private:
     requirePositive("gripper.move_time", gripper_move_time_);
     requireNonNegative("gripper.settle_time", gripper_settle_);
     requirePositive("gripper.grasp_margin", grasp_margin_);
+    if (gripper_mode_ == GripperMode::ARM_JOINT &&
+      !(grasp_min_position_ > gripper_open_ && grasp_min_position_ < gripper_close_ - grasp_margin_))
+    {
+      throw std::invalid_argument("gripper.grasp_min_position must be between open_position and close_position - grasp_margin");
+    }
+    requireNonNegative("gripper.grasp_on_time", grasp_on_time_);
+    requireNonNegative("gripper.grasp_off_time", grasp_off_time_);
+    requirePositive("gripper.grasp_rate", grasp_rate_);
+    requireNonNegative("gripper.grasp_cmd_margin", grasp_cmd_margin_);
     requirePositive("toppick.approach_distance", toppick_approach_);
     requirePositive("toppick.latch_max_age", toppick_latch_max_age_);
     requirePositive("toppick.approach_height", toppick_approach_height_);
@@ -1098,12 +1136,32 @@ private:
     sendArm(q, gripper_move_time_, done);
   }
 
-  // arm_joint 모드: 그리퍼 측정값이 닫힘 명령보다 grasp_margin 넘게 덜 닫혔으면 손가락이 퍽에 막힘 = 쥐고 있음
+  // arm_joint 모드: 그리퍼 측정값이 쥠 범위 [grasp_min_position, 상한] 안 = 손가락이 퍽에 막힘 = 쥐고 있음.
+  //   상한 = min(닫힘 − grasp_margin, 마지막 집게 명령 − grasp_cmd_margin) (grasp_detector.hpp graspUpperBound).
+  //   더 닫힘 = 빈손 (명령 자리까지 감), 덜 닫힘 = 더 큰 물체에 막힘 · 안 닫힘 (예전에는 이것도 쥠으로 봤음, #201)
+  //   집게를 연 명령이면 상한이 하한 아래라 늘 쥠 아님
+  double graspUpper() const
+  {
+    const double cmd = gripper_cmd_ ? *gripper_cmd_ : gripper_close_;
+    return graspUpperBound(gripper_close_, grasp_margin_, cmd, grasp_cmd_margin_);
+  }
+
   std::optional<bool> gripperHolding()
   {
     const auto current = currentJoints();
     if (!current) {return std::nullopt;}
-    return (*current)[5] < gripper_close_ - grasp_margin_;
+    return gripInGraspRange((*current)[5], grasp_min_position_, graspUpper());
+  }
+
+  // 연속 쥠 신호 (#201): gripper.grasp_rate 로 측정 위치를 보고 히스테리시스를 거쳐 /manipulator/grasped 발행.
+  //   미션 판정 (gripperHolding) 과 같은 범위. 측정이 없으면 (하드웨어 비활성) 쥠 아님으로 둠
+  void graspTick()
+  {
+    const auto current = currentJoints();
+    const bool in_range = current && gripInGraspRange((*current)[5], grasp_min_position_, graspUpper());
+    std_msgs::msg::Bool msg;
+    msg.data = grasp_signal_.update(in_range, 1.0 / grasp_rate_);
+    grasp_pub_->publish(msg);
   }
 
   void sendGripper(double position, Done done)
@@ -2254,7 +2312,7 @@ private:
     r.prev_action = {a[0], a[1], a[2], a[3]};
 
     if (!skill_last_cmd_) {skill_last_cmd_ = q;}
-    const double max_step = rl_max_joint_vel_ / skill_rate_;
+    const double max_step = tcp_active_.max_joint_vel / skill_rate_;   // <정책>.max_joint_velocity (기본 toppick_rl.max_joint_velocity)
     std::vector<double> cmd(joint_names_.size());
     for (size_t k = 0; k < 5; ++k) {
       const double c = std::clamp(ik_signs_[k] * tgt[k] + ik_offsets_[k], lower_[k], upper_[k]);
@@ -2277,7 +2335,10 @@ private:
 
     // 성공 판정 (학습: 퍽을 success_lift 위로 success_hold 동안). 실물은 쥔 퍽 높이를 못 재므로 잡는 점 높이 · 손가락으로
     const double lift = diff_ik_.forward(s.q).tcp.z() - (puck_b.z() + rl_grasp_dz_);
-    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f;
+    // 손가락 범위만 보면 정책 닫기 값 (closed_m −0.0075) 자체가 범위 안이라 빈손도 통과 (11-12 실물: 빈손 success) →
+    //   위치 쥠 판정 (gripperHolding: 마지막 닫기 명령보다 덜 닫힌 채 막힘) 도 함께 (#201)
+    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f &&
+      gripperHolding().value_or(false);
     r.hold = held ? r.hold + 1.0 / skill_rate_ : 0.0;
     if (r.hold >= rl_success_hold_) {
       grasped_ = true;
@@ -2821,8 +2882,8 @@ private:
     if (name.rfind("place_at:", 0) == 0 || name.rfind("target_look:", 0) == 0 || name.rfind("box_look:", 0) == 0 ||
       name.rfind("barcode_look:", 0) == 0 || name.rfind("lie_upright:", 0) == 0)
     {
-      const auto f = parts(name, ':');   // place_at | target_look | box_look | barcode_look : frame : x : y : z
-      if (f.size() != 5 || f[1].empty()) {return std::nullopt;}
+      const auto f = parts(name, ':');   // place_at | target_look | box_look | barcode_look : frame : x : y : z [: dist : angle_deg (box_look 만)]
+      if (!(f.size() == 5 || (f.size() == 7 && f[0] == "box_look")) || f[1].empty()) {return std::nullopt;}
       try {
         t.kind = f[0] == "target_look" ? Task::TARGET_LOOK : f[0] == "place_at" ? Task::PLACE :
           f[0] == "lie_upright" ? Task::LIE_UPRIGHT : Task::LOOK;
@@ -2831,6 +2892,11 @@ private:
         t.x = std::stod(f[2]);
         t.y = std::stod(f[3]);
         t.z = std::stod(f[4]);
+        if (f.size() == 7) {
+          t.look_dist = std::stod(f[5]);
+          t.look_deg = std::stod(f[6]);
+          if (!(*t.look_dist > 0.0) || !(*t.look_deg > 0.0 && *t.look_deg <= 90.0)) {return std::nullopt;}
+        }
       } catch (const std::exception &) {
         return std::nullopt;
       }
@@ -3210,6 +3276,7 @@ private:
         arm.point.y += arm.point.y / r * comp;
       }
     }
+    arm.point.y += place_lateral_ / 1000.0;   // 2026-11-12 옆 보정 (Isaac 꺼내기 → 놓기 칸별 평균 오차 왼 −1.8 mm -> 1.8 mm, 216 대 93.1 -> 99.1 %)
     const Eigen::Vector3d tip(arm.point.x, arm.point.y, surface + puck_half_height_ + grasp_z_offset_ + place_clearance_);
     const auto current = currentJoints();
     if (!current) {
@@ -3361,7 +3428,12 @@ private:
     }
     std::optional<std::vector<double>> q;
     TargetLookCandidate used{};
-    for (const auto & c : targetLookCandidates(aim, look_params_.at(t.look))) {
+    auto lp = look_params_.at(t.look);
+    if (t.look_dist && t.look_deg) {   // 이번 호출이 정한 거리 · 각 하나만 (min_clearance · 카메라 장착은 설정 그대로)
+      lp.distances = {*t.look_dist};
+      lp.view_angles = {*t.look_deg * M_PI / 180.0};
+    }
+    for (const auto & c : targetLookCandidates(aim, lp)) {
       q = solveArm(c.tool, c.pitch, *current);
       if (q) {
         used = c;
@@ -3546,6 +3618,8 @@ private:
   std::string gripper_joint_;
   double gripper_open_{-0.764}, gripper_close_{0.923}, gripper_effort_{0.0};
   double gripper_move_time_{1.0}, gripper_settle_{0.4}, grasp_margin_{0.15};
+  double grasp_min_position_{0.30}, grasp_on_time_{0.26}, grasp_off_time_{0.10}, grasp_rate_{30.0}, grasp_cmd_margin_{0.03};
+  GraspHysteresis grasp_signal_{0.26, 0.10};          // 연속 쥠 신호 상태 (job_cb_group_ 의 graspTick 전용)
   bool gripper_fail_on_empty_{true};
   double toppick_pitch_{-M_PI_4}, toppick_approach_{0.06}, grasp_z_offset_{0.015};
   bool toppick_use_alignment_{false};
@@ -3577,7 +3651,8 @@ private:
   std::map<std::string, std::pair<double, double>> place_cells_;      // "L1/-1,0" → (x, y)
   double place_pitch_{-M_PI_4}, place_surface_height_{0.070}, puck_half_height_{0.030}, place_clearance_{0.002};
   double place_approach_{0.04}, place_retreat_{0.04}, arm_base_height_{0.120};
-  double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};   // 2026-11-11 놓기 벌림 폭 · J1 바깥 보정
+  double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};
+  double place_lateral_{0.0};   // 2026-11-11 놓기 벌림 폭 · J1 바깥 보정
   std::string base_frame_, fixed_frame_, range_frame_;
   double approach_distance_{0.15}, range_offset_{0.015}, max_final_approach_{0.25};
   double range_mismatch_tol_{0.04};
@@ -3612,6 +3687,7 @@ private:
     TopPickLayout layout;
     std::vector<double> start_pose;
     double closed_m{-0.0075};
+    double max_joint_vel{2.0};
   };
   std::map<std::string, TcpPolicyCfg> tcp_cfg_;
   TcpPolicyCfg tcp_active_;
@@ -3668,6 +3744,8 @@ private:
   rclcpp_action::Server<ExecuteSkill>::SharedPtr skill_server_;
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr jt_pub_;
   rclcpp::TimerBase::SharedPtr tick_timer_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr grasp_pub_;
+  rclcpp::TimerBase::SharedPtr grasp_timer_;
 
   // 센서 캐시 (sensor_cb_group_ 쓰기, job_cb_group_ 읽기)
   std::mutex sensor_mutex_;
