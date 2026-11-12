@@ -83,6 +83,7 @@
 #include "rclcpp_components/register_node_macro.hpp"
 #include "ament_index_cpp/get_package_share_path.hpp"
 #include "control/arm_ik.hpp"
+#include "control/grasp_detector.hpp"
 #include "control/sag_comp.hpp"
 #include "control/startup_stow.hpp"
 #include "control/toppick_obs.hpp"
@@ -97,6 +98,7 @@
 #include "robot_policy/policy.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 #include "sensor_msgs/msg/range.hpp"
+#include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "tf2/utils.hpp"
@@ -235,6 +237,14 @@ public:
     jt_pub_ = create_publisher<trajectory_msgs::msg::JointTrajectory>(
       "/arm_controller/joint_trajectory", rclcpp::QoS(10));
 
+    // 연속 쥠 신호 (#201, arm_joint 만): 정책 · 진단용. latched 아님 (매 주기 발행)
+    if (gripper_mode_ == GripperMode::ARM_JOINT) {
+      grasp_pub_ = create_publisher<std_msgs::msg::Bool>("/manipulator/grasped", rclcpp::QoS(10));
+      grasp_timer_ = rclcpp::create_timer(
+        this, get_clock(), rclcpp::Duration::from_seconds(1.0 / grasp_rate_), [this]() {graspTick();},
+        job_cb_group_);   // gripper_cmd_ (마지막 집게 명령) 을 쓰는 작업과 같은 그룹 — 락 없이 읽음
+    }
+
     // cancel 처리 · 미세 보정 대기용 (20Hz)
     tick_timer_ = rclcpp::create_timer(
       this, get_clock(), rclcpp::Duration::from_seconds(0.05), [this]() {onTick();},
@@ -343,6 +353,15 @@ private:
     gripper_settle_ = declare_parameter<double>("gripper.settle_time", 0.4);    // arm_joint: 닫은 뒤 판정까지 (GripGuard 0.3 s)
     // arm_joint: 닫힘 명령보다 이만큼 넘게 덜 닫혔으면 퍽을 잡음 (퍽 30 mm 에서 약 +0.51 rad 에서 막힘, 벤치)
     grasp_margin_ = declare_parameter<double>("gripper.grasp_margin", 0.15);
+    // arm_joint: 이보다 덜 닫힌 채 멈춤 = 퍽보다 큰 물체에 막힘 · 안 닫힘 → 쥠 아님 (쥠 범위 하한, grasp_detector.hpp, #201 ★ 실측)
+    grasp_min_position_ = declare_parameter<double>("gripper.grasp_min_position", 0.30);
+    // 연속 쥠 신호 /manipulator/grasped (정책 · 진단): 범위 안이 on_time 이어지면 1, 밖이 off_time 이어지면 0
+    grasp_on_time_ = declare_parameter<double>("gripper.grasp_on_time", 0.26);
+    grasp_off_time_ = declare_parameter<double>("gripper.grasp_off_time", 0.10);
+    grasp_rate_ = declare_parameter<double>("gripper.grasp_rate", 30.0);
+    // 마지막 닫기 명령보다 이만큼 넘게 덜 닫힌 채 멈춰야 쥠 (정책의 덜 닫는 명령에서 빈손을 쥠으로 보지 않게, #201 ★ 실측)
+    grasp_cmd_margin_ = declare_parameter<double>("gripper.grasp_cmd_margin", 0.03);
+    grasp_signal_ = GraspHysteresis(grasp_on_time_, grasp_off_time_);
     // 닫았는데 끝까지 닫힘 = 빈손 → pick 실패
     gripper_fail_on_empty_ = declare_parameter<bool>("gripper.fail_on_empty", true);
 
@@ -780,6 +799,15 @@ private:
     requirePositive("gripper.move_time", gripper_move_time_);
     requireNonNegative("gripper.settle_time", gripper_settle_);
     requirePositive("gripper.grasp_margin", grasp_margin_);
+    if (gripper_mode_ == GripperMode::ARM_JOINT &&
+      !(grasp_min_position_ > gripper_open_ && grasp_min_position_ < gripper_close_ - grasp_margin_))
+    {
+      throw std::invalid_argument("gripper.grasp_min_position must be between open_position and close_position - grasp_margin");
+    }
+    requireNonNegative("gripper.grasp_on_time", grasp_on_time_);
+    requireNonNegative("gripper.grasp_off_time", grasp_off_time_);
+    requirePositive("gripper.grasp_rate", grasp_rate_);
+    requireNonNegative("gripper.grasp_cmd_margin", grasp_cmd_margin_);
     requirePositive("toppick.approach_distance", toppick_approach_);
     requirePositive("toppick.latch_max_age", toppick_latch_max_age_);
     requirePositive("toppick.approach_height", toppick_approach_height_);
@@ -1108,12 +1136,32 @@ private:
     sendArm(q, gripper_move_time_, done);
   }
 
-  // arm_joint 모드: 그리퍼 측정값이 닫힘 명령보다 grasp_margin 넘게 덜 닫혔으면 손가락이 퍽에 막힘 = 쥐고 있음
+  // arm_joint 모드: 그리퍼 측정값이 쥠 범위 [grasp_min_position, 상한] 안 = 손가락이 퍽에 막힘 = 쥐고 있음.
+  //   상한 = min(닫힘 − grasp_margin, 마지막 집게 명령 − grasp_cmd_margin) (grasp_detector.hpp graspUpperBound).
+  //   더 닫힘 = 빈손 (명령 자리까지 감), 덜 닫힘 = 더 큰 물체에 막힘 · 안 닫힘 (예전에는 이것도 쥠으로 봤음, #201)
+  //   집게를 연 명령이면 상한이 하한 아래라 늘 쥠 아님
+  double graspUpper() const
+  {
+    const double cmd = gripper_cmd_ ? *gripper_cmd_ : gripper_close_;
+    return graspUpperBound(gripper_close_, grasp_margin_, cmd, grasp_cmd_margin_);
+  }
+
   std::optional<bool> gripperHolding()
   {
     const auto current = currentJoints();
     if (!current) {return std::nullopt;}
-    return (*current)[5] < gripper_close_ - grasp_margin_;
+    return gripInGraspRange((*current)[5], grasp_min_position_, graspUpper());
+  }
+
+  // 연속 쥠 신호 (#201): gripper.grasp_rate 로 측정 위치를 보고 히스테리시스를 거쳐 /manipulator/grasped 발행.
+  //   미션 판정 (gripperHolding) 과 같은 범위. 측정이 없으면 (하드웨어 비활성) 쥠 아님으로 둠
+  void graspTick()
+  {
+    const auto current = currentJoints();
+    const bool in_range = current && gripInGraspRange((*current)[5], grasp_min_position_, graspUpper());
+    std_msgs::msg::Bool msg;
+    msg.data = grasp_signal_.update(in_range, 1.0 / grasp_rate_);
+    grasp_pub_->publish(msg);
   }
 
   void sendGripper(double position, Done done)
@@ -2287,7 +2335,10 @@ private:
 
     // 성공 판정 (학습: 퍽을 success_lift 위로 success_hold 동안). 실물은 쥔 퍽 높이를 못 재므로 잡는 점 높이 · 손가락으로
     const double lift = diff_ik_.forward(s.q).tcp.z() - (puck_b.z() + rl_grasp_dz_);
-    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f;
+    // 손가락 범위만 보면 정책 닫기 값 (closed_m −0.0075) 자체가 범위 안이라 빈손도 통과 (11-12 실물: 빈손 success) →
+    //   위치 쥠 판정 (gripperHolding: 마지막 닫기 명령보다 덜 닫힌 채 막힘) 도 함께 (#201)
+    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f &&
+      gripperHolding().value_or(false);
     r.hold = held ? r.hold + 1.0 / skill_rate_ : 0.0;
     if (r.hold >= rl_success_hold_) {
       grasped_ = true;
@@ -3567,6 +3618,8 @@ private:
   std::string gripper_joint_;
   double gripper_open_{-0.764}, gripper_close_{0.923}, gripper_effort_{0.0};
   double gripper_move_time_{1.0}, gripper_settle_{0.4}, grasp_margin_{0.15};
+  double grasp_min_position_{0.30}, grasp_on_time_{0.26}, grasp_off_time_{0.10}, grasp_rate_{30.0}, grasp_cmd_margin_{0.03};
+  GraspHysteresis grasp_signal_{0.26, 0.10};          // 연속 쥠 신호 상태 (job_cb_group_ 의 graspTick 전용)
   bool gripper_fail_on_empty_{true};
   double toppick_pitch_{-M_PI_4}, toppick_approach_{0.06}, grasp_z_offset_{0.015};
   bool toppick_use_alignment_{false};
@@ -3691,6 +3744,8 @@ private:
   rclcpp_action::Server<ExecuteSkill>::SharedPtr skill_server_;
   rclcpp::Publisher<trajectory_msgs::msg::JointTrajectory>::SharedPtr jt_pub_;
   rclcpp::TimerBase::SharedPtr tick_timer_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr grasp_pub_;
+  rclcpp::TimerBase::SharedPtr grasp_timer_;
 
   // 센서 캐시 (sensor_cb_group_ 쓰기, job_cb_group_ 읽기)
   std::mutex sensor_mutex_;
