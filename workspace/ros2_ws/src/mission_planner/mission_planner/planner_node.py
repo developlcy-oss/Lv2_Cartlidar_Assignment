@@ -29,7 +29,7 @@ from std_srvs.srv import Trigger
 from .allocation import MissionError
 from .cli import default_sdf
 from .mission_lines import to_lines
-from .planner import World, plan
+from .planner import World, parse_slots, plan
 
 
 class PlannerNode(Node):
@@ -38,6 +38,7 @@ class PlannerNode(Node):
         self.pucks_file = self.declare_parameter("pucks_file", "").value
         self.mode = self.declare_parameter("mode", "hybrid").value
         self.stop_after = self.declare_parameter("stop_after", "none").value
+        self.avoid_slots = parse_slots(self.declare_parameter("avoid_slots", "").value)   # '열:칸,…' (#219), 잘못 쓰면 시작 때 멈춤
         self.fine = float(self.declare_parameter("fine_distance", 0.13).value)
         self.skill_timeout = float(self.declare_parameter("skill_timeout", 40.0).value)
         self.return_wait = float(self.declare_parameter("return_wait", 3.0).value)
@@ -51,7 +52,7 @@ class PlannerNode(Node):
         self.create_subscription(SignalSequence, "/perception/signal", self.on_signal, qos)
         self.create_subscription(Barcode, "/perception/barcode", self.on_barcode, qos)
         self.create_service(Trigger, "/mission_planner/plan", self.on_plan)
-        self.get_logger().info(f"ready (mode {self.mode}, stop_after {self.stop_after}, pucks {self.pucks_file or '없음'}, log {self.log_dir})")
+        self.get_logger().info(f"ready (mode {self.mode}, stop_after {self.stop_after}, avoid_slots {self.avoid_slots}, pucks {self.pucks_file or '없음'}, log {self.log_dir})")
 
     def on_signal(self, m: SignalSequence):
         if m.status == SignalSequence.CONFIRMED and len(m.sequence) == 12:
@@ -71,7 +72,7 @@ class PlannerNode(Node):
                 raise MissionError("pucks_file 파라미터 없음 (퍽 등록표)")
             prob = yaml.safe_load(open(self.pucks_file, encoding="utf-8"))
             prob = dict(signal=self.signal[0], barcode=self.barcode[0], pucks=prob["pucks"])
-            p = plan(self.world, prob, self.mode, stop_after=self.stop_after)
+            p = plan(self.world, prob, self.mode, stop_after=self.stop_after, avoid_slots=self.avoid_slots)
             lines, notes = to_lines(self.world, p, self.fine, self.skill_timeout, self.return_wait)
         except (MissionError, OSError, KeyError, ValueError) as e:
             res.success, res.message = False, str(e)
