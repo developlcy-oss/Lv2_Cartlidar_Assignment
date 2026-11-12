@@ -127,12 +127,13 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
+        # 2026-11-12 sim 은 diag_timeout 기본값 (PythonExpression) 이 읽으므로 그보다 먼저 선언 (sim:= 안 주면 'launch configuration sim does not exist')
+        DeclareLaunchArgument('sim', default_value='false',
+                              description='① 을 Isaac Sim 브리지에 연결 (TopicBasedSystem). use_sim_time:=true 와 함께'),
         DeclareLaunchArgument('diag_timeout',
                               default_value=PythonExpression(["'3.0' if '", LaunchConfiguration('use_hardware'), "'.lower() == 'true' and '",
                                                               LaunchConfiguration('sim'), "'.lower() != 'true' else '0.0'"]),
                               description='mission_node diagnostics.timeout [s]: opencr/* 진단이 이만큼 끊기면 안전 정지. 기본 실물 3.0 · sim · 하드웨어 없음 0 (끔)'),
-        DeclareLaunchArgument('sim', default_value='false',
-                              description='① 을 Isaac Sim 브리지에 연결 (TopicBasedSystem). use_sim_time:=true 와 함께'),
         DeclareLaunchArgument('use_teleop', default_value='true', description='조이스틱 (끄면 E-stop heartbeat 검사도 끔)'),
         DeclareLaunchArgument('use_perception', default_value='true', description='⑦ 카메라 3대 · 검출'),
         DeclareLaunchArgument('use_tfmini', default_value='true',
