@@ -1,6 +1,7 @@
 import math
 
-from mission_planner.poses import HALF_W, REACH_TILT, REACH_TILT_MIN, START_BOXES, turned
+from mission_planner.arena import Solid
+from mission_planner.poses import HALF_W, REACH_TILT, REACH_TILT_MIN, START_BOXES, footprint_poly, turn_range, turned
 
 
 def test_maps(world):
@@ -40,3 +41,21 @@ def test_approaches(world):
     for L in ("L1", "L2", "L3"):
         assert A[L].ok and all(c["mode"] == "tilt" for c in A[L].extra["cells"].values())
     assert HALF_W > 0.16
+
+
+def test_turn_range(world):
+    """#226: 시작 박스가 ±45° 돌아 놓여도 집기 자리에서 drive turn.max_deg (30°) 만큼은 돌 수 있음 (외곽 + 1 cm)"""
+    for a in world.approaches.values():
+        if a.kind == "box" and a.ok:
+            lo, hi = a.extra["turn_range_deg"]
+            assert lo <= -30 and hi >= 30, (a.key, lo, hi)
+
+
+def test_turn_range_sees_obstacle(world):
+    """옆에 기둥을 두면 그쪽으로 도는 범위가 줄어듦 (판정이 실제로 충돌을 잡는지)"""
+    a = world.approaches["B1:S"]
+    fp = footprint_poly(turned(a.final, 20.0))
+    x, y = fp[:, 0].max() + 0.005, fp[fp[:, 0].argmax(), 1]       # 20° 돈 외곽의 가장 오른쪽 점 바로 옆
+    post = Solid("post", x + 0.02, y, 0.0, 0.3, r=0.02)
+    lo, hi = turn_range(world.solids + [post], a.final)
+    assert lo == -45.0 and 0.0 < hi < 20.0 or hi == 45.0 and -20.0 < lo < 0.0, (lo, hi)
