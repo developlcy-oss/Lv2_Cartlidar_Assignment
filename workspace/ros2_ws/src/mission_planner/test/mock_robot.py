@@ -6,6 +6,11 @@
   - /perception/check_dice: observed · passed true (요청 칸 · 기대값 기록)
   - /perception/place_box/measure (#73): 마지막 navigate 목표에서 가까운 장소 L 의 지도 칸 중심을 --box_shift 만큼 밀고 --box_rot 만큼 돌린
     상자를 odom 기준 /perception/place_box · /status 로 냄 (map -> odom 정적 TF = --odom_offset). --box_fail 이면 ok false
+  - /perception/place_box/measure_front (#226 시작 박스): 마지막 navigate 목표에서 가까운 시작 박스 (poses.START_BOXES) 를 --start_shift 만큼
+    밀고 --start_rot 만큼 돌린 상자를 odom 기준으로 냄 (status camera front). 참 퍽 자리 (중심 + R(돌림) (±PUCK_DX, 0)) 를 기록
+  - 차체 자세 (odom -> base_link TF, --real_nav 가 아니면): navigate 목표, align 뒤 = 그 접근의 final (자세표), drive turn_<p|m><deg> 는
+    drive 와 같이 실제 회전 중심 --icr_x 둘레로 phi = asin((J1_X - CENTER_X) sin deg / (J1_X - icr_x)) (기준 = 마지막 align 끝 요,
+    turn_0 은 기준으로). execute_skill 마다 이름 · 앞뒤 자세 (지도) 를 events 에 기록
 끝에 기록을 --out JSON 으로 씀 (/mission/status 가 DONE · FAILED 가 되면).
 --real_nav: 주행은 진짜 (drive_node /drive/navigate → Nav2, Gazebo 등). /drive/navigate 서버 · map -> odom 정적 TF 를 내지 않고,
   이동 기록은 map -> base_link TF 로 (navigate 목표 대신 도착 자세), 장소 상자 측정도 그 TF · map -> odom TF 로.
@@ -35,13 +40,20 @@ from tf2_ros import Buffer, StaticTransformBroadcaster, TransformListener
 import math
 import os
 import yaml
+from tf2_ros import TransformBroadcaster
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+from mission_planner.poses import CENTER_X, J1_X, PUCK_DX, START_BOXES  # noqa: E402
 
 
 class Mock(Node):
     def __init__(self, a):
         super().__init__("mock_robot")
         self.a = a
-        self.log = dict(navigate=[], align=[], drive_skill=[], pose=[], pick=[], skill=[], set_mode=[], check_dice=[], place_box=[])
+        self.log = dict(navigate=[], align=[], drive_skill=[], pose=[], pick=[], skill=[], set_mode=[], check_dice=[], place_box=[],
+                        start_box=[], events=[])
+        self.pose = None       # 차체 자세 (지도 x, y, yaw), --real_nav 가 아니면 navigate · align · turn 으로 바뀜
+        self.ref_yaw = None    # drive turn 기준 요 (마지막 align 끝)
         self.mode = 0
         cg = ReentrantCallbackGroup()
 
@@ -49,7 +61,14 @@ class Mock(Node):
             def cb(gh):
                 self.log[kind].append(self.describe(kind, gh.request))
                 time.sleep(a.delay)
+                before = self.pose
                 r = result_fn(gh.request)
+                if r is not None:
+                    self.move(kind, gh.request)
+                if kind in ("skill", "drive_skill"):
+                    self.log["events"].append(dict(kind=kind, name=gh.request.policy, ok=r is not None,
+                                                   before=[round(v, 6) for v in before] if before else None,
+                                                   after=[round(v, 6) for v in self.pose] if self.pose else None))
                 if r is None:
                     gh.abort()
                     return typ.Result(success=False, message="mock reject") if hasattr(typ.Result(), "message") else typ.Result()
@@ -73,8 +92,12 @@ class Mock(Node):
         self.pb_pub = self.create_publisher(PoseStamped, "/perception/place_box", latched)
         self.pb_status_pub = self.create_publisher(String, "/perception/place_box/status", latched)
         self.create_service(Trigger, "/perception/place_box/measure", self.on_place_box, callback_group=cg)
+        self.create_service(Trigger, "/perception/place_box/measure_front", self.on_measure_front, callback_group=cg)
         ap_file = a.approach or os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "approach_poses.yaml")
         table = yaml.safe_load(open(ap_file, encoding="utf-8"))
+        self.approaches = {k: (v["stage"], v["final"]) for k, v in table.items()
+                           if isinstance(v, dict) and "stage" in v and "final" in v}
+        self.tf_dyn = TransformBroadcaster(self)
         self.places = {L: (table[L]["cells"]["0,0"]["x"], table[L]["cells"]["0,0"]["y"], table[L]["stage"]) for L in ("L1", "L2", "L3")}
         self.odom_off = [float(v) for v in a.odom_offset.split(",")]   # map -> odom (x, y, yaw deg)
         self.tf_buf = Buffer()
@@ -82,6 +105,7 @@ class Mock(Node):
         self.tf_pub = StaticTransformBroadcaster(self)
         if not a.real_nav:
             self.send_odom_tf()
+            self.create_timer(0.05, self.send_base_tf, callback_group=cg)
         q = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE)
         self.sig_pub = self.create_publisher(SignalSequence, "/perception/signal", q)
         self.bar_pub = self.create_publisher(Barcode, "/perception/barcode", q)
@@ -102,6 +126,89 @@ class Mock(Node):
         yo = math.radians(self.odom_off[2])
         t.transform.rotation.z, t.transform.rotation.w = math.sin(yo / 2), math.cos(yo / 2)
         self.tf_pub.sendTransform(t)
+
+    def send_base_tf(self):
+        """odom -> base_link (지도 자세를 map -> odom 정적 TF 의 역으로)."""
+        if self.pose is None or self.a.real_nav:
+            return
+        x, y, yaw = self.pose
+        ox, oy, oyaw = self.odom_off[0], self.odom_off[1], math.radians(self.odom_off[2])
+        c, s_ = math.cos(oyaw), math.sin(oyaw)
+        px, py = c * (x - ox) + s_ * (y - oy), -s_ * (x - ox) + c * (y - oy)
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id, t.child_frame_id = "odom", "base_link"
+        t.transform.translation.x, t.transform.translation.y = px, py
+        q = yaw - oyaw
+        t.transform.rotation.z, t.transform.rotation.w = math.sin(q / 2), math.cos(q / 2)
+        self.tf_dyn.sendTransform(t)
+
+    def move(self, kind, g):
+        """가짜 차체 자세: navigate = 목표, align = 그 접근 final (기준 요), drive turn = 실제 회전 중심 둘레 (drive 와 같은 식)."""
+        if self.a.real_nav:
+            return
+        changed = False
+        if kind == "navigate":
+            p = g.pose.pose
+            self.pose = (p.position.x, p.position.y, 2 * math.atan2(p.orientation.z, p.orientation.w))
+            changed = True
+        elif kind == "align" and self.log["navigate"]:
+            nav = self.log["navigate"][-1]
+            for st, fin in self.approaches.values():
+                if math.hypot(st[0] - nav[0], st[1] - nav[1]) < 0.01 and abs(math.remainder(st[2] - nav[2], 2 * math.pi)) < 0.02:
+                    self.pose = tuple(float(v) for v in fin)
+                    changed = True
+                    break
+            if self.pose is not None:
+                self.ref_yaw = self.pose[2]
+        elif kind == "drive_skill" and g.policy.startswith("turn_") and self.pose is not None and self.ref_yaw is not None:
+            name = g.policy[5:]
+            deg = 0.0 if name == "0" else (1.0 if name[0] == "p" else -1.0) * float(name[1:])
+            r = J1_X - self.a.icr_x
+            phi = math.asin(max(-1.0, min(1.0, (J1_X - CENTER_X) * math.sin(math.radians(deg)) / r)))
+            x, y, yaw = self.pose
+            ix, iy = x + self.a.icr_x * math.cos(yaw), y + self.a.icr_x * math.sin(yaw)   # 회전 중심 (지도)
+            ny = self.ref_yaw + phi
+            self.pose = (ix - self.a.icr_x * math.cos(ny), iy - self.a.icr_x * math.sin(ny), ny)
+            changed = True
+        if changed:
+            self.send_base_tf()
+            time.sleep(0.05)   # mission 이 결과보다 새 TF 를 먼저 받게
+
+    def on_measure_front(self, req, res):
+        """시작 박스 앞 D435 재기 (#226): 마지막 navigate 목표에서 가까운 시작 박스를 밀고 돌려 odom 으로 냄."""
+        if self.a.real_nav:
+            here = self.lookup("map", "base_link")
+            mo = self.lookup("map", "odom")
+            if here is None or mo is None:
+                self.pb_status_pub.publish(String(data='{"ok": false, "why": "mock: TF 없음", "camera": "front"}'))
+                res.success, res.message = True, "mock measure_front (no TF)"
+                return res
+            nav = list(here)
+            self.odom_off = [mo[0], mo[1], math.degrees(mo[2])]
+        else:
+            nav = self.log["navigate"][-1] if self.log["navigate"] else [0.0, 0.0, 0.0]
+        b = min(START_BOXES, key=lambda k: math.hypot(START_BOXES[k][0] - nav[0], START_BOXES[k][1] - nav[1]))
+        dx, dy = (float(v) for v in self.a.start_shift.split(","))
+        mx, my = START_BOXES[b][0] + dx, START_BOXES[b][1] + dy
+        rot = math.radians(self.a.start_rot)
+        ox, oy, oyaw = self.odom_off[0], self.odom_off[1], math.radians(self.odom_off[2])
+        c, s_ = math.cos(-oyaw), math.sin(-oyaw)
+        px, py = c * (mx - ox) - s_ * (my - oy), s_ * (mx - ox) + c * (my - oy)
+        yaw = rot - oyaw
+        self.pb_status_pub.publish(String(data=f'{{"ok": true, "frames": 3, "x": {px:.4f}, "y": {py:.4f}, "yaw": {yaw:.4f}, '
+                                               f'"frame": "odom", "camera": "front"}}'))
+        m = PoseStamped()
+        m.header.stamp, m.header.frame_id = self.get_clock().now().to_msg(), "odom"
+        m.pose.position.x, m.pose.position.y, m.pose.position.z = px, py, 0.07
+        m.pose.orientation.z, m.pose.orientation.w = math.sin(yaw / 2), math.cos(yaw / 2)
+        self.pb_pub.publish(m)
+        pucks = {sx: [round(mx + sx * PUCK_DX * math.cos(rot), 6), round(my + sx * PUCK_DX * math.sin(rot), 6)] for sx in (-1, 1)}
+        truth = dict(box=b, nav=nav, center=[round(mx, 6), round(my, 6)], rot_deg=self.a.start_rot, pucks=pucks, mode=int(self.mode))
+        self.log["start_box"].append(truth)
+        self.log["events"].append(dict(kind="measure_front", **truth))
+        res.success, res.message = True, "mock measure_front"
+        return res
 
     def lookup(self, parent, child):
         """TF parent -> child (x, y, yaw). 없으면 None."""
@@ -216,6 +323,9 @@ def main():
     ap.add_argument("--box_rot", type=float, default=5.0, help="장소 상자 요 [deg]")
     ap.add_argument("--box_fail", action="store_true", help="place_box 측정 실패 (ok false)")
     ap.add_argument("--odom_offset", default="0.3,-0.2,10", help="map -> odom 정적 TF x,y,yaw[deg] (--real_nav 면 안 냄)")
+    ap.add_argument("--start_shift", default="0,0", help="시작 박스를 지도 자리에서 민 거리 dx,dy [m] (measure_front)")
+    ap.add_argument("--start_rot", type=float, default=0.0, help="시작 박스 요 [deg] (지도 축 기준, measure_front)")
+    ap.add_argument("--icr_x", type=float, default=-0.0658, help="가짜 drive turn 의 실제 회전 중심 x [m] (control base.icr_x)")
     ap.add_argument("--real_nav", action="store_true", help="주행은 진짜 drive_node · Nav2 (/drive/navigate 서버 · 정적 TF 안 냄)")
     a, ros_args = ap.parse_known_args()
     rclpy.init(args=[sys.argv[0]] + ros_args)

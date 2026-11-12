@@ -72,6 +72,23 @@ mission_node:
       box_half: 0.1025           # [m] 장소 상자 반 변 (205 상자)
       tfmini_x: 0.13             # [m] 1층 TFmini 렌즈 x
       icr_x: -0.0658             # [m] 제자리 회전 중심 x (control robot_geometry.yaml base.icr_x 와 같게)
+    # 시작 박스 집기 (#226, include/mission/start_box.hpp): 시작 박스가 돌거나 밀려 놓여도 퍽 면에 맞춰 집음.
+    #   켜면 시작 박스 goto (approach_poses.yaml 의 kind box stage) 뒤 approach 앞 (대기 자리) 에 measure_start 를 끼워
+    #   앞 D435 로 상자 (/perception/place_box/measure_front, 사전값 = final + 0.3625 m 앞) 를 재고, 그 접근의 줄을 바꿔 보냄:
+    #   skill drive turn_<p|m>* → 잰 상자 요에서 남는 면 어긋남이 가장 작은 이름 각 (turn_p12.3 처럼 0.1°, 범위 turn_range_deg ∩ ±max_turn_deg),
+    #   target_look:base_footprint:x:y:z → target_look:odom:x:y:z (잰 상자 중심 + 상자 틀 퍽 자리). 못 재거나 max_shift 넘게 멀면 계획 줄 그대로.
+    #   ★ 켤 때 manipulator 도 skill_enabled:=true (launch 인자) 로 띄울 것 — 정책 집기가 꺼져 있으면 바뀐 줄을 받지 않음 (mission 은 못 바꿈)
+    start_box:
+      enabled: false             # ★ 시험은 -p start_box.enabled:=true (perception measure_front 가 있어야 함)
+      max_turn_deg: 30.0         # [deg] 이름 각 상한 (drive turn.max_deg 와 같게, 넘으면 drive 가 거부)
+      max_shift: 0.08            # [m] 잰 중심이 지도 자리 (사전값) 에서 이보다 멀면 잘못 잰 것으로 보고 계획 줄 그대로
+      residual_warn_deg: 20.0    # [deg] 돌아도 남는 면 어긋남이 이보다 크면 경고 기록만 (멈추지 않음)
+      sign_warn_deg: 40.0        # [deg] 잰 돌림 |rot| 이 이 이상이면 ±45° 부호 모호 경고 (정사각 윗면만으로 못 가름, 틀리면 퍽 자리 57 mm)
+      front_timeout_s: 5.0       # measure_front 뒤 결과 (status · 상자) 를 기다리는 시간
+      j1_x: 0.096                # [m] base_link → J1 축 x (mission_planner poses.J1_X)
+      center_x: -0.04035         # [m] 계획기 회전 중심 x (poses.CENTER_X = drive turn.center_x)
+      icr_x: -0.0658             # [m] 실제 제자리 회전 중심 x (control robot_geometry.yaml base.icr_x 와 같게)
+      box_x: 0.3625              # [m] FINE 자리 상자 중심 x (앞 끝 0.1328 + gap 0.1272 + 반 변 0.1025)
     # 기록 루트 (앞 ~ = HOME, Jetson 저장소 경로 기준). 미션 (/mission/start 로 새로 시작) 마다 <log_dir>/<YYMMDD_HHMM>/ 하나에
     #   mission_log.jsonl (관측 · 측량 · 계획 · 재검증 · 사진 요청 · 끝) · images/ (이동 전후 팔 카메라 사진) ·
     #   planner/ (계획기 기록 사본) · 퍽 등록표 사본. PAUSED 재개는 같은 폴더. 비우면 기록 · 사진 안 함.
