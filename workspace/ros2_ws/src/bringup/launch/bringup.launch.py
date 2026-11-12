@@ -117,7 +117,8 @@ def generate_launch_description():
             return []
         log_dir, pucks = log_paths(context)
         args = {'use_sim_time': LaunchConfiguration('use_sim_time'), 'pucks_file': pucks,
-                'mode': LaunchConfiguration('planner_mode'), 'stop_after': LaunchConfiguration('planner_stop_after')}
+                'mode': LaunchConfiguration('planner_mode'), 'stop_after': LaunchConfiguration('planner_stop_after'),
+                'avoid_slots': LaunchConfiguration('planner_avoid_slots')}
         if log_dir:
             args['log_dir'] = os.path.join(log_dir, 'planner')
         return [IncludeLaunchDescription(
@@ -146,6 +147,8 @@ def generate_launch_description():
         DeclareLaunchArgument('pucks_file', default_value='',
                               description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 빈 값 = <log_dir>/pucks_survey.yaml. '
                                           '측량을 끄면 미리 만든 등록표'),
+        DeclareLaunchArgument('planner_avoid_slots', default_value='',
+                              description="계획기: 싣지 않을 팔레트 칸 '열:칸,…' (예 2:1,2:2 = G_2 · G_3, #219). 빈 값 = 모두 씀"),
         DeclareLaunchArgument('planner_mode', default_value='hybrid', description='계획기 mode: hybrid (기본) | per_location | single_load'),
         DeclareLaunchArgument('planner_stop_after', default_value='none',
                               description='부분 실물 시험: none | observe (관측만) | first_pick (박스 1 곳 집기) | first_place (장소 1 곳 놓기 + verify). 그 뒤 복귀'),

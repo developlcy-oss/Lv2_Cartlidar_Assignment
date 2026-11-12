@@ -123,10 +123,11 @@ def _run_pos(g, j, C1, B1, C2):
     return np.where((C1 >> j) & 1, 0, np.where((C2 >> j) & 1, 3, 5))
 
 
-def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_M, lying_after=True):
+def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_M, lying_after=True, front_cap=8, capacity=12):
     """-> (비용, 사건 목록, verify 순서, 정보) 또는 None.
     사건 = ("pick", 접근 키, [퍽, …]) | ("place", L). 정보 = dict(perm, path_m, row3, peak).
-    lying_after: 같은 박스 세운 퍽 먼저 (#193). 지킬 수 있는 나누기가 없으면 None"""
+    lying_after: 같은 박스 세운 퍽 먼저 (#193). 지킬 수 있는 나누기가 없으면 None.
+    front_cap = 1 · 2 열에서 쓸 칸 수 (넘으면 3 열 벌점), capacity = 쓸 칸 전부 (넘으면 못 함) — avoid_slots (#219)"""
     from .planner import _verify_and_return
     places = list(group_of_L)
     nodes = nodes or Nodes(world, places)
@@ -180,8 +181,8 @@ def plan_hybrid(world, alloc, group_of_L, nodes=None, row3_penalty=ROW3_PENALTY_
         c2n = np.where(B1s[None, :] == 0, nC[G0c2[C1s]][:, None], 0)
         h2 = nC[C1s][:, None] + c2n + nB[fB]
         peak = np.maximum(np.maximum(h1, h2), nC[fC])
-        row3 = np.maximum(0, peak - 8)
-        score = total + vr + row3 * row3_penalty
+        row3 = np.maximum(0, peak - front_cap)
+        score = np.where(peak <= capacity, total + vr + row3 * row3_penalty, INF)
         i, j = np.unravel_index(int(np.argmin(score)), score.shape)
         if not np.isfinite(score[i, j]):
             continue
@@ -239,11 +240,16 @@ def _rebuild(nodes, alloc, group_of_L, perm, C1, B1, C2):
     return seq
 
 
-def assign_slots(events, owner, row_order):
+def stack_slots(row_order, avoid=()):
+    """스택 위치 A (0 = 맨 위) -> 칸: 앞 열부터, 열 안은 row_order 뒤 칸부터 (깊은 퍽이 row_order 앞 칸). avoid 칸은 뺌 (#219)"""
+    return [(r, i) for r in (1, 2, 3) for i in reversed(row_order) if (r, i) not in set(avoid)]
+
+
+def assign_slots(events, owner, row_order, avoid=()):
     """LIFO 스택 위치로 팔레트 칸 정하기 -> {퍽 id: (열, 칸)}. owner = {퍽 id: L}.
-    퍽 p 의 A_p = 실려 있는 동안 p 위에 놓인 퍽 수의 최대. 열 = A_p // 4 + 1 (위 = 앞 열), 열 안 칸 = row_order[3 − A_p % 4]
-    (같은 열은 깊은 퍽부터 실음 = row_order 순서). 아래 퍽일수록 뒤 열이라 싣고 꺼낼 때 앞 열은 늘 비어 있음
-    (위 퍽의 A 는 아래 퍽보다 작고, 같은 열에 동시에 있는 퍽은 A 가 서로 달라 4 개를 넘지 않음)."""
+    퍽 p 의 A_p = 실려 있는 동안 p 위에 놓인 퍽 수의 최대. 칸 = stack_slots(row_order, avoid)[A_p] (빈 칸이 없으면
+    열 = A_p // 4 + 1, 열 안 칸 = row_order[3 − A_p % 4]). 같은 열은 깊은 퍽부터 실음 = row_order 순서. 아래 퍽일수록 뒤 열이라
+    싣고 꺼낼 때 앞 열은 늘 비어 있음 (위 퍽의 A 는 아래 퍽보다 작고, 동시에 실린 퍽은 A 가 서로 달라 한 칸에 둘이 오지 않음)."""
     stack, above = [], {}
     for ev in events:
         if ev[0] == "pick":
@@ -257,6 +263,7 @@ def assign_slots(events, owner, row_order):
             if stack[len(stack) - len(mine):] != mine:
                 raise RuntimeError(f"hybrid: {ev[1]} 퍽이 스택 맨 위가 아님 {stack}")
             stack = stack[:len(stack) - len(mine)]
-    if max(above.values(), default=0) >= 12:
-        raise RuntimeError("hybrid: 팔레트 12 칸 초과")
-    return {q: (a // 4 + 1, row_order[3 - a % 4]) for q, a in above.items()}
+    seq = stack_slots(row_order, avoid)
+    if max(above.values(), default=0) >= len(seq):
+        raise RuntimeError(f"hybrid: 쓸 수 있는 팔레트 칸 {len(seq)} 개 초과")
+    return {q: seq[a] for q, a in above.items()}

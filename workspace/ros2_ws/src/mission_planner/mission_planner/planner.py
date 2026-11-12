@@ -186,9 +186,32 @@ def _product_limited(lists, limit):
     return out
 
 
-def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_after="none"):
+def parse_slots(text):
+    """'2:1,2:2' -> [(2, 1), (2, 2)] (빈 문자열 = 없음). 팔레트 칸 (열 1 ~ 3, 칸 0 ~ 3)"""
+    out = []
+    for tok in (t.strip() for t in str(text or "").split(",")):
+        if not tok:
+            continue
+        try:
+            r, i = (int(v) for v in tok.split(":"))
+        except ValueError:
+            raise ValueError(f"avoid_slots {tok!r}: '열:칸' (예 2:1)") from None
+        if (r, i) not in FULL_SEQ:
+            raise ValueError(f"avoid_slots {tok!r}: 열 1 ~ 3, 칸 0 ~ 3")
+        out.append((r, i))
+    return out
+
+
+def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_after="none", avoid_slots=()):
+    """avoid_slots: 싣지 않을 팔레트 칸 [(열, 칸)] (#219: 주행 · 정렬 자세 팔이 실린 퍽에 닿는 칸, 예 G_2 · G_3 = (2, 1) · (2, 2))."""
     if mode not in MODES:
         raise ValueError(f"mode {mode!r}: {' | '.join(MODES)}")
+    avoid = sorted(set(map(tuple, avoid_slots)))
+    if any(s not in FULL_SEQ for s in avoid):
+        raise ValueError(f"avoid_slots {avoid}: 열 1 ~ 3, 칸 0 ~ 3")
+    if avoid and mode == "single_load":
+        raise MissionError(f"single_load 는 12 칸을 모두 씀 -> avoid_slots {avoid} 와 함께 못 씀")
+    front_cap = sum(1 for s in FULL_SEQ if s[0] < 3 and s not in avoid)
     if stop_after not in STOP_AFTER:
         raise ValueError(f"stop_after {stop_after!r}: {' | '.join(STOP_AFTER)}")
     counts = count_signal(problem["signal"])
@@ -201,9 +224,10 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
     for alloc, yshape in enumerate_allocations(pucks, counts, limit=alloc_limit):
         n_alloc += 1
         if mode == "hybrid":
-            r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes)
+            kw = dict(front_cap=front_cap, capacity=12 - len(avoid))
+            r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, **kw)
             if r is None:   # 누운 퍽 순서를 지키는 나누기가 없음 -> 순서 없이 (경고)
-                r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, lying_after=False)
+                r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, lying_after=False, **kw)
         elif mode == "per_location":
             r = _plan_per_location(world, alloc, group_of_L)
         else:
@@ -213,7 +237,9 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
     if best is None:
         raise MissionError("경로를 찾지 못함")
     alloc, r, yshape = best
-    steps, warnings = _steps(world, mode, alloc, group_of_L, r)
+    steps, warnings = _steps(world, mode, alloc, group_of_L, r, avoid)
+    if avoid:
+        warnings.append(f"팔레트 칸 {avoid} 안 씀 (avoid_slots, #219)")
     if mode == "hybrid" and r[3]["row3"]:
         warnings.append(f"hybrid: 3 열 칸 {r[3]['row3']} 개 사용 (동시에 실린 퍽 최대 {r[3]['peak']})")
     steps = cut_steps(world, steps, stop_after)
@@ -290,7 +316,7 @@ def _lying_order_warnings(world, steps):
     return warn
 
 
-def _steps(world, mode, alloc, group_of_L, r):
+def _steps(world, mode, alloc, group_of_L, r, avoid=()):
     """실행 단계 목록 (navigate · pick · place · verify · return) + 경고."""
     steps, warn = [dict(type="observe", at="HOME", note="바코드 -> 12 회 점멸 -> 3 초 소등 확인 뒤 출발")], []
     cur = "HOME"
@@ -325,7 +351,7 @@ def _steps(world, mode, alloc, group_of_L, r):
     if mode == "hybrid":
         total, events, vorder, info = r
         owner = {p.id: L for L in group_of_L for p in alloc[group_of_L[L]]}
-        slot_of = hyb.assign_slots(events, owner, ROW_ORDER)
+        slot_of = hyb.assign_slots(events, owner, ROW_ORDER, avoid)
         loaded = []
         for ev in events:
             if ev[0] == "pick":
@@ -341,8 +367,12 @@ def _steps(world, mode, alloc, group_of_L, r):
                 loaded = [p for p in loaded if owner[p.id] != L]
     elif mode == "per_location":
         total, trips, vorder = r
+        loc_seq = [s for s in PER_LOC_SEQ if s not in avoid]
+        need = max(sum(len(ps) for _, ps in stops) for _, stops in trips)
+        if need > len(loc_seq):   # 빼고 모자라면 3 열 (깊은 열부터 싣기 = 앞에 둠)
+            loc_seq = [s for s in FULL_SEQ if s[0] == 3 and s not in avoid][:need - len(loc_seq)] + loc_seq
         for L, stops in trips:
-            seq = iter(PER_LOC_SEQ)
+            seq = iter(loc_seq)
             loaded = []
             for key, ps in stops:
                 nav(key)

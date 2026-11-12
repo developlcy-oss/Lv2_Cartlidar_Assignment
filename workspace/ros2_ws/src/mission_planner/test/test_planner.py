@@ -230,3 +230,45 @@ def test_stop_after_bad(world):
         plan(world, PROB, "per_location", stop_after="half")
     with pytest.raises(ValueError):
         plan(world, PROB, "mixed")
+
+
+@pytest.mark.parametrize("mode", ["hybrid", "per_location"])
+def test_avoid_slots(world, mode):
+    """#219: G_2 · G_3 칸 (2 열 1 · 2) 을 빼면 그 칸에 안 싣고, 팔레트 규칙 · 퍽 12 개는 그대로"""
+    from mission_planner.planner import parse_slots
+    avoid = parse_slots("2:1, 2:2")
+    assert avoid == [(2, 1), (2, 2)]
+    p = plan(world, PROB, mode, avoid_slots=avoid)
+    picks = [s for s in p["steps"] if s["type"] == "pick"]
+    assert sorted(s["puck"] for s in picks) == list(range(12))
+    assert not {tuple(s["slot"]) for s in picks} & set(avoid)
+    check_pallet(p["steps"])
+    check_each_place_once(p["steps"])
+    assert any("avoid_slots" in w for w in p["warnings"])
+    base = plan(world, PROB, mode)
+    assert p["cost_m"] >= base["cost_m"] - 1e-6        # 칸을 빼서 경로가 짧아지지는 않음
+
+
+def test_avoid_slots_random_hybrid(world):
+    """무작위 문제: 1 · 2 열에서 3 칸을 빼도 hybrid 가 규칙을 지키고 뺀 칸은 안 씀"""
+    from mission_planner.planner import parse_slots
+    avoid = parse_slots("2:1,2:2,1:1")
+    rng = random.Random(21)
+    for _ in range(10):
+        prob = _lay_boxes(_random_problem(rng), rng)
+        p = plan(world, prob, "hybrid", avoid_slots=avoid)
+        st = p["steps"]
+        assert not {tuple(s["slot"]) for s in st if s["type"] == "pick"} & set(avoid)
+        check_pallet(st)
+        check_each_place_once(st)
+        assert lying_violations(st) == []
+
+
+def test_avoid_slots_bad(world):
+    from mission_planner.planner import parse_slots
+    for bad in ("4:0", "2-1", "1:4"):
+        with pytest.raises(ValueError):
+            parse_slots(bad)
+    assert parse_slots("") == []
+    with pytest.raises(MissionError):
+        plan(world, PROB, "single_load", avoid_slots=[(2, 1)])
