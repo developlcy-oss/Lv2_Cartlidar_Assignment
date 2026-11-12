@@ -4,7 +4,10 @@
 출력 (plan): 그룹 · 할당 · 팔레트 칸 · 방문 순서 · 단계 목록 (+ signal.json · allocation.json 용 내용).
 
 운영 방식 (mode):
-  per_location (기본)  L 마다: 그 그룹 퍽이 있는 박스들을 돌며 싣고 -> L 에 놓기. 한 번에 6 개 이하라 팔레트 2 · 1 열 8 칸만 씀
+  hybrid (기본)        박스를 돌며 싣다가 어떤 L 의 퍽이 다 실리면 그 L 에 들러 한 번에 다 내림 (팀 결정 2026-11-12, hybrid.py).
+                       팔레트는 퍽 단위 LIFO (나중 배달 퍽이 아래 = 뒤 열). per_location · 한 번 다 싣기를 특수한 경우로 포함.
+                       비용 = 경로 + 3 열 칸 × hybrid.ROW3_PENALTY_M. 계산은 그룹별 Held-Karp 표 + 배열 연산 (할당 하나 수 ms).
+  per_location         L 마다: 그 그룹 퍽이 있는 박스들을 돌며 싣고 -> L 에 놓기. 한 번에 6 개 이하라 팔레트 2 · 1 열 8 칸만 씀
                        (3 열은 놓기가 느림: 쥔 구간 0.4 rad/s, 칸당 17.5 ~ 18.6 s vs 2 · 1 열 8.9 ~ 12.1 s, #75). 박스는 여러 번 들를 수 있음.
   single_load          12 개를 한 번에 실은 뒤 L 3 곳 배달. 팔레트는 3 열 -> 2 열 -> 1 열로 싣고 (쥔 퍽이 찬 칸 위로 못 지나감)
                        1 열 -> 2 열 -> 3 열로 꺼냄 -> 처음 배달할 L 의 퍽을 1 열 (마지막에 실음) 에.
@@ -18,6 +21,7 @@ import math
 from itertools import combinations, permutations
 
 from . import gtsp
+from . import hybrid as hyb
 from .allocation import GROUPS, MissionError, count_signal, enumerate_allocations, order_groups, parse_pucks, y_options
 from .arena import build_maps, load_sdf
 from .pathcost import CostModel
@@ -27,6 +31,7 @@ ROW_ORDER = [1, 2, 0, 3]  # 같은 열 안 싣는 순서 (pallet_traj.py: J1 각
 FULL_SEQ = [(r, i) for r in (3, 2, 1) for i in ROW_ORDER]  # single_load 싣는 칸 (12)
 TILT_SLOTS = set(FULL_SEQ)  # 12 칸 모두 45° (pallet_traj.py TILT_SLOTS, Isaac 24/24)
 PER_LOC_SEQ = [(r, i) for r in (2, 1) for i in ROW_ORDER]  # per_location 싣는 칸 (빠른 2 · 1 열 8 칸)
+MODES = ("hybrid", "per_location", "single_load")
 
 
 class World:
@@ -44,6 +49,7 @@ class World:
         missing = [b for b in range(1, 7) if b not in self.box_opts]
         if missing:
             raise MissionError(f"접근 자세가 없는 박스 {missing}")
+        self.hybrid_nodes = hyb.Nodes(self, sorted(PLACES))   # hybrid 비용표: 노드 시작 때 만들어 둠 (경기 중 계획 시간에서 뺌)
 
     def inout(self, key):
         a = self.approaches[key]
@@ -180,7 +186,9 @@ def _product_limited(lists, limit):
     return out
 
 
-def plan(world: World, problem: dict, mode="per_location", alloc_limit=2000, stop_after="none"):
+def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_after="none"):
+    if mode not in MODES:
+        raise ValueError(f"mode {mode!r}: {' | '.join(MODES)}")
     if stop_after not in STOP_AFTER:
         raise ValueError(f"stop_after {stop_after!r}: {' | '.join(STOP_AFTER)}")
     counts = count_signal(problem["signal"])
@@ -192,13 +200,20 @@ def plan(world: World, problem: dict, mode="per_location", alloc_limit=2000, sto
     n_alloc = 0
     for alloc, yshape in enumerate_allocations(pucks, counts, limit=alloc_limit):
         n_alloc += 1
-        r = _plan_per_location(world, alloc, group_of_L) if mode == "per_location" else _plan_single_load(world, alloc, group_of_L)
+        if mode == "hybrid":
+            r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes)
+        elif mode == "per_location":
+            r = _plan_per_location(world, alloc, group_of_L)
+        else:
+            r = _plan_single_load(world, alloc, group_of_L)
         if r is not None and (best is None or r[0] < best[1][0]):
             best = (alloc, r, yshape)
     if best is None:
         raise MissionError("경로를 찾지 못함")
     alloc, r, yshape = best
     steps, warnings = _steps(world, mode, alloc, group_of_L, r)
+    if mode == "hybrid" and r[3]["row3"]:
+        warnings.append(f"hybrid: 3 열 칸 {r[3]['row3']} 개 사용 (동시에 실린 퍽 최대 {r[3]['peak']})")
     steps = cut_steps(world, steps, stop_after)
     if stop_after != "none":
         warnings = [f"부분 시험 stop_after={stop_after}: 미션 전체가 아님 (cost_m 은 전체 계획 값)"] + warnings
@@ -209,7 +224,8 @@ def plan(world: World, problem: dict, mode="per_location", alloc_limit=2000, sto
         groups={L: dict(group=g, count=counts[g]) for L, g in group_of_L.items()},
         allocation={L: dict(group=g, ids=[p.id for p in alloc[g]], y_shape=yshape if g == "Y" else None,
                             colors=[p.color for p in alloc[g]], shapes=[p.shape for p in alloc[g]]) for L, g in group_of_L.items()},
-        cost_m=round(r[0], 3), allocations_checked=n_alloc,
+        cost_m=round(r[3]["path_m"] if mode == "hybrid" else r[0], 3), allocations_checked=n_alloc,
+        hybrid=dict(r[3], objective=round(r[0], 3)) if mode == "hybrid" else None,
         steps=steps, warnings=warnings,
     )
 
@@ -230,7 +246,7 @@ def cut_steps(world, steps, stop_after="none"):
       observe      출발 자세에서 관측만 (계획은 세움 -> 단계는 복귀 대기뿐)
       first_pick   첫 박스 정차의 집기 전부 (접근 · 집기 · 팔레트 싣기)
       first_place  첫 장소 정차의 놓기 전부 + 그 장소를 다시 들러 verify
-                   (per_location = 그 장소 퍽만 싣고 감, single_load = 전부 실은 뒤)"""
+                   (per_location = 그 장소 퍽만 싣고 감, single_load = 전부 실은 뒤, hybrid = 그 L 퍽이 다 모인 뒤)"""
     if stop_after not in STOP_AFTER:
         raise ValueError(f"stop_after {stop_after!r}: {' | '.join(STOP_AFTER)}")
     if stop_after == "none":
@@ -286,7 +302,24 @@ def _steps(world, mode, alloc, group_of_L, r):
                 warn.append(f"{L} 칸 {cell}: J1 거리 {info['dist']:.3f} m -> {info['mode']} (45° 범위 {REACH_TILT_MIN} ~ {REACH_TILT}) - 퍽 {p.id} 놓기 불가")
             del pallet[slot]
 
-    if mode == "per_location":
+    if mode == "hybrid":
+        total, events, vorder, info = r
+        owner = {p.id: L for L in group_of_L for p in alloc[group_of_L[L]]}
+        slot_of = hyb.assign_slots(events, owner, ROW_ORDER)
+        loaded = []
+        for ev in events:
+            if ev[0] == "pick":
+                key = ev[1]
+                nav(key)
+                for p in ev[2]:   # hybrid._rebuild 가 가까운 퍽부터 정렬 (칸 배정과 같은 순서)
+                    pick(key, p, slot_of[p.id])
+                    loaded.append(p)
+            else:
+                L = ev[1]
+                nav(L)
+                place(L, [(slot_of[p.id], p) for p in reversed(loaded) if owner[p.id] == L])  # 나중에 실은 것부터
+                loaded = [p for p in loaded if owner[p.id] != L]
+    elif mode == "per_location":
         total, trips, vorder = r
         for L, stops in trips:
             seq = iter(PER_LOC_SEQ)

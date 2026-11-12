@@ -3,13 +3,46 @@ import os
 import pytest
 import yaml
 
-from mission_planner.planner import TILT_SLOTS, plan
+import random
+import time
+
+from mission_planner.allocation import MissionError, count_signal, enumerate_allocations, parse_pucks
+from mission_planner.planner import ROW_ORDER, TILT_SLOTS, plan
 from mission_planner.poses import DICE
 
 PROB = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "..", "config", "problem_q1_example.yaml"), encoding="utf-8"))
 
 
-@pytest.mark.parametrize("mode", ["per_location", "single_load"])
+def check_pallet(steps, in_row=True):
+    """팔레트 규칙: 앞 열 (번호 작은 열) 에 퍽이 있으면 뒤 열 칸을 싣거나 꺼낼 수 없음 (쥔 퍽이 찬 칸 위로 못 지나감). 칸은 퍽 하나.
+    in_row: 같은 열 안도 ROW_ORDER 순서로 싣고 그 반대로 꺼냄 (hybrid · per_location 은 지킴.
+    single_load 는 L 별로만 반대 순서라 다른 L 퍽이 같은 열에 남음 — 팔레트 문서 규칙은 열 단위만이라 검사하지 않음)"""
+    occ = {}
+    for s in steps:
+        if s["type"] not in ("pick", "place"):
+            continue
+        r, i = s["slot"] if s["type"] == "pick" else s["from_slot"]
+        blocked = [k for k in occ if k[0] < r or (in_row and k[0] == r and ROW_ORDER.index(k[1]) > ROW_ORDER.index(i))]
+        assert not blocked, f"{s['type']} 퍽 {s['puck']} 칸 {(r, i)}: 앞에 {blocked}"
+        if s["type"] == "pick":
+            assert (r, i) not in occ
+            occ[(r, i)] = s["puck"]
+        else:
+            assert occ.pop((r, i)) == s["puck"]
+    assert not occ
+
+
+def check_each_place_once(steps):
+    """L 마다 놓기는 한 정차에서 한 번에 다 (재검증 전 재방문 없음)"""
+    seen, prev = [], None
+    for s in steps:
+        if s["type"] == "place" and s["at"] != prev:
+            assert s["at"] not in seen, f"{s['at']} 두 번 들러 놓음"
+            seen.append(s["at"])
+        prev = s["at"] if s["type"] == "place" else None
+
+
+@pytest.mark.parametrize("mode", ["hybrid", "per_location", "single_load"])
 def test_plan_q1(world, mode):
     p = plan(world, PROB, mode)
     picks = [s for s in p["steps"] if s["type"] == "pick"]
@@ -28,7 +61,11 @@ def test_plan_q1(world, mode):
             assert 16.5 < abs(s["turn_deg"]) < 17.5
         else:
             assert s["turn_deg"] == 0.0
-    if mode == "per_location":
+    check_pallet(p["steps"], in_row=mode != "single_load")
+    check_each_place_once(p["steps"])
+    if mode == "hybrid":
+        assert p["hybrid"]["row3"] == 0 and all(s["slot"][0] in (1, 2) for s in picks)   # Q1 은 동시에 6 개 이하
+    elif mode == "per_location":
         assert all(s["slot"][0] in (1, 2) for s in picks)            # 느린 3 열 안 씀
     else:
         rows = [s["slot"][0] for s in picks]
@@ -39,7 +76,54 @@ def test_plan_q1(world, mode):
     assert {s["at"] for s in p["steps"] if s["type"] == "verify"} == {"L1", "L2", "L3"}
 
 
-@pytest.mark.parametrize("mode", ["per_location", "single_load"])
+def test_hybrid_not_worse_q1(world):
+    """hybrid 는 per_location (특수한 경우) 보다 경로가 길지 않음"""
+    h, pl = plan(world, PROB, "hybrid"), plan(world, PROB, "per_location")
+    assert h["cost_m"] <= pl["cost_m"] + 1e-6
+    assert h["hybrid"]["objective"] == pytest.approx(h["cost_m"])   # 3 열 벌점 0
+
+
+def _random_problem(rng):
+    while True:
+        sig = "".join(rng.choice("RYG") for _ in range(12))
+        c = {g: sig.count(g) for g in "RYG"}
+        if not all(1 <= c[g] <= 6 for g in "RYG"):
+            continue
+        nred = rng.randint(c["R"], 12 - c["G"])
+        colors = ["red"] * nred + ["green"] * (12 - nred)
+        rng.shuffle(colors)
+        slots = [(b, s) for b in range(1, 7) for s in (-1, 1)]
+        pucks = [dict(id=i, color=colors[i], shape=rng.choice(["cylinder", "box"]), box=slots[i][0], side=slots[i][1]) for i in range(12)]
+        prob = dict(signal=sig, barcode=rng.choice(["P2-01", "P2-02", "P2-03", "P2-04"]), pucks=pucks)
+        try:
+            list(enumerate_allocations(parse_pucks(pucks), count_signal(sig), limit=1))
+        except MissionError:
+            continue
+        return prob
+
+
+def test_hybrid_random_valid_and_fast(world):
+    """무작위 문제 20 개: 퍽 12 개 집고 놓기, 팔레트 규칙, L 한 번씩, 할당 전부를 봐도 빠름 (Jetson 여유)"""
+    rng = random.Random(5)
+    plan(world, PROB, "hybrid")   # 비용표 (World 당 한 번) 는 시간에서 뺌
+    worst = 0.0
+    for _ in range(20):
+        prob = _random_problem(rng)
+        t = time.perf_counter()
+        p = plan(world, prob, "hybrid")
+        worst = max(worst, time.perf_counter() - t)
+        st = p["steps"]
+        assert sorted(s["puck"] for s in st if s["type"] == "pick") == list(range(12))
+        assert sorted(s["puck"] for s in st if s["type"] == "place") == list(range(12))
+        check_pallet(st)
+        check_each_place_once(st)
+        for L, a in p["allocation"].items():
+            assert sorted(s["puck"] for s in st if s["type"] == "place" and s["at"] == L) == sorted(a["ids"])
+        assert p["steps"][-1]["type"] == "return"
+    assert worst < 1.0, f"hybrid plan {worst:.2f} s"
+
+
+@pytest.mark.parametrize("mode", ["hybrid", "per_location", "single_load"])
 @pytest.mark.parametrize("stop", ["observe", "first_pick", "first_place"])
 def test_stop_after(world, mode, stop):
     """부분 실물 시험: 그 지점까지만 하고 HOME 으로 돌아와 3 s 정지"""
@@ -74,3 +158,5 @@ def test_stop_after(world, mode, stop):
 def test_stop_after_bad(world):
     with pytest.raises(ValueError):
         plan(world, PROB, "per_location", stop_after="half")
+    with pytest.raises(ValueError):
+        plan(world, PROB, "mixed")

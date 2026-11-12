@@ -1,7 +1,7 @@
 """명령 (ROS 없이 돌아감).
 
   mission_make_maps [--sdf …] [--out <패키지 폴더>]     지도 2 장 (maps/) + 접근 자세표 (config/approach_poses.yaml)
-  mission_plan --problem p.yaml [--mode per_location|single_load|compare] [--out 폴더]
+  mission_plan --problem p.yaml [--mode hybrid|per_location|single_load|compare] [--out 폴더]
                                                        -> plan.json · signal.json · allocation.json
 """
 from __future__ import annotations
@@ -66,7 +66,7 @@ def make_maps(argv=None):
 def plan_cmd(argv=None):
     ap = argparse.ArgumentParser(description="할당 · 적재 · 경로 계획")
     ap.add_argument("--problem", required=True)
-    ap.add_argument("--mode", default="per_location", choices=["per_location", "single_load", "compare"])
+    ap.add_argument("--mode", default="hybrid", choices=["hybrid", "per_location", "single_load", "compare"])
     ap.add_argument("--sdf", default=default_sdf())
     ap.add_argument("--stop_after", default="none", choices=["none", "observe", "first_pick", "first_place"],
                     help="부분 실물 시험: 그 지점까지만 하고 복귀 (단계 문장도 출력)")
@@ -77,7 +77,7 @@ def plan_cmd(argv=None):
     prob = yaml.safe_load(open(a.problem, encoding="utf-8"))
     w = World(a.sdf)
     try:
-        modes = ["per_location", "single_load"] if a.mode == "compare" else [a.mode]
+        modes = ["hybrid", "per_location", "single_load"] if a.mode == "compare" else [a.mode]
         plans = {m: plan(w, prob, m, stop_after=a.stop_after) for m in modes}
     except MissionError as e:
         print(f"[오류] {e} -> 안전 정지", file=sys.stderr)

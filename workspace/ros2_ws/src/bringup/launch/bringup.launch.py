@@ -146,7 +146,7 @@ def generate_launch_description():
         DeclareLaunchArgument('pucks_file', default_value='',
                               description='퍽 등록표: mission 측량 결과 (survey.pucks_out) = 계획기 pucks_file. 빈 값 = <log_dir>/pucks_survey.yaml. '
                                           '측량을 끄면 미리 만든 등록표'),
-        DeclareLaunchArgument('planner_mode', default_value='per_location', description='계획기 mode: per_location | single_load'),
+        DeclareLaunchArgument('planner_mode', default_value='hybrid', description='계획기 mode: hybrid (기본) | per_location | single_load'),
         DeclareLaunchArgument('planner_stop_after', default_value='none',
                               description='부분 실물 시험: none | observe (관측만) | first_pick (박스 1 곳 집기) | first_place (장소 1 곳 놓기 + verify). 그 뒤 복귀'),
         DeclareLaunchArgument('use_localization', default_value='false',

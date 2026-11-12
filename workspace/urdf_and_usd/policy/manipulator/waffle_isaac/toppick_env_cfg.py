@@ -253,6 +253,7 @@ class WaffleTopPickEnvCfg(DirectRLEnvCfg):
     rew_neighbor_moved = -50.0  # × 스텝당 이동 [m] (#71, 이전 -20)
     rew_puck_push = -300.0  # TP10. 들기 전 (lift < lift_min) 집을 퍽이 처음 자리에서 밀린 거리 [m] - push_free, 스텝마다. TP9 · 11-10 학습 이어평가 들기 전 밀림 중앙: 넣기 성공 18 ~ 28 mm, 집기 실패 34 ~ 44 mm (-50 이면 보상 2000 의 몇 %)
     push_free = 0.005  # [m] 이 안은 벌점 없음 (닿기만 해도 1 ~ 2 mm)
+    rew_lift_straight = -2000.0  # TP11. 퍽 3 cm 안에서 닫은 채 lift_min (2 cm) 아래에서 잡는 점이 스텝마다 수평으로 움직인 거리 [m] (고정 동작 집기처럼 쥔 뒤 곧게 들기). TP10 82750 집기 실패 78: 상자 밖 떨어뜨림 25 · 옆 퍽 18 · 손 안 15 mm 넘음 17, 쥐기 직전 밀림 0 ~ 1 mm -> 쥔 뒤 끌기
     rew_neighbor_toppled = -2.0  # 옆 퍽 넘어져 있는 동안 스텝마다 (큰 종료 벌점은 두지 않음, 부록 B)
     rew_toppled = -2.0
     rew_base_tilt = -8.0

@@ -67,6 +67,7 @@ class WaffleTopPickEnv(DirectRLEnv):
         self.nb_bad = torch.zeros(n, dtype=torch.bool, device=dev)  # 에피소드 중 옆 퍽이 넘어졌거나 밀림
         self.nb_prev = torch.zeros(n, 2, device=dev)
         self.puck_xy0 = torch.zeros(n, 2, device=dev)  # 집을 퍽 처음 자리 (밀림 벌점, TP10)
+        self.g_prev = torch.zeros(n, 3, device=dev)  # 지난 스텝 잡는 점 (곧게 들기 벌점, TP11)
         self.root0 = torch.zeros(n, 3, device=dev)
         self.hold = torch.zeros(n, dtype=torch.long, device=dev)
         self.succeeded = torch.zeros(n, dtype=torch.bool, device=dev)
@@ -261,6 +262,9 @@ class WaffleTopPickEnv(DirectRLEnv):
         self.nb_bad |= ~nb_ok
         toppled = (up < c.topple_cos) & (lift < c.lift_min)
         push = torch.clamp(torch.linalg.norm(self.puck_pos_w()[:, :2] - self.puck_xy0, dim=1) - c.push_free, min=0.0) * (lift < c.lift_min).float()
+        g_step = torch.linalg.norm((g - self.g_prev)[:, :2], dim=1) * (self.episode_length_buf > 1).float()  # 리셋 첫 스텝은 뺌
+        self.g_prev = g.clone()
+        slide = g_step * ((self.actions[:, -1] <= 0.0) & (lift < c.lift_min) & near).float()  # 퍽 3 cm 안에서 닫은 채 2 cm 들기 전 (상자 위에서 끌기) 수평 이동 (TP11, 접근 중 닫고 움직이는 것 · 들고 버티기는 뺌)
         arm_box = self._contact("arm_box_contact")
         body_box = self._contact("body_box_contact")
         base_move = torch.linalg.norm(self.robot.data.root_link_pos_w.torch[:, :2] - self.root0[:, :2], dim=1)
@@ -283,6 +287,7 @@ class WaffleTopPickEnv(DirectRLEnv):
             "joint_vel": c.rew_joint_vel * torch.sum(torch.square(self.robot.data.joint_vel.torch[:, self._arm]), dim=1),
             "neighbor_moved": c.rew_neighbor_moved * moved,
             "puck_push": c.rew_puck_push * push,
+            "lift_straight": c.rew_lift_straight * slide,
             "neighbor_toppled": c.rew_neighbor_toppled * nb_toppled.float(),
             "toppled": c.rew_toppled * toppled.float(),
             "base_tilt": c.rew_base_tilt * tilt,
@@ -302,6 +307,7 @@ class WaffleTopPickEnv(DirectRLEnv):
         log["Metrics/grasped_ratio"] = grasped.float().mean().item()
         log["Metrics/lifted_ratio"] = lifted.float().mean().item()
         log["Metrics/puck_push_mm"] = (push * 1000).mean().item()
+        log["Metrics/closed_slide_mm"] = (slide * 1000).mean().item()
         if holding.any():
             log["Metrics/hand_center_mm"] = dist[holding].mean().item() * 1000  # 쥔 동안 손 안 어긋남 (TP4)
             log["Metrics/hand_tilt_deg"] = math.degrees(hand_tilt[holding].mean().item())

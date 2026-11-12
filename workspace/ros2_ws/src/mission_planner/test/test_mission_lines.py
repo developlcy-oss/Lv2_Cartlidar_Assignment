@@ -29,7 +29,7 @@ def test_expect_cells():
 
 
 def test_lines_q1(world):
-    for mode in ("per_location", "single_load"):
+    for mode in ("hybrid", "per_location", "single_load"):
         p = plan(world, PROB, mode)
         lines, notes = to_lines(world, p)
         types = [ln.split()[0] for ln in lines]
