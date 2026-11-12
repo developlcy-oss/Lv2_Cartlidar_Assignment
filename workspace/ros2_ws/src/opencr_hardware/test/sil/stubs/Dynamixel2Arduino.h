@@ -87,6 +87,7 @@ public:
       case ControlTableItem::POSITION_P_GAIN: return m->pos_p_gain;
       case ControlTableItem::POSITION_I_GAIN: return m->pos_i_gain;
       case ControlTableItem::POSITION_D_GAIN: return m->pos_d_gain;
+      case ControlTableItem::PROFILE_ACCELERATION: return m->profile_accel;
       case ControlTableItem::PWM_LIMIT: return m->pwm_limit;
       case ControlTableItem::DRIVE_MODE: return m->drive_mode;
       case ControlTableItem::VELOCITY_LIMIT: return m->velocity_limit;
@@ -182,6 +183,7 @@ private:
       case ControlTableItem::POSITION_P_GAIN: if (!m.ignore_gain_writes) {m.pos_p_gain = v;} break;
       case ControlTableItem::POSITION_I_GAIN: if (!m.ignore_gain_writes) {m.pos_i_gain = v;} break;
       case ControlTableItem::POSITION_D_GAIN: if (!m.ignore_gain_writes) {m.pos_d_gain = v;} break;
+      case ControlTableItem::PROFILE_ACCELERATION: if (!m.ignore_gain_writes) {m.profile_accel = v;} break;
       // EEPROM (바퀴 부팅 설정): 토크 ON 중이거나 시험이 막아 두면 받지 않음 (e-Manual: EEPROM 은 토크 OFF 에서만)
       case ControlTableItem::DRIVE_MODE: if (!m.torque && !m.eeprom_write_fails) {m.drive_mode = static_cast<uint8_t>(v);} break;
       case ControlTableItem::VELOCITY_LIMIT: if (!m.torque && !m.eeprom_write_fails) {m.velocity_limit = v;} break;

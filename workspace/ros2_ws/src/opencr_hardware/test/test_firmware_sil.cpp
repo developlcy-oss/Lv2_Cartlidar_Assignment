@@ -410,6 +410,8 @@ TEST(FirmwareSil, ArmGainsWrittenAtBoot)
     EXPECT_LE(ARM_POS_D_GAIN[k], 16383) << k;
   }
   EXPECT_EQ(ARM_POS_I_GAIN[ARM_COUNT - 1], 0) << "6 번째 칸 (그리퍼 개폐) 은 I = 0 — 닫힌 끝에 막히면 적분으로 계속 조임";
+  EXPECT_EQ(ARM_PROFILE_ACCEL[ARM_COUNT - 1], 0) << "6 번째 칸 (그리퍼) 은 가속 제한 없음 — 쥠 · 막힘 보호 판정 시간과 엮임";
+  EXPECT_LT(ESTOP_KEEP_GOAL_TICKS, 100) << "ESTOP 목표 유지 한계는 처짐 정도로만 (빨리 가던 중이면 현재 위치에서 멈춰야 함)";
 
   isolated([] {
     Bench b;
@@ -417,6 +419,7 @@ TEST(FirmwareSil, ArmGainsWrittenAtBoot)
       b.arm_motor(k).pos_p_gain = 123;
       b.arm_motor(k).pos_i_gain = 45;
       b.arm_motor(k).pos_d_gain = 6;
+      b.arm_motor(k).profile_accel = 7;
     }
     for (uint8_t id : WHEEL_IDS) {b.w.motors[id].pos_p_gain = 123;}
     b.boot();
@@ -424,6 +427,7 @@ TEST(FirmwareSil, ArmGainsWrittenAtBoot)
       EXPECT_EQ(b.arm_motor(k).pos_p_gain, ARM_POS_P_GAIN[k]) << k;
       EXPECT_EQ(b.arm_motor(k).pos_i_gain, ARM_POS_I_GAIN[k]) << k;
       EXPECT_EQ(b.arm_motor(k).pos_d_gain, ARM_POS_D_GAIN[k]) << k;
+      EXPECT_EQ(b.arm_motor(k).profile_accel, ARM_PROFILE_ACCEL[k]) << k;
     }
     for (uint8_t id : WHEEL_IDS) {EXPECT_EQ(b.w.motors[id].pos_p_gain, 123) << "바퀴 보드는 위치 게인을 쓰지 않음 " << int(id);}
     b.run(50);
@@ -673,6 +677,29 @@ TEST(FirmwareSil, SyncReadLossKeepsLastGoodAndBlocksTorqueOn)
       }
     });
   }
+  // ESTOP 진입: 목표와 현재 차이가 중력 처짐 정도 (ESTOP_KEEP_GOAL_TICKS 안) 면 마지막 목표 유지 — 처진 현재 위치로 바꾸면
+  //   거기서 또 처져 '툭' 내려가고 REARM 뒤 덜컹 올라감 (2026-11-12 실물 #165). 한계를 넘는 관절만 현재 위치
+  isolated([] {
+    Bench b;
+    b.boot();
+    b.arm_activate();
+    b.ha.arm[1] = 0.3f;
+    b.ha.arm[2] = 0.3f;
+    b.drive(50, NO_CMD, FLAG_TORQUE_ON);
+    b.a.motors_follow_goals = false;
+    const int32_t sag = ESTOP_KEEP_GOAL_TICKS / 2;
+    b.arm_motor(1).position = arm_tick(0.3f) - sag;                        // 처짐만큼 아래
+    b.arm_motor(2).position = arm_tick(0.3f) - ESTOP_KEEP_GOAL_TICKS - 20;  // 한계 밖
+    b.ha.arm[3] = 0.3f;
+    b.drive(20, NO_CMD, FLAG_TORQUE_ON);
+    b.arm_motor(3).position = arm_tick(0.3f) - sag;                        // 차이는 작지만 움직이는 중
+    b.arm_motor(3).velocity = 20;
+    b.drive(50, NO_CMD, FLAG_TORQUE_ON | FLAG_ESTOP);
+    EXPECT_TRUE(b.ha.last().error & ERR_HOLD);
+    EXPECT_EQ(b.arm_goal(1), arm_tick(0.3f)) << "멈춰 있고 처짐 정도 차이면 마지막 목표 유지";
+    EXPECT_EQ(b.arm_goal(2), arm_tick(0.3f) - ESTOP_KEEP_GOAL_TICKS - 20) << "한계 밖은 현재 위치에서 멈춤";
+    EXPECT_EQ(b.arm_goal(3), arm_tick(0.3f) - sag) << "움직이는 중이면 현재 위치에서 멈춤";
+  });
 }
 
 // 모터 HW 오류 비트: 정상 모터를 확인할 때마다 지워지지 않고 유지
@@ -725,6 +752,7 @@ TEST(FirmwareSil, EstopInRejectedFrameStops)
     b.drive(50, NO_CMD, FLAG_TORQUE_ON);
     b.a.motors_follow_goals = false;
     b.a.motors[11].position = arm_tick(0.45f);   // 아직 가는 중
+    b.a.motors[11].velocity = 40;                 // 움직이는 중 (ESTOP_STILL_VEL_RAW 넘음)
     b.ha.arm[1] = ARM_MAX_RAD[1] + 0.2f;
     b.drive(10, NO_CMD, FLAG_TORQUE_ON | FLAG_ESTOP);
     EXPECT_TRUE(b.ha.last().error & ERR_HOLD);
@@ -804,6 +832,7 @@ TEST(FirmwareSil, ArmIgnoresSingleTorqueOffCmd)
     b.drive(50, NO_CMD, FLAG_TORQUE_ON);
     b.a.motors_follow_goals = false;
     b.a.motors[13].position = arm_tick(0.35f);   // 아직 가는 중
+    b.a.motors[13].velocity = -40;                // 움직이는 중
     b.drive(10, NO_CMD, 0);
     b.drive(50, NO_CMD, FLAG_TORQUE_ON);
     EXPECT_TRUE(b.a.motors[11].torque) << "CMD 하나로 팔 토크가 꺼지지 않음";

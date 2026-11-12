@@ -7,7 +7,8 @@
 //   seq: 직전 승인 seq 보다 1~127 앞선 값만 (같으면 재전송, 뒤면 오래된 명령). 무수신이 되면 기준을 지운다.
 //   바퀴 속도 범위 초과는 거부하지 않는다 — ino 가 ±WHEEL_VEL_LIMIT_RAW 로 자른다 (D6 미결).
 // 팔 HOLD (v5): 토크를 켠 순간, 그리고 토크 ON 중 무수신 · ESTOP · 토크 OFF 요청이면 HOLD.
-//   HOLD 동안 새 목표를 적용하지 않는다 (ino 가 무수신이면 마지막 승인 목표, ESTOP · 토크 OFF 요청이면 현재 위치를 유지).
+//   HOLD 동안 새 목표를 적용하지 않는다 (ino 가 무수신이면 마지막 승인 목표, ESTOP · 토크 OFF 요청이면 현재 위치를 유지,
+//   단 멈춰 있고 차이가 처짐 정도인 관절은 마지막 목표 — ino holdArmAtPresent · config.h ESTOP_KEEP_GOAL_TICKS).
 //   REARM 상승 에지 + ESTOP 없음 + 무수신 아님 + 전 관절 위치 유효 + FAULT 아님 → ACTIVE.
 //   통신 복구나 ESTOP 해제만으로는 풀리지 않는다. 부팅 · 무수신 뒤에는 REARM 0 을 본 다음의 1 만 에지로 친다.
 // 팔 토크 OFF (D5-4): TORQUE_ON 없는 정상 CMD 가 arm_torque_off_cmds 번 연속 + HOLD 일 때만 허용.

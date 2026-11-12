@@ -109,8 +109,20 @@ static const uint16_t ARM_MODEL = 1020;    // XM430-W350 (2026-10-26 실물 확�
 //   목표를 현재 위치로 다시 잡을 때마다 더 내려간다 (docs/arm_bench_test_2026-10-26.md 4-2). 실물 튜닝으로 정함 ★
 //   I 게인은 막혔을 때 미는 힘이 계속 커진다 (과부하 → 모터가 토크를 끄면 팔이 떨어짐). 6 번째 칸 (그리퍼 개폐) 은 I = 0 고정.
 static const uint16_t ARM_POS_P_GAIN[ARM_COUNT] = {800, 800, 800, 800, 800, 800};
-static const uint16_t ARM_POS_I_GAIN[ARM_COUNT] = {  0,   0,   0,   0,   0,   0};
+//   2026-11-12 실물 (cart11, #165): P 만이면 관절 2 · 3 이 명령보다 1 ~ 3° 처지고, 올라가서 · 내려와서 멈춘 자리가 1.5 ~ 2° 다름
+//   (방향이 바뀔 때 '툭', 집게 끝 5 ~ 8 mm) -> 관절 2 · 3 만 I 100 (KPI 0.0015). 엔코더로 본 출렁임은 없어 D 는 0 그대로 ★ 실물 전후 비교
+static const uint16_t ARM_POS_I_GAIN[ARM_COUNT] = {  0, 100, 100,   0,   0,   0};
 static const uint16_t ARM_POS_D_GAIN[ARM_COUNT] = {  0,   0,   0,   0,   0,   0};
+// Profile Acceleration (RAM, 214.577 rev/min² 단위, 0 = 제한 없음). 호스트 (arm_controller) 가 10 ms 마다 보간 목표를 보내므로 기본 0.
+//   2026-11-12 실물: 손목 · 집게 쪽이 멈출 때 관성으로 끝이 출렁임 (모터 축은 멈춤, 엔코더에 안 보임) -> 관절 4 · 5 만 50 (약 18.7 rad/s²).
+//   정책 관절 속도 상한 (수 rad/s) 까지 0.1 ~ 0.2 s 라 추종에 큰 늦음 없음 ★ 실물 확인
+static const uint16_t ARM_PROFILE_ACCEL[ARM_COUNT] = {  0,   0,   0,  50,  50,   0};
+// ESTOP · 토크 OFF 요청 HOLD 에서 목표를 '현재 위치' 로 바꾸지 않고 마지막 승인 목표를 유지하는 차이 한계 (tick, 약 5.3°).
+//   중력 처짐 (관절 2 · 3 최대 약 3° = 35 tick) 은 이 안이라 목표를 유지 -> 멈출 때 '툭' 내려가지 않고, REARM 뒤 호스트
+//   (interpolate_from_desired_state) 가 이어 받을 때 덜컹 올라가지 않음 (2026-11-12 실물 #165).
+//   움직이는 중 (|Present Velocity| > ESTOP_STILL_VEL_RAW) 이거나 이보다 멀면 지금처럼 현재 위치에서 멈춤
+static const int32_t  ESTOP_KEEP_GOAL_TICKS = 60;
+static const int32_t  ESTOP_STILL_VEL_RAW   = 5;      // 0.229 rpm 단위 = 약 0.12 rad/s. 이 안이면 '멈춰 있음' (처진 채 버티는 중)
 
 // 그리퍼 (6 번째 칸) 막힘 보호 (2026-10-27 arm_bench): 퍽을 쥐다가 MOTOR_HW (과부하 추정, 막힌 채 PWM 885 로 1.5 s) →
 //   모터 EEPROM PWM Limit 400 (dxl_setup w 15 400) + 펌웨어가 막힘을 보고 약하게 쥔다 (safety_core.h GripGuard).
