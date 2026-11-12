@@ -2335,7 +2335,10 @@ private:
 
     // 성공 판정 (학습: 퍽을 success_lift 위로 success_hold 동안). 실물은 쥔 퍽 높이를 못 재므로 잡는 점 높이 · 손가락으로
     const double lift = diff_ik_.forward(s.q).tcp.z() - (puck_b.z() + rl_grasp_dz_);
-    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f;
+    // 손가락 범위만 보면 정책 닫기 값 (closed_m −0.0075) 자체가 범위 안이라 빈손도 통과 (11-12 실물: 빈손 success) →
+    //   위치 쥠 판정 (gripperHolding: 마지막 닫기 명령보다 덜 닫힌 채 막힘) 도 함께 (#201)
+    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f &&
+      gripperHolding().value_or(false);
     r.hold = held ? r.hold + 1.0 / skill_rate_ : 0.0;
     if (r.hold >= rl_success_hold_) {
       grasped_ = true;
