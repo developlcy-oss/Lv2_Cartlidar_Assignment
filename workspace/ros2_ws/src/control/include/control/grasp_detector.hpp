@@ -21,6 +21,14 @@ inline bool gripInGraspRange(double q, double lo, double hi)
   return std::isfinite(q) && q >= lo && q <= hi;
 }
 
+// 쥠 범위 상한: 닫힘 끝 (close − margin) 과 마지막 닫기 명령 (command − cmd_margin) 중 작은 쪽.
+//   정책 집기는 끝까지 닫지 않고 덜 닫는 명령 (예: 손가락 −0.0075 m ≈ 0.64 rad) 을 보내서, 빈손이어도 그 명령 자리에서 멈춘다.
+//   닫힘 끝만 보면 그 자리를 쥠으로 잘못 봄 → 명령보다 cmd_margin 넘게 덜 닫힌 채 멈춰야 (= 막혀야) 쥠
+inline double graspUpperBound(double close, double margin, double command, double cmd_margin)
+{
+  return std::min(close - margin, command - cmd_margin);
+}
+
 // 범위 안 · 밖이 일정 시간 이어져야 상태를 바꾸는 쥠 신호
 class GraspHysteresis
 {

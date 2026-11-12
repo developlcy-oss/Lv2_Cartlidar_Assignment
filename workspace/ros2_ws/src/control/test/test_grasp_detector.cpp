@@ -7,6 +7,7 @@
 #include "control/grasp_detector.hpp"
 
 using control::GraspHysteresis;
+using control::graspUpperBound;
 using control::gripInGraspRange;
 
 namespace
@@ -24,6 +25,21 @@ TEST(GraspDetector, RangeSeparatesPuckEmptyAndBlocked)
   EXPECT_FALSE(gripInGraspRange(-0.764, kLo, kHi));   // 열린 채 (안 닫힘) — 예전 판정은 이것도 쥠으로 봤음
   EXPECT_FALSE(gripInGraspRange(0.10, kLo, kHi));     // 퍽보다 큰 물체에 막힘
   EXPECT_FALSE(gripInGraspRange(std::numeric_limits<double>::quiet_NaN(), kLo, kHi));
+}
+
+// 정책 집기는 덜 닫는 명령 (손가락 −0.0075 m ≈ 0.636 rad) → 빈손이면 그 자리에서 멈춤. 명령 기준 상한으로 빈손을 가름
+TEST(GraspDetector, UpperBoundFollowsPartialCloseCommand)
+{
+  const double close = 0.923, margin = 0.15, cmd_margin = 0.03;
+  EXPECT_DOUBLE_EQ(graspUpperBound(close, margin, close, cmd_margin), close - margin);   // 고정 동작: 그대로 0.773
+  const double hi = graspUpperBound(close, margin, 0.636, cmd_margin);                   // 정책 닫기
+  EXPECT_NEAR(hi, 0.606, 1e-9);
+  EXPECT_FALSE(gripInGraspRange(0.636, kLo, hi));    // 빈손: 명령 자리까지 닫힘 (예전 상한 0.773 이면 쥠으로 봤음)
+  EXPECT_TRUE(gripInGraspRange(0.571, kLo, hi));     // 원기둥 쥠 (11-11 실측)
+  EXPECT_TRUE(gripInGraspRange(0.471, kLo, hi));     // 직육면체 쥠
+  const double opened = graspUpperBound(close, margin, -0.764, cmd_margin);               // 집게를 연 명령
+  EXPECT_FALSE(gripInGraspRange(-0.764, kLo, opened));
+  EXPECT_FALSE(gripInGraspRange(0.5, kLo, opened));  // 연 명령 중에는 늘 쥠 아님
 }
 
 // 30 Hz 에서 켜짐 8 스텝 · 꺼짐 3 스텝 (모의 정책과 같은 꼴)
