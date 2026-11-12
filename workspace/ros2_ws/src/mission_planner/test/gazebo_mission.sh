@@ -9,11 +9,12 @@
 #   GZ_ARGS="..." test/gazebo_mission.sh   gazebo_sim.launch.py 에 인자 더 주기 (#133)
 #   LOC=1 test/gazebo_mission.sh           loc_monitor 를 실물처럼 (#151): use_loc_monitor + twist_mux (drive 50 · nav 10,
 #                                          잠금 /localization/lock 20) + drive loc_gate. 사건 기록 결과 폴더/loc_events.jsonl
+#                                          + cmd_vel_watchdog.py (명령 0.2 s 없으면 0, 실물 펌웨어처럼)
 # 먼저: source install/setup.bash, colcon build (mission_planner · mission · control · navigation · localization · waffle_4wd_description, navigation README 참고)
 #       LOC=1 은 twist_mux 도
 # 시각: 모든 로그 시각은 시뮬레이션 시각 (Gazebo 는 실시간의 약 0.5 ~ 0.66 배)
 set +u
-PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim|lib/twist_mux/twist_mux|loc_monitor'
+PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim|lib/twist_mux/twist_mux|loc_monitor|cmd_vel_watchdog'
 stop_all() {
   for sig in INT TERM KILL; do
     pids=$(pgrep -f "$PAT" | grep -vx "$$")
@@ -60,12 +61,23 @@ twist_mux:
     locks:
       localization: {topic: /localization/lock, timeout: 0.5, priority: 20}
 YAML
-  ros2 run twist_mux twist_mux --ros-args --params-file "$OUT/mux.yaml" -r cmd_vel_out:=/cmd_vel > "$OUT/mux.log" 2>&1 &
+  ros2 run twist_mux twist_mux --ros-args --params-file "$OUT/mux.yaml" -r cmd_vel_out:=/cmd_vel_mux > "$OUT/mux.log" 2>&1 &
+  # 실물 펌웨어 명령 시간 초과 (200 ms) 흉내: Gazebo DiffDrive 는 잠금 중에도 마지막 명령으로 계속 달림
+  python3 "$HERE/cmd_vel_watchdog.py" --ros-args -p use_sim_time:=true > "$OUT/watchdog.log" 2>&1 &
 fi
 ros2 launch navigation gazebo_sim.launch.py gui:=false rviz:=false $GZ_ARGS > "$OUT/gz.log" 2>&1 &
 echo "[gz_mission] Gazebo + Nav2 시작"
-for i in $(seq 1 200); do n=$(grep -c "Managed nodes are active" "$OUT/gz.log" 2>/dev/null); [ "${n:-0}" -ge 3 ] && break; sleep 3; done
-echo "[gz_mission] Nav2 active ($(grep -c 'Managed nodes are active' "$OUT/gz.log"))"
+for i in $(seq 1 200); do
+  n=$(grep -c "Managed nodes are active" "$OUT/gz.log" 2>/dev/null); [ "${n:-0}" -ge 3 ] && break
+  grep -q "Aborting bringup" "$OUT/gz.log" 2>/dev/null && break
+  sleep 3
+done
+n=$(grep -c "Managed nodes are active" "$OUT/gz.log" 2>/dev/null)
+if [ "${n:-0}" -lt 3 ] || grep -q "Aborting bringup" "$OUT/gz.log"; then
+  echo "[gz_mission] Nav2 bringup 실패 (active ${n:-0}/3) — 가끔 생김 (bt_navigator is_path_valid 시간 초과 등), 다시 실행"
+  stop_all; exit 1
+fi
+echo "[gz_mission] Nav2 active ($n)"
 ros2 run control drive --ros-args -r __node:=drive_node --params-file $CTL/robot_geometry.yaml --params-file $CTL/drive.yaml \
   --params-file "$OUT/drive_sim.yaml" -r /drive/align:=/drive/align_real -r /drive/execute_skill:=/drive/execute_skill_real > "$OUT/drive.log" 2>&1 &
 ros2 run mission mission_node --ros-args -r __node:=mission_node --params-file $MIS/mission.yaml --params-file $MIS/mission_table.yaml \

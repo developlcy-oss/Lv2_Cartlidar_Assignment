@@ -10,16 +10,16 @@ import copy
 
 from mission_planner import hybrid as hyb
 from mission_planner.allocation import MissionError, count_signal, enumerate_allocations, order_groups, parse_pucks
-from mission_planner.planner import ROW_ORDER, TILT_SLOTS, plan
+from mission_planner.planner import ROW_ORDER, SLOT_SHAPE, TILT_SLOTS, plan
 from mission_planner.poses import DICE
 
 PROB = yaml.safe_load(open(os.path.join(os.path.dirname(__file__), "..", "config", "problem_q1_example.yaml"), encoding="utf-8"))
 
 
-def check_pallet(steps, in_row=True):
+def check_pallet(steps, in_row=False):
     """팔레트 규칙: 앞 열 (번호 작은 열) 에 퍽이 있으면 뒤 열 칸을 싣거나 꺼낼 수 없음 (쥔 퍽이 찬 칸 위로 못 지나감). 칸은 퍽 하나.
-    in_row: 같은 열 안도 ROW_ORDER 순서로 싣고 그 반대로 꺼냄 (hybrid · per_location 은 지킴.
-    single_load 는 L 별로만 반대 순서라 다른 L 퍽이 같은 열에 남음 — 팔레트 문서 규칙은 열 단위만이라 검사하지 않음)"""
+    in_row: 같은 열 안도 ROW_ORDER 순서로 싣고 그 반대로 꺼냄 (row_rule="fixed" 계획만. 기본 free 는 열 안 차례 자유 —
+    팔레트 문서 규칙은 열 단위만, #230)"""
     occ = {}
     for s in steps:
         if s["type"] not in ("pick", "place"):
@@ -65,7 +65,7 @@ def test_plan_q1(world, mode):
             assert 16.5 < abs(s["turn_deg"]) < 17.5
         else:
             assert s["turn_deg"] == 0.0
-    check_pallet(p["steps"], in_row=mode != "single_load")
+    check_pallet(p["steps"])
     check_each_place_once(p["steps"])
     if mode == "hybrid":
         assert p["hybrid"]["row3"] == 0 and all(s["slot"][0] in (1, 2) for s in picks)   # Q1 은 동시에 6 개 이하
@@ -129,7 +129,7 @@ def test_lying_after_q1(world, mode):
         assert v == [] and warned == []
     assert bool(v) == bool(warned)
     assert all(s["pose"] == ("lying" if s["shape"] == "box" else "standing") for s in p["steps"] if s["type"] == "pick")
-    check_pallet(p["steps"], in_row=mode != "single_load")
+    check_pallet(p["steps"])
 
 
 def test_hybrid_lying_constraint_binds(world):
@@ -272,3 +272,80 @@ def test_avoid_slots_bad(world):
     assert parse_slots("") == []
     with pytest.raises(MissionError):
         plan(world, PROB, "single_load", avoid_slots=[(2, 1)])
+
+
+def shape_mismatch(steps):
+    """모양이 다른 팔레트 칸에 실은 퍽 (#230)"""
+    return sorted(s["puck"] for s in steps if s["type"] == "pick" and SLOT_SHAPE[tuple(s["slot"])] != s["shape"])
+
+
+def test_slot_shapes_match_traj_file():
+    """계획기 칸 모양 = control 궤적 파일 (pallet_place_traj.json slots[].shape)"""
+    import json
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "control", "config", "pallet_place_traj.json")
+    if not os.path.exists(path):
+        pytest.skip("control 패키지 없음")
+    traj = json.load(open(path, encoding="utf-8"))
+    assert {(int(t["row"]), int(t["index"])): t["shape"] for t in traj["slots"]} == SLOT_SHAPE
+
+
+@pytest.mark.parametrize("mode", ["hybrid", "per_location"])
+def test_shape_slots_q1(world, mode):
+    """#230: Q1 (직육면체 6 · 원기둥 6) 은 모양대로 실음. 모양 안 보면 (예전) 다른 칸이 생김"""
+    p = plan(world, PROB, mode)
+    assert shape_mismatch(p["steps"]) == [] and p["pallet"]["mismatch"] == 0
+    assert not any("#230" in w for w in p["warnings"])
+    check_pallet(p["steps"])
+    old = plan(world, PROB, mode, shape_slots=False)
+    assert shape_mismatch(old["steps"])
+
+
+def test_shape_slots_single_load_warns(world):
+    """single_load 는 열을 차례로 4 개씩 채워 모양이 안 맞을 수 있음 -> 그 퍽을 경고"""
+    p = plan(world, PROB, "single_load")
+    bad = shape_mismatch(p["steps"])
+    assert bad == sorted(bad) and p["pallet"]["mismatch"] == len(bad)
+    assert bool(bad) == any("#230" in w for w in p["warnings"])
+    check_pallet(p["steps"])
+
+
+def test_shape_slots_random_hybrid(world):
+    """무작위 문제 20 개: hybrid 는 거의 다 모양대로, 어긴 퍽은 경고에 있음, 규칙 · 속도 그대로"""
+    rng = random.Random(7)
+    plan(world, PROB, "hybrid")
+    n_ok, worst = 0, 0.0
+    for _ in range(20):
+        prob = _lay_boxes(_random_problem(rng), rng)
+        t = time.perf_counter()
+        p = plan(world, prob, "hybrid")
+        worst = max(worst, time.perf_counter() - t)
+        st = p["steps"]
+        check_pallet(st)
+        check_each_place_once(st)
+        bad = shape_mismatch(st)
+        n_ok += not bad
+        assert bool(bad) == any("#230" in w for w in p["warnings"])
+    assert n_ok >= 17
+    assert worst < 1.0
+
+
+@pytest.mark.parametrize("mode", ["hybrid", "per_location"])
+def test_row_rule_fixed(world, mode):
+    """row_rule="fixed": 같은 열 안도 ROW_ORDER 로 싣고 반대로 꺼냄 (예전 규칙)"""
+    p = plan(world, PROB, mode, row_rule="fixed")
+    check_pallet(p["steps"], in_row=True)
+    assert p["pallet"]["row_rule"] == "fixed"
+    with pytest.raises(ValueError):
+        plan(world, PROB, mode, row_rule="any")
+
+
+def test_unload_pref_in_row(world):
+    """같은 장소에서 함께 내리는 같은 열 퍽은 #230 차례 (UNLOAD_PREF) 로 꺼냄"""
+    from mission_planner.slots import UNLOAD_PREF
+    p = plan(world, PROB, "hybrid")
+    places = [s for s in p["steps"] if s["type"] == "place"]
+    for L in {s["at"] for s in places}:
+        got = [tuple(s["from_slot"]) for s in places if s["at"] == L]
+        for r in (1, 2, 3):
+            idx = [UNLOAD_PREF[r].index(i) for rr, i in got if rr == r]
+            assert idx == sorted(idx), (L, got)
