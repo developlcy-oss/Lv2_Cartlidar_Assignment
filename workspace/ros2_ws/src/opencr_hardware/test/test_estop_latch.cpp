@@ -132,3 +132,55 @@ TEST(RearmPulse, LatchOrFaultDropsRequest)
   EXPECT_FALSE(p.update(true, false, true, false)) << "펄스 중 잠기면 바로 멈춤";
   EXPECT_FALSE(p.update(false, false, true, false));
 }
+
+TEST(ArmRearmSlew, HoldsFirmwareGoalThenCatchesUpSlowly)
+{
+  opencr_hardware::ArmRearmSlew s(0.3, 2);
+  float vel[2] = {0.f, 0.f};
+  float pos[2] = {0.98f, 0.0f};
+  float cmd[2] = {1.0f, 0.0f};
+  s.apply(false, cmd, pos, vel, 0.01);
+  EXPECT_FLOAT_EQ(cmd[0], 1.0f) << "평소에는 그대로 통과";
+  // 잠김: 멈춰 있고 처짐 0.02 rad → 펌웨어는 마지막 목표 1.0 유지. 컨트롤러는 계속 나아감 (1.2)
+  cmd[0] = 1.2f;
+  s.apply(true, cmd, pos, vel, 0.01);
+  EXPECT_FLOAT_EQ(cmd[0], 1.0f) << "잠긴 동안 붙잡힌 목표";
+  // 풀림 (REARM): 한 주기에 0.3 × 0.01 만
+  cmd[0] = 1.2f;
+  s.apply(false, cmd, pos, vel, 0.01);
+  EXPECT_NEAR(cmd[0], 1.003f, 1e-5);
+  EXPECT_TRUE(s.catching_up());
+  for (int i = 0; i < 100; ++i) {cmd[0] = 1.2f; s.apply(false, cmd, pos, vel, 0.01);}
+  EXPECT_FLOAT_EQ(cmd[0], 1.2f) << "따라잡음";
+  EXPECT_FALSE(s.catching_up());
+  cmd[0] = 1.5f;
+  s.apply(false, cmd, pos, vel, 0.01);
+  EXPECT_FLOAT_EQ(cmd[0], 1.5f) << "따라잡은 뒤에는 다시 그대로 통과";
+}
+
+TEST(ArmRearmSlew, MovingOrFarJointHeldAtPresent)
+{
+  opencr_hardware::ArmRearmSlew s(0.3, 2);
+  float pos[2] = {0.5f, 0.0f};
+  float vel[2] = {0.5f, 0.0f};   // 관절 0 움직이는 중 → 펌웨어는 현재 위치
+  float cmd[2] = {0.52f, 0.5f};  // 관절 1 은 목표와 0.5 rad 차이 → 현재 위치
+  s.apply(false, cmd, pos, vel, 0.01);
+  s.apply(true, cmd, pos, vel, 0.01);
+  EXPECT_FLOAT_EQ(cmd[0], 0.5f);
+  EXPECT_FLOAT_EQ(cmd[1], 0.0f);
+}
+
+TEST(ArmRearmSlew, DisabledOrUntouchedSlotsPassThrough)
+{
+  opencr_hardware::ArmRearmSlew off(0.0, 2);
+  float pos[3] = {0.f, 0.f, 0.f}, vel[3] = {0.f, 0.f, 0.f};
+  float cmd[3] = {1.f, 1.f, 1.f};
+  off.apply(true, cmd, pos, vel, 0.01);
+  EXPECT_FLOAT_EQ(cmd[0], 1.f) << "rate 0 = 끔";
+  opencr_hardware::ArmRearmSlew s(0.3, 2);
+  s.apply(false, cmd, pos, vel, 0.01);
+  s.apply(true, cmd, pos, vel, 0.01);
+  cmd[2] = 0.7f;
+  s.apply(false, cmd, pos, vel, 0.01);
+  EXPECT_FLOAT_EQ(cmd[2], 0.7f) << "n 밖 칸 (그리퍼) 은 그대로";
+}

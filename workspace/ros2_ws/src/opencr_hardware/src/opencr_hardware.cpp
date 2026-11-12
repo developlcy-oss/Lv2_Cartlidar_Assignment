@@ -79,6 +79,8 @@ hi::CallbackReturn OpenCRHardware::on_init(const hi::HardwareComponentInterfaceP
   comm_timeout_s_ = std::stod(param_or(hw, "comm_timeout_s", "0.5"));
   first_state_timeout_s_ = std::stod(param_or(hw, "first_state_timeout_s", "2.0"));
   joy_timeout_s_ = std::stod(param_or(hw, "joy_timeout_s", "0.5"));
+  // REARM 뒤 팔 명령이 따라가는 최대 속도 (rad/s, 관절 1 ~ 5). 0 = 끔 (예전처럼 한 번에) — estop_latch.hpp ArmRearmSlew
+  rearm_slew_ = ArmRearmSlew(std::stod(param_or(hw, "rearm_slew_rad_s", "0.3")), opencr_proto::ARM_JOINTS - 1);
   estop_button_ = std::stoi(param_or(hw, "estop_button", "6"));
   reset_button_ = std::stoi(param_or(hw, "reset_button", "7"));
   battery_warn_v_ = std::stod(param_or(hw, "battery_warn_v", "11.1"));
@@ -666,6 +668,10 @@ bool OpenCRHardware::send_cmd_for_role(uint8_t role, bool torque_on)
       if (std::isfinite(g)) {c.gripper_pos = static_cast<float>(g); c.flags |= opencr_proto::FLAG_GRIPPER_VALID;}
     }
   }
+  if (role == opencr_proto::ROLE_ARM) {   // 잠긴 동안 펌웨어가 붙잡은 목표 → 풀린 뒤 천천히 따라감 (REARM 때 튀지 않게)
+    rearm_slew_.apply(estop_.load() || !link_ok_.load(), c.arm_pos,
+      &latest_.pos[opencr_proto::MAX_WHEELS], &latest_.vel[opencr_proto::MAX_WHEELS], cmd_dt_s_);
+  }
   if (torque_on) {c.flags |= opencr_proto::FLAG_TORQUE_ON;}
   if (role == opencr_proto::ROLE_ARM && rearm_flag_) {c.flags |= opencr_proto::FLAG_REARM;}
   if (estop_.load() || !link_ok_.load()) {
@@ -681,8 +687,9 @@ bool OpenCRHardware::send_cmd_for_role(uint8_t role, bool torque_on)
   return false;
 }
 
-return_type OpenCRHardware::write(const rclcpp::Time &, const rclcpp::Duration &)
+return_type OpenCRHardware::write(const rclcpp::Time &, const rclcpp::Duration & period)
 {
+  cmd_dt_s_ = std::clamp(period.seconds(), 0.0, 0.1);
   if (!send_cmd(true)) {
     RCLCPP_ERROR(get_logger(), "CMD 송신 실패");
     return return_type::ERROR;

@@ -117,6 +117,8 @@ private:
   EstopLatch latch_;
   RearmPulse rearm_;              // v5: 운용자 리셋 → 팔 보드에 REARM 펄스
   bool rearm_flag_ = false;       // 이번 주기 팔 CMD 에 FLAG_REARM
+  ArmRearmSlew rearm_slew_{0.0, 0};   // on_init 에서 rearm_slew_rad_s 로 다시 만듦 (REARM 때 튀지 않게)
+  double cmd_dt_s_ = 0.01;        // write() 주기
   bool prev_arm_hold_ = false;    // STATE ERR_HOLD 상승 → 잠금 trip
   bool prev_reset_btn_ = false;
   std::atomic<bool> estop_{true};

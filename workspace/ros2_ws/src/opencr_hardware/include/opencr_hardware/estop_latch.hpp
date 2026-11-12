@@ -6,6 +6,9 @@
 //         (HOLD 는 REARM 으로만 풀리므로 원인으로 두면 리셋 → REARM 이 순환한다)
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+#include <cstddef>
 #include <string>
 
 namespace opencr_hardware
@@ -109,6 +112,62 @@ private:
   int width_;
   bool pending_ = false;
   int left_ = 0;
+};
+
+// 팔 E-stop · HOLD 뒤 REARM 때 튀지 않게 (2026-11-12 실물 #165):
+//   잠긴 동안 펌웨어는 마지막 목표 (멈춰 있고 처짐 정도 차이) 또는 현재 위치를 붙잡는데, 컨트롤러 (arm_controller 궤적 등) 는
+//   계속 나아간다. REARM 순간 그 차이 (실물 3 ~ 15°) 를 한 번에 따라가며 튐 →
+//   잠기는 순간 펌웨어가 붙잡은 목표를 같은 규칙으로 추정하고, 풀린 뒤 호스트 명령까지 rate 이하로 따라간다 (따라잡으면 그대로 통과).
+//   관절 0 ~ n-1 만 (그리퍼 칸은 넣지 않음). rate ≤ 0 이면 끔 (그대로 통과)
+class ArmRearmSlew
+{
+public:
+  static constexpr std::size_t MAX = 8;
+  // keep_goal_rad · still_vel = 펌웨어 config.h ESTOP_KEEP_GOAL_TICKS (60 tick) · ESTOP_STILL_VEL_RAW (5 × 0.229 rpm)
+  ArmRearmSlew(double rate, std::size_t n, double keep_goal_rad = 60.0 * 2.0 * M_PI / 4096.0,
+    double still_vel = 5.0 * 0.229 * 2.0 * M_PI / 60.0)
+  : rate_(rate), n_(std::min(n, MAX)), keep_(keep_goal_rad), still_(still_vel) {}
+
+  // cmd: 이번 주기 호스트 명령 (보낼 값으로 바뀜). pos · vel: 펌웨어 STATE. dt: 주기 (s)
+  void apply(bool latched, float * cmd, const float * pos, const float * vel, double dt)
+  {
+    if (rate_ <= 0.0) {return;}
+    if (!valid_) {
+      for (std::size_t k = 0; k < n_; ++k) {out_[k] = cmd[k];}
+      valid_ = true;
+    }
+    if (latched) {
+      if (!prev_latched_) {
+        for (std::size_t k = 0; k < n_; ++k) {
+          const bool keep = std::abs(out_[k] - pos[k]) <= keep_ && std::abs(vel[k]) <= still_;
+          if (!keep) {out_[k] = pos[k];}
+        }
+      }
+      catching_ = true;
+    } else if (catching_) {
+      const double step = rate_ * std::max(dt, 0.0);
+      bool done = true;
+      for (std::size_t k = 0; k < n_; ++k) {
+        const double d = cmd[k] - out_[k];
+        out_[k] += static_cast<float>(std::clamp(d, -step, step));
+        done = done && std::abs(d) <= step;
+      }
+      catching_ = !done;
+    } else {
+      for (std::size_t k = 0; k < n_; ++k) {out_[k] = cmd[k];}
+    }
+    prev_latched_ = latched;
+    for (std::size_t k = 0; k < n_; ++k) {cmd[k] = out_[k];}
+  }
+
+  bool catching_up() const {return catching_;}
+
+private:
+  double rate_;
+  std::size_t n_;
+  double keep_, still_;
+  float out_[MAX] = {};
+  bool valid_ = false, prev_latched_ = false, catching_ = false;
 };
 
 }  // namespace opencr_hardware

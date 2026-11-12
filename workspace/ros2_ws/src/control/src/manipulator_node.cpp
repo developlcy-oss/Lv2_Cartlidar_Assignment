@@ -73,6 +73,7 @@
 #include "action_msgs/srv/cancel_goal.hpp"
 #include "control_msgs/action/follow_joint_trajectory.hpp"
 #include "control_msgs/action/parallel_gripper_command.hpp"
+#include "control_msgs/msg/joint_trajectory_controller_state.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "geometry_msgs/msg/point_stamped.hpp"
@@ -172,6 +173,18 @@ public:
     diag_sub_ = create_subscription<diagnostic_msgs::msg::DiagnosticArray>(   // 켜질 때 정리: 팔 HOLD · E-stop
       "/diagnostics", rclcpp::QoS(10),
       [this](diagnostic_msgs::msg::DiagnosticArray::ConstSharedPtr msg) {onDiagnostics(msg);}, sub_opt);
+    // E-stop 순간 펌웨어가 붙잡는 목표를 알기 위해: /e_stop (100 ms) 상승 때 arm_controller 의 원하는 위치 (reference) 를 찍어 둔다
+    estop_sub_ = create_subscription<std_msgs::msg::Bool>(
+      "/e_stop", rclcpp::QoS(1).reliable().transient_local(),
+      [this](std_msgs::msg::Bool::ConstSharedPtr msg) {onEstop(msg);}, sub_opt);
+    jtc_state_sub_ = create_subscription<control_msgs::msg::JointTrajectoryControllerState>(
+      "/arm_controller/controller_state", rclcpp::QoS(10),
+      [this](control_msgs::msg::JointTrajectoryControllerState::ConstSharedPtr msg) {
+        std::lock_guard<std::mutex> lock(sensor_mutex_);
+        const size_t n = std::min(msg->joint_names.size(), msg->reference.positions.size());
+        for (size_t i = 0; i < n; ++i) {jtc_ref_[msg->joint_names[i]] = msg->reference.positions[i];}
+        jtc_ref_rx_ = now();
+      }, sub_opt);
 
     // --- Action 클라이언트 ---
     if (lie_enabled_) {   // 누운 직육면체: 집는 상자 윗면 측정 (perception place_box, 사전값 토픽)
@@ -949,6 +962,49 @@ private:
   }
 
   // /joint_states = IK 시작값 · 궤적 시간 계산 기준
+  // /e_stop 상승: 펌웨어 (holdArmAtPresent, config.h ESTOP_KEEP_GOAL_TICKS · ESTOP_STILL_VEL_RAW) 와 같은 규칙으로
+  //   관절마다 붙잡힌 목표를 추정한다 — 멈춰 있고 (< 0.12 rad/s) 원하는 위치와 실제 차이가 처짐 정도 (≤ 60 tick = 0.092 rad) 면
+  //   원하는 위치 (마지막 명령), 아니면 실제 위치. 해제되면 지움 (2026-11-12 #165)
+  void onEstop(std_msgs::msg::Bool::ConstSharedPtr msg)
+  {
+    std::lock_guard<std::mutex> lock(sensor_mutex_);
+    const bool rise = msg->data && !estop_topic_;
+    estop_topic_ = msg->data;
+    if (!msg->data) {
+      estop_hold_.reset();
+      return;
+    }
+    if (!rise) {return;}
+    constexpr double keep_goal_rad = 60.0 * 2.0 * M_PI / 4096.0;
+    constexpr double still_vel = 5.0 * 0.229 * 2.0 * M_PI / 60.0;
+    const bool ref_fresh = jtc_ref_rx_.nanoseconds() != 0 && (now() - jtc_ref_rx_).seconds() < 0.5;
+    std::vector<double> q;
+    for (size_t i = 0; i < joint_names_.size(); ++i) {
+      const auto p = joint_pos_.find(joint_names_[i]);
+      if (p == joint_pos_.end() || !std::isfinite(p->second)) {
+        estop_hold_.reset();
+        return;
+      }
+      double v = p->second;
+      const auto r = jtc_ref_.find(joint_names_[i]);
+      const auto w = joint_vel_.find(joint_names_[i]);
+      const bool still = w == joint_vel_.end() || !std::isfinite(w->second) || std::abs(w->second) <= still_vel;
+      if (ref_fresh && r != jtc_ref_.end() && std::isfinite(r->second) && std::abs(r->second - p->second) <= keep_goal_rad && still) {
+        v = r->second;
+      }
+      q.push_back(v);
+    }
+    estop_hold_ = q;
+  }
+
+  // E-stop 잠긴 동안만 값이 있음 (onEstop)
+  std::optional<std::vector<double>> estopHold()
+  {
+    std::lock_guard<std::mutex> lock(sensor_mutex_);
+    if (!estop_topic_) {return std::nullopt;}
+    return estop_hold_;
+  }
+
   std::optional<std::vector<double>> currentJoints()
   {
     std::lock_guard<std::mutex> lock(sensor_mutex_);
@@ -1207,9 +1263,15 @@ private:
     gripper_client_->async_send_goal(goal, opt);
   }
 
-  void cancelControllers()
+  // hold 가 있으면 (E-stop) 팔 취소가 받아들여진 뒤 그 자세 한 점을 다시 보낸다 — arm_controller 는 취소 때 처진 실제 위치에
+  //   멈추게 바꾸는데, 그 명령이 REARM 순간 펌웨어 목표가 되어 '툭' 처졌다가 다시 출발하며 '덜컹' 올라감 (2026-11-12 실물 #165)
+  void cancelControllers(const std::optional<std::vector<double>> & hold = std::nullopt)
   {
-    cancelGoal<FollowJT>(arm_client_, arm_goal_, "arm_controller");
+    std::function<void()> after;
+    if (hold) {
+      after = [this, q = *hold]() {publishHold(q, "E-stop -> hold at firmware goal");};
+    }
+    cancelGoal<FollowJT>(arm_client_, arm_goal_, "arm_controller", after);
     cancelGoal<GripperCmd>(gripper_client_, gripper_goal_, "gripper_controller");
   }
 
@@ -1217,17 +1279,19 @@ private:
   template<typename ActionT>
   void cancelGoal(
     const typename rclcpp_action::Client<ActionT>::SharedPtr & client,
-    typename rclcpp_action::ClientGoalHandle<ActionT>::SharedPtr & gh, const std::string & label)
+    typename rclcpp_action::ClientGoalHandle<ActionT>::SharedPtr & gh, const std::string & label,
+    std::function<void()> after = nullptr)
   {
     if (!gh) {
       return;
     }
     client->async_cancel_goal(
-      gh, [this, label](typename rclcpp_action::Client<ActionT>::CancelResponse::SharedPtr res) {
+      gh, [this, label, after](typename rclcpp_action::Client<ActionT>::CancelResponse::SharedPtr res) {
         using CancelGoal = action_msgs::srv::CancelGoal::Response;
         if (!res || res->return_code == CancelGoal::ERROR_REJECTED) {
           RCLCPP_ERROR(get_logger(), "%s rejected cancel request", label.c_str());
         }
+        if (after) {after();}
       });
     gh.reset();
   }
@@ -1235,8 +1299,9 @@ private:
   // 작업 종료: 진행 중인 컨트롤러 goal 취소, job_id_ 증가로 늦게 오는 콜백 무시
   void endJob()
   {
-    cancelControllers();
-    if (stream_active_) {holdAtMeasured();}   // 스트리밍이 실패 · 취소로 끊김 (성공은 이미 내림)
+    const auto hold = estopHold();   // E-stop 으로 끝남 → 펌웨어가 붙잡은 목표에 머묾
+    cancelControllers(hold);
+    if (stream_active_) {holdAtMeasured(hold);}   // 스트리밍이 실패 · 취소로 끊김 (성공은 이미 내림)
     job_ = Job::NONE;
     task_ = Task::NONE;
     gripper_wait_ = nullptr;
@@ -1252,12 +1317,17 @@ private:
 
   // 토픽 스트리밍 (팔레트 처짐 보정 · 정책) 이 끊길 때: arm_controller 의 마지막 점은 계획대로 앞서 있어서, E-stop · HOLD 뒤
   //   REARM 순간 펌웨어가 그 점으로 한 번에 튈 수 있다 (#144 · #107). 지금 측정 자세 한 점으로 다시 잡는다 (그리퍼는 지금 명령 유지)
-  void holdAtMeasured()
+  //   E-stop 이면 hold (펌웨어가 붙잡은 목표) 로 — 처진 실제 위치로 잡으면 REARM 때 그만큼 또 처짐
+  void holdAtMeasured(const std::optional<std::vector<double>> & hold = std::nullopt)
   {
     stream_active_ = false;
-    const auto cur = currentJoints();
+    const auto cur = hold ? hold : currentJoints();
     if (!cur) {return;}
-    std::vector<double> q = *cur;
+    publishHold(*cur, hold ? "stream ended by E-stop -> hold at firmware goal" : "stream ended early -> hold at measured joints");
+  }
+
+  void publishHold(std::vector<double> q, const char * why)
+  {
     if (gripper_mode_ == GripperMode::ARM_JOINT && gripper_cmd_) {q[5] = *gripper_cmd_;}
     for (size_t i = 0; i < q.size(); ++i) {q[i] = std::clamp(q[i], lower_[i], upper_[i]);}
     trajectory_msgs::msg::JointTrajectory jt;
@@ -1268,7 +1338,7 @@ private:
     jt.points.push_back(point);
     jt_pub_->publish(jt);
     last_sent_ = q;
-    RCLCPP_INFO(get_logger(), "stream ended early -> hold at measured joints");
+    RCLCPP_INFO(get_logger(), "%s", why);
   }
 
   // 새 goal이 오면 이전 작업은 abort (팔 명령 주체는 하나, 작업도 한 번에 하나)
@@ -1351,7 +1421,7 @@ private:
   {
     std::lock_guard<std::mutex> lock(sensor_mutex_);
     if (diag_rx_.nanoseconds() == 0) {return false;}
-    return diag_arm_hold_ || diag_estop_ || (now() - diag_rx_).seconds() > 3.0;
+    return diag_arm_hold_ || diag_estop_ || estop_topic_ || (now() - diag_rx_).seconds() > 3.0;
   }
 
   void startupTick()
@@ -3737,6 +3807,8 @@ private:
   rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_sub_;
   rclcpp::Subscription<PuckArray>::SharedPtr pucks_sub_;
   rclcpp::Subscription<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_sub_;
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr estop_sub_;
+  rclcpp::Subscription<control_msgs::msg::JointTrajectoryControllerState>::SharedPtr jtc_state_sub_;
   rclcpp_action::Client<FollowJT>::SharedPtr arm_client_;
   rclcpp_action::Client<GripperCmd>::SharedPtr gripper_client_;
   rclcpp_action::Server<ArmPose>::SharedPtr pose_server_;
@@ -3756,6 +3828,10 @@ private:
   std::map<std::string, double> joint_vel_;   // /joint_states velocity (있을 때, 강화학습 집기 관측)
   rclcpp::Time joint_rx_{0, 0, RCL_ROS_TIME};
   bool diag_arm_hold_{false}, diag_estop_{false};   // opencr 진단 (onDiagnostics)
+  bool estop_topic_{false};                          // /e_stop (100 ms, 진단보다 빠름)
+  std::optional<std::vector<double>> estop_hold_;    // E-stop 순간 펌웨어가 붙잡은 목표 추정 (onEstop)
+  std::map<std::string, double> jtc_ref_;            // arm_controller 원하는 위치 (controller_state reference)
+  rclcpp::Time jtc_ref_rx_{0, 0, RCL_ROS_TIME};
   rclcpp::Time diag_rx_{0, 0, RCL_ROS_TIME};        // 마지막 opencr/motors 수신 (0 = 아직 없음)
 
   // 작업 상태 (job_cb_group_ 전용)
