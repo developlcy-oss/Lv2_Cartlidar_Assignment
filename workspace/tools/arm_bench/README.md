@@ -13,6 +13,7 @@
 arm_bench/
   monitor/   실물 팔 -> RViz2 (읽기 전용) · 가짜 OpenCR · 그리퍼 tick <-> 손가락 mm
   slider/    슬라이더로 직접 조작 + RViz2 (자세한 것: slider/README.md)
+  real/      실물 실측 · 시험 (키보드 리셋 · 실측 메뉴 · 집기 / 세우기 / E-stop 기록, real/README.md)
   tools/     gain_trial.sh · gain_report.py (게인 튜닝) · grip_test.py (그리퍼 막힘 보호 실물 시험) · live_tick.py (결합할 때 tick 표시)
   urdf/      팔만 있는 URDF + 겉모양 메시 23 개
   rl/        팔 집기 · 놓기 강화학습 (Isaac Lab 3.0, 코드만 — rl/README.md)
