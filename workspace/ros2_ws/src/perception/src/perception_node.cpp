@@ -597,30 +597,13 @@ public:
     pb_srv_ = create_service<std_srvs::srv::Trigger>("/perception/place_box/measure",
         [this](std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr res) {
           if (!(mode_ & ARM_BITS)) {res->success = false; res->message = "팔 카메라가 꺼져 있음 (READ_TAG 또는 ARM_ALIGN 을 켜고 부를 것)"; return;}
-          // 이번 측정의 사전값: 최근 /perception/place_box/prior (pb_.frame 으로 옮김) 또는 파라미터
-          pb_.cur_prior = pb_.prior;
-          pb_.cur_prior_yaw = pb_.prior_yaw;
-          std::string from = "파라미터";
-          if (pb_prior_msg_ && (now() - pb_prior_rx_).seconds() <= pb_prior_max_age_) {
-            const auto T = lookup_at(pb_.frame, pb_prior_msg_->header.frame_id, rclcpp::Time(0, 0, get_clock()->get_clock_type()));
-            if (!T) {res->success = false; res->message = "사전값 TF " + pb_prior_msg_->header.frame_id + " -> " + pb_.frame + " 없음"; return;}
-            const auto & pp = pb_prior_msg_->pose;
-            const tf2::Vector3 c = *T * tf2::Vector3(pp.position.x, pp.position.y, pp.position.z);
-            tf2::Quaternion q;
-            tf2::fromMsg(pp.orientation, q);
-            const tf2::Vector3 ax = T->getBasis() * tf2::quatRotate(q, tf2::Vector3(1, 0, 0));
-            pb_.cur_prior = cv::Point2d(c.x(), c.y());
-            pb_.cur_prior_yaw = std::atan2(ax.y(), ax.x());
-            from = "/perception/place_box/prior";
-            pb_prior_msg_.reset();   // 한 번만 씀
-          }
-          pb_.samples.clear();
-          pb_.need = std::max(1, pb_.frames);
-          res->success = true;
-          char pr[96];
-          std::snprintf(pr, sizeof(pr), " (사전값 %s: %.3f, %.3f, %.1f°)", from.c_str(), pb_.cur_prior.x, pb_.cur_prior.y,
-            pb_.cur_prior_yaw * 180.0 / M_PI);
-          res->message = "장소 상자 측정 시작: 팔 영상 " + std::to_string(pb_.need) + " 장 → /perception/place_box/status" + pr;
+          start_place_box(false, *res);
+        }, rclcpp::ServicesQoS(), ctl_cbg_);
+    // 앞 D435 컬러로 같은 윗면 찾기 (비스듬히 서기: 대기 자리에서 상자 중심 · 요를 먼저 잼). 결과 토픽은 팔과 같음 (status 의 camera 로 구분)
+    pb_front_srv_ = create_service<std_srvs::srv::Trigger>("/perception/place_box/measure_front",
+        [this](std_srvs::srv::Trigger::Request::SharedPtr, std_srvs::srv::Trigger::Response::SharedPtr res) {
+          if (!(mode_ & SetMode::Request::SEARCH_FRONT)) {res->success = false; res->message = "앞 D435 가 꺼져 있음 (SEARCH_FRONT 를 켜고 부를 것)"; return;}
+          start_place_box(true, *res);
         }, rclcpp::ServicesQoS(), ctl_cbg_);
     dice_srv_ = create_service<CheckDice>(names::PERCEPTION_CHECK_DICE,
         [this](CheckDice::Request::SharedPtr req, CheckDice::Response::SharedPtr res) {on_check_dice(*req, *res);},
@@ -1232,6 +1215,7 @@ private:
         }
       }
     }
+    if (pb_.need > 0 && pb_.front && (mode & SetMode::Request::SEARCH_FRONT)) {process_place_box_front();}
     Result r;
     r.mode = mode;
     StampSet res_st, puck_st, mark_st;
@@ -1886,7 +1870,11 @@ private:
       arm_.marker = best_marker(places, *T, img->header.stamp, Puck::CAMERA_ARM);
     }
     if (mode & SetMode::Request::ARM_ALIGN) {publish_arm_range(img->header, (mode & SetMode::Request::READ_TAG) != 0, plane_pt);}
-    if (pb_.need > 0 && !newK_.empty()) {measure_place_box(u, frame, stamp);}
+    if (pb_.need > 0 && !pb_.front && !newK_.empty()) {
+      cv::Matx33d K;
+      for (int i = 0; i < 9; ++i) {K(i / 3, i % 3) = newK_.at<double>(i / 3, i % 3);}
+      measure_place_box(u, K, frame, stamp);
+    }
   }
 
   // /arm_range: 촬영 시각 팔 자세로 태그 퍽 중심(base_link) · D435 보유 점(odom) 을 range_frame 으로 옮겨 거리 계산
@@ -1934,16 +1922,73 @@ private:
     arm_range_pub_->publish(m);
   }
 
+  // 장소 상자 측정 시작 (서비스 두 개 공통): 사전값을 정하고 다음 영상 frames 장을 씀. front = 앞 D435 컬러, 아니면 팔 영상
+  void start_place_box(bool front, std_srvs::srv::Trigger::Response & res)
+  {
+    // 이번 측정의 사전값: 최근 /perception/place_box/prior (pb_.frame 으로 옮김) 또는 파라미터
+    pb_.cur_prior = pb_.prior;
+    pb_.cur_prior_yaw = pb_.prior_yaw;
+    std::string from = "파라미터";
+    if (pb_prior_msg_ && (now() - pb_prior_rx_).seconds() <= pb_prior_max_age_) {
+      const auto T = lookup_at(pb_.frame, pb_prior_msg_->header.frame_id, rclcpp::Time(0, 0, get_clock()->get_clock_type()));
+      if (!T) {res.success = false; res.message = "사전값 TF " + pb_prior_msg_->header.frame_id + " -> " + pb_.frame + " 없음"; return;}
+      const auto & pp = pb_prior_msg_->pose;
+      const tf2::Vector3 c = *T * tf2::Vector3(pp.position.x, pp.position.y, pp.position.z);
+      tf2::Quaternion q;
+      tf2::fromMsg(pp.orientation, q);
+      const tf2::Vector3 ax = T->getBasis() * tf2::quatRotate(q, tf2::Vector3(1, 0, 0));
+      pb_.cur_prior = cv::Point2d(c.x(), c.y());
+      pb_.cur_prior_yaw = std::atan2(ax.y(), ax.x());
+      from = "/perception/place_box/prior";
+      pb_prior_msg_.reset();   // 한 번만 씀
+    }
+    pb_.samples.clear();
+    pb_.front = front;
+    pb_.front_used_ns = -1;
+    pb_.front_min_ns = now().nanoseconds();
+    pb_.need = std::max(1, pb_.frames);
+    res.success = true;
+    char pr[96];
+    std::snprintf(pr, sizeof(pr), " (사전값 %s: %.3f, %.3f, %.1f°)", from.c_str(), pb_.cur_prior.x, pb_.cur_prior.y,
+      pb_.cur_prior_yaw * 180.0 / M_PI);
+    res.message = std::string("장소 상자 측정 시작: ") + (front ? "앞 D435" : "팔") + " 영상 " + std::to_string(pb_.need) + " 장 → /perception/place_box/status" + pr;
+  }
+
+  // 앞 D435 컬러 한 장으로 장소 상자 측정 (measure_front). D435 컬러는 왜곡 보정 없이 camera_info K 그대로 씀
+  void process_place_box_front()
+  {
+    Image::ConstSharedPtr img;
+    CameraInfo::ConstSharedPtr info;
+    {
+      std::lock_guard<std::mutex> lk(front_.m);
+      img = front_.color;
+      info = front_.info;
+    }
+    if (!img || !info) {return;}
+    const int64_t ns = rclcpp::Time(img->header.stamp).nanoseconds();
+    if (ns == pb_.front_used_ns || ns < pb_.front_min_ns) {return;}   // 요청 뒤에 찍힌 새 장을 기다림
+    const std::string frame = front_.frame_id.empty() ? img->header.frame_id : front_.frame_id;
+    if (!info_ok(*info, img->width, img->height, false, "앞 D435 (place_box)", frame)) {return;}
+    cv_bridge::CvImageConstPtr cv;
+    try {
+      cv = cv_bridge::toCvShare(img, "bgr8");
+    } catch (const std::exception & e) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "앞 D435 (place_box) 변환 실패: %s", e.what());
+      return;
+    }
+    pb_.front_used_ns = ns;
+    const cv::Matx33d K(info->k[0], info->k[1], info->k[2], info->k[3], info->k[4], info->k[5], info->k[6], info->k[7], info->k[8]);
+    measure_place_box(cv->image, K, frame, rclcpp::Time(img->header.stamp));
+  }
+
   // 장소 상자 측정 한 장: 촬영 시각 팔 자세로 윗면을 찾아 odom 으로 옮겨 모은다. 다 모이면 중앙값 · 흩어짐 확인 뒤 발행
-  void measure_place_box(const cv::Mat & u, const std::string & frame, const rclcpp::Time & stamp)
+  void measure_place_box(const cv::Mat & u, const cv::Matx33d & K, const std::string & frame, const rclcpp::Time & stamp)
   {
     const auto T_pc = lookup_at(pb_.frame, frame, stamp, false);
     const auto T_op = lookup_at(odom_frame_, pb_.frame, stamp, false);
     if (!T_pc || !T_op) {return;}   // TF 가 올 때까지 다음 장에서 다시
     const tf2::Matrix3x3 & b = T_pc->getBasis();
     const cv::Matx33d R(b[0][0], b[0][1], b[0][2], b[1][0], b[1][1], b[1][2], b[2][0], b[2][1], b[2][2]);
-    cv::Matx33d K;
-    for (int i = 0; i < 9; ++i) {K(i / 3, i % 3) = newK_.at<double>(i / 3, i % 3);}
     const tf2::Vector3 & o = T_pc->getOrigin();
     const auto r = find_place_box(u, K, R, cv::Vec3d(o.x(), o.y(), o.z()), pb_.cur_prior, pb_.cur_prior_yaw, pb_.cfg);
     --pb_.need;
@@ -1973,8 +2018,8 @@ private:
     double sp = 0.0, sw = 0.0;
     for (size_t i = 0; i < xs.size(); ++i) {sp = std::max(sp, std::hypot(xs[i] - mx, ys[i] - my)); sw = std::max(sw, std::abs(ws[i] - mw));}
     const bool ok = sp <= pb_.max_spread_m && sw <= pb_.max_spread_rad;
-    std::snprintf(buf, sizeof(buf), "{\"ok\": %s, \"frames\": %zu, \"x\": %.4f, \"y\": %.4f, \"yaw\": %.4f, \"spread_m\": %.4f, \"spread_deg\": %.3f, \"frame\": \"%s\"}",
-      ok ? "true" : "false", xs.size(), mx, my, mw, sp, sw * 180.0 / M_PI, odom_frame_.c_str());
+    std::snprintf(buf, sizeof(buf), "{\"ok\": %s, \"frames\": %zu, \"x\": %.4f, \"y\": %.4f, \"yaw\": %.4f, \"spread_m\": %.4f, \"spread_deg\": %.3f, \"frame\": \"%s\", \"camera\": \"%s\"}",
+      ok ? "true" : "false", xs.size(), mx, my, mw, sp, sw * 180.0 / M_PI, odom_frame_.c_str(), pb_.front ? "front" : "arm");
     st.data = buf;
     pb_status_pub_->publish(st);
     if (!ok) {
@@ -2216,9 +2261,13 @@ private:
     int frames = 3;
     double max_spread_m = 0.003, max_spread_rad = 1.0 * M_PI / 180.0, pitch = 0.06;
     int need = 0;                            // 남은 장 수 (ctl_cbg_ 에서만)
+    bool front = false;                      // 이번 측정 카메라: true = 앞 D435 컬러 (measure_front), false = 팔
+    int64_t front_used_ns = -1;              // 앞 D435 에서 마지막으로 쓴 장 (같은 장 두 번 안 씀)
+    int64_t front_min_ns = 0;                // 이 시각 (요청 받은 때) 보다 앞서 찍힌 장은 안 씀 (멈추기 전 · 다른 자리 영상)
     std::vector<std::array<double, 4>> samples;   // odom x · y · z · 요
   } pb_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pb_box_pub_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr pb_front_srv_;
   rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr pb_cells_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr pb_status_pub_;
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr pb_srv_;
