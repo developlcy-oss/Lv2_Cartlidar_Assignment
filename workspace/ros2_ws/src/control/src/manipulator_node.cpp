@@ -417,6 +417,7 @@ private:
     place_release_ = declare_parameter<double>("place.release_position", gripper_open_);   // rad, 기본 = 끝까지 (이전 동작)
     place_radial_a_ = declare_parameter<double>("place.radial_offset_mm", 0.0);              // J1 거리 0.2665 m 칸에서 바깥으로 [mm]
     place_radial_b_ = declare_parameter<double>("place.radial_offset_slope_mm", 0.0);        // 칸 (0.06 m) 멀어질 때마다 더할 값 [mm]
+    place_lateral_ = declare_parameter<double>("place.lateral_offset_mm", 0.0);   // 2026-11-12 놓는 점을 로봇 왼쪽 (+y) 으로 [mm]
     place_sag_ = declare_parameter<bool>("place.sag", true);   // 2026-11-11 놓기도 처짐 보정 스트리밍 (sag.enabled 일 때)
     // 바닥 frame (z = 바닥). arm_base_link 높이 = 이 frame → arm_base_link TF, 없으면 arm_base_height
     floor_frame_ = declare_parameter<std::string>("floor_frame", "base_footprint");
@@ -581,8 +582,14 @@ private:
         file = (ament_index_cpp::get_package_share_path("control") / "config" / "pallet_place_traj.json").string();
       }
       const YAML::Node doc = YAML::LoadFile(file);
+      // 2026-11-12 궤적 파일 관절값 = 모델 (URDF) 값 -> 명령값 (sign x q + ik.joint_offsets, IK · 정책 명령과 같은 변환).
+      //   실물 관절 영점 차이를 URDF 를 고치지 않고 ik.joint_offsets 로 흡수 (오프셋 0 이면 이전과 같음)
+      auto to_cmd = [this](std::vector<double> v) {
+          for (size_t k = 0; k < 5 && k < v.size(); ++k) {v[k] = ik_signs_[k] * v[k] + ik_offsets_[k];}
+          return v;
+        };
       if (doc["transit"] && doc["transit"]["q_front_tilt"]) {
-        transit_tilt_ = doc["transit"]["q_front_tilt"].as<std::vector<double>>();
+        transit_tilt_ = to_cmd(doc["transit"]["q_front_tilt"].as<std::vector<double>>());
       }
       for (const auto & slot : doc["slots"]) {
         std::vector<PalletSegment> segs;
@@ -591,11 +598,12 @@ private:
           seg.name = g["name"].as<std::string>();
           seg.hold = g["gripper"].as<std::string>() == "hold";
           seg.q = g["q"].as<std::vector<std::vector<double>>>();
+          for (auto & q : seg.q) {q = to_cmd(q);}
           segs.push_back(seg);
         }
         const std::pair<int, int> key{slot["row"].as<int>(), slot["index"].as<int>()};
         pallet_[key] = segs;
-        if (slot["q_front"]) {pallet_front_[key] = slot["q_front"].as<std::vector<double>>();}   // 꺼내기 끝 자세
+        if (slot["q_front"]) {pallet_front_[key] = to_cmd(slot["q_front"].as<std::vector<double>>());}   // 꺼내기 끝 자세
       }
       RCLCPP_INFO(get_logger(), "pallet: %zu slot(s) from %s", pallet_.size(), file.c_str());
     } catch (const std::exception & e) {
@@ -668,6 +676,7 @@ private:
         const auto nba = declare_parameter<std::vector<double>>(name + ".neighbor_absent", {kNbAbsentX, kNbAbsentY});
         pc.start_pose = declare_parameter<std::vector<double>>(name + ".start_pose", rl_start_pose_);
         pc.closed_m = declare_parameter<double>(name + ".closed_m", rl_closed_m_);
+        pc.max_joint_vel = declare_parameter<double>(name + ".max_joint_velocity", rl_max_joint_vel_);
         if (ref.size() != 5 || nba.size() != 2 || !(pc.start_pose.empty() || pc.start_pose.size() == 5)) {
           RCLCPP_ERROR(get_logger(), "skill '%s': %s.obs_ref_pose (5) · neighbor_absent (2) · start_pose (5 or []) size", name.c_str(),
             name.c_str());
@@ -2254,7 +2263,7 @@ private:
     r.prev_action = {a[0], a[1], a[2], a[3]};
 
     if (!skill_last_cmd_) {skill_last_cmd_ = q;}
-    const double max_step = rl_max_joint_vel_ / skill_rate_;
+    const double max_step = tcp_active_.max_joint_vel / skill_rate_;   // <정책>.max_joint_velocity (기본 toppick_rl.max_joint_velocity)
     std::vector<double> cmd(joint_names_.size());
     for (size_t k = 0; k < 5; ++k) {
       const double c = std::clamp(ik_signs_[k] * tgt[k] + ik_offsets_[k], lower_[k], upper_[k]);
@@ -3210,6 +3219,7 @@ private:
         arm.point.y += arm.point.y / r * comp;
       }
     }
+    arm.point.y += place_lateral_ / 1000.0;   // 2026-11-12 옆 보정 (Isaac 꺼내기 → 놓기 칸별 평균 오차 왼 −1.8 mm -> 1.8 mm, 216 대 93.1 -> 99.1 %)
     const Eigen::Vector3d tip(arm.point.x, arm.point.y, surface + puck_half_height_ + grasp_z_offset_ + place_clearance_);
     const auto current = currentJoints();
     if (!current) {
@@ -3577,7 +3587,8 @@ private:
   std::map<std::string, std::pair<double, double>> place_cells_;      // "L1/-1,0" → (x, y)
   double place_pitch_{-M_PI_4}, place_surface_height_{0.070}, puck_half_height_{0.030}, place_clearance_{0.002};
   double place_approach_{0.04}, place_retreat_{0.04}, arm_base_height_{0.120};
-  double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};   // 2026-11-11 놓기 벌림 폭 · J1 바깥 보정
+  double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};
+  double place_lateral_{0.0};   // 2026-11-11 놓기 벌림 폭 · J1 바깥 보정
   std::string base_frame_, fixed_frame_, range_frame_;
   double approach_distance_{0.15}, range_offset_{0.015}, max_final_approach_{0.25};
   double range_mismatch_tol_{0.04};
@@ -3612,6 +3623,7 @@ private:
     TopPickLayout layout;
     std::vector<double> start_pose;
     double closed_m{-0.0075};
+    double max_joint_vel{2.0};
   };
   std::map<std::string, TcpPolicyCfg> tcp_cfg_;
   TcpPolicyCfg tcp_active_;

@@ -19,7 +19,11 @@ manipulator_node:
       upper_arm_z: 0.128
       forearm: 0.124             # joint3 → joint4
       wrist_to_tool: 0.167       # joint4 → tool_link (0.04 + 0.041 + 0.086, 팔레트 궤적 TCP 와 같은 점)
-      joint_offsets: [0.0, 0.0, 0.0, 0.0, 0.0]   # 관절 0점 보정 (joint1~5)
+      # 관절 0점 보정 (joint1~5, 명령 = 모델 + offset). 2026-11-12 실물 cart11 보정 측정 6 점 (팔레트 칸 3-1 · 3-0 · 2-1, 상자 위 가운데 · 좌우 6 cm,
+      #   IsaacLab .../manipulator/기록/실측/6_보정자세.csv, tools/arm_calib_fit.py --joints 1,2,3,4): RMS 6.7 mm, 맞출 때 안 쓴 앞쪽 처짐 자세 3 개 7 mm 안.
+      #   ★ 처짐까지 흡수한 '실효값' (관절 2 +27° 는 혼 어긋남이 아님) -> 측정한 곳 (앞 상자 위 집기 · 뒤 팔레트 칸) 근처에서만 믿을 것.
+      #   이름 자세 (STOW · DRIVE · ALIGN 등 poses.*) 에는 안 들어감 (실물에서 정한 값). 0 으로 두면 이전과 같음
+      joint_offsets: [-0.0283, -0.4788, 0.1641, 0.0955, 0.0]
       joint_signs: [1.0, 1.0, 1.0, 1.0, 1.0]     # 펌웨어 ARM_DIR 모두 +1 (2026-10-26 손으로 확인, URDF 방향과 같음)
       approach_pitches: [-0.7854, -1.5708, -1.0472]  # pick 시도 순서 (위로 +, -0.7854 = 45° 아래)
       allow_elbow_down: false
@@ -37,7 +41,7 @@ manipulator_node:
       DRIVE: [-0.0245, -1.6122, 1.2901, 1.1888, 0.0, 0.923]
       # 정밀 정렬 (approach FINE) 자세 (#188 · #154 ALIGN_A): 팔 카메라가 수평 아래 34° 를 봄. Gazebo 에서 FINE 시작 (면 0.40 m) · 끝
       #   (0.127 m) 모두 퍽 2 개가 화면 안. 팔 앞 끝 base_link x 0.179 · 제자리 회전 반지름 0.182 (차체 안). 관절 한계에서 0.25 rad 이상 ★ 실물 확인 전
-      ALIGN: [0.0, -1.854, 0.540, 1.645, 0.0, 0.0]
+      ALIGN: [0.0, -1.37, -0.01, 1.85, 0.0, 0.0]   # 2026-11-12 #218 E2 (차체 23 mm · 실은 퍽 17.8 mm · 시야 82 px, 회전 반지름 2 ~ 4 mm 넘음). 이전 ALIGN_A [0, -1.854, 0.540, 1.645, 0] 은 차체 · G 줄 퍽에 닿음
       # READY = 10 월 추정값. 집게가 위로 +86° · 팔 카메라가 수평 위 71° (하늘) 를 보고 상단 카메라에 닿음 (11-08 실물) → mission 은 안 씀 (#188)
       READY: [0.0, 0.6, -1.2, -0.9, 0.0, 0.0]
       PLACE: [1.57, 0.4, -0.8, -1.1, 0.0, 0.0]
@@ -142,8 +146,10 @@ manipulator_node:
     #   policies.yaml toppick_tilt (tcp_delta(4), 관측 36 = include/control/toppick_obs.hpp), IK = arm_diff_ik.hpp. 값은 Isaac toppick_env_cfg 와 같게
     toppick_rl:
       base_frame: base_link      # 학습 관측 좌표 (arm_diff_ik 기구 = Isaac URDF base_link)
-      finger_m_at_open: 0.020    # ★ 가정: gripper.open_position (−0.764 rad) 일 때 학습 손가락 값 (m). 실측 뒤 고침
-      finger_m_at_close: -0.011  # ★ 가정: gripper.close_position (+0.923 rad) 일 때
+      # 2026-11-12 실측 (#190 · #201): 열림 66.7 mm, 쥔 퍽 0.47 ~ 0.57 rad, 빈손 닫힘 0.922 rad (23.8 mm). Onbeom 제안 (#201) 대응:
+      #   쥔 퍽 -> −5.1 ~ −6.6 mm (학습 30 mm 퍽 −5.8 과 비슷, 쥠 범위 안), 빈손 닫힘 -> −11.6 mm (범위 밖 = 빈손 실패)
+      finger_m_at_open: 0.0125
+      finger_m_at_close: -0.0116
       open_m: 0.010              # 행동 > 0 → 손가락 0.010 m (61.6 mm) 에 해당하는 rad
       closed_m: -0.0075          # 행동 ≤ 0 → 손가락 −0.0075 m
       grasp_finger_min: -0.010   # 쥔 손가락 범위 (m)
@@ -166,6 +172,17 @@ manipulator_node:
       neighbor_absent: [0.0, 0.0]                      # 옆 퍽 없음 관측 (toppick 은 (0, 0.5))
       start_pose: [0.0, -0.338, 0.559, 0.564, 0.0]     # 학습 에피소드 시작 = READY_POSE_45 (± ready_noise 0.08 rad)
       closed_m: -0.011                                  # 행동 ≤ 0 쥠 (학습 gripper_closed = FINGER_CLOSE). Isaac 넣기 평가 −0.0075 와 차이 작음
+      # 관절 명령 한 틱 변화 상한 (rad/s). Isaac 노드 조건 2048 대 (11-12, 기록/10): 2.0 -> 원기둥 92.9 · 직육면체 90.4 %,
+      #   3.0 -> 96.5 · 95.6, 4.0 -> 96.6 · 96.1, 없음 96.8 · 96.5 (학습은 목표 앞섬 ±0.25 rad 만). ★ 실물 관절 최대 속도 (#201) 확인 뒤
+      max_joint_velocity: 4.0
+    sidepick45_k8:   # 2026-11-12 k8 (k7 과 같은 값). 쓰려면 skill.policies 에 sidepick45_k8, toppick_tilt_policy: sidepick45_k8
+      obs_ref_pose: [0.0, -0.338, 0.559, 0.564, 0.0]   # joint_pos_rel 기준 = READY_POSE_45 (sidepick_env_cfg)
+      neighbor_absent: [0.0, 0.0]                      # 옆 퍽 없음 관측 (toppick 은 (0, 0.5))
+      start_pose: [0.0, -0.338, 0.559, 0.564, 0.0]     # 학습 에피소드 시작 = READY_POSE_45 (± ready_noise 0.08 rad)
+      closed_m: -0.011                                  # 행동 ≤ 0 쥠 (학습 gripper_closed = FINGER_CLOSE). Isaac 넣기 평가 −0.0075 와 차이 작음
+      # 관절 명령 한 틱 변화 상한 (rad/s). Isaac 노드 조건 2048 대 (11-12, 기록/10): 2.0 -> 원기둥 92.9 · 직육면체 90.4 %,
+      #   3.0 -> 96.5 · 95.6, 4.0 -> 96.6 · 96.1, 없음 96.8 · 96.5 (학습은 목표 앞섬 ±0.25 rad 만). ★ 실물 관절 최대 속도 (#201) 확인 뒤
+      max_joint_velocity: 4.0
     # target_look:<frame>:<x>:<y>:<z> 타겟체크자세 (#82, include/control/target_look_pose.hpp). 집기 전 팔 카메라로 퍽 윗면을 내려다봄
     #   카메라를 퍽 윗면에서 distances 만큼, 광축이 수평 아래 view_angles_deg 로 — 관절 한계 안에서 풀리는 첫 (거리, 각)
     #   인지 #82 타겟체크자세 4 개 (A · B · C앞 · C뒤) 는 모두 약 70° · 0.15~0.21 m (test_target_look_pose 가 같은 카메라 모형인지 확인)
@@ -226,5 +243,6 @@ manipulator_node:
       sag: true                  # 놓기 (place_*) 도 처짐 보정 스트리밍 (sag.enabled 일 때), 꺼내기 끝 bias 이어 씀
       radial_offset_mm: 0.0      # ★ J1 바깥 보정 (가운데 칸 J1 0.2665 m 기준, 실측 뒤 고침)
       radial_offset_slope_mm: 0.0   # ★ 칸 (60 mm) 멀어질 때마다
+      lateral_offset_mm: 1.8     # ★ 2026-11-12 놓는 점을 로봇 왼쪽으로 (Isaac 칸별 평균 오차 −1.8 mm). 실측 (place_measure.py) 뒤 고침
     floor_frame: base_footprint  # 바닥 frame. arm_base_link 높이 = 이 frame → arm_base_link TF
     arm_base_height: 0.120       # TF 가 없을 때 arm_base_link 바닥 높이 (B안 base_link 0.00675 + 0.1135) ★
