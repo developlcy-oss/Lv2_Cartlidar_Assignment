@@ -51,7 +51,7 @@ def generate_launch_description():
         condition=IfCondition(LC('nav')))
     # 실물 bringup ⑥ 과 같은 odom (#92 · #151): /odom (바퀴) + IMU ω → /odom_icr (vy = −icr_x·ω) → EKF (회전은 IMU 에서만)
     sim = {'use_sim_time': True}
-    ekf = [Node(package='bringup', executable='odom_icr.py', name='odom_icr', output='screen',
+    ekf = [Node(package='bringup', executable='odom_icr', name='odom_icr', output='screen',
                 parameters=[PathJoinSubstitution([FindPackageShare('control'), 'config', 'robot_geometry.yaml']), sim],
                 condition=IfCondition(LC('use_ekf'))),
            Node(package='robot_localization', executable='ekf_node', name='ekf_filter_node', output='screen',

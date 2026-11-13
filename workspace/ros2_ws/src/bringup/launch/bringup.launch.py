@@ -220,7 +220,7 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration('use_nav2'))),
         OpaqueFunction(function=planner),
         # ⑥ /odom + IMU ω → /odom_icr (vy = −icr_x·ω, 스키드 회전 중심 옆 이동, #92) → ekf odom0
-        Node(package='bringup', executable='odom_icr.py', name='odom_icr', output='screen',
+        Node(package='bringup', executable='odom_icr', name='odom_icr', output='screen',
              parameters=[geometry, sim], condition=IfCondition(LaunchConfiguration('use_ekf'))),
         Node(package='robot_localization', executable='ekf_node', name='ekf_filter_node', output='screen',
              parameters=[PathJoinSubstitution([me, 'config', 'ekf.yaml']), sim],
