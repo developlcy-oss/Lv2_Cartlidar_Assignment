@@ -57,6 +57,7 @@
 #include <cmath>
 #include <cstdio>
 #include <functional>
+#include <iomanip>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -216,7 +217,7 @@ public:
           RCLCPP_WARN(get_logger(), "pose: unknown name '%s' -> reject", goal->name.c_str());
           return rclcpp_action::GoalResponse::REJECT;
         }
-        if (startupMoving("pose")) {return rclcpp_action::GoalResponse::REJECT;}
+        if (startupMoving("pose") || startupPending("pose")) {return rclcpp_action::GoalResponse::REJECT;}
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<PoseGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -226,7 +227,7 @@ public:
     pick_server_ = rclcpp_action::create_server<Pick>(
       this, "/manipulator/pick",
       [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Pick::Goal>) {
-        if (startupMoving("pick")) {return rclcpp_action::GoalResponse::REJECT;}
+        if (startupMoving("pick") || startupPending("pick")) {return rclcpp_action::GoalResponse::REJECT;}
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<PickGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -242,7 +243,7 @@ public:
             "policies.yaml · ONNX Runtime) -> reject", goal->policy.c_str());
           return rclcpp_action::GoalResponse::REJECT;
         }
-        if (startupMoving("execute_skill")) {return rclcpp_action::GoalResponse::REJECT;}
+        if (startupMoving("execute_skill") || startupPending("execute_skill")) {return rclcpp_action::GoalResponse::REJECT;}
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<SkillGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -428,6 +429,17 @@ private:
     pallet_speed_ = declare_parameter<double>("pallet.speed", 0.8);              // rad/s (#75)
     pallet_row3_hold_speed_ = declare_parameter<double>("pallet.row3_hold_speed", 0.4);   // 3 열 쥔 구간 (#75)
     pallet_require_held_ = declare_parameter<bool>("pallet.require_held", true);
+    // 궤적 파일 관절값에 ik.joint_offsets 를 더할지. 2026-11-14 false: 11-12 오프셋 (J2 −27°, 팔레트 v3 칸 자세로 맞춘 실효값) 을
+    //   v5 궤적에 더하면 이동 자세 (q_front_tilt) 에서 관절 3 (팔꿈치) 축이 60 mm 내려가 2 열 퍽 윗면 높이 (z 185 ↔ 186 mm)
+    //   → 실물에서 DRIVE → 이동 자세 첫 구간에 팔꿈치가 퍽 스토리지를 누름. v5 칸으로 다시 맞춘 뒤 (#266) 켤 것
+    pallet_apply_offsets_ = declare_parameter<bool>("pallet.apply_joint_offsets", false);
+    // 팔레트 스킬 출발 자세 검사: 궤적 첫 점에서 start_tolerance 넘게 떨어져 있으면, start_poses 중 하나 근처 (start_pose_tolerance)
+    //   일 때만 첫 점까지 prep_velocity 로 먼저 옮기고 시작. 어느 쪽도 아니면 거절 (꺼내기) — 켜질 때 정리를 건너뛴 채 엉뚱한 자세에서
+    //   0.8 rad/s 직선으로 들어가지 않게. 놓기 (pallet_load) 는 집기 직후 (퍽 쥠) 면 예전처럼 진행
+    pallet_start_tol_ = declare_parameter<double>("pallet.start_tolerance", 0.05);
+    pallet_start_poses_ = declare_parameter<std::vector<std::string>>("pallet.start_poses", {"DRIVE", "ALIGN", "TRANSIT_TILT"});
+    pallet_start_pose_tol_ = declare_parameter<double>("pallet.start_pose_tolerance", 0.15);
+    pallet_prep_vel_ = declare_parameter<double>("pallet.prep_velocity", 0.3);
     // 칸 안에서 벌리는 폭: 끝까지 열면 손가락이 칸 벽에 닿음 (Isaac FINGER_RELEASED 37.6 mm). 기본 = gripper.open_position
     pallet_release_ = declare_parameter<double>("pallet.release_position", gripper_open_);
     pallet_dwell_ = declare_parameter<double>("pallet.place_dwell", 0.3);
@@ -620,8 +632,11 @@ private:
       const YAML::Node doc = YAML::LoadFile(file);
       // 2026-11-12 궤적 파일 관절값 = 모델 (URDF) 값 -> 명령값 (sign x q + ik.joint_offsets, IK · 정책 명령과 같은 변환).
       //   실물 관절 영점 차이를 URDF 를 고치지 않고 ik.joint_offsets 로 흡수 (오프셋 0 이면 이전과 같음)
+      //   pallet.apply_joint_offsets false 면 오프셋은 빼고 부호만 (위 설명)
       auto to_cmd = [this](std::vector<double> v) {
-          for (size_t k = 0; k < 5 && k < v.size(); ++k) {v[k] = ik_signs_[k] * v[k] + ik_offsets_[k];}
+          for (size_t k = 0; k < 5 && k < v.size(); ++k) {
+            v[k] = ik_signs_[k] * v[k] + (pallet_apply_offsets_ ? ik_offsets_[k] : 0.0);
+          }
           return v;
         };
       if (doc["transit"] && doc["transit"]["q_front_tilt"]) {
@@ -641,7 +656,8 @@ private:
         pallet_[key] = segs;
         if (slot["q_front"]) {pallet_front_[key] = to_cmd(slot["q_front"].as<std::vector<double>>());}   // 꺼내기 끝 자세
       }
-      RCLCPP_INFO(get_logger(), "pallet: %zu slot(s) from %s", pallet_.size(), file.c_str());
+      RCLCPP_INFO(get_logger(), "pallet: %zu slot(s) from %s (joint offsets %s)", pallet_.size(), file.c_str(),
+        pallet_apply_offsets_ ? "applied" : "not applied");
     } catch (const std::exception & e) {
       RCLCPP_WARN(get_logger(), "pallet trajectories not loaded (%s): %s -> pallet_* skills will fail",
         file.c_str(), e.what());
@@ -779,6 +795,10 @@ private:
     startup_pose_ = declare_parameter<std::string>("startup.pose", "DRIVE");
     const auto stages = declare_parameter<std::vector<std::string>>("startup.stages", {"3", "2", "4", "1", "5,6"});
     startup_vel_ = declare_parameter<double>("startup.max_joint_velocity", 0.1);
+    // true: 켜질 때 정리 (startup.pose) 를 마치기 전 pose · pick · execute_skill goal 을 거절 (모든 명령이 정리 자세에서 시작).
+    //   false: 예전처럼 goal 을 받으면 정리를 건너뜀. 2026-11-14 실물: 죽은 브링업에 걸어 둔 명령이 노드가 뜨자마자 들어와
+    //   (곧바로 실패했는데도) 정리가 취소됨 → 팔이 HOLD 자리에서 팔레트 궤적을 시작
+    startup_block_goals_ = declare_parameter<bool>("startup.block_goals", true);
     startup_skip_tol_ = declare_parameter<double>("startup.skip_tolerance", 0.05);
     startup_diag_wait_ = declare_parameter<double>("startup.diag_wait", 5.0);
     startup_warn_after_ = declare_parameter<double>("startup.warn_after", 15.0);
@@ -792,6 +812,9 @@ private:
       startup_stages_ = parseStartupStages(stages, joint_names_.size());
     }
     requirePositive("startup.max_joint_velocity", startup_vel_);
+    requirePositive("pallet.start_tolerance", pallet_start_tol_);
+    requirePositive("pallet.start_pose_tolerance", pallet_start_pose_tol_);
+    requirePositive("pallet.prep_velocity", pallet_prep_vel_);
     requirePositive("startup.skip_tolerance", startup_skip_tol_);
     requireNonNegative("startup.diag_wait", startup_diag_wait_);
     requirePositive("startup.warn_after", startup_warn_after_);
@@ -1440,6 +1463,16 @@ private:
   // 조건: arm_controller 준비 · /joint_states (NaN 아님) · 팔 HOLD 와 E-stop 해제 (opencr 진단). 진단이 startup.diag_wait 동안
   //   한 번도 안 오면 (시뮬레이션 · mock) HOLD 확인 없이 진행. 정리 전에 pose · pick · skill goal 을 받으면 운용자가 쓰는
   //   중이라 보고 정리를 하지 않는다. 정리 중에 오는 goal 은 거절, HOLD · E-stop 이 걸리면 멈추고 풀린 뒤 다시 판단
+  // 켜질 때 정리를 아직 마치지 않음 (startup.block_goals): HOLD 해제 (REARM) 를 기다리거나 joint_states · arm_controller 를 기다리는 중
+  bool startupPending(const char * what)
+  {
+    if (!startup_block_goals_ || startup_done_ || startup_pose_.empty()) {return false;}
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
+      "%s: startup to '%s' not finished (REARM, wait for 'startup: arm at %s') -> reject", what,
+      startup_pose_.c_str(), startup_pose_.c_str());
+    return true;
+  }
+
   bool startupMoving(const char * what)
   {
     if (job_ != Job::STARTUP) {return false;}
@@ -3134,6 +3167,82 @@ private:
     const double out_speed = pallet_speed_;
     const double in_grip = load ? gripper_close_ : pallet_release_;
     const double out_grip = load ? pallet_release_ : gripper_close_;
+    // 출발 자세 검사 (pallet.start_*): 첫 점 근처가 아니면 정해진 출발 자세에서만 첫 점까지 천천히 옮긴 뒤 시작
+    if (in.empty() || in.front().size() != 5) {
+      finishSkill(false, "pallet: empty approach segment in traj_file");
+      return;
+    }
+    const auto current = currentJoints();
+    if (!current) {
+      finishSkill(false, "no recent /joint_states for arm joints");
+      return;
+    }
+    auto go = [this, row, index, load, in, out, in_speed, out_speed, in_grip, out_grip]() {
+        runPalletTrajectory(row, index, load, in, out, in_speed, out_speed, in_grip, out_grip);
+      };
+    if (armDistance(*current, in.front()) <= pallet_start_tol_) {
+      go();
+      return;
+    }
+    std::string from;
+    for (const auto & name : pallet_start_poses_) {
+      const auto it_pose = poses_.find(name);
+      if (it_pose != poses_.end() && armDistance(*current, it_pose->second) <= pallet_start_pose_tol_) {from = name; break;}
+    }
+    if (from.empty() && !transit_tilt_.empty() && armDistance(*current, transit_tilt_) <= pallet_start_pose_tol_) {
+      from = "transit_tilt";
+    }
+    if (from.empty()) {
+      const auto holding = gripperHolding();
+      if (load && holding && *holding) {   // 집기 (toppick) 직후: 예전과 같이 지금 자세에서 바로 (Isaac 연결 시험 경로)
+        RCLCPP_WARN(get_logger(), "pallet load: start %.2f rad from trajectory start (after pick) -> direct", armDistance(*current, in.front()));
+        go();
+        return;
+      }
+      std::ostringstream q;
+      q << std::fixed << std::setprecision(3);
+      for (size_t k = 0; k < 5; ++k) {q << (k ? ", " : "") << (*current)[k];}
+      finishSkill(false, "pallet: arm not at a start pose (" + joinNames(pallet_start_poses_) + ") — now [" + q.str() +
+        "]. Move to DRIVE first (startup / /manipulator/pose)");
+      return;
+    }
+    std::vector<double> start(in.front().begin(), in.front().end());
+    start.push_back(sixthValue(*current));   // 그리퍼는 그대로
+    double d = 0.0;
+    for (size_t k = 0; k < 5; ++k) {d = std::max(d, std::abs(start[k] - (*current)[k]));}
+    const double duration = std::max(min_duration_, d / pallet_prep_vel_);
+    RCLCPP_INFO(get_logger(), "pallet: %s -> trajectory start (%.2f rad, %.1f s at %.2f rad/s)", from.c_str(), d, duration,
+      pallet_prep_vel_);
+    sendArm(start, duration, [this, go](bool ok, const std::string & msg) {
+        if (!ok) {
+          finishSkill(false, "pallet: move to trajectory start: " + msg);
+          return;
+        }
+        go();
+      });
+  }
+
+  // 5 관절 중 가장 큰 차이 [rad]
+  static double armDistance(const std::vector<double> & a, const std::vector<double> & b)
+  {
+    double d = 0.0;
+    for (size_t k = 0; k < 5 && k < a.size() && k < b.size(); ++k) {d = std::max(d, std::abs(a[k] - b[k]));}
+    return d;
+  }
+
+  static std::string joinNames(const std::vector<std::string> & v)
+  {
+    std::string out;
+    for (const auto & n : v) {out += (out.empty() ? "" : "/") + n;}
+    return out;
+  }
+
+  // 출발 자세 검사를 통과한 뒤 칸 궤적 (스트리밍 또는 경유점)
+  void runPalletTrajectory(
+    int row, int index, bool load, const std::vector<std::vector<double>> & in, const std::vector<std::vector<double>> & out,
+    double in_speed, double out_speed, double in_grip, double out_grip)
+  {
+    (void)row; (void)index;
     if (sag_enabled_ && gripper_mode_ != GripperMode::ACTION) {   // 처짐 보정 스트리밍 (sag.*)
       runPalletStream(in, out, in_speed, out_speed, in_grip, out_grip, load);
       return;
@@ -3734,6 +3843,10 @@ private:
   double target_look_settle_{0.3}, target_look_arm_wait_{1.0}, target_look_timeout_{3.0}, target_look_match_{0.04};
   std::string pallet_file_;
   double pallet_speed_{0.8}, pallet_row3_hold_speed_{0.4};
+  bool pallet_apply_offsets_{false};
+  double pallet_start_tol_{0.05}, pallet_start_pose_tol_{0.15}, pallet_prep_vel_{0.3};
+  std::vector<std::string> pallet_start_poses_;
+  bool startup_block_goals_{true};
   bool pallet_require_held_{true};
   std::map<std::pair<int, int>, std::vector<PalletSegment>> pallet_;   // (열, 칸) → 구간
   std::map<std::pair<int, int>, std::vector<double>> pallet_front_;    // (열, 칸) → 앞 운반 자세 q_front (5 관절)
