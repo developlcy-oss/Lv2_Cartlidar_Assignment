@@ -9,6 +9,8 @@
 - 월드: worlds/dice_mission.sdf (주사위 기억 로봇 경기장, ~/GIT/dice_mission_gazebo 에서 생성한 것). world:= 로 바꿀 수 있음.
 - 출발 자리 기본값: 발제 신호 관측 자리 (0.734, 0.950) m, 신호등을 봄 (yaw = π).
 - 토픽 이름 · 센서 값은 config/sensors.yaml, 브리지 목록은 config/gz_bridge.yaml.
+- odom_tf:=false: DiffDrive 의 odom -> base_link TF 를 ROS 로 잇지 않음 (config/gz_bridge_odom_tf.yaml). /odom 토픽은 그대로.
+  실물처럼 EKF 가 TF 를 낼 때 (navigation gazebo_sim.launch.py use_ekf:=true). 바퀴만으로 센 회전은 실제보다 약 22 % 큼 (#151).
 - collision:=light (기본): 차체 볼록 메시 423 개를 묶음별 상자 12 개로 (실시간 비율 0.76 -> 1.0, 2026-10-28 시험).
 - 카메라 토픽은 lazy 브리지: ROS 에서 구독할 때만 렌더한다 (9 개 다 쓰면 실시간 비율 약 0.5).
 - 키보드 조작: 다른 터미널에서 ros2 run waffle_4wd_description keyboard_teleop.py
@@ -43,6 +45,8 @@ def generate_launch_description():
         DeclareLaunchArgument('sliders', default_value='false', description='true 면 관절 슬라이더 창 (팔 관절 -> /arm/<관절>/cmd_pos)'),
         DeclareLaunchArgument('pucks', default_value='false', description='true 면 팔레트에 퍽 12개 (주행용 질량, 겉모양 · 질량만)'),
         DeclareLaunchArgument('collision', default_value='light', description='light (상자, 빠름) | full (볼록 메시)'),
+        DeclareLaunchArgument('odom_tf', default_value='true',
+                              description='false 면 DiffDrive 바퀴 odom TF (odom -> base_link) 를 안 이음 (EKF 가 낼 때, #151)'),
         DeclareLaunchArgument('x', default_value='0.734'),
         DeclareLaunchArgument('y', default_value='0.950'),
         DeclareLaunchArgument('yaw', default_value='3.14159265'),
@@ -59,6 +63,9 @@ def generate_launch_description():
                         '-x', arg('x'), '-y', arg('y'), '-z', '0.012', '-Y', arg('yaw')]),   # 루트 base_link 는 바닥 위 6.75 mm (+ 5 mm 띄워 놓기)
         Node(package='ros_gz_bridge', executable='parameter_bridge', output='screen',
              parameters=[{'config_file': os.path.join(share, 'config', 'gz_bridge.yaml')}, sim_time]),
+        Node(package='ros_gz_bridge', executable='parameter_bridge', name='odom_tf_bridge', output='screen',
+             parameters=[{'config_file': os.path.join(share, 'config', 'gz_bridge_odom_tf.yaml')}, sim_time],
+             condition=IfCondition(arg('odom_tf'))),
         Node(package=PKG, executable='tfmini_scan_to_range.py', output='screen', parameters=[sim_time]),
         Node(package=PKG, executable='camera_info_fix.py', output='screen',
              parameters=[{'config': os.path.join(share, 'config', 'camera_info_fix.yaml')}, sim_time]),
