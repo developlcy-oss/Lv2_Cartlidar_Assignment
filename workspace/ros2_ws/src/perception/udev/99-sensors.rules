@@ -1,6 +1,9 @@
 # Arducam → /dev/arm_cam, TFmini USB-UART → /dev/tfmini, LiDAR → /dev/lidar_front · /dev/lidar_rear
-# ★ idVendor/idProduct/serial 은 `udevadm info -a -n /dev/videoN` · `/dev/ttyUSBN` 으로 확인해 바꿈
+# ★ 값은 Jetson 에서 `udevadm info -q property -n /dev/ttyUSBN` (ID_SERIAL_SHORT · ID_PATH) 으로 확인해 바꿈
+# TFmini 변환기(CP2102N)는 고유 시리얼로 잡는다. 라이다 두 대의 변환기(CP2102)는 시리얼이 둘 다 0001 이라
+# 시리얼로 가를 수 없어 USB 경로(ID_PATH)로 잡는다 → 라이다 USB 선을 허브의 다른 포트에 꽂으면 경로를 다시 확인할 것.
+# 앞 · 뒤 구분: 포트마다 라이다를 하나씩 띄우고 앞 · 뒤를 번갈아 가려, 가렸을 때 스캔이 바뀌는 쪽으로 정함(실물 11-12).
 SUBSYSTEM=="video4linux", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="6366", ATTR{index}=="0", SYMLINK+="arm_cam", MODE="0666"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="TFMINI_SERIAL", SYMLINK+="tfmini", MODE="0666"
-SUBSYSTEM=="tty", ATTRS{serial}=="LIDAR_FRONT_SERIAL", SYMLINK+="lidar_front", MODE="0666"
-SUBSYSTEM=="tty", ATTRS{serial}=="LIDAR_REAR_SERIAL", SYMLINK+="lidar_rear", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="628a51ca4795eb11ae0c07608dca6574", SYMLINK+="tfmini", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ENV{ID_PATH}=="platform-3610000.usb-usb-0:2.3.5:1.0", SYMLINK+="lidar_front", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ENV{ID_PATH}=="platform-3610000.usb-usb-0:2.3.1:1.0", SYMLINK+="lidar_rear", MODE="0666"
