@@ -85,6 +85,7 @@
 #include "ament_index_cpp/get_package_share_path.hpp"
 #include "control/arm_ik.hpp"
 #include "control/grasp_detector.hpp"
+#include "control/min_jerk.hpp"
 #include "control/sag_comp.hpp"
 #include "control/startup_stow.hpp"
 #include "control/toppick_obs.hpp"
@@ -304,6 +305,8 @@ private:
       {3.14159, 1.6, 1.6, 2.0, 2.8, 0.9541});
     max_joint_vel_ = declare_parameter<double>("arm.max_joint_velocity", 0.5);
     min_duration_ = declare_parameter<double>("arm.min_duration", 1.0);
+    // 관절 목표 하나 이동 (sendArm: 자세 · 켜질 때 정리 · 집기 접근) 을 최소 저크 곡선 점으로 나누는 간격 [s]. 0 = 끝점 하나 (예전, 3 차)
+    min_jerk_dt_ = declare_parameter<double>("arm.min_jerk_dt", 0.05);
     joint_state_timeout_ = declare_parameter<double>("arm.joint_state_timeout", 1.0);
     requireSize("arm.joint_names", joint_names_.size(), 6);
     requireSize("arm.lower_limits", lower_.size(), 6);
@@ -795,6 +798,7 @@ private:
 
     requirePositive("arm.max_joint_velocity", max_joint_vel_);
     requirePositive("arm.min_duration", min_duration_);
+    if (min_jerk_dt_ < 0.0) {throw std::invalid_argument("arm.min_jerk_dt must be >= 0 (0 = off)");}
     requirePositive("arm.joint_state_timeout", joint_state_timeout_);
     requirePositive("ik.shoulder_height", get_parameter("ik.shoulder_height").as_double());
     requirePositive("ik.forearm", get_parameter("ik.forearm").as_double());
@@ -1092,16 +1096,44 @@ private:
   }
 
   // ------------------------------------------------------------------ 컨트롤러 Action
-  // 관절 목표 하나로 이동 (끝 속도 0)
+  // 관절 목표 하나로 이동 (끝 속도 0). arm.min_jerk_dt > 0 이면 최소 저크 곡선 (min_jerk.hpp) 점으로 나눠
+  //   출발 · 도착 순간 가속도가 튀지 않게 함 (2026-11-13 실물 J2 늦음 · 넘침 · 끝 떨림). 출발점을 모르면 끝점 하나
   void sendArm(
     const std::vector<double> & q, double duration, Done done,
     std::function<void(double)> on_progress = nullptr)
   {
-    trajectory_msgs::msg::JointTrajectoryPoint point;
-    point.positions = q;
-    point.velocities.assign(q.size(), 0.0);
-    point.time_from_start = rclcpp::Duration::from_seconds(duration);
-    sendTrajectory({point}, duration, done, on_progress);
+    std::vector<trajectory_msgs::msg::JointTrajectoryPoint> points;
+    const auto from = min_jerk_dt_ > 0.0 ? trajectoryStart(q) : std::nullopt;
+    for (const auto & s : control::minJerkSamples(from ? *from : q, q, from ? duration : 0.0, min_jerk_dt_)) {
+      trajectory_msgs::msg::JointTrajectoryPoint point;
+      point.positions = s.q;
+      point.velocities = s.v;
+      if (from) {point.accelerations = s.a;}
+      point.time_from_start = rclcpp::Duration::from_seconds(from ? s.t : duration);
+      points.push_back(std::move(point));
+    }
+    sendTrajectory(points, duration, done, on_progress);
+  }
+
+  // 곡선 출발점: arm_controller 원하는 위치 (controller_state reference, interpolate_from_desired_state 와 같은 기준) 가
+  //   0.5 s 안이면 그것, 아니면 측정 위치. 그리퍼 (6 번째) 는 측정 대신 마지막 명령 — 쥔 채로는 측정이 명령보다 덜 닫혀 있어
+  //   측정에서 출발하면 이동 중 집게가 벌어짐. 크기가 다르거나 값이 없으면 nullopt (끝점 하나로)
+  std::optional<std::vector<double>> trajectoryStart(const std::vector<double> & q)
+  {
+    auto start = currentJoints();
+    if (!start || start->size() != q.size()) {return std::nullopt;}
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      const bool ref_fresh = jtc_ref_rx_.nanoseconds() != 0 && (now() - jtc_ref_rx_).seconds() < 0.5;
+      for (size_t i = 0; ref_fresh && i < q.size() && i < joint_names_.size(); ++i) {
+        const auto r = jtc_ref_.find(joint_names_[i]);
+        if (r != jtc_ref_.end() && std::isfinite(r->second)) {(*start)[i] = r->second;}
+      }
+      if (!ref_fresh && q.size() > 5) {
+        (*start)[5] = last_sent_.size() > 5 && std::isfinite(last_sent_[5]) ? last_sent_[5] : q[5];
+      }
+    }
+    return start;
   }
 
   // 여러 점 궤적 전송. duration = 마지막 점의 time_from_start (progress 계산용)
@@ -3677,6 +3709,7 @@ private:
   // 파라미터
   std::vector<std::string> joint_names_;
   std::vector<double> lower_, upper_;
+  double min_jerk_dt_{0.05};
   double max_joint_vel_{0.5}, min_duration_{1.0}, joint_state_timeout_{1.0};
   std::unique_ptr<ArmIK> ik_;
   std::vector<double> approach_pitches_;
