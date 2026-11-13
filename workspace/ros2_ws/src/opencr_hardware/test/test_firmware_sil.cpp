@@ -1198,14 +1198,14 @@ TEST(FirmwareSil, BatteryBeepsFromBuzzer)
   });
 }
 
-// RC-100 리모컨 (2026-11-13): 주행 보드는 BT-410 (Serial2) 로 받은 버튼 · 패킷 뒤 시간을 STATE 의 빈 팔 칸에 싣기만 하고
+// RC-100 리모컨 (2026-11-13): 주행 보드는 BT-410 (UART2 = Serial4) 로 받은 버튼 · 패킷 뒤 시간을 STATE 의 빈 팔 칸에 싣기만 하고
 // 바퀴는 움직이지 않는다 (판단은 호스트 rc100_joy). 팔 보드는 리모컨을 열지 않는다
 TEST(FirmwareSil, WheelForwardsRc100Buttons)
 {
   isolated([] {
     Bench b;
     b.boot();
-    EXPECT_EQ(b.w.rc100_port, 1) << "주행 보드 RC100::begin(1) = Serial2";
+    EXPECT_EQ(b.w.rc100_port, 2) << "주행 보드 RC100::begin(2) = Serial4 = OpenCR UART2 (BT-410 슬레이브 자리, 실물 11-13)";
     EXPECT_EQ(b.a.rc100_port, 0) << "팔 보드는 리모컨을 안 씀";
     auto bytes = [&](std::initializer_list<int> v) {for (int x : v) {b.w.rc100_rx.push_back(static_cast<uint8_t>(x));}};
     auto press = [&](int bits) {

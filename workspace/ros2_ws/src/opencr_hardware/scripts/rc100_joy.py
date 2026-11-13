@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """RC-100 리모컨 → /joy (주행 시험 조작용, 2026-11-13). Nav2 실행과는 따로 쓴다 (bringup rc100:=true 일 때만 뜸).
 
-경로: RC-100 ~ 블루투스 ~ BT-410 (주행 OpenCR, Serial2) → 펌웨어가 STATE 빈 칸에 실음 (opencr_protocol RC100_SLOT_*)
+경로: RC-100B (BT-410 마스터) ~ 블루투스 ~ BT-410 슬레이브 (주행 OpenCR UART2 = Serial4) → 펌웨어가 STATE 빈 칸에 실음 (opencr_protocol RC100_SLOT_*)
       → OpenCRHardware 가 /rc100/raw [버튼, 마지막 패킷 뒤 ms + 1] → 이 노드 → /joy → 기존 teleop_twist_joy · OpenCRHardware E-stop
 버튼 → /joy (opencr_hardware/config/teleop.yaml · opencr_hardware.cpp 기본 번호, 사용자 결정 "데드맨 없이"):
   방향 U/D → axes[1] = ±lin (teleop scale_linear 0.2 → 기본 0.5 × 0.2 = 0.1 m/s)
@@ -12,7 +12,7 @@
 /joy 는 버튼이 바뀌면 바로, 아니면 20 Hz (OpenCRHardware 조이스틱 heartbeat, joy_timeout 0.5 s).
   /rc100/raw 가 link_timeout 동안 없으면 (주행 보드 · 호스트 끊김) /joy 를 멈춤 → OpenCRHardware 가 "조이스틱 무수신" 으로 잠금.
   hold_timeout: 마지막 리모컨 패킷 뒤 이 시간이 지나면 뗀 것으로 봄 (0 = 끔). 리모컨이 누르는 동안 패킷을 되풀이해 보내면 블루투스가
-  끊겼을 때도 멈춤. 되풀이하지 않으면 길게 누를 때 끊김 → 로그의 "누른 동안 가장 긴 패킷 간격" 을 보고 정함 (실물 확인 ★).
+  끊겼을 때도 멈춤. 실물 (2026-11-13): RC-100B 는 누르는 동안 약 50 ~ 60 ms 마다 되풀이하고 떼면 0 을 보냄 → 0.5 s 그대로.
   리모컨 전원이 꺼져도 /rc100/raw 는 계속 오므로 heartbeat 는 이어짐 (E-stop 잠김 아님) — 그때는 방향 버튼 값만 0.
 ⚠ 소프트웨어 정지일 뿐 물리 비상정지가 아님.
 """

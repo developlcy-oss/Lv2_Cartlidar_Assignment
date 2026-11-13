@@ -1,6 +1,6 @@
 // ROBOTIS RC100 라이브러리 대역 (테스트 더블, 2026-11-13). 시험이 g_board.rc100_rx 에 넣은 바이트를 실제 라이브러리처럼
 // 한 번에 1 바이트씩 읽고, FF 55 L ~L H ~H 가 맞으면 available() 이 true · readData() = L | H << 8.
-// 실제 라이브러리 (OpenCR 1.5.3 libraries/RC100) 와 같은 점: begin(1) = Serial2, 1 바이트씩, 보수가 틀리면 버림
+// 실제 라이브러리 (OpenCR 1.5.3 libraries/RC100) 와 같은 점: begin(1) = Serial2 · begin(2) = Serial4, 1 바이트씩, 보수가 틀리면 버림
 #ifndef SIL_RC100_H_
 #define SIL_RC100_H_
 
