@@ -423,3 +423,16 @@ def test_body_matches_robot_geometry():
         pytest.skip("control 패키지 없음")
     base = yaml.safe_load(open(path, encoding="utf-8"))["/**"]["ros__parameters"]["base"]
     assert abs(base["front_offset"] - FRONT) < 1e-9 and abs(base["rear_offset"] + REAR) < 1e-9
+
+
+def test_place_geom_for_mission(world):
+    """#262: 장소 접근 geom (mission 비스듬히 서기가 읽음) = 장소 상자 반 변 · TFmini 렌즈 x, 렌즈 x = 실물 xacro tfmini_link"""
+    import re
+    from mission_planner.poses import LENS_X, PLACES
+    for L, p in PLACES.items():
+        assert world.approaches[L].extra["geom"] == dict(box_half=p["face_dist"], tfmini_x=LENS_X)
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "opencr_hardware", "urdf", "robot.urdf.xacro")
+    if not os.path.exists(path):
+        pytest.skip("opencr_hardware 패키지 없음")
+    m = re.search(r'name="tfmini_link"\s+parent="base_link"\s+xyz="([-0-9.]+) ', open(path, encoding="utf-8").read())
+    assert m and abs(float(m.group(1)) - LENS_X) < 1e-9

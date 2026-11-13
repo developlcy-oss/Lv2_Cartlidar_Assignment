@@ -68,9 +68,8 @@ mission_node:
       min_turn_deg: 0.5          # 회전각이 이 이하면 돌지 않음
       front_timeout_s: 5.0       # measure_front 뒤 결과 (status · 상자) 를 기다리는 시간
       timeout: 90.0              # measure_box 단계 전체 (앞 재기 + 회전 + 접근 + 팔 보기 + 팔 재기)
-      # 차체 앞 끝 · 제자리 회전 중심은 control robot_geometry.yaml base.front_offset · base.icr_x (bringup 이 넘김)
-      box_half: 0.1025           # [m] 장소 상자 반 변 (205 상자)
-      tfmini_x: 0.13             # [m] 1층 TFmini 렌즈 x
+      # 차체 앞 끝 · 제자리 회전 중심은 control robot_geometry.yaml base.front_offset · base.icr_x (bringup 이 넘김),
+      # 장소 상자 반 변 · TFmini 렌즈 x 는 계획기 approach_poses.yaml L1 ~ L3 의 geom 을 읽음 (값을 여기 따로 두지 않음, #262)
     # 시작 박스 집기 (#226, include/mission/start_box.hpp): 시작 박스가 돌거나 밀려 놓여도 퍽 면에 맞춰 집음.
     #   켜면 시작 박스 goto (approach_poses.yaml 의 kind box stage) 뒤 approach 앞 (대기 자리) 에 measure_start 를 끼워
     #   앞 D435 로 상자 (/perception/place_box/measure_front, 사전값 = final + 자세표 geom.box_x 앞) 를 재고, 그 접근의 줄을 바꿔 보냄:

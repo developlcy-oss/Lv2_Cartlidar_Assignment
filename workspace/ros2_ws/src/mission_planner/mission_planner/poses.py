@@ -286,7 +286,8 @@ def make_approaches(solids, gap=0.02, standoffs=STANDOFFS, margin=0.05):
                 wx, wy = cx + gx * GRID_STEP, cy + gy * GRID_STEP
                 d, fwd, lat = j1_dist(a.final, wx, wy)
                 cells[f"{gx},{gy}"] = dict(x=round(wx, 4), y=round(wy, 4), dist=round(d, 4), fwd=round(fwd, 4), lat=round(lat, 4), mode=reach_mode(d))
-        a.extra = {**a.extra, "tag": p["tag"], "cells": cells}
+        # geom: mission 비스듬히 서기 (#229 · #262) 가 쓰는 계획기 기하 — 장소 상자 반 변 · TFmini 렌즈 x (값을 mission 에 따로 두지 않게)
+        a.extra = {**a.extra, "tag": p["tag"], "geom": dict(box_half=p["face_dist"], tfmini_x=LENS_X), "cells": cells}
         out[name] = a
     # 출발 · 관측 · 복귀: 로봇 중심 = (734, 950), -X 를 봄 -> base_link = 중심 - CENTER_X 방향
     home = Pose(*_center_to_base(OBSERVE, math.pi), math.pi)
