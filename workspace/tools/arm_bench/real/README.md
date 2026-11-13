@@ -15,8 +15,8 @@
 - 팔은 관절 1 ~ 5 가 대기 자세 (STOW) 일 때만 켜짐 (그리퍼는 아무 값). 끄기 전 메뉴 9 로 STOW.
 - 결과 정리: #190 (실측) · #192 (누운 퍽) · #165 (덜컹 · 펌웨어 #242 · #244).
 
-## 팔 스킬 하나씩 — `arm_cmd.sh` (2026-11-13, teleop 처럼)
-같은 명령으로 실물 (`real`, 젯슨: `/manipulator/execute_skill` 액션) 과 Isaac 시뮬 (`sim`, PC: 시뮬 스킬 서버 `/sim_skill/cmd`) 에 스킬 하나를 보냄. `dice.sh` 가 이걸 부름.
+## 팔 스킬 teleop — `arm_cmd.sh` · `dice.sh` (2026-11-13)
+같은 명령으로 실물 (`real`, 젯슨: `/manipulator/execute_skill` 액션) 과 Isaac 시뮬 (`sim`, PC: 시뮬 스킬 서버 `/sim_skill/cmd`) 에 스킬 하나를 보냄. `dice.sh` 도 스킬은 모두 이걸로 보냄.
 
 | 명령 | 스킬 |
 |---|---|
@@ -25,6 +25,7 @@
 | `arm_cmd.sh <sim\|real> place <x> <y> <z>` | `place_at:base_link:x:y:z` (z = 놓을 윗면 높이) |
 | `arm_cmd.sh real look <x> <y> <z>` · `real place_cell L1 m1 p1` | `target_look:…` · `place_L1_m1_p1_tilt` |
 | `arm_cmd.sh sim transit\|reset\|cells\|status\|clear\|fill 3_0 2_1` | 시뮬 전용 |
+| `dice.sh real L1 5 --slots "3_0 3_1 3_2 2_0 2_1" [--record]` · `dice.sh sim - 5` | 팔레트 칸에서 꺼내 장소 3×3 에 주사위 눈 (1~6) 배치 (mission DICE 와 같은 칸, 먼 칸부터). `--dry` 로 보낼 스킬만 확인, `--record` 면 ros2 bag → `~/실측/dice_*` |
 
 - 끝 코드: 0 성공 · 1 실패 · 2 서버 없음 · 3 시간 초과 (`ARM_TIMEOUT`, 기본 120 s). 실물은 `ROS_WS` 를 주면 그 `install/setup.bash` 를 불러옴.
 - `sim` 은 PC 에서 `sim_cmd.py` (같은 폴더) 가 `~/ros2_lyrical` 로 보냄. 서버는 `workspace/urdf_and_usd/policy/manipulator/tools/README.md` 참고.
