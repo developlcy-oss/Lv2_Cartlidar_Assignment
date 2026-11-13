@@ -146,8 +146,8 @@ def footprint_clear(solids, pose: Pose, margin=0.0):
     fp = footprint_poly(pose, margin)
     lo, hi = fp.min(0), fp.max(0)
     for s in solids:
-        q = s.footprint()
-        if (q.max(0) < lo).any() or (q.min(0) > hi).any():
+        q, qlo, qhi = s.footprint_box()
+        if qhi[0] < lo[0] or qhi[1] < lo[1] or qlo[0] > hi[0] or qlo[1] > hi[1]:
             continue
         if _sat_overlap(fp, q):
             return False
