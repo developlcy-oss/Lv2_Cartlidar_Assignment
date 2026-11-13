@@ -2374,8 +2374,8 @@
   <link name="puck_R_1">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.012" />
-      <inertia ixx="4.275e-06" ixy="0" ixz="0" iyy="4.275e-06" iyz="0" izz="1.35e-06" />
+      <mass value="0.013" />
+      <inertia ixx="4.63125e-06" ixy="0" ixz="0" iyy="4.63125e-06" iyz="0" izz="1.4625e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2399,8 +2399,8 @@
   <link name="puck_R_2">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.018" />
-      <inertia ixx="6.75e-06" ixy="0" ixz="0" iyy="6.75e-06" iyz="0" izz="2.7e-06" />
+      <mass value="0.017" />
+      <inertia ixx="6.375e-06" ixy="0" ixz="0" iyy="6.375e-06" iyz="0" izz="2.55e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2424,8 +2424,8 @@
   <link name="puck_R_3">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.012" />
-      <inertia ixx="4.275e-06" ixy="0" ixz="0" iyy="4.275e-06" iyz="0" izz="1.35e-06" />
+      <mass value="0.013" />
+      <inertia ixx="4.63125e-06" ixy="0" ixz="0" iyy="4.63125e-06" iyz="0" izz="1.4625e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2449,8 +2449,8 @@
   <link name="puck_R_4">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.018" />
-      <inertia ixx="6.75e-06" ixy="0" ixz="0" iyy="6.75e-06" iyz="0" izz="2.7e-06" />
+      <mass value="0.017" />
+      <inertia ixx="6.375e-06" ixy="0" ixz="0" iyy="6.375e-06" iyz="0" izz="2.55e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2474,8 +2474,8 @@
   <link name="puck_G_1">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.018" />
-      <inertia ixx="6.75e-06" ixy="0" ixz="0" iyy="6.75e-06" iyz="0" izz="2.7e-06" />
+      <mass value="0.017" />
+      <inertia ixx="6.375e-06" ixy="0" ixz="0" iyy="6.375e-06" iyz="0" izz="2.55e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2499,8 +2499,8 @@
   <link name="puck_G_2">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.012" />
-      <inertia ixx="4.275e-06" ixy="0" ixz="0" iyy="4.275e-06" iyz="0" izz="1.35e-06" />
+      <mass value="0.013" />
+      <inertia ixx="4.63125e-06" ixy="0" ixz="0" iyy="4.63125e-06" iyz="0" izz="1.4625e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2524,8 +2524,8 @@
   <link name="puck_G_3">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.018" />
-      <inertia ixx="6.75e-06" ixy="0" ixz="0" iyy="6.75e-06" iyz="0" izz="2.7e-06" />
+      <mass value="0.017" />
+      <inertia ixx="6.375e-06" ixy="0" ixz="0" iyy="6.375e-06" iyz="0" izz="2.55e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2549,8 +2549,8 @@
   <link name="puck_G_4">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.012" />
-      <inertia ixx="4.275e-06" ixy="0" ixz="0" iyy="4.275e-06" iyz="0" izz="1.35e-06" />
+      <mass value="0.013" />
+      <inertia ixx="4.63125e-06" ixy="0" ixz="0" iyy="4.63125e-06" iyz="0" izz="1.4625e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2574,8 +2574,8 @@
   <link name="puck_B_1">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.012" />
-      <inertia ixx="4.275e-06" ixy="0" ixz="0" iyy="4.275e-06" iyz="0" izz="1.35e-06" />
+      <mass value="0.013" />
+      <inertia ixx="4.63125e-06" ixy="0" ixz="0" iyy="4.63125e-06" iyz="0" izz="1.4625e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -2599,8 +2599,8 @@
   <link name="puck_B_2">
     <inertial>
       <origin rpy="0 0 0" xyz="0 0 0" />
-      <mass value="0.018" />
-      <inertia ixx="6.75e-06" ixy="0" ixz="0" iyy="6.75e-06" iyz="0" izz="2.7e-06" />
+      <mass value="0.017" />
+      <inertia ixx="6.375e-06" ixy="0" ixz="0" iyy="6.375e-06" iyz="0" izz="2.55e-06" />
     </inertial>
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0" />

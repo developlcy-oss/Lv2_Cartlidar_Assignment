@@ -23,7 +23,7 @@ cd workspace/urdf_and_usd/isaac
 |---|---|
 | `usd/light/waffle_4wd_light/waffle_4wd_light.usda` | 가벼운 판: 차체 충돌 = 상자 (팔레트 = 바닥판 상자 + 칸마다 꽉 찬 상자). 주행 · 미로 학습 기본 |
 | `usd/full/waffle_4wd_full/waffle_4wd_full.usda` | 정밀 판: 차체 · 팔레트 충돌 = CoACD 볼록 조각 (전체 478). 퍽 집기 · 팔레트 · 벽 가까이 시험 |
-| `usd/loaded/waffle_4wd_loaded/waffle_4wd_loaded.usda` | 가벼운 판 + 팔레트 칸마다 퍽 (12개, 원기둥 12 g · 사각 18 g, 몸체에 고정 · 충돌 형상 있음 #220 — 팔이 실린 퍽에 닿으면 자기 충돌로 잡힘). 퍽 실은 주행 |
+| `usd/loaded/waffle_4wd_loaded/waffle_4wd_loaded.usda` | 가벼운 판 + 팔레트 칸마다 퍽 (v5 10개, 원기둥 13 g · 사각기둥 17 g 실측, 몸체에 고정 · 충돌 형상 있음 #220 — 팔이 실린 퍽에 닿으면 자기 충돌로 잡힘). 퍽 실은 주행 |
 | `robot_params.json` | 물리값 (value · 단위 · 근거 status · 출처 source) |
 | `waffle_4wd_isaac/robot_cfg.py` | Isaac Lab 관절체 설정 `WAFFLE_4WD_CFG` (가벼운) · `WAFFLE_4WD_FULL_CFG` (정밀) · `WAFFLE_4WD_LOADED_CFG` (퍽 12개), 시작 자세 `pose()` |
 | `waffle_4wd_isaac/sensors_cfg.py` | LDS-03 ×2 · TFmini · IMU · D435 ×2 · 팔 카메라 설정, LiDAR 자기 가림 |

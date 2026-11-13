@@ -137,8 +137,8 @@ class WaffleLieUprightEnvCfg(WaffleSidePick45EnvCfg):
     def __post_init__(self):
         super().__post_init__()
         self.pick_j3_max = None  # 세우기 · 놓기 자세는 집기와 다름. 몸체 · 자기 충돌은 종료 조건으로 막음
-        # 2026-11-11 (#192 반영): 퍽 질량 = 사용자 실측 (원기둥 13.5 g, 직육면체 17.5 g, 릴리스 rl-20261110 dice2_cfg 값). dev dice2_cfg 는 옛 추정 45 · 55 g 이라 이 환경에서만 덮어씀 (다른 환경은 그대로)
-        for k_, m_ in (("puckT_cyl", 0.0135), ("puckT_box", 0.0175), ("puckN", 0.0135)):
+        # 퍽 질량 = 사용자 실측 (2026-11-13: 원기둥 13 g, 사각기둥 17 g = dice2_cfg.PUCK_MASS). 이전 #192 값 13.5 · 17.5 g
+        for k_, m_ in (("puckT_cyl", 0.013), ("puckT_box", 0.017), ("puckN", 0.013)):
             o_ = getattr(self.scene, k_)
             setattr(self.scene, k_, o_.replace(spawn=o_.spawn.replace(mass_props=sim_utils.MassPropertiesCfg(mass=m_))))
 
