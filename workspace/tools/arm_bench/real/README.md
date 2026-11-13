@@ -10,6 +10,7 @@
 | `pick_test.py` | 인식 (READ_TAG) → target_look → toppick_tilt 한 번 + 팔 카메라 영상 · 관절 · 로그 | `python3 ~/pick_test.py [메모]` |
 | `lie_test.py` | 누운 퍽: target_look → lie_upright 한 번 + 기록 | `python3 ~/lie_test.py <상자 x> <상자 y> <요 deg> [메모]` |
 | `estop_rec.py` | E-stop 시험 기록: 관절 실제 · arm_controller 원하는 위치 · /e_stop (600 s) | `python3 ~/estop_rec.py` |
+| `dice.sh` | 팔레트 칸 퍽 꺼내기 → 장소 3×3 에 주사위 눈 (1~6) 배치 (mission DICE 와 같은 칸, 먼 칸부터). `--record` 면 ros2 bag (관절 · 팔 카메라 · 인식) → `~/실측/dice_*` | `~/dice.sh real L1 5 --slots "3_0 3_1 3_2 2_0 2_1" --record` (`--dry` 로 미리 확인. Isaac 시뮬은 `dice.sh sim - <눈>`, IsaacLab tools 의 arm_cmd.sh 필요) |
 
 - 브링업: `ros2 launch bringup bringup.launch.py skill_enabled:=true sim:=false` → `kbd_joy.py` 에서 `r`.
 - 팔은 관절 1 ~ 5 가 대기 자세 (STOW) 일 때만 켜짐 (그리퍼는 아무 값). 끄기 전 메뉴 9 로 STOW.
