@@ -28,6 +28,7 @@
   <exec_depend>twist_mux</exec_depend>
   <exec_depend>teleop_twist_joy</exec_depend>
   <exec_depend>joy</exec_depend>
+  <exec_depend>rclpy</exec_depend>   <!-- scripts/rc100_joy.py -->
   <exec_depend>xacro</exec_depend>
   <exec_depend>topic_based_ros2_control</exec_depend>   <!-- backend:=isaac (Isaac Sim) -->
 

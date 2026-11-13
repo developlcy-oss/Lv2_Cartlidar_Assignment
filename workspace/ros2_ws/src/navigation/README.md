@@ -30,8 +30,15 @@ ros2 launch navigation navigation.launch.py max_wz:=0.8 rotate_wz:=0.6         #
   `ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: {header: {frame_id: map}, pose: {position: {x: 0.734, y: 0.2915}, orientation: {w: 1.0}}}}"`
 ### 실물 첫 실행 (★ 실물에서 아직 안 돌려 봄, 2026-11-09 · 11-12 갱신)
 
-물리 비상정지 버튼은 없다. 조이스틱 E-stop(버튼 6)은 소프트웨어 정지라 첫 주행은 전원 스위치에 손이 닿는 곳에서 한다.
-조이스틱(데드맨 LB 를 누른 채, 우선순위 100)이 Nav2(10)를 덮으므로 이상하면 조이스틱으로 잡는다. 조이스틱이 없으면 E-stop 이 계속 잠겨 바퀴가 안 돈다.
+물리 비상정지 버튼은 없다. 조이스틱 E-stop 은 소프트웨어 정지라 첫 주행은 전원 스위치에 손이 닿는 곳에서 한다.
+**주행 시험 (리모컨) 과 Nav2 자동 주행은 따로 띄운다** (2026-11-13 결정). 리모컨은 로봇이 제대로 움직이는지 보는 시험용이다.
+
+- 리모컨 주행 시험 (Nav2 없음, RC-100 — 수신기는 주행 OpenCR 의 BT-410, `opencr_firmware/README.md`):
+  `ros2 launch opencr_hardware base_bringup.launch.py rc100:=true obstacle_lock:=false`
+  → 켠 뒤 **2 + 3 을 한 번** 눌러 E-stop 을 푼다 (켤 때는 늘 잠김). 방향 버튼 = 앞뒤 0.1 m/s · 회전 0.5 rad/s (누르는 동안만), 1 = E-stop.
+  로그 `rc100_joy` 의 "누른 동안 가장 긴 패킷 간격" 이 누른 시간과 비슷하면 리모컨이 패킷을 되풀이하지 않는 것 → `rc100_hold_timeout:=0`.
+- Nav2 자동 주행: 리모컨 · 조이스틱 없이 **`use_teleop:=false`** (아래 명령). 안 주면 조이스틱 heartbeat 가 없어 E-stop 이 계속 잠겨 바퀴가 안 돈다.
+  이때는 조이스틱 E-stop 이 없으므로 멈출 때는 launch 를 Ctrl+C 하거나 전원을 내린다.
 
 준비
 
@@ -39,7 +46,8 @@ ros2 launch navigation navigation.launch.py max_wz:=0.8 rotate_wz:=0.6         #
   보드를 다시 켜야만 풀린다 (그때는 두 보드 RESET).
 - **팔이 대기 자세여야 켜진다.** 호스트는 켤 때 팔 6 축 tick 이 대기 범위 (`opencr_hardware/urdf/opencr.ros2_control.xacro` `arm_standby_min/max_tick`) 밖이면
   하드웨어 활성화를 거부한다 (#166). 켜지면 첫 명령이 팔 토크를 켜고 그 자리를 유지한다.
-  ★ 2026-11-11 실측: 그리퍼를 손으로 다 닫아도 2568 ~ 2589 로 최소 2590 보다 낮다 → 그리퍼 측정 · 범위 정리 전까지는 이 검사에서 막힌다.
+  그리퍼는 #243 (2026-11-12) 부터 펌웨어 범위 전체를 허용한다 (예전: 손으로 다 닫아도 2568 ~ 2589 < 최소 2590 이라 막힘).
+  리모컨 시험 (base_bringup 만) 에서는 팔이 대기 자세 그대로 토크로 버틴다. bringup 전체를 켜면 manipulator 가 주행 자세 (DRIVE) 로 편다 (#144).
 - **회전 속도 (증속 벨트).** 모터 = 로봇 회전 × 3.20. 2026-11-11 바닥 시험에서 제자리 회전 모터 3.0 (로봇 0.94 rad/s) 에 뒤 바퀴 속도가 출렁였고 7.0 에서 벨트가 빠졌다.
   diff_drive 상한은 1.0 rad/s (모터 3.2). 첫 주행은 `max_wz:=0.8 rotate_wz:=0.6` 부터 ★ (벨트 장력을 손본 뒤 다시 정함).
 - 로봇을 출발 구역 가운데에 서쪽 벽(−X)을 보게 놓는다. AMCL 은 출발 자세 (0.69365, 0.95, yaw π) 에서 시작한다. 다른 곳이면 `start_x:= start_y:= start_yaw:=`.
@@ -50,7 +58,7 @@ ros2 launch navigation navigation.launch.py max_wz:=0.8 rotate_wz:=0.6         #
   TFmini 가 없으면 obstacle_stop 이 "입력 없음" 정지를 계속 내서 Nav2 가 막히므로 `use_tfmini:=false` (TFmini 정지 없음, collision_monitor 만 남음).
 
 ```bash
-ros2 launch bringup bringup.launch.py use_localization:=true use_nav2:=true \
+ros2 launch bringup bringup.launch.py use_localization:=true use_nav2:=true use_teleop:=false \
   use_loc_monitor:=false use_loc_lock:=false use_loc_gate:=false \
   use_perception:=false use_d435:=false use_arm_camera:=false use_tfmini:=false \
   lidar_front_port:=/dev/serial/by-path/<앞> lidar_rear_port:=/dev/serial/by-path/<뒤> \
@@ -70,7 +78,7 @@ ros2 run tf2_ros tf2_echo map base_link        # 출발 자세 근처 (0.69, 0.9
 ```
 
 1. `lifecycle_manager_navigation ... Managed nodes are active` 를 기다린다.
-2. 조이스틱으로 0.3 m 앞으로 → 반시계로 90° 돌려 보고 `tf2_echo map base_link` 가 같은 쪽으로 따라오는지 본다
+2. (리모컨 주행 시험을 먼저 끝낸 뒤) 짧은 목표로 0.3 m 앞 → 90° 회전을 시켜 보고 `tf2_echo map base_link` 가 같은 쪽으로 따라오는지 본다
    (x 가 줄고, yaw 180° → −90°). 반대로 가면 멈추고 바퀴 방향 · IMU 부호부터 본다.
 3. 짧은 목표 (남쪽 0.5 m, 남쪽 봄) → 출발 자세로 돌아오기:
 

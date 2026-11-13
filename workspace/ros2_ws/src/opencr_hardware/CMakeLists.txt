@@ -34,6 +34,8 @@ install(TARGETS ${PROJECT_NAME} EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
 install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 install(DIRECTORY config urdf launch udev DESTINATION share/${PROJECT_NAME})
+# RC-100 리모컨 → /joy (주행 시험 조작, bringup rc100:=true). 팔 · 바퀴 도구 (opencr_*_tool.py) 는 저장소에서 바로 실행
+install(PROGRAMS scripts/rc100_joy.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
@@ -83,6 +85,7 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_model_compare test/test_model_compare.py TIMEOUT 60
     ENV MODEL_COMPARE_JSON=${CMAKE_BINARY_DIR}/test_results/${PROJECT_NAME}/model_compare.json)
+  ament_add_pytest_test(test_rc100_joy test/test_rc100_joy.py TIMEOUT 30)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)

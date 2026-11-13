@@ -2,6 +2,7 @@
 # ros2 launch opencr_hardware base_bringup.launch.py wheel_count:=4 use_gripper:=false drive:=belt
 # 장치 없이: ros2 launch opencr_hardware base_bringup.launch.py backend:=mock use_teleop:=false
 # Isaac Sim: ros2 launch opencr_hardware base_bringup.launch.py backend:=isaac use_teleop:=false  (브리지 workspace/tools/isaac_sim, 예전 이름 sim:=true 도 같음)
+# RC-100 리모컨 주행 시험 (Nav2 와 따로): ros2 launch opencr_hardware base_bringup.launch.py rc100:=true  → joy_node 대신 rc100_joy (scripts/rc100_joy.py)
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
@@ -31,6 +32,9 @@ def _setup(context):
     wheel_count = LaunchConfiguration('wheel_count').perform(context)
     use_gripper = LaunchConfiguration('use_gripper').perform(context).lower() == 'true'
     use_teleop = LaunchConfiguration('use_teleop').perform(context).lower() == 'true'
+    rc100 = LaunchConfiguration('rc100').perform(context).lower() == 'true'
+    if rc100 and not use_teleop:
+        raise RuntimeError('rc100:=true 는 use_teleop:=true 와 같이 (teleop_twist_joy · 조이스틱 heartbeat 를 씀)')
     drive = LaunchConfiguration('drive').perform(context)
     if drive not in ('direct', 'belt'):
         raise RuntimeError(f'drive 는 direct 또는 belt: {drive}')
@@ -90,9 +94,16 @@ def _setup(context):
     if use_gripper:
         nodes.append(spawner('gripper_controller'))
     if use_teleop:
-        nodes += [
+        # 조이스틱 입력: USB 게임패드 (joy_node) 또는 RC-100 (주행 OpenCR 의 BT-410 → STATE → /rc100/raw → rc100_joy). 둘 중 하나만
+        nodes.append(
+            Node(package='opencr_hardware', executable='rc100_joy.py', name='rc100_joy', output='screen',
+                 parameters=[{'lin': float(LaunchConfiguration('rc100_lin').perform(context)),
+                              'ang': float(LaunchConfiguration('rc100_ang').perform(context)),
+                              'hold_timeout': float(LaunchConfiguration('rc100_hold_timeout').perform(context))}, clock])
+            if rc100 else
             Node(package='joy', executable='joy_node', name='joy_node', output='screen',
-                 parameters=[PathJoinSubstitution([pkg, 'config', 'teleop.yaml']), clock]),
+                 parameters=[PathJoinSubstitution([pkg, 'config', 'teleop.yaml']), clock]))
+        nodes += [
             Node(package='joy_teleop', executable='joy_teleop', name='joy_teleop', output='screen',
                  parameters=[PathJoinSubstitution([pkg, 'config', 'teleop.yaml']), clock]),
             Node(package='teleop_twist_joy', executable='teleop_node', name='teleop_twist_joy_node',
@@ -108,6 +119,13 @@ def generate_launch_description():
                               description='실물 바퀴 수 (기본 4 = 주행 펌웨어 WHEEL_COUNT, 6 은 이전 6륜 구성)'),
         DeclareLaunchArgument('use_gripper', default_value='false', description='그리퍼 개폐 액추에이터 사용'),
         DeclareLaunchArgument('use_teleop', default_value='true'),
+        DeclareLaunchArgument('rc100', default_value='false',
+                              description='RC-100 리모컨으로 주행 시험 (joy_node 대신 rc100_joy). 방향 = 이동 · 1 = E-stop · 2+3 = 풀기. '
+                                          'Nav2 실행과 따로 쓴다 (주행 시험 전용)'),
+        DeclareLaunchArgument('rc100_lin', default_value='0.5', description='RC-100 앞뒤 축 값 (× teleop scale_linear 0.2 = 0.1 m/s)'),
+        DeclareLaunchArgument('rc100_ang', default_value='0.5', description='RC-100 회전 축 값 (× teleop scale_angular 1.0 = 0.5 rad/s, 모터 1.6)'),
+        DeclareLaunchArgument('rc100_hold_timeout', default_value='0.5',
+                              description='RC-100 마지막 패킷 뒤 이 시간 [s] 이 지나면 뗀 것으로 봄. 0 = 끔 (리모컨이 누르는 동안 되풀이해 보내지 않을 때)'),
         DeclareLaunchArgument('ports', default_value='/dev/ttyACM0,/dev/ttyACM1',
                               description='역할 자동 판별을 위한 두 OpenCR 후보 포트, 쉼표로 구분'),
         DeclareLaunchArgument('drive', default_value='belt',

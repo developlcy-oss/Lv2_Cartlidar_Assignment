@@ -71,6 +71,8 @@ struct SilBoard
   float vin = 12.0f;
   std::vector<SilTone> tones;      // 부저 tone() 기록 (battery_alarm)
   bool motors_follow_goals = true;   // 토크 ON 모터가 목표에 즉시 도달 (이상적 모델)
+  std::deque<uint8_t> rc100_rx;     // RC-100 수신기 (BT-410, Serial2) 로 들어온 바이트 — stubs/RC100.h 가 읽음 (주행 보드)
+  int rc100_port = 0;              // RC100::begin(n) 의 n (0 = begin 안 함)
   void (*setup)() = nullptr;
   void (*loop)() = nullptr;
 };

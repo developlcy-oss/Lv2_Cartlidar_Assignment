@@ -214,6 +214,13 @@ int64_t OpenCRHardware::steady_ns()
     std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
+// RC-100 STATE 칸 (float) → 정수. 음수 · NaN · 너무 큰 값은 0 (예전 펌웨어는 0 을 보냄 = 받은 적 없음)
+static uint32_t rc100_value(float v)
+{
+  return (std::isfinite(v) && v >= 0.f && v < 1.0e9f) ? static_cast<uint32_t>(v) : 0u;
+}
+static constexpr const char * RC100_RAW_TOPIC = "/rc100/raw";   // std_msgs/UInt32MultiArray [버튼 비트, 마지막 패킷 뒤 ms + 1]
+
 // /joy · /e_stop · /diagnostics — 하드웨어 컴포넌트 노드 (controller_manager executor 가 콜백 · 타이머를 돌림)
 void OpenCRHardware::setup_ros_io()
 {
@@ -239,6 +246,20 @@ void OpenCRHardware::setup_ros_io()
         publish_diagnostics(false);   // 오류로 바뀌면 즉시
       });
   diag_timer_ = node->create_wall_timer(std::chrono::seconds(1), [this]() {publish_diagnostics(true);});
+  // RC-100 → /rc100/raw (rc100_joy 노드가 /joy 로 바꿈). 버튼이 바뀌면 다음 10 ms 틱에 바로, 아니면 20 Hz.
+  //   주행 보드 STATE 가 0.2 s 끊기면 내지 않음 → rc100_joy 가 /joy 를 멈춰 조이스틱 무수신 잠금
+  rc100_pub_ = node->create_publisher<std_msgs::msg::UInt32MultiArray>(RC100_RAW_TOPIC, 10);
+  rc100_timer_ = node->create_wall_timer(std::chrono::milliseconds(10), [this]() {
+        const int64_t now = steady_ns(), rx = rc100_rx_ns_.load();
+        if (rx == 0 || now - rx > 200'000'000) {return;}
+        const uint32_t buttons = rc100_buttons_.load();
+        if (buttons == rc100_sent_buttons_ && now - rc100_sent_ns_ < 50'000'000) {return;}
+        std_msgs::msg::UInt32MultiArray m;
+        m.data = {buttons, rc100_age_.load()};
+        rc100_pub_->publish(m);
+        rc100_sent_buttons_ = buttons;
+        rc100_sent_ns_ = now;
+      });
 }
 
 void OpenCRHardware::publish_estop()
@@ -401,6 +422,9 @@ void OpenCRHardware::refresh_aggregate_state()
       std::copy(std::begin(s.gyro), std::end(s.gyro), std::begin(merged.gyro));
       std::copy(std::begin(s.accel), std::end(s.accel), std::begin(merged.accel));
       merged.battery_v = s.battery_v;
+      rc100_buttons_.store(rc100_value(s.pos[opencr_proto::RC100_SLOT_BUTTONS]));
+      rc100_age_.store(rc100_value(s.pos[opencr_proto::RC100_SLOT_AGE]));
+      rc100_rx_ns_.store(steady_ns());
     } else if (s.role == opencr_proto::ROLE_ARM) {
       arm = true;
       for (int i = 0; i < opencr_proto::ARM_JOINTS; ++i) {

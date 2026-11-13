@@ -29,6 +29,9 @@
 
 #include <Dynamixel2Arduino.h>
 #include <IMU.h>
+#if OPENCR_BOARD_ROLE == 1
+#include <RC100.h>   // OpenCR 보드 패키지 라이브러리 (ROBOTIS). 주행 보드의 BT-410 수신기 = Serial2 57600
+#endif
 
 #include "config.h"
 #include "battery_alarm.h"
@@ -68,6 +71,13 @@ static opencr_battery::BatteryAlarm g_battery_alarm({BATTERY_CELLS, BATTERY_NONE
   BATTERY_HYST_V, BATTERY_WARN_HOLD_MS, BATTERY_CRIT_HOLD_MS, BATTERY_RECOVER_HOLD_MS, BATTERY_SETTLE_MS,
   BATTERY_WARN_PERIOD_MS, BATTERY_CRIT_PERIOD_MS});
 static bool g_config_error = false;  // 부팅 점검 실패 (래치 — 재부팅으로만 지움)
+#if OPENCR_BOARD_ROLE == 1
+// RC-100 리모컨 (주행 시험 조작용, 2026-11-13). 버튼만 STATE 로 넘기고 바퀴는 직접 움직이지 않는다 (opencr_protocol.h RC100_SLOT_*)
+static RC100 g_rc100;
+static uint16_t g_rc100_buttons = 0;
+static uint32_t g_rc100_rx_ms = 0;
+static bool g_rc100_seen = false;
+#endif
 
 static opencr_proto::FrameParser g_parser;
 static const int RX_BYTES_PER_CALL = 4 * (int)opencr_proto::MAX_FRAME;   // receiveHost 한 번에 읽는 최대 바이트
@@ -415,6 +425,20 @@ static void writeGoals()
 }
 
 // ---- 상태 송신 ----
+// RC-100: available() 은 한 번에 1 바이트만 읽고 패킷이 끝나면 true → 매 loop 여러 번 불러 쌓인 바이트를 비움 (57600 bps ≈ 6 바이트/ms)
+static void pollRemote()
+{
+#if OPENCR_BOARD_ROLE == 1
+  for (int k = 0; k < 32; ++k) {
+    if (g_rc100.available()) {
+      g_rc100_buttons = g_rc100.readData();
+      g_rc100_rx_ms = millis();
+      g_rc100_seen = true;
+    }
+  }
+#endif
+}
+
 static void sendState()
 {
   State s;
@@ -427,6 +451,13 @@ static void sendState()
       s.vel[i] = WHEEL_DIR[i] * p.velocity * RADS_PER_VEL_RAW * WHEEL_GEAR;
       s.effort[i] = WHEEL_DIR[i] * p.current * AMP_PER_CUR_RAW;
     }
+#if OPENCR_BOARD_ROLE == 1
+    s.pos[opencr_proto::RC100_SLOT_BUTTONS] = g_rc100_buttons;
+    if (g_rc100_seen) {
+      const uint32_t age = millis() - g_rc100_rx_ms;
+      s.pos[opencr_proto::RC100_SLOT_AGE] = static_cast<float>((age > 600000UL ? 600000UL : age) + 1);   // 0 = 받은 적 없음
+    }
+#endif
   } else {
     for (int i = 0; i < ARM_COUNT; ++i) {
       const PresentData & p = g_present[i];
@@ -506,12 +537,16 @@ void setup()
   if (g_config_error) {g_safety.set_fault();}
 
   imu.begin();
+#if OPENCR_BOARD_ROLE == 1
+  g_rc100.begin(1);   // 1 = Serial2 (ROBOTIS 예제 · TurtleBot3 와 같음)
+#endif
 }
 
 void loop()
 {
   static uint32_t last_us = micros();
   receiveHost();
+  pollRemote();
   imu.update();
   const uint32_t now = micros();
   if ((uint32_t)(now - last_us) >= CONTROL_PERIOD_US) {

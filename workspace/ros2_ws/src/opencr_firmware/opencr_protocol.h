@@ -35,6 +35,13 @@ static const uint8_t ROLE_ARM = 2;
 static const int MAX_WHEELS = 6;
 static const int ARM_JOINTS = 6;          // joint1~5 + gripper_roll
 static const int STATE_JOINTS = MAX_WHEELS + ARM_JOINTS;
+// RC-100 리모컨 (주행 시험 조작용, 2026-11-13): 바퀴 보드는 STATE 의 팔 칸 (MAX_WHEELS ~) 을 쓰지 않고, 호스트도 바퀴 보드에서는
+//   0 ~ MAX_WHEELS-1 칸만 읽으므로 그 자리에 싣는다. 길이 · 오프셋 · PROTOCOL_VERSION 은 그대로 (v5).
+//   바퀴 보드 STATE pos[RC100_SLOT_BUTTONS] = 버튼 비트 (ROBOTIS RC100_BTN_*: U 1 · D 2 · L 4 · R 8 · 1 16 · 2 32 · 3 64 · 4 128 · 5 256 · 6 512)
+//                   pos[RC100_SLOT_AGE]     = 마지막 리모컨 패킷 뒤 ms + 1 (0 = 받은 적 없음 또는 예전 펌웨어)
+//   펌웨어는 리모컨으로 바퀴를 직접 움직이지 않는다 — 호스트 (rc100_joy) 가 /joy 로 바꿔 기존 조이스틱 경로로 보낸다.
+static const int RC100_SLOT_BUTTONS = MAX_WHEELS + 0;
+static const int RC100_SLOT_AGE = MAX_WHEELS + 1;
 
 // CMD flags
 static const uint8_t FLAG_TORQUE_ON = 0x01;
