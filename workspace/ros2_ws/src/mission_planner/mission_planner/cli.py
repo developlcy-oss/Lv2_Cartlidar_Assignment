@@ -55,7 +55,8 @@ def make_maps(argv=None):
         f.write("# 접근 자세표 (mission_make_maps 가 만듦, 직접 고치지 말 것). 지도 = 발제 좌표 [m], yaw [rad] = 로봇 앞 방향.\n"
                 "# final = 집기 · 놓기 자세 (앞 끝 - 면 = gap), stage = nav2 목표 (앞 끝 - 면 = standoff), ok = 외곽이 장애물과 안 겹침.\n"
                 "# 시작 박스: S = 남쪽 (yaw +90°) · N = 북쪽 (yaw -90°) 에서 두 퍽 잇는 선에 수직으로. ±Y 둘 다 안 되는 박스만 W · E (inline).\n"
-                "# pucks: 박스 퍽 (side -1 = X − 40, +1 = X + 40) 의 J1 축 거리 [m]. cells: 장소 3 x 3 칸 (dx,dy 칸 단위, +Y 위) 의 J1 거리 · 집게 방식.\n")
+                "# pucks: 박스 퍽 (side -1 = X − 40, +1 = X + 40) 의 J1 축 거리 [m]. cells: 장소 3 x 3 칸 (dx,dy 칸 단위, +Y 위) 의 J1 거리 · 집게 방식.\n"
+                "# geom (시작 박스): 계획기 기하 j1_x · center_x (poses.J1_X · CENTER_X) · box_x (집기 자리 base_link -> 상자 중심 x) — mission start_box 가 읽음.\n")
         yaml.safe_dump(table, f, allow_unicode=True, sort_keys=False, width=200)
     print(f"지도: {a.out}/maps/map_nav · map_amcl (.pgm .yaml), 칸 {a.res} m, 크기 {nav.shape[1]} x {nav.shape[0]}")
     bad = [k for k, v in w.approaches.items() if not v.ok]

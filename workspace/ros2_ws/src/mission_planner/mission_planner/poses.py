@@ -261,7 +261,10 @@ def make_approaches(solids, gap=0.02, standoffs=STANDOFFS, margin=0.05):
                 d, fwd, lat = j1_dist(a.final, cx + sx * PUCK_DX, cy)
                 t = 0.0 if side in ("W", "E") else turn_deg(lat)  # inline: 퍽이 J1 앞 일직선 (lat 0)
                 pk[sx] = dict(dist=round(d, 4), fwd=round(fwd, 4), lat=round(lat, 4), turn_deg=round(t, 2))
-            a.extra = {**a.extra, "box": b, "side": side, "inline": side in ("W", "E"), "pucks": pk,
+            # geom: mission start_box (#226) 가 계획 줄 퍽 자리를 상자 틀로 되돌릴 때 쓰는 계획기 기하 (값을 mission 에 따로 두지 않게).
+            #   box_x = 집기 자리 base_link -> 상자 중심 x (앞 끝 + gap + 반 변)
+            geom = dict(j1_x=J1_X, center_x=round(CENTER_X, 5), box_x=round(FRONT + (GAP_INLINE if side in ("W", "E") else BOX_GAP) + BOX_HALF, 4))
+            a.extra = {**a.extra, "box": b, "side": side, "inline": side in ("W", "E"), "geom": geom, "pucks": pk,
                        "turn_range_deg": turn_range(solids, a.final, target=next(
                            (s for s in solids if abs(s.x - cx) < 1e-6 and abs(s.y - cy) < 1e-6 and s.sx > 0), None))}
             bad = [f"{v['dist']:.3f}" for v in pk.values() if reach_mode(v["dist"]) != "tilt"]

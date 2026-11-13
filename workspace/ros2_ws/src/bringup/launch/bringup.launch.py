@@ -86,7 +86,8 @@ def generate_launch_description():
         source = LaunchConfiguration('mission_source').perform(context)
         if source not in ('tag', 'plan'):
             raise RuntimeError(f'mission_source 는 tag 또는 plan: {source}')
-        mission_params = [PathJoinSubstitution([mis, 'config', 'mission.yaml'])]
+        # geometry: 차체 기하 base.* (front_offset · icr_x) 를 drive 와 같은 파일에서 (mission 비스듬히 서기 · 시작 박스, 값 한 곳)
+        mission_params = [geometry, PathJoinSubstitution([mis, 'config', 'mission.yaml'])]
         if source == 'plan':   # mission_bringup.launch.py source:=plan 과 같은 덧씌우기 + 측량 결과 경로 = 계획기 pucks_file
             log_dir, pucks = log_paths(context)
             mission_params += [PathJoinSubstitution([mis, 'config', 'mission_plan.yaml']),

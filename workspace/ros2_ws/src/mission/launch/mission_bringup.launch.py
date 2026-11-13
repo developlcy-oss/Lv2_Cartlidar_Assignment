@@ -4,7 +4,7 @@
 #   source:=tag          옛 태그 미션표 (mission_table.yaml: 태그 → 단계). plan 모드는 미션표 · 위치표를 쓰지 않아 tag 일 때만 불러옴
 import os
 
-from ament_index_python.packages import get_package_share_directory
+from ament_index_python.packages import PackageNotFoundError, get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration
@@ -18,6 +18,10 @@ def _nodes(context):
     if source not in ('tag', 'plan'):
         raise RuntimeError(f'source 는 plan 또는 tag: {source}')
     params = [os.path.join(config, 'mission.yaml')]
+    try:   # 차체 기하 base.* (front_offset · icr_x) = control robot_geometry.yaml (drive 와 같은 값), 없으면 mission 기본값
+        params.insert(0, os.path.join(get_package_share_directory('control'), 'config', 'robot_geometry.yaml'))
+    except PackageNotFoundError:
+        pass
     params.append(os.path.join(config, 'mission_plan.yaml' if source == 'plan' else 'mission_table.yaml'))
     mission = ComposableNode(
         package='mission',

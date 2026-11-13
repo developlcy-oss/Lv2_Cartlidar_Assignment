@@ -352,6 +352,7 @@ private:
   {
     double final[3]{0.0, 0.0, 0.0}, stage[3]{0.0, 0.0, 0.0};
     double lo{-90.0}, hi{90.0};        // turn_range_deg (없으면 max_turn_deg 만)
+    StartBoxGeom g;                    // j1_x · center_x · box_x = 자세표 geom, icr_x = base.icr_x
     std::vector<std::pair<double, double>> pucks;   // 퍽 (J1 앞 fwd, 옆 lat): 계획 줄로 되살린 자리를 이 값에 맞춤
   };
   struct SbMeas                        // measure_start 결과 (잰 frame = perception odom)
@@ -547,10 +548,11 @@ private:
     ob_min_turn_ = declare_parameter<double>("oblique.min_turn_deg", 0.5) * M_PI / 180.0;
     ob_front_timeout_ = declare_parameter<double>("oblique.front_timeout_s", 5.0);
     ob_step_timeout_ = declare_parameter<double>("oblique.timeout", 90.0);
-    ob_geom_.front = declare_parameter<double>("oblique.front_x", ob_geom_.front);
+    // 차체 기하는 control robot_geometry.yaml (base.*) 한 곳 — bringup 이 그 파일을 mission_node 에도 넘김. 없으면 헤더 기본값
+    ob_geom_.front = declare_parameter<double>("base.front_offset", ob_geom_.front);
+    ob_geom_.icr_x = declare_parameter<double>("base.icr_x", ob_geom_.icr_x);
     ob_geom_.half = declare_parameter<double>("oblique.box_half", ob_geom_.half);
     ob_geom_.tf_x = declare_parameter<double>("oblique.tfmini_x", ob_geom_.tf_x);
-    ob_geom_.icr_x = declare_parameter<double>("oblique.icr_x", ob_geom_.icr_x);
     // 시작 박스 집기 (start_box.*, #226): 꺼져 있으면 지금 흐름 그대로
     start_box_enabled_ = declare_parameter<bool>("start_box.enabled", false);
     sb_max_turn_ = declare_parameter<double>("start_box.max_turn_deg", 30.0);
@@ -558,11 +560,9 @@ private:
     sb_warn_deg_ = declare_parameter<double>("start_box.residual_warn_deg", 20.0);
     sb_sign_warn_deg_ = declare_parameter<double>("start_box.sign_warn_deg", 40.0);
     sb_front_timeout_ = declare_parameter<double>("start_box.front_timeout_s", 5.0);
-    sb_geom_.j1_x = declare_parameter<double>("start_box.j1_x", sb_geom_.j1_x);
-    sb_geom_.center_x = declare_parameter<double>("start_box.center_x", sb_geom_.center_x);
-    sb_geom_.icr_x = declare_parameter<double>("start_box.icr_x", sb_geom_.icr_x);
-    sb_geom_.box_x = declare_parameter<double>("start_box.box_x", sb_geom_.box_x);
-    timeout_["survey"] =declare_parameter<double>("timeout.survey", 20.0);          // start · finish 서비스
+    // j1_x · center_x · box_x 는 계획기 접근 자세표 (approach_poses.yaml 시작 박스 접근 geom) 에서 읽음 (loadStartApproaches)
+    sb_geom_.icr_x = ob_geom_.icr_x;
+    timeout_["survey"] = declare_parameter<double>("timeout.survey", 20.0);          // start · finish 서비스
     timeout_["survey_view"] = declare_parameter<double>("timeout.survey_view", 30.0);
   }
 
@@ -638,6 +638,18 @@ private:
           s.lo = a["turn_range_deg"][0].as<double>();
           s.hi = a["turn_range_deg"][1].as<double>();
         }
+        // 계획기 기하 (poses.J1_X · CENTER_X, 상자 중심 x = 앞 끝 + gap + 반 변): 계획기가 쓴 값을 그대로 씀 (값이 두 곳에 있지 않게)
+        const YAML::Node g = a["geom"];
+        if (!g || !g["j1_x"] || !g["center_x"] || !g["box_x"]) {
+          throw std::invalid_argument(kv.first.as<std::string>() + ": geom (j1_x · center_x · box_x) 없음 — mission_make_maps 로 다시 만들 것");
+        }
+        s.g = sb_geom_;
+        s.g.j1_x = g["j1_x"].as<double>();
+        s.g.center_x = g["center_x"].as<double>();
+        s.g.box_x = g["box_x"].as<double>();
+        if (!(s.g.j1_x > s.g.icr_x) || !(s.g.j1_x > s.g.center_x) || !(s.g.box_x > s.g.j1_x)) {
+          throw std::invalid_argument(kv.first.as<std::string>() + ": geom 은 j1_x > icr_x · center_x, box_x > j1_x");
+        }
         if (a["pucks"] && a["pucks"].IsMap()) {
           for (const auto & p : a["pucks"]) {
             if (p.second["fwd"] && p.second["lat"]) {s.pucks.emplace_back(p.second["fwd"].as<double>(), p.second["lat"].as<double>());}
@@ -650,7 +662,9 @@ private:
               e.what());
     }
     if (sb_approaches_.empty()) {throw std::invalid_argument("start_box: no kind box approach in " + file);}
-    RCLCPP_INFO(get_logger(), "start_box: 켬 (시작 박스 접근 %zu 곳, %s)", sb_approaches_.size(), file.c_str());
+    const auto & g0 = sb_approaches_.begin()->second.g;
+    RCLCPP_INFO(get_logger(), "start_box: 켬 (시작 박스 접근 %zu 곳, %s, geom j1_x %.4f · center_x %.5f · box_x %.4f, base.icr_x %.4f)",
+      sb_approaches_.size(), file.c_str(), g0.j1_x, g0.center_x, g0.box_x, g0.icr_x);
   }
 
   void validation()
@@ -756,11 +770,10 @@ private:
       }
       if (start_box_enabled_) {
         if (!(sb_max_turn_ > 0.0 && sb_max_turn_ < 90.0) || !(sb_max_shift_ > 0.0) || !(sb_warn_deg_ >= 0.0) ||
-          !(sb_front_timeout_ > 0.0) || !(sb_geom_.j1_x > sb_geom_.icr_x) || !(sb_geom_.j1_x > sb_geom_.center_x) ||
-          !(sb_geom_.box_x > sb_geom_.j1_x))
+          !(sb_front_timeout_ > 0.0))
         {
           throw std::invalid_argument("start_box: 0 < max_turn_deg < 90, max_shift > 0, residual_warn_deg >= 0, "
-                  "front_timeout_s > 0, j1_x > icr_x · center_x, box_x > j1_x");
+                  "front_timeout_s > 0");
         }
         loadStartApproaches();
       }
@@ -2105,8 +2118,8 @@ private:
     geometry_msgs::msg::PoseStamped prior;
     prior.header.frame_id = map_frame_;
     prior.header.stamp = now();
-    prior.pose.position.x = a.final[0] + sb_geom_.box_x * std::cos(a.final[2]);
-    prior.pose.position.y = a.final[1] + sb_geom_.box_x * std::sin(a.final[2]);
+    prior.pose.position.x = a.final[0] + a.g.box_x * std::cos(a.final[2]);
+    prior.pose.position.y = a.final[1] + a.g.box_x * std::sin(a.final[2]);
     prior.pose.position.z = place_top_z_;
     prior.pose.orientation.w = 1.0;
     pb_prior_pub_->publish(prior);
@@ -2155,7 +2168,7 @@ private:
     const tf2::Vector3 pm = *tm * tf2::Vector3(pose.pose.position.x, pose.pose.position.y, pose.pose.position.z);
     const double yaw_tm = tf2::getYaw(tm->getRotation());
     const double rot = sb_fold45_keep(tf2::getYaw(pose.pose.orientation) + yaw_tm);   // 지도 축에서 상자가 돈 각
-    const double px = a.final[0] + sb_geom_.box_x * std::cos(a.final[2]), py = a.final[1] + sb_geom_.box_x * std::sin(a.final[2]);
+    const double px = a.final[0] + a.g.box_x * std::cos(a.final[2]), py = a.final[1] + a.g.box_x * std::sin(a.final[2]);
     const double shift = std::hypot(pm.x() - px, pm.y() - py);
     std::ostringstream o;
     o << std::fixed << std::setprecision(4) << "\"event\": \"measure\", \"key\": \"" << key << "\", \"frame\": \"" << pose.header.frame_id
@@ -2238,7 +2251,7 @@ private:
   std::pair<double, double> startPuck(const SbMeas & m, const std::array<double, 3> & look, double turn_deg, bool * snapped = nullptr) const
   {
     const auto & a = sb_approaches_.at(m.key);
-    const auto [lx, ly] = sb_puck_local_snap(sb_geom_, look[0], look[1], turn_deg * M_PI / 180.0, a.pucks, 0.005, snapped);
+    const auto [lx, ly] = sb_puck_local_snap(a.g, look[0], look[1], turn_deg * M_PI / 180.0, a.pucks, 0.005, snapped);
     return sb_puck_in_frame(m.cx, m.cy, m.axis, lx, ly);
   }
 
@@ -2284,15 +2297,15 @@ private:
       return;
     }
     // 회전 기준 틀: 지금 ICR 자리는 그대로, 요 = drive 기준 yaw (FINE 성공 때). 없으면 지금 요
-    const tf2::Vector3 icr = *T * tf2::Vector3(sb_geom_.icr_x, 0.0, 0.0);
+    const auto & a = sb_approaches_.at(m->key);
+    const tf2::Vector3 icr = *T * tf2::Vector3(a.g.icr_x, 0.0, 0.0);
     const double yaw0 = m->has_ref ? m->ref_yaw : tf2::getYaw(T->getRotation());
     const double c0 = std::cos(yaw0), s0 = std::sin(yaw0);
-    const double ox = icr.x() - c0 * sb_geom_.icr_x, oy = icr.y() - s0 * sb_geom_.icr_x;
+    const double ox = icr.x() - c0 * a.g.icr_x, oy = icr.y() - s0 * a.g.icr_x;
     const auto [wx, wy] = startPuck(*m, *look, *plan_deg);
     const double px = c0 * (wx - ox) + s0 * (wy - oy), py = -s0 * (wx - ox) + c0 * (wy - oy);
     const double beta = sb_fold45(m->axis - yaw0);
-    const auto & a = sb_approaches_.at(m->key);
-    const SbTurn r = sb_choose_turn(sb_geom_, px, py, beta, a.lo, a.hi, sb_max_turn_);
+    const SbTurn r = sb_choose_turn(a.g, px, py, beta, a.lo, a.hi, sb_max_turn_);
     const bool warn = r.residual_sent > sb_warn_deg_;
     o << ", \"sent\": \"" << r.name << "\", \"beta_deg\": " << beta * 180.0 / M_PI << ", \"puck_base\": [" << px << ", " << py
       << "], \"puck_frame\": [" << wx << ", " << wy << "], \"ref_yaw\": \"" << (m->has_ref ? "fine" : "now")
