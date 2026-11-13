@@ -1,4 +1,4 @@
-# AMCL 용 (LiDAR 스캔면 바닥 위 0.0823 m 를 지나는 것만), mission_make_maps 가 만듦
+# AMCL 용 (LiDAR 스캔면 바닥 위 0.0748 m 를 지나는 것만), mission_make_maps 가 만듦
 image: map_amcl.pgm
 mode: trinary
 resolution: 0.025

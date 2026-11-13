@@ -4,7 +4,7 @@
 원점 = 왼쪽 아래 기둥 중심, +X 오른쪽, +Y 위, 바닥 Z = 0). 충돌 상자 (box · cylinder) 를 그대로 바닥에 투영한다.
 
   map_nav   주행 계획용: 바닥 위 높이 [0, nav_z_max] 와 겹치는 모든 것 (벽판 · 기둥 · 박스 70 mm · 중앙 받침대 · 신호등 · 바코드 받침)
-  map_amcl  AMCL 용: LiDAR 스캔면 (바닥 위 lidar_z, LDS-03 base_link z 0.0755 + 0.00675 = 0.082 m) 을 지나는 것만.
+  map_amcl  AMCL 용: LiDAR 스캔면 (바닥 위 lidar_z, LDS-03 브라켓 v2 base_link z 0.0675 + 0.00725 = 0.0748 m, #249) 을 지나는 것만.
             박스 · 받침대 (높이 0.07) 는 스캔면 아래라 LiDAR 에 안 보임 -> AMCL 지도에 넣으면 없는 벽을 찾다가 위치가 틀어진다.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-LIDAR_Z = 0.0755 + 0.00675  # [m] 바닥 위 스캔면 (sensors.json lds03 pos z + root_height)
+LIDAR_Z = 0.0675 + 0.00725  # [m] 바닥 위 스캔면 = LDS-03 브라켓 v2 base_link z + base_link 바닥 위 높이 (바퀴 R 0.0335, #249)
 ARENA_W, ARENA_H = 4.464, 6.364  # 발제 경기장 (mm 4464 x 6364), 원점 = 왼쪽 아래 기둥 중심
 
 

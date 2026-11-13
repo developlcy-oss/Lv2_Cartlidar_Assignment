@@ -24,7 +24,7 @@
   </xacro:if>
   <xacro:property name="belt" value="${drive == 'belt'}"/>
   <!-- 좌표 기준 = 팀 기준 모델 workspace/urdf_and_usd/waffle_4wd_description (B안, PR #50).
-       base_link 원점 = 그 모델과 같음 (TurtleBot3 Waffle 1층 하판 가운데, 하판 밑면 3.0 mm 아래 = 바닥 위 7.25 mm. 하판은 바닥 위 10.25~19.25 mm, 2026-11-13 바퀴 반지름 0.0335. 실측법 Downloads 실측_바퀴/바퀴_실측_방법.md).
+       base_link 원점 = 그 모델과 같음 (TurtleBot3 Waffle 1층 하판 가운데, 하판 밑면 3.0 mm 아래 = 바닥 위 7.25 mm. 하판은 바닥 위 10.25~19.25 mm, 2026-11-13 바퀴 반지름 0.0335. 실측법 Downloads 실측_바퀴/실측_방법.md).
        센서 · 바퀴 x · 축 높이는 그 모델 값. 바퀴 |y| 는 drive_<belt|direct>.yaml wheel_separation 과 묶여 있어 그대로 둔다.
        관절 이름은 ros2_control · 컨트롤러 설정 때문에 기존 이름 유지:
        wheel_left_front = wheel_fl · wheel_left_rear = wheel_rl · wheel_right_front = wheel_fr · wheel_right_rear = wheel_rr -->
@@ -81,9 +81,10 @@
        보드는 바로 놓여 있다 (보드 z 위, 2026-11-02 확인). 위에서 봐서 반시계로 돌리면 /imu/data angular_velocity.z 는 양수.
        실물 보드는 +y 가 차체 앞이다 (2026-11-09 실물: 앞을 들면 가속도 y 가 +) → yaw -90°. Isaac 은 IMU 가 차체 축 그대로라 0 -->
   <xacro:fixed_link name="imu_link"          parent="base_link" xyz="0.0095 0 0.0202" rpy="0 0 ${-pi/2 if '$(arg backend)' == 'opencr' else 0.0}"/>
-  <!-- LDS-03 은 뒤집어 장착 → roll π. 기준 모델 lds_front · lds_rear (laser_* 는 그 자리와 같음). 안 뒤집으면 스캔 좌우가 뒤집힌다 (docs/frames_tf.md) -->
-  <xacro:fixed_link name="laser_front"       parent="base_link" xyz="0.1089 0 0.0755" rpy="3.141593 0 0"/>
-  <xacro:fixed_link name="laser_rear"        parent="base_link" xyz="-0.1089 0 0.0755" rpy="3.141593 0 3.141593"/>
+  <!-- LDS-03 은 뒤집어 장착 → roll π. 기준 모델 lds_front · lds_rear (laser_* 는 그 자리와 같음). 안 뒤집으면 스캔 좌우가 뒤집힌다 (docs/frames_tf.md)
+       LDS-03 브라켓 v2 (2026-11-13 실물 확인, #249): 기준 모델 a1cea6e 와 같은 (±0.1318, 0, 0.0675). 이전 v1 (±0.1089, 0, 0.0755) -->
+  <xacro:fixed_link name="laser_front"       parent="base_link" xyz="0.1318 0 0.0675" rpy="3.141593 0 0"/>
+  <xacro:fixed_link name="laser_rear"        parent="base_link" xyz="-0.1318 0 0.0675" rpy="3.141593 0 3.141593"/>
   <!-- D435: realsense2_camera (camera_name top_camera_front · top_camera_rear) 의 TF 뿌리는 <camera_name>_link = 왼쪽 IR (깊이 원점).
        그 아래 광학 프레임은 드라이버가 공장 외부 보정값으로 낸다 (여기서 또 만들면 TF 부모가 둘이 된다).
        기준 모델 top_camera_*_link 는 두 IR 의 가운데라, 왼쪽 IR (광학 x −0.02502 = 카메라 기준 왼쪽) 로 옮겼다: 앞 y +0.02502 · 뒤 y −0.02502 -->
