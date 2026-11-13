@@ -99,9 +99,9 @@
   </material>
   <link name="base_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="-0.0347290281 0.00179869208 0.124150507"/>
-      <mass value="3.02198924"/>
-      <inertia ixx="0.10585823" ixy="-0.000310620883" ixz="0.0250939734" iyy="0.101644259" iyz="0.000735654328" izz="0.0514031721"/>
+      <origin rpy="0 0 0" xyz="-0.0233398903 0.00156530242 0.112417279"/>
+      <mass value="3.47257131"/>
+      <inertia ixx="0.110032394" ixy="-0.000248713626" ixz="0.0275917695" iyy="0.107965721" iyz="0.000671876904" izz="0.0556548212"/>
     </inertial>
     <visual name="body_keep">
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -186,6 +186,13 @@
         <mesh filename="package://waffle_4wd_description/meshes/b/standoffs.stl" scale="1 1 1"/>
       </geometry>
       <material name="a_metal"/>
+    </visual>
+    <visual name="jetson_battery">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/jetson_battery.stl" scale="1 1 1"/>
+      </geometry>
+      <material name="a_motor"/>
     </visual>
     <visual name="pallet">
       <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -306,6 +313,12 @@
       <origin rpy="0 0 0" xyz="-0.12625 0 0.102"/>
       <geometry>
         <box size="0.0435 0.06 0.016"/>
+      </geometry>
+    </collision>
+    <collision name="jetson_battery">
+      <origin rpy="0 0 0" xyz="0.075 0 0.0375"/>
+      <geometry>
+        <box size="0.054 0.131 0.051"/>
       </geometry>
     </collision>
     <collision name="deck_tray">
@@ -1659,731 +1672,1971 @@
       </geometry>
     </collision>
     <collision name="cup_R_1_hull00">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull01">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull02">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull03">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull04">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull05">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull06">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull07">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_1_hull08">
-      <origin rpy="0 -0 2.12207602" xyz="0.0488595 0.0766667 0.111000001"/>
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_R_1_hull09">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull10">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull11">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull12">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull13">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull14">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull15">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull16">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull17">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull18">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull19">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull20">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull21">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull22">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull23">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull24">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull25">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull26">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull27">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull28">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull29">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_1_hull30">
+      <origin rpy="0 -0 2.02458193" xyz="0.0556699 0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_R_2_hull00">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull01">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull02">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull03">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull04">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull05">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull06">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull07">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_2_hull08">
-      <origin rpy="0 -0 2.80175959" xyz="0.0111472 0.03 0.111000001"/>
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_R_2_hull09">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull10">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull11">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull12">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull13">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull14">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull15">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull16">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull17">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull18">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull19">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull20">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull21">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull22">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull23">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull24">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull25">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull26">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull27">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull28">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull29">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_2_hull30">
+      <origin rpy="0 -0 2.74016693" xyz="0.0113136 0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_R_3_hull00">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull01">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull02">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull03">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull04">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull05">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull06">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull07">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_3_hull08">
-      <origin rpy="0 -0 -2.80175959" xyz="0.0111472 -0.03 0.111000001"/>
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_R_3_hull09">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull10">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull11">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull12">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull13">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull14">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull15">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull16">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull17">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull18">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull19">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull20">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull21">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull22">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull23">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull24">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull25">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull26">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull27">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull28">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull29">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_3_hull30">
+      <origin rpy="0 -0 -2.74016693" xyz="0.0113136 -0.0359473 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_R_4_hull00">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull01">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull02">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull03">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull04">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull05">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull06">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull07">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_R_4_hull08">
-      <origin rpy="0 -0 -2.12207602" xyz="0.0488595 -0.0766667 0.111000001"/>
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_R_4_hull09">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull10">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull11">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull12">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull13">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull14">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull15">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull16">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull17">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull18">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull19">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull20">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull21">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull22">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull23">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull24">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull25">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull26">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull27">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull28">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull29">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_R_4_hull30">
+      <origin rpy="0 -0 -2.02458193" xyz="0.0556699 -0.0826891 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup0_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_G_1_hull00">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull01">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull02">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull03">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull04">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull05">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull06">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull07">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_1_hull08">
-      <origin rpy="0 -0 2.56767604" xyz="-0.023249 0.0770954 0.111000001"/>
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_G_1_hull09">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull10">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull11">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull12">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull13">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull14">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull15">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull16">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull17">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull18">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull19">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull20">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull21">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull22">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull23">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull24">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull25">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull26">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull27">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull28">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull29">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_1_hull30">
+      <origin rpy="0 -0 2.4521876" xyz="-0.013571 0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_G_2_hull00">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull01">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull02">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull03">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull04">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull05">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull06">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull07">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_2_hull08">
-      <origin rpy="0 -0 2.95028711" xyz="-0.043409 0.027 0.111000001"/>
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_G_2_hull09">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull10">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull11">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull12">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull13">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull14">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull15">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull16">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull17">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull18">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull19">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull20">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull21">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull22">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull23">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull24">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull25">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull26">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull27">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull28">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull29">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_2_hull30">
+      <origin rpy="0 -0 2.9059732" xyz="-0.042077 0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_G_3_hull00">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull01">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull02">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull03">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull04">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull05">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull06">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull07">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_3_hull08">
-      <origin rpy="0 -0 -2.95028711" xyz="-0.043409 -0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_G_3_hull09">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull10">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull11">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull12">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull13">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull14">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull15">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull16">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull17">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull18">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull19">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull20">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull21">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull22">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull23">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull24">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull25">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull26">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull27">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull28">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull29">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_3_hull30">
+      <origin rpy="0 -0 -2.9059732" xyz="-0.042077 -0.0331492 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_G_4_hull00">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull01">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull02">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull03">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull04">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull05">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull06">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull07">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_G_4_hull08">
-      <origin rpy="0 -0 -2.56767604" xyz="-0.023249 -0.0770954 0.111000001"/>
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_G_4_hull09">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull10">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull11">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull12">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull13">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull14">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull15">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull16">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull17">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull18">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull19">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull20">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull21">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull22">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull23">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull24">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull25">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull26">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull27">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull28">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull29">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_G_4_hull30">
+      <origin rpy="0 -0 -2.4521876" xyz="-0.013571 -0.0903231 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup1_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_B_1_hull00">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull01">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull02">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull03">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull04">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull05">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull06">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull07">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_1_hull08">
-      <origin rpy="0 -0 2.71608138" xyz="-0.077968 0.0788418 0.111000001"/>
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull08.stl"/>
       </geometry>
     </collision>
+    <collision name="cup_B_1_hull09">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull09.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull10">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull10.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull11">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull11.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull12">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull12.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull13">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull13.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull14">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull14.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull15">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull15.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull16">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull16.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull17">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull17.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull18">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull18.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull19">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull19.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull20">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull20.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull21">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull21.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull22">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull22.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull23">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull23.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull24">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull24.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull25">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull25.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull26">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull27">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull28">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull29">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_1_hull30">
+      <origin rpy="0 -0 2.93215314" xyz="-0.090826 0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull30.stl"/>
+      </geometry>
+    </collision>
     <collision name="cup_B_2_hull00">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull00.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull01">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull01.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull02">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull02.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull03">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull03.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull04">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull04.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull05">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull05.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull06">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull06.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull07">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull07.stl"/>
       </geometry>
     </collision>
     <collision name="cup_B_2_hull08">
-      <origin rpy="0 -0 2.99974975" xyz="-0.093082 0.027 0.111000001"/>
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
         <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull08.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull00">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull09">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull00.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull09.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull01">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull10">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull01.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull10.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull02">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull11">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull02.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull11.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull03">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull12">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull03.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull12.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull04">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull13">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull04.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull13.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull05">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull14">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull05.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull14.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull06">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull15">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull06.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull15.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull07">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull16">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull07.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull16.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_3_hull08">
-      <origin rpy="0 -0 -2.99974975" xyz="-0.093082 -0.027 0.111000001"/>
+    <collision name="cup_B_2_hull17">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull08.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull17.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull00">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull18">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull00.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull18.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull01">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull19">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull01.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull19.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull02">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull20">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull02.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull20.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull03">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull21">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull03.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull21.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull04">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull22">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull04.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull22.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull05">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull23">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull05.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull23.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull06">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull24">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull06.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull24.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull07">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull25">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull07.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull25.stl"/>
       </geometry>
     </collision>
-    <collision name="cup_B_4_hull08">
-      <origin rpy="0 -0 -2.71608138" xyz="-0.077968 -0.0788418 0.111000001"/>
+    <collision name="cup_B_2_hull26">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull08.stl"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull26.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_2_hull27">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull27.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_2_hull28">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull28.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_2_hull29">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull29.stl"/>
+      </geometry>
+    </collision>
+    <collision name="cup_B_2_hull30">
+      <origin rpy="0 -0 -2.93215314" xyz="-0.090826 -0.0397111 0.111000001"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/collision/pallet_cup2_hull30.stl"/>
       </geometry>
     </collision>
   </link>
   <link name="wheel_left_front_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="1.7471090175676952e-06 -1.0824816507526298e-06 0.0031995652184285362"/>
-      <mass value="0.02849780637262845"/>
-      <inertia ixx="1.1127635299831068e-05" ixy="2.531950270742378e-09" ixz="-1.616491577189184e-09" iyy="1.1128818936392597e-05" iyz="1.483315013635248e-09" izz="2.0588783588307505e-05"/>
+      <origin rpy="0 0 0" xyz="-3.73856456e-09 -4.9541261e-10 0.00327452002"/>
+      <mass value="0.029626966"/>
+      <inertia ixx="1.29647038e-05" ixy="1.10792442e-12" ixz="-1.46294922e-13" iyy="1.29647265e-05" iyz="1.98177489e-13" izz="2.46747417e-05"/>
     </inertial>
-    <visual>
-      <origin rpy="1.570796 0.000000 0.000000" xyz="-0.080000 0.026250 -0.139600"/>
+    <visual name="wheel_rim">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/main/wheel_front_left.dae" scale="1 1 1"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_rim_left.stl"/>
       </geometry>
-      <material name="Waffle_Rubber_Tire_1100_1100_0"/>
+      <material name="a_pla_orange"/>
+    </visual>
+    <visual name="wheel_tire">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_tire_left.stl"/>
+      </geometry>
+      <material name="a_black"/>
     </visual>
     <collision name="tire_cylinder">
-      <origin rpy="0 0 0" xyz="0 4.6708142371204575e-08 0.0039000085783583577"/>
+      <origin rpy="0 0 0" xyz="0 0 0.00380011392"/>
       <geometry>
-        <cylinder length="0.018200020544287016" radius="0.03300062166262079"/>
+        <cylinder length="0.018" radius="0.0335"/>
       </geometry>
     </collision>
   </link>
   <link name="wheel_right_front_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="-2.516972542095264e-06 -1.08479043718049e-06 -0.0031995650604105972"/>
-      <mass value="0.028497807416290967"/>
-      <inertia ixx="1.1127635642403401e-05" ixy="-3.93567305804213e-09" ixz="1.5245757871497083e-09" iyy="1.1128819201306387e-05" iyz="-1.4771084369219048e-09" izz="2.0588784138750188e-05"/>
+      <origin rpy="0 0 0" xyz="-3.73856456e-09 4.95412616e-10 -0.00327452002"/>
+      <mass value="0.029626966"/>
+      <inertia ixx="1.29647038e-05" ixy="-1.10792442e-12" ixz="1.46294922e-13" iyy="1.29647265e-05" iyz="1.98177488e-13" izz="2.46747417e-05"/>
     </inertial>
-    <visual>
-      <origin rpy="1.570796 0.000000 0.000000" xyz="-0.080000 0.026250 0.139600"/>
+    <visual name="wheel_rim">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/main/wheel_front_right.dae" scale="1 1 1"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_rim_right.stl"/>
       </geometry>
-      <material name="Waffle_Rubber_Tire_1100_1100_0"/>
+      <material name="a_pla_orange"/>
+    </visual>
+    <visual name="wheel_tire">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_tire_right.stl"/>
+      </geometry>
+      <material name="a_black"/>
     </visual>
     <collision name="tire_cylinder">
-      <origin rpy="0 0 0" xyz="0 -4.6896700228032939e-08 -0.0038999914216262949"/>
+      <origin rpy="0 0 0" xyz="0 0 -0.00380011392"/>
       <geometry>
-        <cylinder length="0.01819998425240657" radius="0.03300062152920693"/>
+        <cylinder length="0.018" radius="0.0335"/>
       </geometry>
     </collision>
   </link>
   <link name="wheel_left_rear_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="1.7471416418956776e-06 -1.0824834076493302e-06 0.003199565227950497"/>
-      <mass value="0.02849780634510083"/>
-      <inertia ixx="1.1127635284880435e-05" ixy="2.5319488427578164e-09" ixz="-1.6164908686271215e-09" iyy="1.1128818929832525e-05" iyz="1.4833156051946637e-09" izz="2.0588783566473004e-05"/>
+      <origin rpy="0 0 0" xyz="-3.73856456e-09 -4.9541261e-10 0.00327452002"/>
+      <mass value="0.029626966"/>
+      <inertia ixx="1.29647038e-05" ixy="1.10792442e-12" ixz="-1.46294922e-13" iyy="1.29647265e-05" iyz="1.98177489e-13" izz="2.46747417e-05"/>
     </inertial>
-    <visual>
-      <origin rpy="1.570796 0.000000 0.000000" xyz="0.080000 0.026250 -0.139600"/>
+    <visual name="wheel_rim">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/main/wheel_rear_left.dae" scale="1 1 1"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_rim_left.stl"/>
       </geometry>
-      <material name="Waffle_Rubber_Tire_1100_1100_0"/>
+      <material name="a_pla_orange"/>
+    </visual>
+    <visual name="wheel_tire">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_tire_left.stl"/>
+      </geometry>
+      <material name="a_black"/>
     </visual>
     <collision name="tire_cylinder">
-      <origin rpy="0 0 0" xyz="0 4.6708142371204575e-08 0.0039000085783583577"/>
+      <origin rpy="0 0 0" xyz="0 0 0.00380011392"/>
       <geometry>
-        <cylinder length="0.018200020544287016" radius="0.03300062166262079"/>
+        <cylinder length="0.018" radius="0.0335"/>
       </geometry>
     </collision>
   </link>
   <link name="wheel_right_rear_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="-2.516934281259999e-06 -1.0847837737493346e-06 -0.0031995650599131215"/>
-      <mass value="0.028497807055274084"/>
-      <inertia ixx="1.1127635543753907e-05" ixy="-3.935669916290641e-09" ixz="1.5245757939230265e-09" iyy="1.1128819092940098e-05" iyz="-1.47710886976366e-09" izz="2.058878394695549e-05"/>
+      <origin rpy="0 0 0" xyz="-3.73856456e-09 4.95412616e-10 -0.00327452002"/>
+      <mass value="0.029626966"/>
+      <inertia ixx="1.29647038e-05" ixy="-1.10792442e-12" ixz="1.46294922e-13" iyy="1.29647265e-05" iyz="1.98177488e-13" izz="2.46747417e-05"/>
     </inertial>
-    <visual>
-      <origin rpy="1.570796 0.000000 0.000000" xyz="0.080000 0.026250 0.139600"/>
+    <visual name="wheel_rim">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://waffle_4wd_description/meshes/main/wheel_rear_right.dae" scale="1 1 1"/>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_rim_right.stl"/>
       </geometry>
-      <material name="Waffle_Rubber_Tire_1100_1100_0"/>
+      <material name="a_pla_orange"/>
+    </visual>
+    <visual name="wheel_tire">
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://waffle_4wd_description/meshes/b/wheel_tire_right.stl"/>
+      </geometry>
+      <material name="a_black"/>
     </visual>
     <collision name="tire_cylinder">
-      <origin rpy="0 0 0" xyz="0 -4.6896700228032939e-08 -0.0038999914216262949"/>
+      <origin rpy="0 0 0" xyz="0 0 -0.00380011392"/>
       <geometry>
-        <cylinder length="0.01819998425240657" radius="0.03300062152920693"/>
+        <cylinder length="0.018" radius="0.0335"/>
       </geometry>
     </collision>
   </link>
@@ -4087,7 +5340,7 @@
   <joint name="base_footprint_joint" type="fixed">
     <parent link="base_link"/>
     <child link="base_footprint"/>
-    <origin rpy="0 0 0" xyz="-0 -0 -0.00674998168"/>
+    <origin rpy="0 0 0" xyz="0 0 -0.00725"/>
   </joint>
   <joint name="arm_base_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0.096 0 0.131"/>
@@ -4665,8 +5918,8 @@
       <right_joint>wheel_right_front_joint</right_joint>
       <right_joint>wheel_right_rear_joint</right_joint>
       <wheel_separation>0.317</wheel_separation>
-      <wheel_radius>0.033</wheel_radius>
-      <max_linear_velocity>0.362855</max_linear_velocity>
+      <wheel_radius>0.0335</wheel_radius>
+      <max_linear_velocity>0.368353</max_linear_velocity>
       <odom_publish_frequency>50</odom_publish_frequency>
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>

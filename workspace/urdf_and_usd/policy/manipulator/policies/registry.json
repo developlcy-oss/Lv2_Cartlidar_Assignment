@@ -399,6 +399,52 @@
    "note": "미션에 쓰는 고정 동작 집기 (정책 없음, chain_pallet_eval.py --scripted_pick σ --grip_open 0.0042). 같은 날 이어평가 시드2: TP8 50 mm 23 · TP9 59250 39 / 192 (policies/evals/2026-11-10_chain_TP8_open42.json · _TP9.json)",
    "git": "20e8f71",
    "registered": "2026-11-10"
+  },
+  {
+   "name": "toppick_TP11",
+   "task": "Waffle-TopPick-Direct",
+   "file": "policies/toppick_TP11.pt",
+   "onnx": "policies/toppick_TP11.onnx",
+   "sha256": "eeeea8624991dcf2",
+   "source": "logs/rsl_rl/waffle_toppick/2026-11-12_00-26-11/model_90750.pt",
+   "iteration": 90750,
+   "obs_dim": 36,
+   "action_dim": 4,
+   "hidden": [
+    256,
+    128,
+    64
+   ],
+   "activation": "elu",
+   "latest": false,
+   "ros_model": null,
+   "evals": [
+    {
+     "file": "policies/evals/2026-11-12_chain_TP11.json",
+     "seed": 2,
+     "layout": "mix",
+     "dr": "-friction",
+     "num_envs": 192,
+     "chain": {
+      "ok": 52,
+      "n": 192,
+      "pct": 27.1
+     },
+     "pick": {
+      "ok": 113,
+      "n": 192,
+      "pct": 58.9
+     },
+     "place_given_pick": {
+      "ok": 52,
+      "n": 113,
+      "pct": 46.0
+     }
+    }
+   ],
+   "note": "곧게 들기 벌점 (rew_lift_straight -2000, 퍽 3 cm 안 · 닫은 채 · 2 cm 들기 전 잡는 점 수평 이동) + TP10 밀림 벌점 -300 · 인식 5 mm, 벌림 50 mm. TP10 82750 에서 14500 (2026-11-12_00-26-11) 중 90750. 같은 날 이어평가 (192 대 · 벌림 50 mm · 인식 10 mm) 시드1/2 42/52 vs 11-10 78250 33/47 · TP10 82750 33/41. latest · ROS 아님 (미션은 toppick_scripted). 코드는 e368698 에 포함",
+   "git": "a1cea6e",
+   "registered": "2026-11-12 14:13"
   }
  ]
 }

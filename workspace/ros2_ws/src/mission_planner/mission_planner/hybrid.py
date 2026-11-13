@@ -24,7 +24,9 @@ from itertools import permutations
 import numpy as np
 
 ROW3_PENALTY_M = 2.8   # [m] 3 열 칸 하나 (싣기 + 꺼내기 약 14 s × 0.2 m/s, 가정)
-SHAPE_PENALTY_M = 28.0  # [m] 모양 다른 칸 퍽 하나 · 막힌 채 꺼내기 하나 (#230 팔 쪽: 모양 어김 1 = 3 열 칸 10 개 이상, 가정)
+SHAPE_PENALTY_M = 2.8   # [m] 모양 다른 칸 퍽 하나 — 팔레트 v5 (2026-11-13 Isaac): 칸마다 두 모양 모두 놓기 · 꺼내기 24/24 라 모양 다름만으로는 실패 없음 -> 3 열 칸 하나 값 (동점 가르기)
+SHAPE_PENALTY_ROW1_M = 28.0   # [m] 1 열에서 모양 다른 칸: 직육면체가 원기둥 칸에 들면 옆 칸 꺼낼 때 손가락이 그 퍽에 닿음 (−1.0 mm, 막는 쌍과 같음)
+BLOCK_PENALTY_M = 28.0  # [m] 막는 이웃 칸이 찬 채 꺼내기 하나 — v5 Isaac 상자 퍽 0/2 (거의 실패). 이전 (v3, #230) 은 모양 다름도 28
 SHAPES = ("box", "cylinder")
 INF = math.inf
 

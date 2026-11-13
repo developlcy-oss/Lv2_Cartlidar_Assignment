@@ -1,5 +1,5 @@
 # 직결 (urdfv2) — controllers_4wd.yaml 다음에 diff_drive_controller 에 덮어 씀
-#   바퀴 한계: 7.51 rad/s × 0.033 ≈ 0.248 m/s (펌웨어 D6 — 호스트 한계를 바퀴 한계에 맞춤)
+#   바퀴 한계: 7.51 rad/s × 0.0335 ≈ 0.252 m/s (max_velocity 0.248 은 그대로 — 한계 안) (펌웨어 D6 — 호스트 한계를 바퀴 한계에 맞춤)
 diff_drive_controller:
   ros__parameters:
     wheel_separation: 0.2744         # 바퀴 중심 |y| 0.1372 × 2 (URDF drive:=direct 와 같게)

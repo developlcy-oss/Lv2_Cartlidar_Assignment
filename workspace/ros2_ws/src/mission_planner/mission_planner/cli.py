@@ -76,14 +76,14 @@ def plan_cmd(argv=None):
     ap.add_argument("--no_shape_slots", action="store_true", help="퍽 모양 = 칸 모양 맞추기 끄기 (#230, 비교용)")
     ap.add_argument("--out", default=None, help="이 폴더에 plan.json · signal.json · allocation.json")
     a = ap.parse_args(argv)
-    from .planner import World, parse_slots, plan
+    from .planner import N_PUCKS, N_SLOTS, World, parse_slots, plan
 
     prob = yaml.safe_load(open(a.problem, encoding="utf-8"))
     w = World(a.sdf)
     try:
         avoid = parse_slots(a.avoid_slots)
         modes = ["hybrid", "per_location", "single_load"] if a.mode == "compare" else [a.mode]
-        if avoid and a.mode == "compare":
+        if a.mode == "compare" and N_SLOTS - len(avoid) < N_PUCKS:   # 팔레트 v5 10 칸 (또는 avoid_slots) -> single_load 못 씀
             modes.remove("single_load")
         plans = {m: plan(w, prob, m, stop_after=a.stop_after, avoid_slots=avoid, shape_slots=not a.no_shape_slots,
                           row_rule=a.row_rule) for m in modes}

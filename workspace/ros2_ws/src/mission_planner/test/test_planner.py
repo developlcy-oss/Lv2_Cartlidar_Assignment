@@ -45,7 +45,7 @@ def check_each_place_once(steps):
         prev = s["at"] if s["type"] == "place" else None
 
 
-@pytest.mark.parametrize("mode", ["hybrid", "per_location", "single_load"])
+@pytest.mark.parametrize("mode", ["hybrid", "per_location"])   # single_load 는 팔레트 v5 10 칸이라 못 씀
 def test_plan_q1(world, mode):
     p = plan(world, PROB, mode)
     picks = [s for s in p["steps"] if s["type"] == "pick"]
@@ -70,7 +70,7 @@ def test_plan_q1(world, mode):
     if mode == "hybrid":
         assert p["hybrid"]["row3"] == 0 and all(s["slot"][0] in (1, 2) for s in picks)   # Q1 은 동시에 6 개 이하
     elif mode == "per_location":
-        assert all(s["slot"][0] in (1, 2) for s in picks)            # 느린 3 열 안 씀
+        assert blocked_unloads(p["steps"]) == []                      # v5: 1 열 막는 쌍을 피하려고 3 열을 쓸 수 있음 (막힘 28 m > 3 열 2.8 m)
     else:
         rows = [s["slot"][0] for s in picks]
         assert rows == sorted(rows, reverse=True)                      # 3 열 -> 2 열 -> 1 열로 싣기
@@ -118,7 +118,7 @@ def test_pose_parse():
         parse_pucks(rows)
 
 
-@pytest.mark.parametrize("mode", ["hybrid", "per_location", "single_load"])
+@pytest.mark.parametrize("mode", ["hybrid", "per_location"])   # single_load 는 팔레트 v5 10 칸이라 못 씀
 def test_lying_after_q1(world, mode):
     """Q1 직육면체 퍽을 모두 눕힘: hybrid 는 같은 박스 세운 퍽 먼저를 꼭 지킴, 다른 방식은 어기면 경고"""
     prob = _lay_boxes(PROB, random.Random(0), prob_lying=1.0)
@@ -193,7 +193,7 @@ def test_hybrid_random_valid_and_fast(world):
     assert worst < 1.0, f"hybrid plan {worst:.2f} s"
 
 
-@pytest.mark.parametrize("mode", ["hybrid", "per_location", "single_load"])
+@pytest.mark.parametrize("mode", ["hybrid", "per_location"])   # single_load 는 팔레트 v5 10 칸이라 못 씀
 @pytest.mark.parametrize("stop", ["observe", "first_pick", "first_place"])
 def test_stop_after(world, mode, stop):
     """부분 실물 시험: 그 지점까지만 하고 HOME 으로 돌아와 3 s 정지"""
@@ -266,7 +266,7 @@ def test_avoid_slots_random_hybrid(world):
 
 def test_avoid_slots_bad(world):
     from mission_planner.planner import parse_slots
-    for bad in ("4:0", "2-1", "1:4"):
+    for bad in ("4:0", "2-1", "1:4", "3:2", "3:3"):   # 3 열 2 · 3 = 팔레트 v5 에 없는 칸
         with pytest.raises(ValueError):
             parse_slots(bad)
     assert parse_slots("") == []
@@ -316,17 +316,16 @@ def test_shape_slots_q1(world, mode):
     assert shape_mismatch(old["steps"])
 
 
-def test_shape_slots_single_load_warns(world):
-    """single_load 는 열을 차례로 4 개씩 채워 모양이 안 맞을 수 있음 -> 그 퍽을 경고"""
-    p = plan(world, PROB, "single_load")
-    bad = shape_mismatch(p["steps"])
-    assert bad == sorted(bad) and p["pallet"]["mismatch"] == len(bad)
-    assert bool(bad) == any("#230" in w for w in p["warnings"])
-    check_pallet(p["steps"])
+def test_single_load_refused_v5(world):
+    """팔레트 v5 는 10 칸 (4 · 4 · 2) 이라 퍽 12 개를 한 번에 싣는 single_load 는 MissionError (안전 정지)"""
+    from mission_planner.slots import N_SLOTS
+    assert N_SLOTS == 10
+    with pytest.raises(MissionError, match="single_load"):
+        plan(world, PROB, "single_load")
 
 
 def test_shape_slots_random_hybrid(world):
-    """무작위 문제 20 개: hybrid 는 거의 다 모양대로 · 막는 쌍 없이, 어긴 퍽은 경고에 있음, 규칙 · 속도 그대로"""
+    """무작위 문제 20 개: hybrid 는 거의 다 막는 쌍 없이 (v5: 모양 다름은 작은 벌점), 어긴 퍽은 경고에 있음, 규칙 · 속도 그대로"""
     rng = random.Random(7)
     plan(world, PROB, "hybrid")
     n_ok, worst = 0, 0.0
@@ -340,7 +339,7 @@ def test_shape_slots_random_hybrid(world):
         check_each_place_once(st)
         bad, blk = shape_mismatch(st), blocked_unloads(st)
         assert blk == p["pallet"]["blocked_ids"]
-        n_ok += not bad and not blk
+        n_ok += not blk   # v5: 모양 다름은 벌점 2.8 m (실패 원인 아님), 막힘만 피함
         assert bool(bad) == any("모양이 다른" in w for w in p["warnings"])
         assert bool(blk) == any("막는 이웃" in w for w in p["warnings"])
     assert n_ok >= 17
@@ -361,11 +360,15 @@ def test_unload_blockers():
     """#230 막는 쌍: 같이 내리는 퍽은 막는 칸 먼저, 막는 칸에 나중 퍽이 남으면 셈"""
     from mission_planner.slots import _Rules
     r = _Rules("free")
-    order, b = r.unload_order({(2, 1): "a", (2, 2): "b", (2, 0): "c"}, [(2, 1), (2, 2), (2, 0)])
-    assert order.index((2, 1)) == 2 and b == 0
-    order, b = r.unload_order({(1, 1): "a", (1, 0): "b"}, [(1, 1), (1, 0)])
-    assert order == [(1, 0), (1, 1)] and b == 0
-    assert r.unload_order({(3, 2): "a", (3, 3): "b"}, [(3, 2)]) == ([(3, 2)], 1)
+    # 팔레트 v5: 1_2 ← 1_3 (한쪽), 1_0 ↔ 1_1 (서로) 만. 2 · 3 열은 막는 쌍 없음
+    order, b = r.unload_order({(1, 2): "a", (1, 3): "b"}, [(1, 2), (1, 3)])
+    assert order == [(1, 3), (1, 2)] and b == 0                       # 막는 칸 1_3 먼저
+    order, b = r.unload_order({(1, 0): "a", (1, 1): "b"}, [(1, 0), (1, 1)])
+    assert b == 1                                                      # 서로 막는 쌍은 차례로 못 풂
+    assert r.unload_order({(1, 2): "a", (1, 3): "b"}, [(1, 2)]) == ([(1, 2)], 1)
+    order, b = r.unload_order({(2, 1): "a", (2, 2): "b", (2, 0): "c"}, [(2, 1)])
+    assert b == 0
+    assert r.unload_order({(3, 0): "a", (3, 1): "b"}, [(3, 0)]) == ([(3, 0)], 0)
 
 
 def test_blockers_avoided_random(world):

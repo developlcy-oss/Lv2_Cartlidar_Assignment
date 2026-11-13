@@ -111,7 +111,7 @@ drive:                                   # Gazebo DiffDrive (사용자 2026-10-2
     left_joints: [wheel_left_front_joint, wheel_left_rear_joint]     # 팀 controllers_4wd.yaml 과 같은 이름
     right_joints: [wheel_right_front_joint, wheel_right_rear_joint]
     wheel_separation_m: 0.317            # [URDF] 좌우 바퀴 폭 가운데 y ±0.1585 (바퀴 메시 · 충돌 원통). 관절 원점 ±0.1546 은 3.9 mm 안쪽이라 쓰지 않음. 팀 controllers_4wd.yaml 과 같음 (2026-10-29)
-    wheel_radius_m: 0.033                # [URDF]
+    wheel_radius_m: 0.0335               # [URDF] 2026-11-13 홈 채운 림 R31.5 + 타이어 (이전 0.033)
     max_wheel_speed_rad_s: 10.9956       # [URDF] 바퀴 관절 velocity 한계 (벨트 1:1.5)
     odom_rate_hz: 50
     cmd_topic: /cmd_vel                  # geometry_msgs/TwistStamped (팀 interfaces.md)

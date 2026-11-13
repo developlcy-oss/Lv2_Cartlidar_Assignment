@@ -19,22 +19,22 @@ over "waffle_4wd"
             prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsArticulationRootAPI", "NewtonArticulationRootAPI", "PhysicsMassAPI", "NewtonMassAPI"]
         )
         {
-            double[] newton:inertia = [0.1083673885, 0.1066699454, 0.05438097382, -0.0002739648735, 0.02515721335, 0.0007303557488]
+            double[] newton:inertia = [0.1119787222, 0.1124158722, 0.05861987026, -0.0002127743229, 0.02736272862, 0.0006729951665]
             bool newton:selfCollisionEnabled = 1
-            point3f physics:centerOfMass = (-0.03388038, 0.0017681288, 0.11520953)
-            float3 physics:diagonalInertia = (0.04446564, 0.10667971, 0.11827296)
-            float physics:mass = 3.4197998
-            quatf physics:principalAxes = (-0.56285065, -0.0054889116, 0.8265346, 0.003077123)
+            point3f physics:centerOfMass = (-0.023760652, 0.0015622858, 0.105723165)
+            float3 physics:diagonalInertia = (0.047075108, 0.11242305, 0.123516314)
+            float physics:mass = 3.8703818
+            quatf physics:principalAxes = (-0.55291957, -0.00611089, 0.8332121, 0.00051712134)
 
             over "wheel_left_front_link" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "NewtonMassAPI"]
             )
             {
-                double[] newton:inertia = [0.000011127635299831068, 0.000011128818936392597, 0.000020588783588307505, 2.531950270742378e-9, -1.616491577189184e-9, 1.483315013635248e-9]
-                point3f physics:centerOfMass = (0.000001747109, -0.0000010824816, 0.0031995652)
-                float3 physics:diagonalInertia = (0.000011125627, 0.000011130827, 0.000020588785)
-                float physics:mass = 0.028497806
-                quatf physics:principalAxes = (0.9443122, -0.000045908913, -0.0001064407, -0.32905075)
+                double[] newton:inertia = [0.0000129647038, 0.0000129647265, 0.0000246747417, 1.10792442e-12, -1.46294922e-13, 1.98177489e-13]
+                point3f physics:centerOfMass = (-3.7385646e-9, -4.954126e-10, 0.00327452)
+                float3 physics:diagonalInertia = (0.000012964704, 0.000012964727, 0.000024674742)
+                float physics:mass = 0.029626966
+                quatf physics:principalAxes = (1, 0, 0, 0)
 
                 over "tire_cylinder" (
                     prepend apiSchemas = ["NewtonCollisionAPI"]
@@ -47,11 +47,11 @@ over "waffle_4wd"
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "NewtonMassAPI"]
             )
             {
-                double[] newton:inertia = [0.000011127635642403401, 0.000011128819201306387, 0.000020588784138750188, -3.93567305804213e-9, 1.5245757871497083e-9, -1.4771084369219048e-9]
-                point3f physics:centerOfMass = (-0.0000025169725, -0.0000010847905, -0.003199565)
-                float3 physics:diagonalInertia = (0.000011124247, 0.000011132207, 0.000020588785)
-                float physics:mass = 0.028497808
-                quatf physics:principalAxes = (0.9375125, 0.00010127037, 0.00004838937, 0.34795147)
+                double[] newton:inertia = [0.0000129647038, 0.0000129647265, 0.0000246747417, -1.10792442e-12, 1.46294922e-13, 1.98177488e-13]
+                point3f physics:centerOfMass = (-3.7385646e-9, 4.954126e-10, -0.00327452)
+                float3 physics:diagonalInertia = (0.000012964704, 0.000012964727, 0.000024674742)
+                float physics:mass = 0.029626966
+                quatf physics:principalAxes = (1, 0, 0, 0)
 
                 over "tire_cylinder" (
                     prepend apiSchemas = ["NewtonCollisionAPI"]
@@ -64,11 +64,11 @@ over "waffle_4wd"
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "NewtonMassAPI"]
             )
             {
-                double[] newton:inertia = [0.000011127635284880435, 0.000011128818929832525, 0.000020588783566473004, 2.5319488427578164e-9, -1.6164908686271215e-9, 1.4833156051946637e-9]
-                point3f physics:centerOfMass = (0.0000017471416, -0.0000010824834, 0.0031995652)
-                float3 physics:diagonalInertia = (0.000011125627, 0.000011130827, 0.000020588785)
-                float physics:mass = 0.028497806
-                quatf physics:principalAxes = (0.9443124, -0.000045909, -0.00010644065, -0.32905036)
+                double[] newton:inertia = [0.0000129647038, 0.0000129647265, 0.0000246747417, 1.10792442e-12, -1.46294922e-13, 1.98177489e-13]
+                point3f physics:centerOfMass = (-3.7385646e-9, -4.954126e-10, 0.00327452)
+                float3 physics:diagonalInertia = (0.000012964704, 0.000012964727, 0.000024674742)
+                float physics:mass = 0.029626966
+                quatf physics:principalAxes = (1, 0, 0, 0)
 
                 over "tire_cylinder" (
                     prepend apiSchemas = ["NewtonCollisionAPI"]
@@ -81,11 +81,11 @@ over "waffle_4wd"
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "NewtonMassAPI"]
             )
             {
-                double[] newton:inertia = [0.000011127635543753907, 0.000011128819092940098, 0.00002058878394695549, -3.935669916290641e-9, 1.5245757939230265e-9, -1.47710886976366e-9]
-                point3f physics:centerOfMass = (-0.0000025169343, -0.0000010847838, -0.003199565)
-                float3 physics:diagonalInertia = (0.000011124247, 0.000011132207, 0.000020588785)
-                float physics:mass = 0.028497808
-                quatf physics:principalAxes = (0.93751246, 0.00010127041, 0.00004838934, 0.34795174)
+                double[] newton:inertia = [0.0000129647038, 0.0000129647265, 0.0000246747417, -1.10792442e-12, 1.46294922e-13, 1.98177488e-13]
+                point3f physics:centerOfMass = (-3.7385646e-9, 4.954126e-10, -0.00327452)
+                float3 physics:diagonalInertia = (0.000012964704, 0.000012964727, 0.000024674742)
+                float physics:mass = 0.029626966
+                quatf physics:principalAxes = (1, 0, 0, 0)
 
                 over "tire_cylinder" (
                     prepend apiSchemas = ["NewtonCollisionAPI"]
@@ -1526,6 +1526,12 @@ over "waffle_4wd"
             {
             }
 
+            over "jetson_battery_1" (
+                prepend apiSchemas = ["NewtonCollisionAPI"]
+            )
+            {
+            }
+
             over "deck_tray_1" (
                 prepend apiSchemas = ["NewtonCollisionAPI"]
             )
@@ -1629,18 +1635,6 @@ over "waffle_4wd"
             }
 
             over "light_cup_B_2" (
-                prepend apiSchemas = ["NewtonCollisionAPI"]
-            )
-            {
-            }
-
-            over "light_cup_B_3" (
-                prepend apiSchemas = ["NewtonCollisionAPI"]
-            )
-            {
-            }
-
-            over "light_cup_B_4" (
                 prepend apiSchemas = ["NewtonCollisionAPI"]
             )
             {

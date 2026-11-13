@@ -24,7 +24,7 @@
   </xacro:if>
   <xacro:property name="belt" value="${drive == 'belt'}"/>
   <!-- 좌표 기준 = 팀 기준 모델 workspace/urdf_and_usd/waffle_4wd_description (B안, PR #50).
-       base_link 원점 = 그 모델과 같음 (TurtleBot3 Waffle 1층 하판 가운데, 바닥 위 6.75 mm. 하판은 바닥 위 9.75~18.85 mm).
+       base_link 원점 = 그 모델과 같음 (TurtleBot3 Waffle 1층 하판 가운데, 하판 밑면 3.0 mm 아래 = 바닥 위 7.25 mm. 하판은 바닥 위 10.25~19.25 mm, 2026-11-13 바퀴 반지름 0.0335. 실측법 Downloads 실측_바퀴/바퀴_실측_방법.md).
        센서 · 바퀴 x · 축 높이는 그 모델 값. 바퀴 |y| 는 drive_<belt|direct>.yaml wheel_separation 과 묶여 있어 그대로 둔다.
        관절 이름은 ros2_control · 컨트롤러 설정 때문에 기존 이름 유지:
        wheel_left_front = wheel_fl · wheel_left_rear = wheel_rl · wheel_right_front = wheel_fr · wheel_right_rear = wheel_rr -->
@@ -35,10 +35,10 @@
   <xacro:property name="wheel_x_rear" value="-0.0675"/>   <!-- 뒤바퀴 x (기준 모델) -->
   <xacro:property name="wheel_gear" value="${1.5 if belt else 1.0}"/>      <!-- 바퀴 각속도 / 모터 각속도 (모터 36T → 바퀴 24T) -->
   <xacro:property name="wheel_z" value="0.02625"/>    <!-- 바퀴 중심 z (base_link 위, 기준 모델) -->
-  <xacro:property name="wheel_radius" value="0.033"/> <!-- Ø66. controllers_4wd.yaml wheel_radius 와 같게 -->
+  <xacro:property name="wheel_radius" value="0.0335"/> <!-- Ø67 (2026-11-13 홈 채운 림 R31.5 + 타이어, 이전 Ø66 0.033). controllers_4wd.yaml wheel_radius 와 같게 -->
 
   <link name="base_link"/>
-  <!-- 바닥 투영: 바퀴 중심 아래 반지름만큼 = base_link 아래 6.75 mm (기준 모델과 같음) -->
+  <!-- 바닥 투영: 바퀴 중심 아래 반지름만큼 = base_link 아래 7.25 mm (기준 모델과 같음) -->
   <link name="base_footprint"/>
   <joint name="base_footprint_joint" type="fixed">
     <parent link="base_link"/>
