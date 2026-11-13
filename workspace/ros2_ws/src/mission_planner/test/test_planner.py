@@ -279,6 +279,21 @@ def shape_mismatch(steps):
     return sorted(s["puck"] for s in steps if s["type"] == "pick" and SLOT_SHAPE[tuple(s["slot"])] != s["shape"])
 
 
+def blocked_unloads(steps):
+    """막는 이웃 칸이 차 있는 채 꺼낸 퍽 (#230 팔 쪽 막는 쌍)"""
+    from mission_planner.slots import BLOCKERS
+    occ, out = set(), []
+    for s in steps:
+        if s["type"] == "pick":
+            occ.add(tuple(s["slot"]))
+        elif s["type"] == "place":
+            f = tuple(s["from_slot"])
+            if any(b in occ for b in BLOCKERS.get(f, ())):
+                out.append(s["puck"])
+            occ.discard(f)
+    return sorted(out)
+
+
 def test_slot_shapes_match_traj_file():
     """계획기 칸 모양 = control 궤적 파일 (pallet_place_traj.json slots[].shape)"""
     import json
@@ -294,6 +309,7 @@ def test_shape_slots_q1(world, mode):
     """#230: Q1 (직육면체 6 · 원기둥 6) 은 모양대로 실음. 모양 안 보면 (예전) 다른 칸이 생김"""
     p = plan(world, PROB, mode)
     assert shape_mismatch(p["steps"]) == [] and p["pallet"]["mismatch"] == 0
+    assert blocked_unloads(p["steps"]) == [] and p["pallet"]["blocked"] == 0
     assert not any("#230" in w for w in p["warnings"])
     check_pallet(p["steps"])
     old = plan(world, PROB, mode, shape_slots=False)
@@ -310,7 +326,7 @@ def test_shape_slots_single_load_warns(world):
 
 
 def test_shape_slots_random_hybrid(world):
-    """무작위 문제 20 개: hybrid 는 거의 다 모양대로, 어긴 퍽은 경고에 있음, 규칙 · 속도 그대로"""
+    """무작위 문제 20 개: hybrid 는 거의 다 모양대로 · 막는 쌍 없이, 어긴 퍽은 경고에 있음, 규칙 · 속도 그대로"""
     rng = random.Random(7)
     plan(world, PROB, "hybrid")
     n_ok, worst = 0, 0.0
@@ -322,9 +338,11 @@ def test_shape_slots_random_hybrid(world):
         st = p["steps"]
         check_pallet(st)
         check_each_place_once(st)
-        bad = shape_mismatch(st)
-        n_ok += not bad
-        assert bool(bad) == any("#230" in w for w in p["warnings"])
+        bad, blk = shape_mismatch(st), blocked_unloads(st)
+        assert blk == p["pallet"]["blocked_ids"]
+        n_ok += not bad and not blk
+        assert bool(bad) == any("모양이 다른" in w for w in p["warnings"])
+        assert bool(blk) == any("막는 이웃" in w for w in p["warnings"])
     assert n_ok >= 17
     assert worst < 1.0
 
@@ -337,6 +355,27 @@ def test_row_rule_fixed(world, mode):
     assert p["pallet"]["row_rule"] == "fixed"
     with pytest.raises(ValueError):
         plan(world, PROB, mode, row_rule="any")
+
+
+def test_unload_blockers():
+    """#230 막는 쌍: 같이 내리는 퍽은 막는 칸 먼저, 막는 칸에 나중 퍽이 남으면 셈"""
+    from mission_planner.slots import _Rules
+    r = _Rules("free")
+    order, b = r.unload_order({(2, 1): "a", (2, 2): "b", (2, 0): "c"}, [(2, 1), (2, 2), (2, 0)])
+    assert order.index((2, 1)) == 2 and b == 0
+    order, b = r.unload_order({(1, 1): "a", (1, 0): "b"}, [(1, 1), (1, 0)])
+    assert order == [(1, 0), (1, 1)] and b == 0
+    assert r.unload_order({(3, 2): "a", (3, 3): "b"}, [(3, 2)]) == ([(3, 2)], 1)
+
+
+def test_blockers_avoided_random(world):
+    """무작위 문제 10 개: per_location 은 막는 쌍 없이 꺼냄 (모양만 볼 때는 hybrid 80 문제 중 24 문제에서 생김)"""
+    rng = random.Random(11)
+    n = 0
+    for _ in range(10):
+        p = plan(world, _lay_boxes(_random_problem(rng), rng), "per_location")
+        n += len(blocked_unloads(p["steps"]))
+    assert n == 0
 
 
 def test_unload_pref_in_row(world):
