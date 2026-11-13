@@ -74,6 +74,11 @@ tools/build_firmware.sh wheel --upload /dev/ttyACM0    # 빌드 후 업로드 �
   `ERR_MOTOR_CONFIG` + `ERR_FAULT` 로 토크를 거부한다. 따로 손으로 설정할 필요 없음 (지금 값 확인: `tools/dxl_setup` 의 `x <id>`).
 - 부팅 때 바퀴 토크를 끄고 시작한다. 토크는 호스트가 `TORQUE_ON` 을 보낼 때 켜진다.
 - **아직 실물에서 돌려 보지 않았다** (주행 보드 없이 SIL 시험만 함). 첫 실기는 바퀴를 띄우고 저속으로.
+- **RC-100 리모컨 (2026-11-13, 주행 시험 조작용)**: 주행 보드의 BT-410 수신기 (Serial2, 57600, ROBOTIS `RC100` 라이브러리) 에서
+  버튼을 읽어 STATE 의 빈 팔 칸에 싣기만 한다 — `pos[6]` = 버튼 비트, `pos[7]` = 마지막 패킷 뒤 ms + 1 (0 = 받은 적 없음,
+  `opencr_protocol.h` `RC100_SLOT_*`). 길이 · 오프셋 · 버전 (v5) 은 그대로이고 예전 호스트는 이 칸을 읽지 않는다.
+  **펌웨어는 리모컨으로 바퀴를 직접 움직이지 않는다** — 호스트 `rc100_joy` 가 `/joy` 로 바꿔 기존 조이스틱 경로 (teleop · E-stop) 로 보낸다
+  (`ros2 launch opencr_hardware base_bringup.launch.py rc100:=true`, 방향 = 이동 · 1 = E-stop · 2 + 3 = 풀기). 시험: SIL `WheelForwardsRc100Buttons`.
 
 ## 팔 보드 (역할 2)
 

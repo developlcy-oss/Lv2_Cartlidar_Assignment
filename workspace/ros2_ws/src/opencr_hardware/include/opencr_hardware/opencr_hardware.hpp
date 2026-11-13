@@ -30,6 +30,7 @@
 #include "sensor_msgs/msg/battery_state.hpp"
 #include "sensor_msgs/msg/joy.hpp"
 #include "std_msgs/msg/bool.hpp"
+#include "std_msgs/msg/u_int32_multi_array.hpp"
 
 namespace opencr_hardware
 {
@@ -132,12 +133,19 @@ private:
   std::atomic<float> arm_battery_v_{0.f};   // 팔 보드 (예전 팔 펌웨어는 0 → "보고 없음")
   std::atomic<uint32_t> bad_frames_{0};
   std::atomic<int> estop_reason_code_{1};   // 0 없음 · 1 시작 · 2 링크 · 3 물리 · 4 버튼 · 5 joy · 6 팔 HOLD
+  // RC-100 (주행 보드 STATE 빈 팔 칸, opencr_protocol RC100_SLOT_*, 2026-11-13) → /rc100/raw [버튼, 패킷 뒤 ms + 1]
+  std::atomic<uint32_t> rc100_buttons_{0};
+  std::atomic<uint32_t> rc100_age_{0};
+  std::atomic<int64_t> rc100_rx_ns_{0};   // 주행 보드 STATE 를 마지막으로 받은 시각 (0 = 아직)
+  uint32_t rc100_sent_buttons_ = 0xFFFFFFFFu;
+  int64_t rc100_sent_ns_ = 0;
 
   rclcpp::Subscription<sensor_msgs::msg::Joy>::SharedPtr joy_sub_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr estop_pub_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diag_pub_;
   rclcpp::Publisher<sensor_msgs::msg::BatteryState>::SharedPtr bat_wheel_pub_, bat_arm_pub_;
-  rclcpp::TimerBase::SharedPtr estop_timer_, diag_timer_;
+  rclcpp::Publisher<std_msgs::msg::UInt32MultiArray>::SharedPtr rc100_pub_;
+  rclcpp::TimerBase::SharedPtr estop_timer_, diag_timer_, rc100_timer_;
   uint8_t last_diag_level_ = 0;
 };
 

@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <initializer_list>
 #include <limits>
 #include <vector>
 
@@ -1194,5 +1195,48 @@ TEST(FirmwareSil, BatteryBeepsFromBuzzer)
     EXPECT_EQ(crit % 3, 0);
     EXPECT_NEAR(static_cast<double>(b.hw.states.size()), 1000.0, 2.0) << "비프 중에도 STATE 100 Hz";
     EXPECT_NEAR(b.hw.last().battery_v, 10.2f, 0.02f);
+  });
+}
+
+// RC-100 리모컨 (2026-11-13): 주행 보드는 BT-410 (Serial2) 로 받은 버튼 · 패킷 뒤 시간을 STATE 의 빈 팔 칸에 싣기만 하고
+// 바퀴는 움직이지 않는다 (판단은 호스트 rc100_joy). 팔 보드는 리모컨을 열지 않는다
+TEST(FirmwareSil, WheelForwardsRc100Buttons)
+{
+  isolated([] {
+    Bench b;
+    b.boot();
+    EXPECT_EQ(b.w.rc100_port, 1) << "주행 보드 RC100::begin(1) = Serial2";
+    EXPECT_EQ(b.a.rc100_port, 0) << "팔 보드는 리모컨을 안 씀";
+    auto bytes = [&](std::initializer_list<int> v) {for (int x : v) {b.w.rc100_rx.push_back(static_cast<uint8_t>(x));}};
+    auto press = [&](int bits) {
+      const int lo = bits & 0xFF, hi = (bits >> 8) & 0xFF;
+      bytes({0xFF, 0x55, lo, ~lo & 0xFF, hi, ~hi & 0xFF});
+    };
+    b.run(100);
+    State sw = b.hw.last();
+    EXPECT_EQ(sw.pos[RC100_SLOT_BUTTONS], 0.f);
+    EXPECT_EQ(sw.pos[RC100_SLOT_AGE], 0.f) << "받은 적 없음 = 0";
+
+    press(0x001 | 0x200);   // U + 6
+    b.run(20);
+    sw = b.hw.last();
+    EXPECT_EQ(sw.pos[RC100_SLOT_BUTTONS], 513.f);
+    EXPECT_GE(sw.pos[RC100_SLOT_AGE], 1.f);
+    EXPECT_LE(sw.pos[RC100_SLOT_AGE], 21.f);
+    b.run(500);
+    sw = b.hw.last();
+    EXPECT_EQ(sw.pos[RC100_SLOT_BUTTONS], 513.f) << "새 패킷 전까지 마지막 값 (떼었는지는 호스트가 시간으로 판단)";
+    EXPECT_NEAR(sw.pos[RC100_SLOT_AGE], 520.f, 15.f);
+    for (int i = 0; i < WHEEL_COUNT; ++i) {EXPECT_EQ(b.wheel_goal(i), 0) << "리모컨으로 바퀴를 직접 돌리지 않음 " << i;}
+
+    bytes({0xFF, 0x55, 0x10, 0x10, 0x00, 0xFF});   // 보수가 틀림 → 버림
+    b.run(20);
+    EXPECT_EQ(b.hw.last().pos[RC100_SLOT_BUTTONS], 513.f);
+    press(0x000);   // 뗌
+    b.run(20);
+    sw = b.hw.last();
+    EXPECT_EQ(sw.pos[RC100_SLOT_BUTTONS], 0.f);
+    EXPECT_LE(sw.pos[RC100_SLOT_AGE], 21.f);
+    for (int k = 0; k < 2; ++k) {EXPECT_EQ(b.ha.last().pos[RC100_SLOT_BUTTONS + k], 0.f) << "팔 보드 칸은 팔 관절 값 (0 rad) 그대로";}
   });
 }
