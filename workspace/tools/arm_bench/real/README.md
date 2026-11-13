@@ -14,3 +14,17 @@
 - 브링업: `ros2 launch bringup bringup.launch.py skill_enabled:=true sim:=false` → `kbd_joy.py` 에서 `r`.
 - 팔은 관절 1 ~ 5 가 대기 자세 (STOW) 일 때만 켜짐 (그리퍼는 아무 값). 끄기 전 메뉴 9 로 STOW.
 - 결과 정리: #190 (실측) · #192 (누운 퍽) · #165 (덜컹 · 펌웨어 #242 · #244).
+
+## 팔 스킬 하나씩 — `arm_cmd.sh` (2026-11-13, teleop 처럼)
+같은 명령으로 실물 (`real`, 젯슨: `/manipulator/execute_skill` 액션) 과 Isaac 시뮬 (`sim`, PC: 시뮬 스킬 서버 `/sim_skill/cmd`) 에 스킬 하나를 보냄. `dice.sh` 가 이걸 부름.
+
+| 명령 | 스킬 |
+|---|---|
+| `arm_cmd.sh <sim\|real> pick` | `toppick_tilt` (실물은 먼저 `look`, 인식 모드 4 로 바꿈) |
+| `arm_cmd.sh <sim\|real> load 3 1` / `unload 3 1` | `pallet_load_3_1_tilt` / `pallet_unload_3_1_tilt` |
+| `arm_cmd.sh <sim\|real> place <x> <y> <z>` | `place_at:base_link:x:y:z` (z = 놓을 윗면 높이) |
+| `arm_cmd.sh real look <x> <y> <z>` · `real place_cell L1 m1 p1` | `target_look:…` · `place_L1_m1_p1_tilt` |
+| `arm_cmd.sh sim transit\|reset\|cells\|status\|clear\|fill 3_0 2_1` | 시뮬 전용 |
+
+- 끝 코드: 0 성공 · 1 실패 · 2 서버 없음 · 3 시간 초과 (`ARM_TIMEOUT`, 기본 120 s). 실물은 `ROS_WS` 를 주면 그 `install/setup.bash` 를 불러옴.
+- `sim` 은 PC 에서 `sim_cmd.py` (같은 폴더) 가 `~/ros2_lyrical` 로 보냄. 서버는 `workspace/urdf_and_usd/policy/manipulator/tools/README.md` 참고.
