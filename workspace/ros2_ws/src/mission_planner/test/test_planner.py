@@ -391,3 +391,35 @@ def test_unload_pref_in_row(world):
         for r in (1, 2, 3):
             idx = [UNLOAD_PREF[r].index(i) for rr, i in got if rr == r]
             assert idx == sorted(idx), (L, got)
+
+
+def test_approach_geom_for_mission(world):
+    """#226 · B: 시작 박스 접근마다 geom (mission start_box 가 읽음) = 계획기 기하, 상자 중심 x = 앞 끝 + gap + 반 변"""
+    from mission_planner.poses import BOX_HALF, CENTER_X, FINE_GAP, FRONT, J1_X
+    boxes = [a for a in world.approaches.values() if a.kind == "box"]
+    assert boxes
+    for a in boxes:
+        g = a.extra["geom"]
+        assert g["j1_x"] == J1_X and abs(g["center_x"] - CENTER_X) < 1e-5
+        assert abs(g["box_x"] - (FRONT + FINE_GAP + BOX_HALF)) < 1e-4   # S · N (BOX_GAP) · W · E (GAP_INLINE) 모두 FINE_GAP
+
+
+def test_approach_poses_file_up_to_date(world):
+    """설치되는 config/approach_poses.yaml 이 지금 코드로 만든 표와 같음 (geom 등 새 칸을 넣고 mission_make_maps 를 안 돌린 경우)"""
+    path = os.path.join(os.path.dirname(__file__), "..", "config", "approach_poses.yaml")
+    table = yaml.safe_load(open(path, encoding="utf-8"))
+    for k, a in world.approaches.items():
+        assert k in table, k
+        for kk, v in a.extra.items():
+            got = table[k][kk]
+            assert (got == v) if not isinstance(v, float) else abs(got - v) < 1e-9, (k, kk, got, v)
+
+
+def test_body_matches_robot_geometry():
+    """계획기 차체 앞 · 뒤 끝 = control robot_geometry.yaml base.front_offset · rear_offset (drive · mission 이 읽는 값)"""
+    from mission_planner.poses import FRONT, REAR
+    path = os.path.join(os.path.dirname(__file__), "..", "..", "control", "config", "robot_geometry.yaml")
+    if not os.path.exists(path):
+        pytest.skip("control 패키지 없음")
+    base = yaml.safe_load(open(path, encoding="utf-8"))["/**"]["ros__parameters"]["base"]
+    assert abs(base["front_offset"] - FRONT) < 1e-9 and abs(base["rear_offset"] + REAR) < 1e-9

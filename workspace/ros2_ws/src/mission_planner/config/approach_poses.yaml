@@ -2,6 +2,7 @@
 # final = 집기 · 놓기 자세 (앞 끝 - 면 = gap), stage = nav2 목표 (앞 끝 - 면 = standoff), ok = 외곽이 장애물과 안 겹침.
 # 시작 박스: S = 남쪽 (yaw +90°) · N = 북쪽 (yaw -90°) 에서 두 퍽 잇는 선에 수직으로. ±Y 둘 다 안 되는 박스만 W · E (inline).
 # pucks: 박스 퍽 (side -1 = X − 40, +1 = X + 40) 의 J1 축 거리 [m]. cells: 장소 3 x 3 칸 (dx,dy 칸 단위, +Y 위) 의 J1 거리 · 집게 방식.
+# geom (시작 박스): 계획기 기하 j1_x · center_x (poses.J1_X · CENTER_X) · box_x (집기 자리 base_link -> 상자 중심 x) — mission start_box 가 읽음.
 B1:S:
   kind: box
   ok: true
@@ -22,6 +23,10 @@ B1:S:
   box: 1
   side: S
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -57,6 +62,10 @@ B1:N:
   box: 1
   side: N
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -91,6 +100,10 @@ B2:S:
   box: 2
   side: S
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -122,6 +135,10 @@ B2:N:
   box: 2
   side: N
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -156,6 +173,10 @@ B3:S:
   box: 3
   side: S
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -191,6 +212,10 @@ B3:N:
   box: 3
   side: N
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -226,6 +251,10 @@ B4:S:
   box: 4
   side: S
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -261,6 +290,10 @@ B4:N:
   box: 4
   side: N
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -296,6 +329,10 @@ B5:S:
   box: 5
   side: S
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -330,6 +367,10 @@ B5:N:
   box: 5
   side: N
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -361,6 +402,10 @@ B6:S:
   box: 6
   side: S
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -395,6 +440,10 @@ B6:N:
   box: 6
   side: N
   inline: false
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2695
@@ -429,6 +478,10 @@ B6:W:
   box: 6
   side: W
   inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.2265
@@ -459,6 +512,10 @@ B6:E:
   box: 6
   side: E
   inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
   pucks:
     -1:
       dist: 0.3065
