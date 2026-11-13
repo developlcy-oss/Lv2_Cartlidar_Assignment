@@ -30,7 +30,7 @@
 #include <Dynamixel2Arduino.h>
 #include <IMU.h>
 #if OPENCR_BOARD_ROLE == 1
-#include <RC100.h>   // OpenCR 보드 패키지 라이브러리 (ROBOTIS). 주행 보드의 BT-410 수신기 = Serial2 57600
+#include <RC100.h>   // OpenCR 보드 패키지 라이브러리 (ROBOTIS). 주행 보드의 BT-410 슬레이브 = UART2 커넥터 (Serial4) 57600
 #endif
 
 #include "config.h"
@@ -538,7 +538,7 @@ void setup()
 
   imu.begin();
 #if OPENCR_BOARD_ROLE == 1
-  g_rc100.begin(1);   // 1 = Serial2 (ROBOTIS 예제 · TurtleBot3 와 같음)
+  g_rc100.begin(2);   // 2 = Serial4 = OpenCR UART2 커넥터 (BT-410 슬레이브를 꽂은 곳, 2026-11-13 실물: UART1 은 0 바이트 · UART2 에 FF 55 패킷)
 #endif
 }
 
