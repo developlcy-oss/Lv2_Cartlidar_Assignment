@@ -12,6 +12,7 @@
 """
 import csv
 import datetime
+import json
 import math
 import os
 import subprocess
@@ -41,19 +42,19 @@ POSES = {          # 관절 1 ~ 5 (rad), 설계 높이 · 수평 거리 (mm, 관
     "B": ([0, -0.338, 0.559, 0.564, 0], 180, 220),
     "C": ([2.9998, -0.1708, -0.3884, 1.6063, 0], 248, 191),
 }
-SLOTS = {}         # 칸: (관절 1, 칸 위 6 cm 관절 2 ~ 5, 잡는 자리 관절 2 ~ 5), unload_traj.json 60°
-for row, cells in {
-    "3": [("1", 2.9998, [-0.1708, -0.3884, 1.6063, 0], [-0.3147, 0.2594, 1.1025, 0]),
-          ("0", 2.7163, [-0.1708, -0.3883, 1.6063, 0], [-0.3147, 0.2594, 1.1025, 0])],
-    "2": [("1", 2.9503, [-0.5685, 0.0337, 1.5821, 0], [-0.7122, 0.6200, 1.1394, 0]),
-          ("0", 2.5675, [-0.5687, 0.0338, 1.5822, 0], [-0.7125, 0.6201, 1.1396, 0])],
-    "1": [("1", 2.8019, [-0.9413, 0.2481, 1.7404, 0], [-1.1893, 0.8260, 1.4105, 0]),
-          ("0", 2.1215, [-0.9415, 0.2481, 1.7406, 0], [-1.1896, 0.8260, 1.4108, 0])],
-}.items():
-    for idx, j1, above, grasp in cells:
-        mirror = {"1": "2", "0": "3"}[idx]
-        SLOTS[f"{row}-{idx}"] = (j1, above, grasp)          # 왼쪽 칸 = 관절 1 +
-        SLOTS[f"{row}-{mirror}"] = (-j1, above, grasp)      # 오른쪽 칸 = 관절 1 −
+SLOTS = {}         # 칸 "열-칸": (관절 1, 칸 위 약 4 cm 관절 2 ~ 5, 잡는 자리 관절 2 ~ 5) — 모델 각 (영점 보정 없이 보냄)
+# [2026-11-13] 팔레트 v5 (10 칸, 집게 45°): ROS 놓기 궤적 파일의 place 구간 처음 (칸 위) · 끝 (잡는 자리 = 퍽 중심 + 15 mm) 에서 읽음.
+#   이전 (v3 12 칸, unload_traj.json 60°) 값은 git 이력. 파일을 못 찾으면 메뉴 4 를 쓸 수 없음
+TRAJ_CANDIDATES = [os.path.expanduser("~/pallet_place_traj.json"),
+                   os.path.expanduser("~/Lv2_Cartlidar_Assignment/workspace/ros2_ws/src/control/config/pallet_place_traj.json"),
+                   os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "ros2_ws", "src", "control", "config", "pallet_place_traj.json")]
+for _p in TRAJ_CANDIDATES:
+    if os.path.exists(_p):
+        for _s in json.load(open(_p, encoding="utf-8"))["slots"]:
+            _q = next(g for g in _s["segments"] if g["name"] == "place")["q"]
+            SLOTS[f"{_s['row']}-{_s['index']}"] = (_q[0][0], list(_q[0][1:5]), list(_q[-1][1:5]))
+        break
+BASE_H = 0.00725   # [m] base_link 지면 위 (2026-11-13 바퀴 반지름 0.0335, 이전 0.00675)
 Q_FRONT = [0, -0.2923, -0.1141, 1.9772, 0]   # 팀 운반 시작 자세
 STOW = [1.554, -2.088, 1.549, -1.868, 0.043, 0.923]      # 팀 manipulator.yaml (전원 끄기 전 / 켤 때 자세)
 DRIVE = [-0.0245, -1.6122, 1.2901, 1.1888, 0.0, 0.923]
@@ -525,15 +526,15 @@ def m4_slot(a):
         return
     j1, above, grasp = SLOTS[slot]
     a.move(a.cmd, OPEN, label="집게 열기")
-    a.move([j1] + above, label=f"{slot} 칸 위 6 cm")
-    q = jog(a, [j1] + above, f"{slot} 칸 위 6 cm")
+    a.move([j1] + above, label=f"{slot} 칸 위")
+    q = jog(a, [j1] + above, f"{slot} 칸 위")
     if q is not None:
         p, _ = fk(q)
         note = input("    비고 (Enter = 없음): ").strip()
         record("3_칸좌표.csv", ["칸", "방법", "읽은1", "읽은2", "읽은3", "읽은4", "읽은5", "설계x_mm", "설계y_mm", "설계z_mm", "비고"],
                [slot, "A"] + [f"{math.degrees(x):.2f}" for x in q] + [f"{v * 1000:.1f}" for v in p] + [note])
-        g, _ = fk([j1] + grasp + [0.0])            # 칸 설계 잡는 점 (unload_traj 잡는 자리 = 퍽 윗면 15 mm 아래)
-        calib_row(f"칸{slot}", q, [(g[0] - 0.096) * 1000, g[1] * 1000, (g[2] + 0.00675) * 1000])
+        g, _ = fk([j1] + grasp + [0.0])            # 칸 설계 잡는 점 (놓기 궤적 place 끝 = 퍽 중심 + 15 mm)
+        calib_row(f"칸{slot}", q, [(g[0] - 0.096) * 1000, g[1] * 1000, (g[2] + BASE_H) * 1000])
     a.move([j1] + above, label="칸 위로")
     a.move([j1] + HIGH, label="높은 자세")
     a.move([0] + HIGH, label="정면으로")
@@ -552,7 +553,7 @@ def m12_box(a):
         if ask(f"퍽을 상자 {name} 에 세웠나? (y = 시작 / s = 건너뜀)") != "y":
             continue
         # 실물 손은 모델보다 앞쪽에서 약 7 cm 낮음 (11-12 상자 가운데 실측) -> 모델로 퍽 윗면 위 15 cm 에 띄움 (실물 약 8 cm 위)
-        tgt = [(cx / 1000) + 0.096, y, (z_grasp + 165) / 1000 - 0.00675]
+        tgt = [(cx / 1000) + 0.096, y, (z_grasp + 165) / 1000 - BASE_H]
         ready = [0, -0.338, 0.559, 0.564, 0]          # 팀 READY_POSE_45 (집게 45° 아래): 계산 시작점으로만 씀 (실물로 가면 상자 위 퍽에 닿음)
         p0, _ = fk(ready)
         q, err = cart_step(ready, [t - c for t, c in zip(tgt, p0)])

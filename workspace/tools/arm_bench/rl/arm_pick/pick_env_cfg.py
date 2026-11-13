@@ -50,7 +50,7 @@ class ArmPickEnvCfg(DirectRLEnvCfg):
             axis="Z",
             rigid_props=sim_utils.RigidBodyPropertiesCfg(solver_position_iteration_count=16, solver_velocity_iteration_count=1,
                                                          max_depenetration_velocity=1.0),
-            mass_props=sim_utils.MassPropertiesCfg(mass=0.03),   # PLA 출력 추정 ★
+            mass_props=sim_utils.MassPropertiesCfg(mass=0.013),   # 원기둥 퍽 사용자 실측 13 g (2026-11-13, 이전 추정 30 g)
             collision_props=sim_utils.CollisionPropertiesCfg(),
             physics_material=sim_utils.RigidBodyMaterialCfg(static_friction=0.8, dynamic_friction=0.6),
             visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(0.85, 0.12, 0.10)),

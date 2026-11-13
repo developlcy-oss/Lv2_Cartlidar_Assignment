@@ -7,6 +7,8 @@
 - `B안_팔레트/puck_pallet.scad` **v3**: 조인트1 중심 동심원 3열 × 4칸, 열 높이 계단 0 / 10 / 22 mm, 칸 깊이 30 mm
 
 저장소 판 이력:
+- **2026-11-13 퍽 무게 실측**: 원기둥 12 → **13 g**, 사각기둥 18 → **17 g** (사용자 실측, 퍽 링크 질량 · 관성만 바뀜, 퍽 10 개 실은 질량 4.899 kg 그대로).
+  같이 바꾼 곳: Isaac `policy/manipulator/waffle_isaac/dice2_cfg.py PUCK_MASS` (이전 추정 45 · 55 g), `lieupright_env_cfg.py` (13.5 · 17.5), `tools/arm_bench/rl/arm_pick` (30 g).
 - **2026-11-13 팔레트 v5 · Jetson 배터리 · 바퀴 림 R31.5** (생성기 다시 반영, 이전 판 `puck_storage_design/backup/repo_before_v5_battery_wheel_20261113/`):
   팔레트 v3 (12 칸) → **v5** (10 칸 = 열마다 4 · 4 · 2, 칸 사이 5.2 mm, 입구 43.5, 칸 바닥 9 · 15 · 21 mm, 손가락 홈 = 팀 팔 TCP 46, 173.5 g) — `config/pallet_slots.yaml` 10 칸, 퍽 링크 10 개 (`puck_B_3` · `puck_B_4` 없음).
   **Jetson 배터리** (UGREEN 54 × 51 × 131, 실측 466 g): OpenCR ↔ TFmini 받침대 사이 x 48 ~ 102 · z 12 ~ 63, 화면 위로 눕힘 (base_link 겉모양 `jetson_battery` + 충돌 상자).
@@ -38,7 +40,7 @@
 | 하판 전장 | Jetson (103 변 y), OpenCR 좌우 2, 배터리 링크 2, TFmini 브라켓 v2 | `lower_deck.scad` v1.1: 받침판, Jetson (103 변 x, (−79.5, 0)), **OpenCR 2층** `opencr_lower/upper_link` ((9.5, 0), z 18 · 59.7, 지지대 40), TFmini 받침대 v4.3, **배터리는 질량만** |
 | IMU | `imu_left/right_link` 센서 2, `imu_link` 는 가운데 frame | **`imu_link` = 아래층 OpenCR 칩 (9.5, 0, 20.2) mm, 센서 1개 → `/imu/data`** (위층은 끔) |
 | `tfmini_link` | (140.3, 0, 34.8) mm | (130, 0, 24.3) mm |
-| 퍽 | — | `pucks:=true` 면 `puck_{R,G,B}_{1..4}` = 1 · 2 · 3열 칸 (원기둥 12 g · 사각 18 g 번갈아, (열 + 칸) 짝수 = 원기둥). 칸 바닥 z 114 / 124 / 136 mm. 자리는 `config/pallet_slots.yaml` |
+| 퍽 | — | `pucks:=true` 면 칸마다 퍽 (v5 10 개: `puck_{R,G}_{1..4}` · `puck_B_{1,2}`, 원기둥 13 g · 사각기둥 17 g 실측 번갈아, (열 + 칸) 짝수 = 원기둥). 칸 바닥 z 120 / 126 / 132 mm (v5). 자리는 `config/pallet_slots.yaml` |
 | 무게추 | 없음 | 없음 (사용자 결정) |
 
 관절 이름 (바퀴 · 팔 · 손가락) 과 팀 코드 frame 은 그대로이고, `base_link` 원점도 그대로 (판 가운데, 지면 위 6.75 mm) 다.
