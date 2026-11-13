@@ -47,7 +47,7 @@
 //   성공 = 손가락이 쥔 범위 + 잡는 점이 처음 퍽 잡는 높이보다 toppick_rl.success_lift 위로 success_hold 동안 (학습 성공과 같은 뜻)
 // - 결과를 콜백 안에서 기다리지 않는다. 각 단계는 이전 단계의 result 콜백에서 이어진다
 // - 켜질 때 정리 (startup.*, startup_stow.hpp): arm_controller 가 준비되고 팔 HOLD 가 풀리면 (/diagnostics opencr/motors
-//   arm_hold 0 = 리셋 버튼 REARM 뒤) 한 번, 대기 자세 (STOW) 에서 startup.stages 순서 (J3 → J2 → J1 → J4) 로 startup.pose (DRIVE) 까지 천천히. 그 전에 goal 을 받으면 하지 않음
+//   arm_hold 0 = 리셋 버튼 REARM 뒤) 한 번, 대기 자세 (STOW) 에서 startup.stages 순서 (J3 → J2 → J4 → J1) 로 startup.pose (DRIVE) 까지 천천히. 그 전에 goal 을 받으면 하지 않음
 //
 // callback group
 // - job_cb_group_: Action 서버 · 클라이언트 · tick 타이머. 작업 상태는 이 그룹에서만 바뀐다 (락 불필요)
@@ -774,7 +774,7 @@ private:
 
     // 켜질 때 정리 자세 (startup_stow.hpp). 팔 HOLD 가 풀린 뒤 (/diagnostics opencr/motors arm_hold 0) 한 번, 묶음 순서로 천천히
     startup_pose_ = declare_parameter<std::string>("startup.pose", "DRIVE");
-    const auto stages = declare_parameter<std::vector<std::string>>("startup.stages", {"3", "2", "1", "4", "5,6"});
+    const auto stages = declare_parameter<std::vector<std::string>>("startup.stages", {"3", "2", "4", "1", "5,6"});
     startup_vel_ = declare_parameter<double>("startup.max_joint_velocity", 0.1);
     startup_skip_tol_ = declare_parameter<double>("startup.skip_tolerance", 0.05);
     startup_diag_wait_ = declare_parameter<double>("startup.diag_wait", 5.0);

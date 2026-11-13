@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import itertools
 import math
+import os
+import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
 import torch
+import yaml
 
 from isaaclab.assets import Articulation, RigidObject
 from isaaclab.envs import DirectRLEnv
@@ -18,6 +22,31 @@ from .toppick_env_cfg import NB_ABSENT, READY_TILT
 from .train_log import TrainLog
 
 LAYOUTS = ("rand", "A", "B", "C")  # 배치 종류 번호 0 ~ 3 (#78)
+_DESC = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "waffle_4wd_description")
+PALLET_SLOTS = os.path.join(_DESC, "config", "pallet_slots.yaml")  # v5 칸 10 곳 (base_link)
+TEAM_URDF = os.path.join(_DESC, "urdf", "waffle_4wd.urdf")  # link3 충돌 상자
+
+
+def link_box_points(urdf, link, step):
+    """URDF 링크 충돌 상자 겉면 점 (링크 좌표, 간격 step) -> (P, 3) 목록. 팔레트 퍽 틈 벌점 (TP13)"""
+    pts = []
+    for l in ET.parse(urdf).getroot().findall("link"):
+        if l.get("name") != link:
+            continue
+        for c in l.findall("collision"):
+            g = c.find("geometry")[0]
+            if g.tag != "box":
+                continue
+            sz = [float(v) for v in g.get("size").split()]
+            o = c.find("origin")
+            xyz = [float(v) for v in o.get("xyz", "0 0 0").split()] if o is not None else [0.0, 0.0, 0.0]
+            assert o is None or all(abs(float(v)) < 1e-9 for v in o.get("rpy", "0 0 0").split()), "회전한 충돌 상자는 아직 안 받음"
+            ax = [[-a / 2 + a * k / max(1, math.ceil(a / step)) for k in range(max(1, math.ceil(a / step)) + 1)] for a in sz]
+            for p in itertools.product(*ax):
+                if any(abs(abs(p[i]) - sz[i] / 2) < 1e-9 for i in range(3)):
+                    pts.append([p[i] + xyz[i] for i in range(3)])
+    assert pts, (urdf, link)
+    return pts
 
 if TYPE_CHECKING:
     from .toppick_env_cfg import WaffleTopPickEnvCfg
@@ -73,6 +102,11 @@ class WaffleTopPickEnv(DirectRLEnv):
         self.succeeded = torch.zeros(n, dtype=torch.bool, device=dev)
         self.max_lift = torch.zeros(n, device=dev)
         self.arm_box_steps = torch.zeros(n, device=dev)
+        # 팔레트 퍽 틈 (TP13): link3 겉면 점 · v5 칸 퍽 기둥 (x, y, 바닥 z, 반지름)
+        self._link3 = r.find_bodies("link3")[0][0]
+        self._l3_pts = torch.tensor(link_box_points(TEAM_URDF, "link3", cfg.pallet_sample), device=dev)
+        S = yaml.safe_load(open(PALLET_SLOTS, encoding="utf-8"))["slots"]
+        self._slots = torch.tensor([[s["x"], s["y"], s["floor_z"], cfg.pallet_puck_r[0] if s["shape"] == "cylinder" else cfg.pallet_puck_r[1]] for s in S], device=dev)
         self.tlog = TrainLog(self, ("tipped", "fell", "body_box", "base_move"))  # 보상 항목별 · 종료 원인 · 행동 포화 기록
 
     @property
@@ -95,6 +129,21 @@ class WaffleTopPickEnv(DirectRLEnv):
 
     def vec_base(self, v_w):
         return quat_apply_inverse(self.robot.data.root_link_quat_w.torch, v_w)
+
+    def pallet_clear(self):
+        """link3 충돌 상자 겉면 점 ↔ 팔레트 칸 퍽 기둥 (모두 차 있다고 봄) 최소 틈 [m], 겹치면 음수 (TP13)"""
+        d = self.robot.data
+        n, P = self.num_envs, self._l3_pts.shape[0]
+        q = d.body_link_quat_w.torch[:, self._link3][:, None].expand(n, P, 4)
+        pw = d.body_link_pos_w.torch[:, self._link3][:, None] + quat_apply(q, self._l3_pts[None].expand(n, P, 3))
+        rq = d.root_link_quat_w.torch[:, None].expand(n, P, 4)
+        pb = quat_apply_inverse(rq, pw - d.root_link_pos_w.torch[:, None])  # (n, P, 3) base_link
+        sl = self._slots
+        rad = torch.linalg.norm(pb[:, :, None, :2] - sl[None, None, :, :2], dim=-1) - sl[None, None, :, 3]  # (n, P, S)
+        dz = (pb[:, :, None, 2] - (sl[None, None, :, 2] + 0.03)).abs() - 0.03
+        out = torch.sqrt(rad.clamp(min=0.0) ** 2 + dz.clamp(min=0.0) ** 2)
+        sd = torch.where((rad > 0) | (dz > 0), out, torch.maximum(rad, dz))
+        return sd.amin(dim=(1, 2))
 
     def grasp_w(self):
         d = self.robot.data
@@ -268,6 +317,8 @@ class WaffleTopPickEnv(DirectRLEnv):
         arm_box = self._contact("arm_box_contact")
         body_box = self._contact("body_box_contact")
         base_move = torch.linalg.norm(self.robot.data.root_link_pos_w.torch[:, :2] - self.root0[:, :2], dim=1)
+        pclr = self.pallet_clear()
+        pclr_pen = torch.clamp(c.pallet_clear_min - pclr, min=0.0) / c.pallet_clear_min
         rew = self.tlog.reward({  # 이름 = Episode_Reward/<이름>, 합은 이전 한 줄 식과 같음
             "reach": c.rew_reach * (1 - torch.tanh(dist_s / 0.1)),
             "reach_fine": c.rew_reach_fine * (1 - torch.tanh(dist / 0.02)),
@@ -289,6 +340,7 @@ class WaffleTopPickEnv(DirectRLEnv):
             "puck_push": c.rew_puck_push * push,
             "lift_straight": c.rew_lift_straight * slide,
             "neighbor_toppled": c.rew_neighbor_toppled * nb_toppled.float(),
+            "pallet_clear": c.rew_pallet_clear * pclr_pen,
             "toppled": c.rew_toppled * toppled.float(),
             "base_tilt": c.rew_base_tilt * tilt,
             "fall": c.rew_fall * self._fell().float(),
@@ -308,6 +360,8 @@ class WaffleTopPickEnv(DirectRLEnv):
         log["Metrics/lifted_ratio"] = lifted.float().mean().item()
         log["Metrics/puck_push_mm"] = (push * 1000).mean().item()
         log["Metrics/closed_slide_mm"] = (slide * 1000).mean().item()
+        log["Metrics/pallet_clear_mm"] = (pclr * 1000).amin().item()  # 가장 가까운 환경 (TP13)
+        log["Metrics/pallet_close_ratio"] = (pclr < c.pallet_clear_min).float().mean().item()
         if holding.any():
             log["Metrics/hand_center_mm"] = dist[holding].mean().item() * 1000  # 쥔 동안 손 안 어긋남 (TP4)
             log["Metrics/hand_tilt_deg"] = math.degrees(hand_tilt[holding].mean().item())

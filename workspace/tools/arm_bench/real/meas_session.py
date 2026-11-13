@@ -57,7 +57,7 @@ for _p in TRAJ_CANDIDATES:
 BASE_H = 0.00725   # [m] base_link 지면 위 (2026-11-13 바퀴 반지름 0.0335, 이전 0.00675)
 Q_FRONT = [0, -0.2923, -0.1141, 1.9772, 0]   # 팀 운반 시작 자세
 STOW = [1.554, -2.088, 1.549, -1.868, 0.043, 0.923]      # 팀 manipulator.yaml (전원 끄기 전 / 켤 때 자세)
-DRIVE = [-0.0245, -1.6122, 1.2901, 1.1888, 0.0, 0.923]
+DRIVE = [0.0, -1.37, -0.01, 1.85, 0.0, 0.923]  # control manipulator.yaml poses.DRIVE (2026-11-13 #219, 이전 [-0.0245, -1.6122, 1.2901, 1.1888] 은 v5 퍽과 겹침)
 BENCH = os.path.expanduser("~/Lv2_Cartlidar_Assignment/workspace/tools/arm_bench")
 
 OUT = os.path.expanduser("~/실측")
@@ -326,9 +326,9 @@ class DirectArm(Arm):
 
 
 def fold(a, to_drive):
-    """STOW <-> DRIVE, 팀 시작 정리와 같은 순서 (J3 -> J2 -> J1 -> J4 -> J5 · 집게), 0.1 rad/s."""
+    """STOW <-> DRIVE, 팀 시작 정리와 같은 순서 (J3 -> J2 -> J4 -> J1 -> J5 · 집게, manipulator.yaml startup.stages), 0.1 rad/s."""
     tgt = DRIVE if to_drive else STOW
-    order = [[2], [1], [0], [3], [4, 5]]
+    order = [[2], [1], [3], [0], [4, 5]]
     if not to_drive:
         order = order[::-1]
     for grp in order:
@@ -791,7 +791,7 @@ def main():
         if not direct:
             P("  !! STOW 자세로 보임. bringup 시작 정리 (DRIVE) 가 끝난 뒤 다시 실행")
             return
-        P("  STOW 자세: 팀 순서 (관절 3 -> 2 -> 1 -> 4 -> 5) 로 DRIVE 까지 폄 (0.1 rad/s)")
+        P("  STOW 자세: 팀 순서 (관절 3 -> 2 -> 4 -> 1 -> 5) 로 DRIVE 까지 폄 (0.1 rad/s)")
         try:
             fold(a, True)
         except Back:
