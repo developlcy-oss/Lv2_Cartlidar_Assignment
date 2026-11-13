@@ -69,6 +69,9 @@ manipulator_node:
       stages: ["3", "2", "4", "1", "5,6"]   # 관절 번호 묶음 순서 (6 = 그리퍼). 대기 → 주행 = J3 → J2 → J4 → J1 (2026-11-13 새 DRIVE, 계산 퍽 15 · 차체 23 mm ★ 실물 0.1 rad/s 로 첫 확인).
                                           #   이전 J3 → J2 → J1 → J4 (#165 실물 확인) 는 새 DRIVE 에서 J4 단계 집게가 위 카메라 기둥 상자와 −20 mm (계산)
       max_joint_velocity: 0.3    # rad/s, 평균 (#165 0.1 → 2026-11-13 opencr_arm_tool 0.2 추종 오차 0.028 rad · 전류 0.44 A 이하 → 0.3 ★ 실물 확인)
+      # 정리를 마치기 전 (REARM 전 · 이동 중) pose · pick · execute_skill goal 을 거절 → 모든 명령이 정리 자세 (DRIVE) 에서 시작.
+      #   2026-11-14 실물: 죽은 브링업에 걸어 둔 명령이 노드가 뜨자마자 들어와 정리가 취소됨 → 엉뚱한 자세에서 팔레트 궤적 시작
+      block_goals: true
       skip_tolerance: 0.05       # rad, 묶음 관절이 모두 이 안이면 그 묶음은 건너뜀
       diag_wait: 5.0             # s, opencr 진단이 이 동안 한 번도 안 오면 (시뮬레이션 · mock) HOLD 확인 없이 진행
       warn_after: 15.0           # s, 이만큼 기다려도 arm_controller · /joint_states 가 없으면 경고 (관절 한계 밖 · OpenCR 활성화 실패)
@@ -248,6 +251,16 @@ manipulator_node:
       require_held: true         # pallet_load 전에 그리퍼가 퍽을 쥐고 있는지 확인
       release_position: 0.0798   # rad = 2100 tick, 실측 36.4 mm (Isaac FINGER_RELEASED 37.6). 칸 안에서 놓을 때 · 꺼내러 들어갈 때 이만큼만 벌림 (끝까지 열면 칸 벽에 닿음, #75)
       place_dwell: 0.3           # s, 놓는 자세에서 벌리기 · 쥐기 전 머묾 (Isaac 0.3)
+      # 2026-11-14 실물: ik.joint_offsets (J2 −27°, v3 칸으로 맞춘 실효값) 를 v5 궤적에 더하면 이동 자세에서 관절 3 (팔꿈치) 이
+      #   60 mm 내려가 2 열 퍽 윗면 높이 → DRIVE 에서 첫 구간에 퍽 스토리지를 누름. v5 칸으로 다시 맞추기 (#266) 전까지 false
+      apply_joint_offsets: false
+      # 출발 자세 검사: 궤적 첫 점에서 start_tolerance [rad] 안이면 바로, start_poses 근처 (start_pose_tolerance) 면 첫 점까지
+      #   prep_velocity [rad/s] 로 먼저 옮김 (DRIVE → 이동 자세, 팔꿈치 퍽 위 여유 계산 47 mm 이상), 아니면 거절 (꺼내기).
+      #   놓기 (pallet_load) 는 집기 직후 (퍽 쥠) 면 예전처럼 바로
+      start_tolerance: 0.05
+      start_poses: [DRIVE, ALIGN, TRANSIT_TILT]
+      start_pose_tolerance: 0.15
+      prep_velocity: 0.3
     # 팔 처짐 보정 (include/control/sag_comp.hpp): 팔레트 칸 궤적을 50 Hz 로 계획 + bias 스트리밍 (/arm_controller/joint_trajectory),
     #   bias += ki · dt · (계획 − 측정). Isaac pallet_place_check.py --ki 4 와 같은 식 (보정 없이 4/24 → 24/24).
     #   펌웨어 P 800 · I 0 이라 퍽을 쥔 팔이 6 ~ 13 mm 처지고 칸 틈은 1 ~ 2 mm. gripper.mode action 이면 쓰지 않음
