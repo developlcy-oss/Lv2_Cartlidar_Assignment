@@ -249,7 +249,7 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
         # 탐색의 3 열 · 모양 넘침은 동시 적재 수로 본 추정 (아래 경계) -> 상위 RESCORE_TOP 개는 실제 칸 배정 값으로 다시 고름
         for _, _, alloc, r, yshape in sorted(cands, key=lambda c: c[:2])[:RESCORE_TOP]:
             out = _steps(world, mode, alloc, group_of_L, r, avoid, row_rule, shape_slots)
-            true = r[3]["path_m"] + out[2]["row3"] * hyb.ROW3_PENALTY_M + (out[2]["mismatch"] * hyb.SHAPE_PENALTY_M if shape_slots else 0.0)
+            true = r[3]["path_m"] + out[2]["row3"] * hyb.ROW3_PENALTY_M + ((out[2]["mismatch"] + out[2]["blocked"]) * hyb.SHAPE_PENALTY_M if shape_slots else 0.0)
             if best is None or true < best[3] - 1e-9:
                 best = (alloc, r, yshape, true, out)
     if best is None:
@@ -278,7 +278,7 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
 
 
 STOP_AFTER = ("none", "observe", "first_pick", "first_place")
-RESCORE_TOP = 5   # hybrid: 실제 칸 배정으로 다시 셀 할당 수
+RESCORE_TOP = 10   # hybrid: 실제 칸 배정으로 다시 셀 할당 수
 
 
 def _nav_step(world, cur, to):
@@ -415,6 +415,8 @@ def _steps(world, mode, alloc, group_of_L, r, avoid=(), row_rule="free", shape_s
     if shape_slots and sinfo["mismatch"]:
         bad = sorted(q for q, s in slot_of.items() if SLOT_SHAPE[s] != by_id[q].shape)
         warn.append(f"퍽 {bad}: 모양이 다른 팔레트 칸에 실음 (싣는 차례 · 열 규칙상 못 맞춤, #230)")
+    if shape_slots and sinfo["blocked"]:
+        warn.append(f"퍽 {sinfo['blocked_ids']}: 막는 이웃 칸이 차 있는 채 꺼냄 (싣는 차례상 못 피함, #230)")
     if not sinfo["complete"]:
         warn.append(f"팔레트 칸 찾기 {sinfo['nodes']} 노드에서 멈춤 (지금까지 가장 좋은 배정)")
     warn += _lying_order_warnings(world, steps)

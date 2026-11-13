@@ -4,13 +4,14 @@
   - 열 규칙: 앞 열 (번호 작은 열) 에 퍽이 있으면 뒤 열 칸을 싣거나 꺼낼 수 없음 (팔레트 문서 규칙).
   - row_rule="fixed" 면 같은 열 안도 ROW_ORDER 차례로 싣고 반대로 꺼냄 (예전 규칙). 기본 "free" 는 열 안 차례 자유.
 될수록 (사전식 순서로 작게):
-  1. 모양이 다른 칸 수 — 궤적 파일 칸 모양 (SLOT_SHAPE). 원기둥을 꺼낼 때 이웃 직육면체 칸 모서리가 손가락을 막아
-     모양 무시면 꺼내기 → 놓기 79 %, 모양대로면 98 % (Isaac 모의, #230).
+  1. 모양이 다른 칸 수 + 막힌 채 꺼내는 수 — 궤적 파일 칸 모양 (SLOT_SHAPE). 원기둥을 꺼낼 때 이웃 직육면체 칸 모서리가
+     손가락을 막아 모양 무시면 꺼내기 → 놓기 79 %, 모양대로 + 막는 쌍 (BLOCKERS) 비우고 꺼내면 98 % (Isaac 모의, #230).
+     막는 칸이 다른 장소 퍽 (나중에 내림) 으로 남는 배정을 피함. 같이 내리는 퍽끼리는 꺼내는 차례로 풂.
   2. 3 열 칸 수 (싣기 · 꺼내기 칸당 약 7 s 더 느림, #75).
   3. 예전 배정과 다른 정도 (스택 깊이로 정한 열과의 차이 + 열 안 ROW_ORDER 를 어긴 수).
-꺼내는 차례 (같은 장소에서 함께 내리는 퍽): 앞 열부터, 열 안은 UNLOAD_PREF (#230 모의 98.2 % 조건) — 규칙이 허락하는 한.
+꺼내는 차례 (같은 장소에서 함께 내리는 퍽): 막는 칸이 빈 퍽부터, 그다음 앞 열 · 열 안 UNLOAD_PREF (#230) — 규칙이 허락하는 한.
 찾기: 분기 한정 깊이 우선 (예전 배정을 처음 상한으로), 노드 budget 에서 멈추고 그때까지 가장 좋은 것.
-  열 안 차례 자유면 퍽마다 열 (3 가지) 만 분기하고 열 안 칸은 모양 맞는 빈 칸 (같은 열 같은 모양 칸은 바꿔도 같음).
+  열 안 차례 자유면 퍽마다 열 (3 가지) 만 분기하고 열 안 칸은 (모양 다름 + 이미 실린 퍽과 생길 막는 쌍) 이 가장 적은 빈 칸.
 """
 from __future__ import annotations
 
@@ -21,6 +22,10 @@ SLOT_SHAPE = {(1, 0): "cylinder", (1, 1): "box", (1, 2): "cylinder", (1, 3): "bo
               (2, 0): "box", (2, 1): "cylinder", (2, 2): "box", (2, 3): "cylinder",
               (3, 0): "cylinder", (3, 1): "box", (3, 2): "cylinder", (3, 3): "box"}
 UNLOAD_PREF = {1: [3, 0, 2, 1], 2: [2, 0, 3, 1], 3: [3, 1, 0, 2]}   # 열 안 꺼내기 차례 (#230)
+# 막는 쌍 (#230 팔 쪽 답, Isaac 모의): 칸 -> 그 칸을 꺼내기 전에 비어 있어야 하는 이웃 칸.
+# 원기둥 칸은 집게 닫는 축 쪽 이웃 직육면체 모서리가 벌린 손가락을 막고, 1_1 (직육면체) 을 꺼낼 때는 1_0 을 침.
+BLOCKERS = {(3, 0): ((3, 1),), (3, 2): ((3, 1), (3, 3)), (2, 1): ((2, 2), (2, 0)), (2, 3): ((2, 2),),
+            (1, 2): ((1, 3),), (1, 1): ((1, 0),)}
 BUDGET = 20000
 
 
@@ -42,6 +47,11 @@ def stack_depth(events):
             gone = {p.id for p in ev[2]}
             stack = [q for q in stack if q not in gone]
     return above
+
+
+def blocked_by(occ, slot):
+    """slot 을 지금 꺼내면 막는 칸 중 차 있는 수"""
+    return sum(b in occ for b in BLOCKERS.get(slot, ()))
 
 
 class _Rules:
@@ -68,21 +78,23 @@ class _Rules:
         return True
 
     def unload_order(self, occ, slots):
-        """slots (함께 내리는 칸들) 를 꺼낼 차례 -> 칸 목록, 못 꺼내면 None. occ 는 바꾸지 않음."""
-        occ, todo, out = dict(occ), set(slots), []
+        """slots (함께 내리는 칸들) 를 꺼낼 차례 -> (칸 목록, 막힌 채 꺼내는 수), 못 꺼내면 (None, 0). occ 는 바꾸지 않음.
+        열 규칙이 허락하는 칸 중 막는 칸이 빈 것부터 (같으면 앞 열 · UNLOAD_PREF). 꺼내도 다른 칸이 새로 막히지는 않아 탐욕으로 충분."""
+        occ, todo, out, blocked = dict(occ), set(slots), [], 0
         while todo:
             ok = [s for s in todo if self.can_take(occ, s)]
             if not ok:
-                return None
-            s = min(ok, key=lambda s: (s[0], UNLOAD_PREF[s[0]].index(s[1])))
+                return None, 0
+            s = min(ok, key=lambda s: (blocked_by(occ, s) > 0, s[0], UNLOAD_PREF[s[0]].index(s[1])))
+            blocked += blocked_by(occ, s) > 0
             out.append(s)
             todo.discard(s)
             del occ[s]
-        return out
+        return out, blocked
 
 
 def _cost(events, slot_of, pref_row, rules):
-    """배정 하나의 값 (모양 다른 수, 3 열 수, 예전과 다른 정도), 규칙 어기면 None."""
+    """배정 하나의 값 (모양 다른 수 + 막힌 채 꺼내는 수, 3 열 수, 예전과 다른 정도), 규칙 어기면 None."""
     occ, mis, row3, dev = {}, 0, 0, 0
     for ev in events:
         if ev[0] == "pick":
@@ -94,9 +106,10 @@ def _cost(events, slot_of, pref_row, rules):
             dev += abs(s[0] - pref_row[p.id]) + sum(1 for (rr, ii) in occ if rr == s[0] and rules.rank[ii] > rules.rank[s[1]])
             occ[s] = p.id
         else:
-            order = rules.unload_order(occ, [slot_of[p.id] for p in ev[2]])
+            order, b = rules.unload_order(occ, [slot_of[p.id] for p in ev[2]])
             if order is None:
                 return None
+            mis += b
             for s in order:
                 del occ[s]
     return (mis, row3, dev)
@@ -125,6 +138,17 @@ def assign(events, avoid=(), row_rule="free", shape=True, budget=BUDGET, init=No
     best_c = _cost(events, old, pref_row, rules)
     best = (key(best_c), dict(old)) if best_c is not None else (None, None)
     nodes = [0]
+    out_at = {p.id: k for k, ev in enumerate(events) if ev[0] == "place" for p in ev[2]}   # 퍽을 내리는 사건 번호
+
+    def conflicts(occ, s, q):
+        """q 를 s 에 실으면 같은 열 이미 실린 퍽과 생길 막는 쌍 수 (다른 장소에서 내리는 것만, 같이 내리면 차례로 풂)"""
+        n = 0
+        for o, oq in occ.items():
+            if o[0] != s[0] or out_at[oq] == out_at[q]:
+                continue
+            first, later = (o, s) if out_at[oq] < out_at[q] else (s, o)   # first 를 먼저 꺼냄, later 는 남아 있음
+            n += later in BLOCKERS.get(first, ())
+        return n
 
     def dfs(k, occ, where, mis, row3, dev):
         nonlocal best
@@ -139,13 +163,13 @@ def assign(events, avoid=(), row_rule="free", shape=True, budget=BUDGET, init=No
             return
         ev = events[k]
         if ev[0] == "place":
-            order = rules.unload_order(occ, [where[p.id] for p in ev[2]])
+            order, b = rules.unload_order(occ, [where[p.id] for p in ev[2]])
             if order is None:
                 return
             nocc = dict(occ)
             for s in order:
                 del nocc[s]
-            dfs(k + 1, nocc, where, mis, row3, dev)
+            dfs(k + 1, nocc, where, mis + (b if shape else 0), row3, dev)
             return
         p = ev[1]
         cands = []
@@ -154,16 +178,17 @@ def assign(events, avoid=(), row_rule="free", shape=True, budget=BUDGET, init=No
                 continue
             m = SLOT_SHAPE[s] != p.shape
             d = abs(s[0] - pref_row[p.id]) + sum(1 for (rr, ii) in occ if rr == s[0] and rules.rank[ii] > rules.rank[s[1]])
-            cands.append((m if shape else 0, s[0] == 3, d, s))
+            c = conflicts(occ, s, p.id) if shape else 0
+            cands.append(((m if shape else 0) + c, s[0] == 3, d, s, m if shape else 0))
         cands.sort()
-        if not rules.fixed:   # 열 안 차례 자유면 같은 열 칸은 모양만 다름 -> 열마다 가장 좋은 칸 하나만 (분기 3 개)
+        if not rules.fixed:   # 열 안 차례 자유면 열마다 가장 좋은 칸 하나만 (분기 3 개, 칸마다 분기하면 budget 에 걸려 더 나쁨)
             seen, one = set(), []
             for c in cands:
                 if c[3][0] not in seen:
                     seen.add(c[3][0])
                     one.append(c)
             cands = one
-        for m, r3, d, s in cands:
+        for _, r3, d, s, m in cands:
             occ[s] = p.id
             where[p.id] = s
             dfs(k + 1, occ, where, mis + m, row3 + r3, dev + d)
@@ -174,14 +199,18 @@ def assign(events, avoid=(), row_rule="free", shape=True, budget=BUDGET, init=No
     if best[1] is None:
         raise RuntimeError(f"팔레트 칸 배정 못 함 (규칙 {row_rule}, 칸 {len(free)})")
     slot_of = best[1]
-    unload, occ = {}, {}
+    unload, occ, blk = {}, {}, []
     for k, ev in enumerate(events):
         if ev[0] == "pick":
             occ[slot_of[ev[1].id]] = ev[1].id
         else:
-            order = rules.unload_order(occ, [slot_of[p.id] for p in ev[2]])
-            unload[k] = [occ.pop(s) for s in order]
+            order, _ = rules.unload_order(occ, [slot_of[p.id] for p in ev[2]])
+            unload[k] = []
+            for s in order:
+                if blocked_by(occ, s):
+                    blk.append(occ[s])
+                unload[k].append(occ.pop(s))
     shapes = {e[1].id: e[1].shape for e in events if e[0] == "pick"}
     mis = sum(SLOT_SHAPE[s] != shapes[q] for q, s in slot_of.items())
-    return slot_of, unload, dict(mismatch=mis, row3=sum(s[0] == 3 for s in slot_of.values()),
+    return slot_of, unload, dict(mismatch=mis, blocked=len(blk), blocked_ids=sorted(blk), row3=sum(s[0] == 3 for s in slot_of.values()),
                                  nodes=nodes[0], complete=nodes[0] < budget)

@@ -24,7 +24,7 @@ from itertools import permutations
 import numpy as np
 
 ROW3_PENALTY_M = 2.8   # [m] 3 열 칸 하나 (싣기 + 꺼내기 약 14 s × 0.2 m/s, 가정)
-SHAPE_PENALTY_M = 5.0  # [m] 모양 다른 칸에 실을 퍽 하나 (#230 모의: 모양 무시 79 % vs 모양대로 98 %, 가정)
+SHAPE_PENALTY_M = 28.0  # [m] 모양 다른 칸 퍽 하나 · 막힌 채 꺼내기 하나 (#230 팔 쪽: 모양 어김 1 = 3 열 칸 10 개 이상, 가정)
 SHAPES = ("box", "cylinder")
 INF = math.inf
 
