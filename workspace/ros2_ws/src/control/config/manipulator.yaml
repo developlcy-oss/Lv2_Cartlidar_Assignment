@@ -261,6 +261,8 @@ manipulator_node:
       start_poses: [DRIVE, ALIGN, TRANSIT_TILT]
       start_pose_tolerance: 0.15
       prep_velocity: 0.3
+      # 꺼내기 빈손이면 칸 안에 멈추지 않고 이동 자세까지 빠져나온 뒤 실패 (2026-11-14 실물: 칸 안에 머문 채 끝남)
+      retreat_on_fail: true
     # 팔 처짐 보정 (include/control/sag_comp.hpp): 팔레트 칸 궤적을 50 Hz 로 계획 + bias 스트리밍 (/arm_controller/joint_trajectory),
     #   bias += ki · dt · (계획 − 측정). Isaac pallet_place_check.py --ki 4 와 같은 식 (보정 없이 4/24 → 24/24).
     #   펌웨어 P 800 · I 0 이라 퍽을 쥔 팔이 6 ~ 13 mm 처지고 칸 틈은 1 ~ 2 mm. gripper.mode action 이면 쓰지 않음

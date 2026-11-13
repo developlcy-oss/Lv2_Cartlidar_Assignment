@@ -440,6 +440,8 @@ private:
     pallet_start_poses_ = declare_parameter<std::vector<std::string>>("pallet.start_poses", {"DRIVE", "ALIGN", "TRANSIT_TILT"});
     pallet_start_pose_tol_ = declare_parameter<double>("pallet.start_pose_tolerance", 0.15);
     pallet_prep_vel_ = declare_parameter<double>("pallet.prep_velocity", 0.3);
+    // 꺼내기에서 빈손이면 칸 안에 멈추지 말고 이동 자세까지 빠져나온 뒤 실패 (true). false = 예전처럼 그 자리에서 멈춤
+    pallet_retreat_on_fail_ = declare_parameter<bool>("pallet.retreat_on_fail", true);
     // 칸 안에서 벌리는 폭: 끝까지 열면 손가락이 칸 벽에 닿음 (Isaac FINGER_RELEASED 37.6 mm). 기본 = gripper.open_position
     pallet_release_ = declare_parameter<double>("pallet.release_position", gripper_open_);
     pallet_dwell_ = declare_parameter<double>("pallet.place_dwell", 0.3);
@@ -3320,6 +3322,7 @@ private:
     sag_int_ = SagIntegrator(sag_ki_, sag_bias_max_);
     sag_load_ = load;
     sag_done_msg_ = load ? "loaded" : "unloaded";
+    sag_fail_msg_.clear();
     sag_end_plan_.reset();
     sag_start_ = sag_last_ = now();
     RCLCPP_INFO(get_logger(), "pallet %s: stream %.1f s (settle %.1f s, ki %.1f, %.0f Hz)", load ? "load" : "unload",
@@ -3386,11 +3389,25 @@ private:
       sag_check_t_.reset();
       const auto holding = gripperHolding();
       if (gripper_fail_on_empty_ && (!holding || !*holding)) {
-        finishSkill(false, "pallet_unload: empty grasp (no puck in slot?)");
-        return;
+        if (!pallet_retreat_on_fail_) {
+          finishSkill(false, "pallet_unload: empty grasp (no puck in slot?)");
+          return;
+        }
+        // 빈손이어도 칸 안에 멈추지 않고 나머지 (칸에서 빠져나와 이동 자세까지) 를 마친 뒤 실패로 끝냄 (pallet.retreat_on_fail).
+        //   2026-11-14 실물: 빈 칸 꺼내기 실패 → 칸 안 자세 그대로 유지 → 다음 명령 · 미션 재시도가 칸 안에서 출발
+        sag_fail_msg_ = "pallet_unload: empty grasp (no puck in slot?) — retreated to transit";
+        RCLCPP_WARN(get_logger(), "pallet unload: empty grasp -> finish the leave path, then fail");
       }
     }
     if (t >= sag_tl_->duration()) {
+      if (!sag_fail_msg_.empty()) {   // 빈손으로 빠져나옴: 다음 놓기가 이 bias 를 이어 쓰지 않게
+        sag_tl_.reset();
+        stream_active_ = false;
+        const auto msg = sag_fail_msg_;
+        sag_fail_msg_.clear();
+        finishSkill(false, msg);
+        return;
+      }
       const auto & b = sag_int_.bias();
       RCLCPP_INFO(get_logger(), "pallet: sag bias [%.3f %.3f %.3f %.3f %.3f] rad", b[0], b[1], b[2], b[3], b[4]);
       sag_end_plan_ = sag_tl_->points().back().q;   // 다음 놓기 스트림이 이 bias 를 이어 씀
@@ -3844,6 +3861,8 @@ private:
   std::string pallet_file_;
   double pallet_speed_{0.8}, pallet_row3_hold_speed_{0.4};
   bool pallet_apply_offsets_{false};
+  bool pallet_retreat_on_fail_{true};
+  std::string sag_fail_msg_;
   double pallet_start_tol_{0.05}, pallet_start_pose_tol_{0.15}, pallet_prep_vel_{0.3};
   std::vector<std::string> pallet_start_poses_;
   bool startup_block_goals_{true};
