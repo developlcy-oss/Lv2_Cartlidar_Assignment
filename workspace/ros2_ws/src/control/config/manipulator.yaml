@@ -10,6 +10,10 @@ manipulator_node:
       upper_limits: [3.14159, 1.6, 1.6, 2.0, 2.8, 0.9541]
       max_joint_velocity: 0.5    # rad/s, 궤적 시간 계산용
       min_duration: 1.0          # s
+      # 관절 목표 하나 이동 (자세 · 켜질 때 정리 · 집기 접근) 을 최소 저크 곡선 (include/control/min_jerk.hpp) 점으로 나누는 간격 [s].
+      #   출발 · 도착 가속도가 튀지 않아 J2 늦음 · 넘침, 손목 끝 떨림이 줄어듦 (2026-11-13 실물 STOW → DRIVE). 0 = 끝점 하나 (예전 3 차)
+      #   같은 시간에서 가장 빠른 순간 속도 = 1.875 × 평균 (3 차 1.5 배) ★ 실물 비교
+      min_jerk_dt: 0.05
       joint_state_timeout: 1.0   # s
 
     # ArmIK — 기구 = 차체 URDF (robot.urdf.xacro) = 기준 모델 B안 = kinematics.py. include/control/arm_ik.hpp 머리말 참고
@@ -64,7 +68,7 @@ manipulator_node:
       pose: DRIVE                # poses.names 중 하나. 빈 문자열 = 끔
       stages: ["3", "2", "4", "1", "5,6"]   # 관절 번호 묶음 순서 (6 = 그리퍼). 대기 → 주행 = J3 → J2 → J4 → J1 (2026-11-13 새 DRIVE, 계산 퍽 15 · 차체 23 mm ★ 실물 0.1 rad/s 로 첫 확인).
                                           #   이전 J3 → J2 → J1 → J4 (#165 실물 확인) 는 새 DRIVE 에서 J4 단계 집게가 위 카메라 기둥 상자와 −20 mm (계산)
-      max_joint_velocity: 0.1    # rad/s (#165 실물 확인한 값, 확인 뒤 0.2)
+      max_joint_velocity: 0.3    # rad/s, 평균 (#165 0.1 → 2026-11-13 opencr_arm_tool 0.2 추종 오차 0.028 rad · 전류 0.44 A 이하 → 0.3 ★ 실물 확인)
       skip_tolerance: 0.05       # rad, 묶음 관절이 모두 이 안이면 그 묶음은 건너뜀
       diag_wait: 5.0             # s, opencr 진단이 이 동안 한 번도 안 오면 (시뮬레이션 · mock) HOLD 확인 없이 진행
       warn_after: 15.0           # s, 이만큼 기다려도 arm_controller · /joint_states 가 없으면 경고 (관절 한계 밖 · OpenCR 활성화 실패)
