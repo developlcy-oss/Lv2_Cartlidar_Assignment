@@ -3,6 +3,7 @@
 # 시작 박스: S = 남쪽 (yaw +90°) · N = 북쪽 (yaw -90°) 에서 두 퍽 잇는 선에 수직으로. ±Y 둘 다 안 되는 박스만 W · E (inline).
 # pucks: 박스 퍽 (side -1 = X − 40, +1 = X + 40) 의 J1 축 거리 [m]. cells: 장소 3 x 3 칸 (dx,dy 칸 단위, +Y 위) 의 J1 거리 · 집게 방식.
 # geom (시작 박스): 계획기 기하 j1_x · center_x (poses.J1_X · CENTER_X) · box_x (집기 자리 base_link -> 상자 중심 x) — mission start_box 가 읽음.
+# geom (장소 L1 ~ L3): 상자 반 변 box_half · TFmini 렌즈 x tfmini_x (poses.LENS_X) — mission 비스듬히 서기가 읽음.
 B1:S:
   kind: box
   ok: true
@@ -548,6 +549,9 @@ L1:
   stage_clearance: 0.165
   stage_rotate: true
   tag: 12
+  geom:
+    box_half: 0.1025
+    tfmini_x: 0.13
   cells:
     -1,-1:
       x: 3.61
@@ -630,6 +634,9 @@ L2:
   stage_clearance: 0.2
   stage_rotate: true
   tag: 13
+  geom:
+    box_half: 0.1025
+    tfmini_x: 0.13
   cells:
     -1,-1:
       x: 2.142
@@ -712,6 +719,9 @@ L3:
   stage_clearance: 0.165
   stage_rotate: true
   tag: 14
+  geom:
+    box_half: 0.1025
+    tfmini_x: 0.13
   cells:
     -1,-1:
       x: 3.61

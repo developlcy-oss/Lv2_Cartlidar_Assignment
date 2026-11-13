@@ -551,8 +551,7 @@ private:
     // 차체 기하는 control robot_geometry.yaml (base.*) 한 곳 — bringup 이 그 파일을 mission_node 에도 넘김. 없으면 헤더 기본값
     ob_geom_.front = declare_parameter<double>("base.front_offset", ob_geom_.front);
     ob_geom_.icr_x = declare_parameter<double>("base.icr_x", ob_geom_.icr_x);
-    ob_geom_.half = declare_parameter<double>("oblique.box_half", ob_geom_.half);
-    ob_geom_.tf_x = declare_parameter<double>("oblique.tfmini_x", ob_geom_.tf_x);
+    // 장소 상자 반 변 · TFmini 렌즈 x 는 계획기 접근 자세표 (approach_poses.yaml L1 ~ L3 geom) 에서 읽음 (loadPlaceCenters, #262)
     // 시작 박스 집기 (start_box.*, #226): 꺼져 있으면 지금 흐름 그대로
     start_box_enabled_ = declare_parameter<bool>("start_box.enabled", false);
     sb_max_turn_ = declare_parameter<double>("start_box.max_turn_deg", 30.0);
@@ -599,21 +598,42 @@ private:
   // 계획기 접근 자세표의 L1 ~ L3 칸 "0,0" (지도 격자 중심). 없으면 place_box 를 끄고 경고 (지도 좌표로 놓음)
   void loadPlaceCenters()
   {
-    std::string file = survey_poses_file_;
+    std::string file = survey_poses_file_, geom_err;
     try {
       if (file.empty()) {
         file = (ament_index_cpp::get_package_share_path("mission_planner") / "config" / "approach_poses.yaml").string();
       }
       const YAML::Node doc = YAML::LoadFile(file);
+      std::string geom_from;
       for (const char * L : {"L1", "L2", "L3"}) {
         const YAML::Node c = doc[L] ? doc[L]["cells"]["0,0"] : YAML::Node();
         if (c && c["x"] && c["y"]) {place_centers_[L] = {c["x"].as<double>(), c["y"].as<double>()};}
+        // 비스듬히 서기 기하 (#262): 계획기 장소 geom. 장소마다 다르면 지금 계산 (한 값) 으로 못 다룸 -> 거부
+        const YAML::Node g = doc[L] ? doc[L]["geom"] : YAML::Node();
+        if (!oblique_enabled_ || !c) {continue;}
+        if (!g || !g["box_half"] || !g["tfmini_x"]) {
+          geom_err = std::string(L) + ": geom (box_half · tfmini_x) 없음 — mission_make_maps 로 다시 만들 것";
+          break;
+        }
+        const double half = g["box_half"].as<double>(), tf_x = g["tfmini_x"].as<double>();
+        if (!geom_from.empty() && (std::abs(half - ob_geom_.half) > 1e-9 || std::abs(tf_x - ob_geom_.tf_x) > 1e-9)) {
+          geom_err = std::string(L) + ": geom 이 " + geom_from + " 와 다름 (장소마다 다른 상자는 못 다룸)";
+          break;
+        }
+        ob_geom_.half = half;
+        ob_geom_.tf_x = tf_x;
+        geom_from = L;
       }
     } catch (const std::exception & e) {
       RCLCPP_WARN(get_logger(), "place_box: %s (%s) -> 상자 재기 끔", e.what(), file.c_str());
     }
+    if (!geom_err.empty()) {throw std::invalid_argument("oblique (" + file + "): " + geom_err);}   // 비스듬히 서기를 켰는데 기하가 없으면 시작 거부
     if (place_centers_.empty()) {place_box_enabled_ = false;}
     RCLCPP_INFO(get_logger(), "place_box: %s (장소 %zu 곳)", place_box_enabled_ ? "켬" : "끔", place_centers_.size());
+    if (oblique_enabled_ && place_box_enabled_) {
+      RCLCPP_INFO(get_logger(), "oblique: geom box_half %.4f · tfmini_x %.4f (자세표), base.front_offset %.4f · base.icr_x %.4f",
+        ob_geom_.half, ob_geom_.tf_x, ob_geom_.front, ob_geom_.icr_x);
+    }
   }
 
   // 시작 박스 집기: 계획기 접근 자세표의 kind box 접근 (B<n>:<면>) final · stage · turn_range_deg. 하나도 없으면 노드 시작 실패
