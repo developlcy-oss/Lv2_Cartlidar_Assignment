@@ -33,6 +33,14 @@ class Solid:
     r: float = 0.0   # 원기둥 반지름
     yaw: float = 0.0
 
+    def footprint_box(self):
+        """(바닥 투영 꼭짓점, 최소 xy, 최대 xy) — 한 번만 셈 (외곽 판정이 수백만 번 부름, #265). Solid 는 바꾸지 않고 dataclasses.replace 로 새로 만듦."""
+        c = self.__dict__.get("_fp")
+        if c is None:
+            q = self.footprint()
+            c = self.__dict__["_fp"] = (q, q.min(0), q.max(0))
+        return c
+
     def footprint(self, n=16):
         if self.r > 0:
             a = np.linspace(0, 2 * math.pi, n, endpoint=False)
