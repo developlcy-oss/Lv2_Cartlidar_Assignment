@@ -24,6 +24,16 @@ def quat_matrix(q):
                      [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)]])
 
 
+def or_grow(acc, inside):
+    """칸별 OR. 라이다가 한 바퀴 점 수를 바꿔 내도(실물 coin_d4: 399 · 400) 긴 쪽 길이로 맞춰 합친다."""
+    if acc is None:
+        return inside.copy()
+    out = np.zeros(max(len(acc), len(inside)), bool)
+    out[:len(acc)] = acc
+    out[:len(inside)] |= inside
+    return out
+
+
 class ScanBodyMask(Node):
     def __init__(self):
         super().__init__('scan_body_mask')
@@ -78,7 +88,7 @@ class ScanBodyMask(Node):
             self.t0 = ts
         if topic not in self.fixed:
             if self.win[0] <= ts - self.t0 <= self.win[1]:
-                self.learning[topic] = self.learning.get(topic, np.zeros(len(r), bool)) | inside
+                self.learning[topic] = or_grow(self.learning.get(topic), inside)
             elif ts - self.t0 > self.win[1] and topic in self.learning:
                 self.fixed[topic] = np.nonzero(self.learning.pop(topic))[0]
                 self.get_logger().info(f'{topic}: 고정 칸 {len(self.fixed[topic])}칸 학습({len(self.fixed[topic]) * math.degrees(msg.angle_increment):.1f}°)')
