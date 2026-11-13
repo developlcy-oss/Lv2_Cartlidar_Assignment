@@ -37,6 +37,13 @@ manipulator_node:
       wrist_roll_default: 0.0
       gripper_roll_default: 0.0  # gripper.mode action · none 일 때만 6 번째 값
 
+    # 이름 자세 이동 · 켜질 때 정리 안전 검사 (2026-11-14 실물: 칸 안 자세에서 pose DRIVE → 오른쪽 프로파일 충돌).
+    #   둘 다 관절 공간 직선 이동이라 주변을 모름 → 뒤 · 옆 (|관절 1| > front_j1_max) 에서는 알려진 자세 (poses.* · 팔레트
+    #   이동 자세 · 칸 앞 자세) 에서 start_tolerance [rad] 안일 때만 움직임. STOW 에서는 이름 자세 대신 켜질 때 정리로만. 켜질 때 정리는 STOW 또는 정리 자세 근처에서만. blocked = 이름 자세로 직접 안 보냄
+    pose:
+      start_tolerance: 0.2
+      front_j1_max: 0.6        # rad. 관절 1 이 이 안 (앞쪽, 상자 보기 · 집기 뒤) 이면 이름 자세 이동 허용, 밖 (뒤 팔레트 · 옆) 이면 알려진 자세 근처만
+      blocked: [STOW, READY]   # STOW 는 정리의 역순 (opencr_arm_tool) 으로만, READY 는 11-08 상단 카메라 충돌
     # 이름 자세 [joint1~5, 6 번째] (rad). gripper.mode=arm_joint 면 6 번째는 쓰지 않고 지금 그리퍼 명령을 유지
     poses:
       names: [STOW, DRIVE, ALIGN, READY, PLACE, TAG_VIEW, BOX_VIEW, TRANSIT_TILT]
