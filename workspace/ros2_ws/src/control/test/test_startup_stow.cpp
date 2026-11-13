@@ -26,11 +26,12 @@ TEST(StartupStow, ParsesDefaultStages)
   EXPECT_EQ(s[0], (std::vector<size_t>{1, 2, 3, 4, 5}));
   EXPECT_EQ(s[1], (std::vector<size_t>{0}));
   EXPECT_EQ(parseStartupStages({" 1 , 2"}, 6)[0], (std::vector<size_t>{0, 1}));
-  // manipulator.yaml 기본 = 대기 → 주행 실물 순서 J3 → J2 → J1 → J4 → (J5 · 그리퍼) (#144 · #165)
-  const auto d = parseStartupStages({"3", "2", "1", "4", "5,6"}, 6);
+  // manipulator.yaml 기본 = 대기 → 주행 J3 → J2 → J4 → J1 → (J5 · 그리퍼) (2026-11-13 새 DRIVE, 이전 J3 → J2 → J1 → J4 #165)
+  const auto d = parseStartupStages({"3", "2", "4", "1", "5,6"}, 6);
   ASSERT_EQ(d.size(), 5u);
   EXPECT_EQ(d[0], (std::vector<size_t>{2}));
-  EXPECT_EQ(d[2], (std::vector<size_t>{0}));
+  EXPECT_EQ(d[2], (std::vector<size_t>{3}));
+  EXPECT_EQ(d[3], (std::vector<size_t>{0}));
   EXPECT_EQ(d[4], (std::vector<size_t>{4, 5}));
 }
 
