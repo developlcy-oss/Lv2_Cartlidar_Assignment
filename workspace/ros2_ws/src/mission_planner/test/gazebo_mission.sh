@@ -14,7 +14,7 @@
 #       LOC=1 은 twist_mux 도
 # 시각: 모든 로그 시각은 시뮬레이션 시각 (Gazebo 는 실시간의 약 0.5 ~ 0.66 배)
 set +u
-PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim|lib/twist_mux/twist_mux|loc_monitor|cmd_vel_watchdog'
+PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim|lib/twist_mux/twist_mux|loc_monitor|cmd_vel_watchdog|ekf_node|odom_icr'
 stop_all() {
   for sig in INT TERM KILL; do
     pids=$(pgrep -f "$PAT" | grep -vx "$$")
@@ -64,6 +64,8 @@ YAML
   ros2 run twist_mux twist_mux --ros-args --params-file "$OUT/mux.yaml" -r cmd_vel_out:=/cmd_vel_mux > "$OUT/mux.log" 2>&1 &
   # 실물 펌웨어 명령 시간 초과 (200 ms) 흉내: Gazebo DiffDrive 는 잠금 중에도 마지막 명령으로 계속 달림
   python3 "$HERE/cmd_vel_watchdog.py" --ros-args -p use_sim_time:=true > "$OUT/watchdog.log" 2>&1 &
+else
+  GZ_ARGS="use_loc_monitor:=false $GZ_ARGS"   # gazebo_sim 기본은 loc_monitor 켬 (#151) — LOC=0 은 예전처럼 없이
 fi
 ros2 launch navigation gazebo_sim.launch.py gui:=false rviz:=false $GZ_ARGS > "$OUT/gz.log" 2>&1 &
 echo "[gz_mission] Gazebo + Nav2 시작"

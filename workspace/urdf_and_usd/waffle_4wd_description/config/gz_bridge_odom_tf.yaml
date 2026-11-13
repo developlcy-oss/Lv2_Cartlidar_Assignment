@@ -1,0 +1,7 @@
+# DiffDrive 바퀴 odom 의 odom -> base_link TF (gazebo.launch.py odom_tf:=true 일 때만 이음).
+# 실물처럼 EKF (IMU yaw rate) 가 TF 를 낼 때는 끔: 바퀴만으로 센 회전은 스키드 미끄러짐으로 실제보다 약 22 % 큼 (#151, 2026-11-13 Gazebo 측정)
+- ros_topic_name: "/tf"
+  gz_topic_name: "tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS

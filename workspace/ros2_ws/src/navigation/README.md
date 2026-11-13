@@ -97,7 +97,7 @@ ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: 
 
 ```bash
 cd workspace/ros2_ws
-colcon build --symlink-install --base-paths src ../urdf_and_usd/waffle_4wd_description --packages-select waffle_4wd_description robot_interfaces mission_planner localization navigation
+colcon build --symlink-install --base-paths src ../urdf_and_usd/waffle_4wd_description --packages-select waffle_4wd_description robot_interfaces mission_planner localization navigation control bringup   # control · bringup = EKF 설정 (use_ekf)
 source install/setup.bash
 ros2 launch navigation gazebo_sim.launch.py               # 출발 자세로 Gazebo → 팔 주행 자세 → 5 s 뒤 Nav2 + AMCL
 ros2 launch navigation gazebo_sim.launch.py gui:=false    # 창 없이. nav:=false 면 Gazebo · 팔 자세만, x:= y:= yaw:= 로 다른 시작 자세
@@ -108,11 +108,14 @@ ros2 launch navigation gazebo_sim.launch.py gui:=false    # 창 없이. nav:=fal
   localization 기본 Isaac SLAM 지도(`slam_walls_001`)는 동쪽으로 갈수록 SDF 와 어긋나(x 3 ~ 4.5 m 에서 8 ~ 9 cm, 북동 구석 15 cm 이상)
   AMCL 이 한쪽으로 치우치다 미로 칸을 착각해 1 m 넘어갔다. `map:=` · `objects_map:=` 로 바꿀 수 있다.
 - Gazebo 팔 관절은 0 (영 자세) 으로 시작한다. 팀 기본 시작 자세는 주행 자세(`isaac/robot_params.json` `drive`)라서 launch 가 `/arm/<관절>/cmd_pos` 로 보낸다. 영 자세로 달리면 팔이 걸린다.
-- Gazebo 는 twist_mux · ros2_control · EKF 를 거치지 않는다(diff_drive 플러그인이 `/cmd_vel` 을 받고 `odom → base_link` 를 냄). 그래서 `cmd_vel_out:=/cmd_vel` · `odom_topic:=/odom`.
-- `use_loc_monitor` 기본 false. 멈춘 동안 AMCL 이 자세를 안 내서 생기던 거짓 LOST(gap)는 localization 에서 고쳤다(#129).
-  켜면(`use_loc_monitor:=true`) `loc_map` 도 같은 SDF 지도(`map_amcl`)가 기본이다 — Isaac `slam_walls` 를 보면 잔차가 커져 FAILED(#133).
-  기본을 끈 이유: 잔차 문턱 0.034 m 는 Isaac 기준이라 Gazebo 주행 (특히 회전) 중 LOST:residual 이 잦고, 회전 중 다시 넣은 자세의
-  yaw 가 틀어져 미션이 FAILED 했다 (2026-11-09, LOST 15 · initialpose 14 → [61] FAILED, 끄면 DONE, #133).
+- Gazebo 는 twist_mux · ros2_control 을 거치지 않는다(diff_drive 플러그인이 `/cmd_vel` 을 받음). 그래서 `cmd_vel_out:=/cmd_vel`.
+- odom (`use_ekf`, 기본 true, #151): 실물 bringup ⑥ 처럼 `odom_icr` + EKF (`bringup/config/ekf.yaml`, 바퀴 vx · vy + IMU yaw rate) 가
+  `/odometry/filtered` 와 `odom → base_link` 를 낸다 (Gazebo diff_drive TF 는 `odom_tf:=false` 로 끔). Nav2 `odom_topic:=/odometry/filtered`.
+  Gazebo 바퀴 odom 은 제자리 회전을 실제보다 21 ~ 24 % 크게 센다 (스키드 미끄러짐, 2026-11-13 참값 비교, 직진은 오차 없음) → 그대로 쓰면
+  AMCL yaw 가 회전마다 13 ~ 19° 어긋나 LOST 가 잦았다. EKF 는 참값과 1.000. `use_ekf:=false` 면 예전처럼 diff_drive `/odom` · TF.
+- `use_loc_monitor` 기본 true (2026-11-13, #151). `loc_map` 도 같은 SDF 지도(`map_amcl`)가 기본이다 — Isaac `slam_walls` 를 보면 잔차가 커져 FAILED(#133).
+  예전(바퀴 odom)에는 회전 중 LOST:residual 이 잦아 끄고 있었다 (2026-11-09 LOST 15 → FAILED, 11-12 LOC=1 LOST 17 · DONE 522 s).
+  `use_ekf` 뒤 Q1 `LOC=1` 미션: LOST 0, 잔차 p95 중앙 0.024 m (문턱 0.034), DONE 507 s. 끄려면 `use_loc_monitor:=false`.
 - Gazebo 는 카메라 3 대 렌더링으로 실시간의 약 0.5 ~ 0.66 배로 돈다. 모든 노드 `use_sim_time:=true`.
 
 ## 속도 명령 · TF
