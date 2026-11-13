@@ -5,7 +5,7 @@
   "velocity_limit": {"value": 10.995574, "unit": "rad/s", "status": "URDF (벨트 1:1.5)", "source": "받은 URDF 바퀴 관절 velocity (= 0.363 m/s). 팀 펌웨어 한계는 7.91 rad/s (WHEEL_VEL_LIMIT_RAW 330, 직결 기준)"},
   "damping": {"value": 0.2133, "unit": "N·m·s/rad", "status": "펌웨어 기본 게인 환산", "source": "XM430-W210 Velocity P 100 모터 축 환산 0.48 (TeamRobot robot_params) / 1.5² (벨트). 사용자 결정 2026-10-29"},
   "armature": {"value": 0.00222, "unit": "kg·m²", "status": "추정", "source": "모터 반사 관성 0.005 (TeamRobot 추정) / 1.5². 너무 작으면 제자리 회전 때 바퀴 속도가 튐"},
-  "radius": {"value": 0.033, "unit": "m", "status": "URDF", "source": "바퀴 Ø66"},
+  "radius": {"value": 0.0335, "unit": "m", "status": "URDF", "source": "바퀴 Ø67: 홈 채운 림 R31.5 (wheel_rim_filled_R31.50_4EA) + ROBOTIS 18x66 타이어 2 mm (2026-11-13, 이전 Ø66 0.033)"},
   "separation": {"value": 0.317, "unit": "m", "status": "URDF (바퀴 폭 가운데) = 실물 (팀원 확인)", "source": "좌우 바퀴 폭 가운데 y ±0.1585 (바퀴 메시 · 충돌 원통). 바퀴 관절 원점 ±0.1546 (간격 0.3092) 은 3.9 mm 안쪽이라 쓰지 않음. 팀 controllers_4wd.yaml 0.317 과 같음. 2026-10-29 정정 (처음 0.3092 는 관절 원점 간격을 잘못 쓴 것)"}
  },
  "arm": {

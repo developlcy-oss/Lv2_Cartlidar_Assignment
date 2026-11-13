@@ -9,9 +9,9 @@
                        비용 = 경로 + 3 열 칸 × hybrid.ROW3_PENALTY_M. 계산은 그룹별 Held-Karp 표 + 배열 연산 (할당 하나 수 ms).
   per_location         L 마다: 그 그룹 퍽이 있는 박스들을 돌며 싣고 -> L 에 놓기. 한 번에 6 개 이하라 팔레트 2 · 1 열 8 칸만 씀
                        (3 열은 놓기가 느림: 쥔 구간 0.4 rad/s, 칸당 17.5 ~ 18.6 s vs 2 · 1 열 8.9 ~ 12.1 s, #75). 박스는 여러 번 들를 수 있음.
-  single_load          12 개를 한 번에 실은 뒤 L 3 곳 배달. 팔레트는 3 열 -> 2 열 -> 1 열로 싣고 (쥔 퍽이 찬 칸 위로 못 지나감)
+  single_load          12 개를 한 번에 실은 뒤 L 3 곳 배달 (팔레트 v5 10 칸이라 지금은 MissionError). 팔레트는 3 열 -> 2 열 -> 1 열로 싣고 (쥔 퍽이 찬 칸 위로 못 지나감)
                        1 열 -> 2 열 -> 3 열로 꺼냄 -> 처음 배달할 L 의 퍽을 1 열 (마지막에 실음) 에.
-  집기 · 팔레트 · 칸 놓기는 모두 집게 45° (TopPick 기울임 모드 · pallet_traj 12 칸). 상자 퍽은 집기 전 제자리 turn_deg 회전 (poses.py).
+  집기 · 팔레트 · 칸 놓기는 모두 집게 45° (TopPick 기울임 모드 · pallet_traj v5 10 칸). 상자 퍽은 집기 전 제자리 turn_deg 회전 (poses.py).
   둘 다: 할당 (Y 모양 · ID) x L 방문 순서 x (single_load 는 열 나누기) 를 모두 따져 경로 비용이 가장 작은 것.
 경로 비용 = 대기 자세 (stage) 사이 A* 길이 + 회전 (pathcost) + 들어가고 나오는 직선 (2 x (standoff − gap)).
 """
@@ -28,10 +28,11 @@ from .pathcost import CostModel
 from .poses import PLACES, REACH_TILT, REACH_TILT_MIN, make_approaches, place_order
 
 from . import slots as slots_mod  # noqa: E402
-from .slots import ROW_ORDER, SLOT_SHAPE  # noqa: E402  같은 열 안 싣는 순서 · 칸 모양 (#230)
-FULL_SEQ = [(r, i) for r in (3, 2, 1) for i in ROW_ORDER]  # single_load 싣는 칸 (12)
-TILT_SLOTS = set(FULL_SEQ)  # 12 칸 모두 45° (pallet_traj.py TILT_SLOTS, Isaac 24/24)
+from .slots import N_SLOTS, ROW_ORDER, SLOT_SHAPE  # noqa: E402  같은 열 안 싣는 순서 · 칸 모양 (#230)
+FULL_SEQ = [(r, i) for r in (3, 2, 1) for i in ROW_ORDER if (r, i) in SLOT_SHAPE]  # 팔레트 칸 전부 (v5 10 칸, 3 열부터)
+TILT_SLOTS = set(FULL_SEQ)  # 모든 칸 45° (pallet_traj.py TILT_SLOTS, Isaac 놓기 · 꺼내기 24/24)
 PER_LOC_SEQ = [(r, i) for r in (2, 1) for i in ROW_ORDER]  # per_location 싣는 칸 (빠른 2 · 1 열 8 칸)
+N_PUCKS = 12
 MODES = ("hybrid", "per_location", "single_load")
 
 
@@ -198,7 +199,7 @@ def parse_slots(text):
         except ValueError:
             raise ValueError(f"avoid_slots {tok!r}: '열:칸' (예 2:1)") from None
         if (r, i) not in FULL_SEQ:
-            raise ValueError(f"avoid_slots {tok!r}: 열 1 ~ 3, 칸 0 ~ 3")
+            raise ValueError(f"avoid_slots {tok!r}: 팔레트 칸 {sorted(FULL_SEQ)} 중 하나")
         out.append((r, i))
     return out
 
@@ -211,9 +212,9 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
         raise ValueError(f"mode {mode!r}: {' | '.join(MODES)}")
     avoid = sorted(set(map(tuple, avoid_slots)))
     if any(s not in FULL_SEQ for s in avoid):
-        raise ValueError(f"avoid_slots {avoid}: 열 1 ~ 3, 칸 0 ~ 3")
-    if avoid and mode == "single_load":
-        raise MissionError(f"single_load 는 12 칸을 모두 씀 -> avoid_slots {avoid} 와 함께 못 씀")
+        raise ValueError(f"avoid_slots {avoid}: 팔레트 칸 {sorted(FULL_SEQ)} 중")
+    if mode == "single_load" and N_SLOTS - len(avoid) < N_PUCKS:
+        raise MissionError(f"single_load 는 퍽 {N_PUCKS} 개를 한 번에 실음 -> 팔레트 칸 {N_SLOTS - len(avoid)} 개로 못 함 (팔레트 v5 10 칸, avoid_slots {avoid})")
     if row_rule not in ("free", "fixed"):
         raise ValueError(f"row_rule {row_rule!r}: free | fixed")
     front_cap = sum(1 for s in FULL_SEQ if s[0] < 3 and s not in avoid)
@@ -233,7 +234,7 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
     for alloc, yshape in enumerate_allocations(pucks, counts, limit=alloc_limit):
         n_alloc += 1
         if mode == "hybrid":
-            kw = dict(front_cap=front_cap, capacity=12 - len(avoid), shape_caps=shape_caps)
+            kw = dict(front_cap=front_cap, capacity=N_SLOTS - len(avoid), shape_caps=shape_caps)
             r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, **kw)
             if r is None:   # 누운 퍽 순서를 지키는 나누기가 없음 -> 순서 없이 (경고)
                 r = hyb.plan_hybrid(world, alloc, group_of_L, world.hybrid_nodes, lying_after=False, **kw)
@@ -249,7 +250,7 @@ def plan(world: World, problem: dict, mode="hybrid", alloc_limit=2000, stop_afte
         # 탐색의 3 열 · 모양 넘침은 동시 적재 수로 본 추정 (아래 경계) -> 상위 RESCORE_TOP 개는 실제 칸 배정 값으로 다시 고름
         for _, _, alloc, r, yshape in sorted(cands, key=lambda c: c[:2])[:RESCORE_TOP]:
             out = _steps(world, mode, alloc, group_of_L, r, avoid, row_rule, shape_slots)
-            true = r[3]["path_m"] + out[2]["row3"] * hyb.ROW3_PENALTY_M + ((out[2]["mismatch"] + out[2]["blocked"]) * hyb.SHAPE_PENALTY_M if shape_slots else 0.0)
+            true = r[3]["path_m"] + out[2]["row3"] * hyb.ROW3_PENALTY_M + ((out[2]["shape_pen_m"] + out[2]["blocked"] * hyb.BLOCK_PENALTY_M) if shape_slots else 0.0)
             if best is None or true < best[3] - 1e-9:
                 best = (alloc, r, yshape, true, out)
     if best is None:
@@ -395,7 +396,7 @@ def _steps(world, mode, alloc, group_of_L, r, avoid=(), row_rule="free", shape_s
         total, phases, perm, combo, vorder, n_comb = r
         init = {}
         for row, stops in phases:
-            it = iter([(row, i) for i in ROW_ORDER])
+            it = iter([(row, i) for i in ROW_ORDER if (row, i) in SLOT_SHAPE])
             for key, ps in stops:
                 for p in ps:
                     init[p.id] = next(it)

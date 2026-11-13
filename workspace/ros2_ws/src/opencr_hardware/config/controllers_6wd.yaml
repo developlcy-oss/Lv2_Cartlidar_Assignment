@@ -10,7 +10,7 @@ diff_drive_controller:
     right_wheel_names: ["wheel_right_front_joint", "wheel_right_mid_joint", "wheel_right_rear_joint"]
     wheel_separation: 0.317          # 바퀴 중심 사이 ★ 4WD 미끄럼 보정은 wheel_separation_multiplier 로
     wheel_separation_multiplier: 1.0
-    wheel_radius: 0.033
+    wheel_radius: 0.0335   # 2026-11-13 홈 채운 림 R31.5 + 타이어 (Ø67, 이전 0.033)
     odom_frame_id: odom
     base_frame_id: base_link
     enable_odom_tf: false            # odom→base_link TF 는 ekf 만 발행

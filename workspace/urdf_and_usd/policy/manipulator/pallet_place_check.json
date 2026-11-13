@@ -46,14 +46,6 @@
    [
     3,
     1
-   ],
-   [
-    3,
-    2
-   ],
-   [
-    3,
-    3
    ]
   ],
   "tilt_speed": 0.8,
@@ -62,18 +54,16 @@
   },
   "empty_speed": 0.8,
   "duration_s_per_slot": {
-   "3열 1": 18.6,
-   "3열 2": 18.6,
-   "3열 0": 17.5,
-   "3열 3": 17.5,
-   "2열 1": 12.1,
-   "2열 2": 12.1,
-   "2열 0": 11.0,
-   "2열 3": 11.0,
-   "1열 1": 10.8,
-   "1열 2": 10.8,
-   "1열 0": 8.9,
-   "1열 3": 8.9
+   "3열 0": 18.2,
+   "3열 1": 18.2,
+   "2열 1": 12.0,
+   "2열 2": 12.0,
+   "2열 0": 10.8,
+   "2열 3": 10.8,
+   "1열 1": 10.6,
+   "1열 2": 10.6,
+   "1열 0": 8.8,
+   "1열 3": 8.8
   },
   "grip_close": -0.0075,
   "settle_ki": true,
@@ -83,15 +73,20 @@
  "traj_max_tilt_deg": 0.0,
  "results": [
   {
-   "slot": "3열 1",
+   "slot": "3열 0",
    "puck_shape": "cyl",
    "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
    "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
    "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
-   "duration_s": 18.6,
+   "max_slip_mm": 0.3,
+   "duration_s": 18.2,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -116,33 +111,38 @@
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 10.97,
+     "t_s": 10.61,
      "q": [
-      3.0,
-      -0.592,
-      0.677,
-      0.699,
+      2.932,
+      -0.589,
+      0.708,
+      0.666,
       -0.0
      ],
      "puck_bottom_b": [
-      -0.0929,
-      0.0271,
-      0.1359
+      -0.0906,
+      0.0398,
+      0.1319
      ],
      "N": 2.7
     }
    }
   },
   {
-   "slot": "3열 2",
+   "slot": "3열 1",
    "puck_shape": "cyl",
    "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
    "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
    "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
-   "duration_s": 18.6,
+   "max_slip_mm": 0.3,
+   "duration_s": 18.2,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -167,122 +167,20 @@
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 10.97,
+     "t_s": 10.61,
      "q": [
-      -3.0,
-      -0.592,
-      0.677,
-      0.699,
+      -2.932,
+      -0.589,
+      0.708,
+      0.666,
       -0.0
      ],
      "puck_bottom_b": [
-      -0.093,
-      -0.0268,
-      0.1359
+      -0.0907,
+      -0.0395,
+      0.1319
      ],
      "N": 2.8
-    }
-   }
-  },
-  {
-   "slot": "3열 0",
-   "puck_shape": "cyl",
-   "seated": true,
-   "xy_err_mm": 0.2,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
-   "duration_s": 17.5,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 2.7,
-     "release": 0.5,
-     "after": 0.4
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 10.19,
-     "q": [
-      2.716,
-      -0.592,
-      0.677,
-      0.699,
-      -0.0
-     ],
-     "puck_bottom_b": [
-      -0.0778,
-      0.0789,
-      0.1359
-     ],
-     "N": 2.7
-    }
-   }
-  },
-  {
-   "slot": "3열 3",
-   "puck_shape": "cyl",
-   "seated": true,
-   "xy_err_mm": 0.1,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
-   "duration_s": 17.5,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 2.0,
-     "release": 0.4,
-     "after": 0.4
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 10.19,
-     "q": [
-      -2.716,
-      -0.593,
-      0.677,
-      0.699,
-      0.0
-     ],
-     "puck_bottom_b": [
-      -0.0779,
-      -0.0789,
-      0.136
-     ],
-     "N": 2.0
     }
    }
   },
@@ -290,12 +188,17 @@
    "slot": "2열 1",
    "puck_shape": "cyl",
    "seated": true,
-   "xy_err_mm": 0.1,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
    "box_face_err_deg": null,
-   "max_slip_mm": 1.0,
-   "duration_s": 12.1,
+   "max_slip_mm": 0.4,
+   "duration_s": 12.0,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -311,7 +214,7 @@
     },
     "puck": {
      "carry": 0.0,
-     "place": 5.1,
+     "place": 3.3,
      "release": 0.5,
      "after": 0.4
     }
@@ -320,20 +223,20 @@
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 4.74,
+     "t_s": 5.06,
      "q": [
-      2.952,
-      -0.981,
-      0.694,
-      1.077,
+      2.907,
+      -1.058,
+      0.933,
+      0.911,
       0.0
      ],
      "puck_bottom_b": [
-      -0.0454,
-      0.0274,
-      0.1526
+      -0.042,
+      0.0331,
+      0.1259
      ],
-     "N": 5.1
+     "N": 3.3
     }
    }
   },
@@ -341,12 +244,17 @@
    "slot": "2열 2",
    "puck_shape": "cyl",
    "seated": true,
-   "xy_err_mm": 0.1,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.3,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
    "box_face_err_deg": null,
-   "max_slip_mm": 1.0,
-   "duration_s": 12.1,
+   "max_slip_mm": 0.4,
+   "duration_s": 12.0,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -362,7 +270,7 @@
     },
     "puck": {
      "carry": 0.0,
-     "place": 5.1,
+     "place": 3.3,
      "release": 0.5,
      "after": 0.4
     }
@@ -371,20 +279,20 @@
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 4.74,
+     "t_s": 5.06,
      "q": [
-      -2.951,
-      -0.981,
-      0.694,
-      1.077,
+      -2.906,
+      -1.058,
+      0.933,
+      0.911,
       0.0
      ],
      "puck_bottom_b": [
-      -0.0454,
-      -0.027,
-      0.1526
+      -0.042,
+      -0.033,
+      0.1259
      ],
-     "N": 5.1
+     "N": 3.2
     }
    }
   },
@@ -392,108 +300,11 @@
    "slot": "2열 0",
    "puck_shape": "cyl",
    "seated": true,
-   "xy_err_mm": 0.2,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
-   "duration_s": 11.0,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 3.4,
-     "release": 0.5,
-     "after": 0.4
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 4.56,
-     "q": [
-      2.568,
-      -1.061,
-      0.95,
-      0.898,
-      0.0
-     ],
-     "puck_bottom_b": [
-      -0.0231,
-      0.077,
-      0.1239
-     ],
-     "N": 3.1
-    }
-   }
-  },
-  {
-   "slot": "2열 3",
-   "puck_shape": "cyl",
-   "seated": true,
-   "xy_err_mm": 0.2,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": null,
-   "max_slip_mm": 1.1,
-   "duration_s": 11.0,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 5.0,
-     "release": 0.6,
-     "after": 0.4
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 4.21,
-     "q": [
-      -2.568,
-      -0.981,
-      0.694,
-      1.077,
-      0.0
-     ],
-     "puck_bottom_b": [
-      -0.0251,
-      -0.0779,
-      0.1525
-     ],
-     "N": 5.0
-    }
-   }
-  },
-  {
-   "slot": "1열 1",
-   "puck_shape": "cyl",
-   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
    "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
@@ -515,7 +326,7 @@
     },
     "puck": {
      "carry": 0.0,
-     "place": 4.2,
+     "place": 3.3,
      "release": 0.5,
      "after": 0.4
     }
@@ -524,20 +335,132 @@
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 4.44,
+     "t_s": 4.46,
      "q": [
-      2.804,
-      -1.641,
-      1.019,
-      1.409,
+      2.453,
+      -1.058,
+      0.933,
+      0.911,
       0.0
      ],
      "puck_bottom_b": [
-      0.0111,
-      0.0298,
-      0.1139
+      -0.0135,
+      0.0902,
+      0.1259
      ],
-     "N": 4.2
+     "N": 3.3
+    }
+   }
+  },
+  {
+   "slot": "2열 3",
+   "puck_shape": "cyl",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.3,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": null,
+   "max_slip_mm": 0.4,
+   "duration_s": 10.8,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 3.3,
+     "release": 0.5,
+     "after": 0.4
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 4.46,
+     "q": [
+      -2.452,
+      -1.058,
+      0.933,
+      0.911,
+      0.0
+     ],
+     "puck_bottom_b": [
+      -0.0135,
+      -0.0902,
+      0.1259
+     ],
+     "N": 3.3
+    }
+   }
+  },
+  {
+   "slot": "1열 1",
+   "puck_shape": "cyl",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": null,
+   "max_slip_mm": 0.4,
+   "duration_s": 10.6,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 3.5,
+     "release": 0.5,
+     "after": 1.2
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 4.37,
+     "q": [
+      2.742,
+      -1.584,
+      0.975,
+      1.397,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      0.0114,
+      0.0357,
+      0.1199
+     ],
+     "N": 3.1
     }
    }
   },
@@ -545,11 +468,408 @@
    "slot": "1열 2",
    "puck_shape": "cyl",
    "seated": true,
-   "xy_err_mm": 0.1,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
    "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
+   "max_slip_mm": 0.4,
+   "duration_s": 10.6,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 3.6,
+     "release": 0.5,
+     "after": 1.1
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 4.37,
+     "q": [
+      -2.742,
+      -1.584,
+      0.975,
+      1.397,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      0.0114,
+      -0.0357,
+      0.1199
+     ],
+     "N": 3.1
+    }
+   }
+  },
+  {
+   "slot": "1열 0",
+   "puck_shape": "cyl",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": null,
+   "max_slip_mm": 0.3,
+   "duration_s": 8.8,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 3.6,
+     "release": 0.5,
+     "after": 1.1
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 3.43,
+     "q": [
+      2.026,
+      -1.584,
+      0.975,
+      1.397,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      0.0557,
+      0.0825,
+      0.1199
+     ],
+     "N": 3.0
+    }
+   }
+  },
+  {
+   "slot": "1열 3",
+   "puck_shape": "cyl",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": null,
+   "max_slip_mm": 0.3,
+   "duration_s": 8.8,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 3.6,
+     "release": 0.5,
+     "after": 1.2
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 3.43,
+     "q": [
+      -2.026,
+      -1.584,
+      0.975,
+      1.397,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      0.0556,
+      -0.0825,
+      0.1199
+     ],
+     "N": 3.0
+    }
+   }
+  },
+  {
+   "slot": "3열 0",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": 0.0,
+   "max_slip_mm": 0.4,
+   "duration_s": 18.2,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 2.7,
+     "release": 0.5,
+     "after": 0.5
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 10.61,
+     "q": [
+      2.932,
+      -0.589,
+      0.708,
+      0.666,
+      0.0
+     ],
+     "puck_bottom_b": [
+      -0.0907,
+      0.0397,
+      0.132
+     ],
+     "N": 2.7
+    }
+   }
+  },
+  {
+   "slot": "3열 1",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": 0.0,
+   "max_slip_mm": 0.4,
+   "duration_s": 18.2,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 2.9,
+     "release": 0.6,
+     "after": 0.5
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 10.61,
+     "q": [
+      -2.932,
+      -0.589,
+      0.708,
+      0.666,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      -0.0907,
+      -0.0396,
+      0.132
+     ],
+     "N": 2.9
+    }
+   }
+  },
+  {
+   "slot": "2열 1",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.0,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": 0.1,
+   "max_slip_mm": 0.4,
+   "duration_s": 12.0,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 4.2,
+     "release": 0.6,
+     "after": 0.5
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 5.06,
+     "q": [
+      2.906,
+      -1.058,
+      0.933,
+      0.911,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      -0.042,
+      0.0331,
+      0.1259
+     ],
+     "N": 3.4
+    }
+   }
+  },
+  {
+   "slot": "2열 2",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": 0.0,
+   "max_slip_mm": 0.5,
+   "duration_s": 12.0,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 4.1,
+     "release": 0.6,
+     "after": 0.5
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 5.06,
+     "q": [
+      -2.907,
+      -1.058,
+      0.933,
+      0.911,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      -0.042,
+      -0.033,
+      0.1259
+     ],
+     "N": 3.4
+    }
+   }
+  },
+  {
+   "slot": "2열 0",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.1,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": 0.0,
+   "max_slip_mm": 0.4,
    "duration_s": 10.8,
    "max_force_N": {
     "arm": {
@@ -567,210 +887,6 @@
     "puck": {
      "carry": 0.0,
      "place": 3.7,
-     "release": 0.5,
-     "after": 0.4
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 4.44,
-     "q": [
-      -2.804,
-      -1.641,
-      1.019,
-      1.409,
-      0.0
-     ],
-     "puck_bottom_b": [
-      0.0111,
-      -0.0298,
-      0.1139
-     ],
-     "N": 3.1
-    }
-   }
-  },
-  {
-   "slot": "1열 0",
-   "puck_shape": "cyl",
-   "seated": true,
-   "xy_err_mm": 0.2,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
-   "duration_s": 8.9,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 3.6,
-     "release": 0.5,
-     "after": 0.4
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 3.51,
-     "q": [
-      2.124,
-      -1.641,
-      1.019,
-      1.409,
-      0.0
-     ],
-     "puck_bottom_b": [
-      0.0488,
-      0.0765,
-      0.1139
-     ],
-     "N": 3.3
-    }
-   }
-  },
-  {
-   "slot": "1열 3",
-   "puck_shape": "cyl",
-   "seated": true,
-   "xy_err_mm": 0.1,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": null,
-   "max_slip_mm": 0.2,
-   "duration_s": 8.9,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 3.6,
-     "release": 0.5,
-     "after": 0.4
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 3.51,
-     "q": [
-      -2.123,
-      -1.641,
-      1.019,
-      1.409,
-      0.0
-     ],
-     "puck_bottom_b": [
-      0.0488,
-      -0.0765,
-      0.1139
-     ],
-     "N": 3.2
-    }
-   }
-  },
-  {
-   "slot": "3열 1",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.2,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": -0.0,
-   "max_slip_mm": 0.2,
-   "duration_s": 18.6,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 2.8,
-     "release": 0.5,
-     "after": 0.5
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 10.97,
-     "q": [
-      3.0,
-      -0.592,
-      0.677,
-      0.699,
-      -0.0
-     ],
-     "puck_bottom_b": [
-      -0.093,
-      0.0271,
-      0.136
-     ],
-     "N": 2.8
-    }
-   }
-  },
-  {
-   "slot": "3열 2",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.2,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": 0.0,
-   "max_slip_mm": 0.2,
-   "duration_s": 18.6,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 3.0,
      "release": 0.6,
      "after": 0.5
     }
@@ -779,33 +895,318 @@
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 10.97,
+     "t_s": 4.46,
      "q": [
-      -3.0,
-      -0.592,
-      0.677,
-      0.699,
+      2.453,
+      -1.058,
+      0.933,
+      0.911,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      -0.0135,
+      0.0902,
+      0.1259
+     ],
+     "N": 3.7
+    }
+   }
+  },
+  {
+   "slot": "2열 3",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.1,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": -0.1,
+   "max_slip_mm": 0.5,
+   "duration_s": 10.8,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 3.9,
+     "release": 0.6,
+     "after": 0.5
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 4.46,
+     "q": [
+      -2.453,
+      -1.058,
+      0.933,
+      0.911,
       0.0
      ],
      "puck_bottom_b": [
-      -0.093,
-      -0.0269,
-      0.136
+      -0.0135,
+      -0.0902,
+      0.1259
      ],
-     "N": 3.0
+     "N": 3.4
+    }
+   }
+  },
+  {
+   "slot": "1열 1",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.5,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": -0.2,
+   "max_slip_mm": 0.4,
+   "duration_s": 10.6,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 4.5,
+     "release": 0.6,
+     "after": 6.5
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 4.37,
+     "q": [
+      2.742,
+      -1.584,
+      0.975,
+      1.397,
+      0.0
+     ],
+     "puck_bottom_b": [
+      0.0115,
+      0.0357,
+      0.1199
+     ],
+     "N": 4.5
+    }
+   }
+  },
+  {
+   "slot": "1열 2",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.6,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": -0.1,
+   "max_slip_mm": 0.4,
+   "duration_s": 10.6,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 4.5,
+     "release": 0.6,
+     "after": 6.0
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 4.37,
+     "q": [
+      -2.742,
+      -1.584,
+      0.975,
+      1.397,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      0.0114,
+      -0.0356,
+      0.1199
+     ],
+     "N": 4.5
+    }
+   }
+  },
+  {
+   "slot": "1열 0",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.5,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": -0.2,
+   "max_slip_mm": 0.4,
+   "duration_s": 8.8,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 4.6,
+     "release": 0.6,
+     "after": 5.4
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 3.43,
+     "q": [
+      2.026,
+      -1.584,
+      0.975,
+      1.397,
+      0.0
+     ],
+     "puck_bottom_b": [
+      0.0557,
+      0.0824,
+      0.1199
+     ],
+     "N": 4.6
+    }
+   }
+  },
+  {
+   "slot": "1열 3",
+   "puck_shape": "box",
+   "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.6,
+   "bottom_above_floor_mm": -0.0,
+   "tilt_deg": 0.0,
+   "box_face_err_deg": -0.1,
+   "max_slip_mm": 0.3,
+   "duration_s": 8.8,
+   "max_force_N": {
+    "arm": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "finger": {
+     "carry": 0.0,
+     "place": 0.0,
+     "release": 0.0,
+     "after": 0.0
+    },
+    "puck": {
+     "carry": 0.0,
+     "place": 5.2,
+     "release": 0.6,
+     "after": 4.7
+    }
+   },
+   "first_contact": {
+    "puck": {
+     "link": null,
+     "seg": "place",
+     "t_s": 3.43,
+     "q": [
+      -2.026,
+      -1.584,
+      0.975,
+      1.397,
+      -0.0
+     ],
+     "puck_bottom_b": [
+      0.0556,
+      -0.0824,
+      0.1199
+     ],
+     "N": 5.2
     }
    }
   },
   {
    "slot": "3열 0",
-   "puck_shape": "box",
+   "puck_shape": "cyl",
    "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
    "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
-   "box_face_err_deg": 0.0,
-   "max_slip_mm": 0.2,
-   "duration_s": 17.5,
+   "box_face_err_deg": null,
+   "max_slip_mm": 0.3,
+   "duration_s": 18.2,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -822,41 +1223,46 @@
     "puck": {
      "carry": 0.0,
      "place": 2.7,
-     "release": 0.6,
-     "after": 0.5
+     "release": 0.4,
+     "after": 0.4
     }
    },
    "first_contact": {
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 10.19,
+     "t_s": 10.61,
      "q": [
-      2.716,
-      -0.592,
-      0.677,
-      0.699,
-      0.0
+      2.932,
+      -0.589,
+      0.708,
+      0.666,
+      -0.0
      ],
      "puck_bottom_b": [
-      -0.0779,
-      0.0788,
-      0.1359
+      -0.0906,
+      0.0398,
+      0.1319
      ],
      "N": 2.7
     }
    }
   },
   {
-   "slot": "3열 3",
-   "puck_shape": "box",
+   "slot": "3열 1",
+   "puck_shape": "cyl",
    "seated": true,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
    "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
-   "box_face_err_deg": -0.0,
-   "max_slip_mm": 0.2,
-   "duration_s": 17.5,
+   "box_face_err_deg": null,
+   "max_slip_mm": 0.3,
+   "duration_s": 18.2,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -872,42 +1278,47 @@
     },
     "puck": {
      "carry": 0.0,
-     "place": 3.0,
-     "release": 0.5,
-     "after": 0.5
+     "place": 2.8,
+     "release": 0.4,
+     "after": 0.4
     }
    },
    "first_contact": {
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 10.19,
+     "t_s": 10.61,
      "q": [
-      -2.717,
-      -0.592,
-      0.677,
-      0.699,
+      -2.932,
+      -0.589,
+      0.708,
+      0.666,
       -0.0
      ],
      "puck_bottom_b": [
-      -0.078,
-      -0.0787,
-      0.1359
+      -0.0907,
+      -0.0395,
+      0.1319
      ],
-     "N": 3.0
+     "N": 2.8
     }
    }
   },
   {
    "slot": "2열 1",
-   "puck_shape": "box",
+   "puck_shape": "cyl",
    "seated": true,
-   "xy_err_mm": 0.1,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.2,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
-   "box_face_err_deg": 0.0,
+   "box_face_err_deg": null,
    "max_slip_mm": 0.4,
-   "duration_s": 12.1,
+   "duration_s": 12.0,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -923,42 +1334,47 @@
     },
     "puck": {
      "carry": 0.0,
-     "place": 7.0,
-     "release": 0.6,
-     "after": 0.5
+     "place": 3.3,
+     "release": 0.5,
+     "after": 0.4
     }
    },
    "first_contact": {
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 4.74,
+     "t_s": 5.06,
      "q": [
-      2.951,
-      -0.981,
-      0.694,
-      1.077,
-      -0.0
+      2.907,
+      -1.058,
+      0.933,
+      0.911,
+      0.0
      ],
      "puck_bottom_b": [
-      -0.0454,
-      0.0272,
-      0.1526
+      -0.042,
+      0.0331,
+      0.1259
      ],
-     "N": 7.0
+     "N": 3.3
     }
    }
   },
   {
    "slot": "2열 2",
-   "puck_shape": "box",
+   "puck_shape": "cyl",
    "seated": true,
-   "xy_err_mm": 0.1,
+   "hand_offset_mm": [
+    0.0,
+    0.0
+   ],
+   "hand_after_grip_mm": 0.2,
+   "xy_err_mm": 0.3,
    "bottom_above_floor_mm": -0.0,
    "tilt_deg": 0.0,
-   "box_face_err_deg": -0.1,
-   "max_slip_mm": 0.5,
-   "duration_s": 12.1,
+   "box_face_err_deg": null,
+   "max_slip_mm": 0.4,
+   "duration_s": 12.0,
    "max_force_N": {
     "arm": {
      "carry": 0.0,
@@ -974,335 +1390,29 @@
     },
     "puck": {
      "carry": 0.0,
-     "place": 6.5,
+     "place": 3.3,
      "release": 0.5,
-     "after": 0.5
+     "after": 0.4
     }
    },
    "first_contact": {
     "puck": {
      "link": null,
      "seg": "place",
-     "t_s": 4.74,
+     "t_s": 5.06,
      "q": [
-      -2.952,
-      -0.981,
-      0.694,
-      1.077,
-      -0.0
-     ],
-     "puck_bottom_b": [
-      -0.0454,
-      -0.0272,
-      0.1527
-     ],
-     "N": 6.5
-    }
-   }
-  },
-  {
-   "slot": "2열 0",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.4,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": -0.0,
-   "max_slip_mm": 0.5,
-   "duration_s": 11.0,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 6.4,
-     "release": 0.6,
-     "after": 0.5
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 4.21,
-     "q": [
-      2.569,
-      -0.981,
-      0.694,
-      1.077,
-      -0.0
-     ],
-     "puck_bottom_b": [
-      -0.0249,
-      0.078,
-      0.1526
-     ],
-     "N": 6.4
-    }
-   }
-  },
-  {
-   "slot": "2열 3",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.2,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": 0.1,
-   "max_slip_mm": 0.3,
-   "duration_s": 11.0,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 6.7,
-     "release": 0.6,
-     "after": 0.5
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 4.21,
-     "q": [
-      -2.569,
-      -0.981,
-      0.694,
-      1.077,
-      -0.0
-     ],
-     "puck_bottom_b": [
-      -0.025,
-      -0.078,
-      0.1526
-     ],
-     "N": 6.7
-    }
-   }
-  },
-  {
-   "slot": "1열 1",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.1,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": 0.2,
-   "max_slip_mm": 0.2,
-   "duration_s": 10.8,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 4.4,
-     "release": 0.6,
-     "after": 0.5
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 4.44,
-     "q": [
-      2.804,
-      -1.641,
-      1.019,
-      1.409,
-      -0.0
-     ],
-     "puck_bottom_b": [
-      0.0112,
-      0.0298,
-      0.1139
-     ],
-     "N": 4.4
-    }
-   }
-  },
-  {
-   "slot": "1열 2",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.1,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": -0.1,
-   "max_slip_mm": 0.2,
-   "duration_s": 10.8,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 4.8,
-     "release": 0.6,
-     "after": 0.5
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 4.44,
-     "q": [
-      -2.804,
-      -1.641,
-      1.019,
-      1.409,
-      -0.0
-     ],
-     "puck_bottom_b": [
-      0.0112,
-      -0.0298,
-      0.1139
-     ],
-     "N": 4.8
-    }
-   }
-  },
-  {
-   "slot": "1열 0",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.1,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": -0.1,
-   "max_slip_mm": 0.2,
-   "duration_s": 8.9,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 4.4,
-     "release": 0.6,
-     "after": 0.5
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 3.51,
-     "q": [
-      2.124,
-      -1.641,
-      1.019,
-      1.409,
+      -2.906,
+      -1.058,
+      0.933,
+      0.911,
       0.0
      ],
      "puck_bottom_b": [
-      0.0488,
-      0.0765,
-      0.1139
+      -0.042,
+      -0.033,
+      0.1259
      ],
-     "N": 4.0
-    }
-   }
-  },
-  {
-   "slot": "1열 3",
-   "puck_shape": "box",
-   "seated": true,
-   "xy_err_mm": 0.1,
-   "bottom_above_floor_mm": -0.0,
-   "tilt_deg": 0.0,
-   "box_face_err_deg": 0.1,
-   "max_slip_mm": 0.2,
-   "duration_s": 8.9,
-   "max_force_N": {
-    "arm": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "finger": {
-     "carry": 0.0,
-     "place": 0.0,
-     "release": 0.0,
-     "after": 0.0
-    },
-    "puck": {
-     "carry": 0.0,
-     "place": 4.7,
-     "release": 0.5,
-     "after": 0.5
-    }
-   },
-   "first_contact": {
-    "puck": {
-     "link": null,
-     "seg": "place",
-     "t_s": 3.51,
-     "q": [
-      -2.124,
-      -1.641,
-      1.019,
-      1.409,
-      0.0
-     ],
-     "puck_bottom_b": [
-      0.0488,
-      -0.0765,
-      0.1139
-     ],
-     "N": 4.3
+     "N": 3.2
     }
    }
   }

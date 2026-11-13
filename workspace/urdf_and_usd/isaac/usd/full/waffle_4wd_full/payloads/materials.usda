@@ -474,39 +474,6 @@ def Scope "Materials"
         }
     }
 
-    def Material "____________________________________"
-    {
-        color3f inputs:diffuseColor = (0.44798842, 0.44798842, 0.44798842)
-        float inputs:metallic = 0
-        float inputs:opacity = 1
-        float inputs:roughness = 0.5
-        token inputs:wrapMode = "repeat"
-        token outputs:displacement (
-            displayGroup = "Outputs"
-        )
-        prepend token outputs:displacement.connect = </Materials/____________________________________/PreviewSurface.outputs:displacement>
-        token outputs:surface (
-            displayGroup = "Outputs"
-        )
-        prepend token outputs:surface.connect = </Materials/____________________________________/PreviewSurface.outputs:surface>
-        token outputs:volume (
-            displayGroup = "Outputs"
-        )
-
-        def Shader "PreviewSurface" (
-            apiSchemas = ["NodeDefAPI"]
-        )
-        {
-            token info:id = "UsdPreviewSurface"
-            prepend color3f inputs:diffuseColor.connect = </Materials/____________________________________.inputs:diffuseColor>
-            prepend float inputs:metallic.connect = </Materials/____________________________________.inputs:metallic>
-            prepend float inputs:opacity.connect = </Materials/____________________________________.inputs:opacity>
-            prepend float inputs:roughness.connect = </Materials/____________________________________.inputs:roughness>
-            token outputs:displacement
-            token outputs:surface
-        }
-    }
-
     def Material "c_080080080"
     {
         color3f inputs:diffuseColor = (0.6038274, 0.6038274, 0.6038274)

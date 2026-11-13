@@ -1,12 +1,12 @@
 # waffle_4wd_description
 
-팀 4륜 차체 + RM-X52 팔 로봇 URDF 와 Gazebo Sim 센서 · 구동 설정. **B안 상판 팔레트 v3 판** (2026-11-02).
+팀 4륜 차체 + RM-X52 팔 로봇 URDF 와 Gazebo Sim 센서 · 구동 설정. **B안 상판 팔레트 v5 판** (2026-11-13, 처음 v3 2026-11-02).
 ROS 2 Lyrical · Gazebo Sim 10.5 (ros-lyrical-ros-gz) 에서 시험했다.
 
-- 팀 261028 확정본 + 증속벨트 v4.2 · 바닥 브라켓 v4 · 하단 전장 (OpenCR 2층 · Jetson · TFmini 받침대) + **B안 상판 팔레트 v3** (칸 12, 조인트1 중심 3열).
+- 팀 261028 확정본 + 증속벨트 v4.2 · 바닥 브라켓 v4 · 하단 전장 (OpenCR 2층 · Jetson · TFmini 받침대) + **B안 상판 팔레트 v5** (칸 10 = 열마다 4 · 4 · 2, 조인트1 중심 3열) + Jetson 배터리 + 홈 채운 바퀴 림 R31.5 (2026-11-13, `CHANGES_B.md`).
   261028 에서 바뀐 것 · 질량 · 점검 결과 · 확인할 것은 **`CHANGES_B.md`**.
 - 팔레트 칸 12곳 자리 (base_link 기준) 는 `config/pallet_slots.yaml`. 팔레트는 `base_link` 에 합쳐져 있어 따로 링크가 없다.
-- xacro 인자 `pucks:=true` 면 칸마다 퍽 하나 (`puck_{R,G,B}_{1..4}`, 겉모양 · 질량 · 충돌 형상, 몸체에 고정, #220) 를 넣는다. 펼친 URDF 는 `waffle_4wd.urdf` (빈 팔레트) · `waffle_4wd_loaded.urdf` (퍽 12개).
+- xacro 인자 `pucks:=true` 면 칸마다 퍽 하나 (`puck_{R,G}_{1..4}` · `puck_B_{1,2}` 10 개, 겉모양 · 질량 · 충돌 형상, 몸체에 고정, #220) 를 넣는다. 펼친 URDF 는 `waffle_4wd.urdf` (빈 팔레트) · `waffle_4wd_loaded.urdf` (퍽 12개).
 - 센서 사양 (실물 값 · 출처) 과 Gazebo 값은 `config/sensors.yaml` 에 있다.
 - `urdf/` · `meshes/` · `config/gz_bridge.yaml` · `config/camera_info_fix.yaml` 은 저장소 밖 생성기 결과다 (맨 아래 "다시 만들기"). 직접 고치지 말 것.
 
@@ -17,7 +17,7 @@ ROS 2 Lyrical · Gazebo Sim 10.5 (ros-lyrical-ros-gz) 에서 시험했다.
 cd ~/<작업공간> && colcon build --symlink-install --packages-select waffle_4wd_description
 source install/setup.bash
 
-ros2 launch waffle_4wd_description display.launch.py      # RViz + 관절 슬라이더 (Gazebo 없이), pucks:=true 면 퍽 12개
+ros2 launch waffle_4wd_description display.launch.py      # RViz + 관절 슬라이더 (Gazebo 없이), pucks:=true 면 퍽 10개 (칸마다)
 ros2 launch waffle_4wd_description gazebo.launch.py       # Gazebo 창 + 주사위 경기장 출발 자리
 ros2 launch waffle_4wd_description gazebo.launch.py rviz:=true          # + RViz (스캔 · 앞 · 뒤 D435 · TFmini)
 ros2 launch waffle_4wd_description gazebo.launch.py gui:=false          # 창 없이 (센서는 렌더함)
@@ -61,12 +61,13 @@ ros2 topic pub --once /arm/joint2/cmd_pos std_msgs/msg/Float64 "{data: 0.5}"    
 
 | 항목 | 이 패키지 |
 |---|---|
-| 퍽 보관 | B안 상판 팔레트 v3 (190.3 g), 원점 = 조인트1 축 · 상판 윗면 base_link (0.096, 0, 0.111) m. 칸 바닥 z 0.114 / 0.124 / 0.136 m (1 · 2 · 3열) |
+| 퍽 보관 | B안 상판 팔레트 v5 (173.5 g, 10 칸), 원점 = 조인트1 축 · 상판 윗면 base_link (0.096, 0, 0.111) m. 칸 바닥 z 0.120 / 0.126 / 0.132 m (1 · 2 · 3열) |
 | 구동 | 증속벨트 v4.2 + 바닥 브라켓 v4 + TO 캐리어. **바퀴 관절 x 앞 0.0925 · 뒤 −0.0675** (y ±0.1546, 바퀴 간격 0.317 그대로) → 회전 중심이 base_link 보다 x +12.5 mm 앞 |
 | 프로파일 기둥 · 가로대 · D435 2대 | 캐리어를 따라 x +12.5 mm |
-| 하판 전장 | Jetson (−79.5, 0), OpenCR 2층 `opencr_lower_link` · `opencr_upper_link`, TFmini 받침대 (렌즈 `tfmini_link` (0.130, 0, 0.0243) m), 배터리는 질량만 |
+| 하판 전장 | Jetson (−79.5, 0), OpenCR 2층 `opencr_lower_link` · `opencr_upper_link`, TFmini 받침대 (렌즈 `tfmini_link` (0.130, 0, 0.0243) m), **Jetson 배터리 466 g** (x 0.048 ~ 0.102, z 0.012 ~ 0.063 m, 2026-11-13), 바퀴 배터리 2 개는 질량만 (자리 어림 ★) |
 | IMU | **하나**: `imu_link` = 아래층 OpenCR 칩 → `/imu/data` (팀의 두 IMU 평균 노드는 시뮬에서 쓰지 않음) |
-| 질량 | **4.293 kg** (퍽 12개 4.473 kg, 2026-11-12) |
+| 바퀴 | 홈 채운 림 R31.5 + 타이어 → **반지름 0.0335 m** (2026-11-13, 이전 0.033), base_link 지면 위 0.00725 m |
+| 질량 | **4.749 kg** (퍽 10개 4.899 kg, 2026-11-13) |
 
 관절 이름 (바퀴 4, joint1~5, gripper_roll, 손가락 2) 과 팀 코드 frame (`base_link`, `base_footprint`, `imu_link`, `laser_front/rear`, `tfmini_link`, `arm_base_link`, `tool_link`, `arm_camera_link`,
 `top_camera_{front,rear}_color_optical_frame`) 은 261028 과 같다. `base_link` 원점도 같다 (판 가운데, 지면 위 6.75 mm). robot_state_publisher 가 루트 관성 KDL 경고를 내지만 동작에는 영향 없음.
@@ -85,7 +86,7 @@ ros2 topic pub --once /arm/joint2/cmd_pos std_msgs/msg/Float64 "{data: 0.5}"    
 
 | 토픽 | 타입 | 주기 | 비고 |
 |---|---|---|---|
-| `/cmd_vel` | geometry_msgs/TwistStamped | — | DiffDrive (바퀴 4, 좌우 간격 0.317 m = 바퀴 폭 가운데 사이, 반지름 0.033 m, 최대 0.363 m/s) |
+| `/cmd_vel` | geometry_msgs/TwistStamped | — | DiffDrive (바퀴 4, 좌우 간격 0.317 m = 바퀴 폭 가운데 사이, 반지름 0.0335 m, 최대 0.368 m/s) |
 | `/odom` · `/tf` (odom → base_link) | nav_msgs/Odometry | 50 Hz | 바퀴 기준 (미끄럼 모름). 팀 EKF 를 같이 띄우면 odom → base_link TF 가 겹치니 둘 중 하나만 |
 | `/ground_truth/odom` | nav_msgs/Odometry | 50 Hz | 시뮬레이터가 아는 실제 위치 (world 기준), SLAM 채점용 |
 | `/joint_states` | sensor_msgs/JointState | 50 Hz | 바퀴 4 + 팔 8 |
@@ -138,7 +139,7 @@ B안 판 점검 (2026-11-02, 직진 · 회전 · 센서 주기 · Isaac 3판) �
 
 | 경로 | 내용 |
 |---|---|
-| `urdf/waffle_4wd.urdf` · `urdf/waffle_4wd_loaded.urdf` | 펼친 URDF (Gazebo 태그 포함): 빈 팔레트 · 퍽 12개 |
+| `urdf/waffle_4wd.urdf` · `urdf/waffle_4wd_loaded.urdf` | 펼친 URDF (Gazebo 태그 포함): 빈 팔레트 · 퍽 10개 |
 | `urdf/waffle_4wd.urdf.xacro` | 같은 내용 + 인자 `prefix`, `collision` (full / light), `pucks` (true / false), `limit_margin` |
 | `config/pallet_slots.yaml` | 팔레트 칸 12곳 (base_link 기준 x · y · 방향 · 칸 바닥 · 벽 윗면, 칸마다 퍽 이름) |
 | `config/sensors.yaml` | 센서 사양 · 출처 · Gazebo 값 |

@@ -90,7 +90,7 @@ TEST(ConfigLimits, PalletWaypointsWithinLimits)
   const auto lo = p["arm"]["lower_limits"].as<std::vector<double>>();
   const auto hi = p["arm"]["upper_limits"].as<std::vector<double>>();
   const YAML::Node doc = YAML::LoadFile(PALLET_JSON);
-  ASSERT_EQ(doc["slots"].size(), 12u);
+  ASSERT_EQ(doc["slots"].size(), 10u);   // 팔레트 v5 (2026-11-13): 열마다 4 · 4 · 2 (이전 v3 12 칸)
   for (const auto & slot : doc["slots"]) {
     for (const auto & seg : slot["segments"]) {
       for (const auto & q : seg["q"].as<std::vector<std::vector<double>>>()) {

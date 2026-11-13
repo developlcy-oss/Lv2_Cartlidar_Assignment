@@ -300,6 +300,30 @@ def Scope "Instances"
         }
     }
 
+    def Xform "jetson_battery" (
+        prepend references = @./geometries.usd@</Geometries/jetson_battery>
+    )
+    {
+        over "jetson_battery" (
+            apiSchemas = ["MaterialBindingAPI"]
+        )
+        {
+            custom rel material:binding
+            prepend rel material:binding = </Instances/jetson_battery/VisualMaterials/a_motor>
+            custom string urdf:name = "jetson_battery"
+        }
+
+        def Scope "VisualMaterials"
+        {
+            def Material "a_motor" (
+                instanceable = true
+                prepend references = @./materials.usda@</Materials/a_motor>
+            )
+            {
+            }
+        }
+    }
+
     def Xform "pallet" (
         prepend references = @./geometries.usd@</Geometries/pallet>
     )
@@ -439,92 +463,96 @@ def Scope "Instances"
         }
     }
 
-    def Xform "wheel_front_left" (
-        prepend references = @./geometries.usd@</Geometries/wheel_front_left>
+    def Xform "wheel_rim" (
+        prepend references = @./geometries.usd@</Geometries/wheel_rim>
     )
     {
-        over "wheel_front_left" (
+        over "wheel_rim" (
             apiSchemas = ["MaterialBindingAPI"]
         )
         {
             custom rel material:binding
-            prepend rel material:binding = </Instances/wheel_front_left/VisualMaterials/____________________________________>
+            prepend rel material:binding = </Instances/wheel_rim/VisualMaterials/a_pla_orange>
+            custom string urdf:name = "wheel_rim"
         }
 
         def Scope "VisualMaterials"
         {
-            def Material "____________________________________" (
+            def Material "a_pla_orange" (
                 instanceable = true
-                prepend references = @./materials.usda@</Materials/____________________________________>
+                prepend references = @./materials.usda@</Materials/a_pla_orange>
             )
             {
             }
         }
     }
 
-    def Xform "wheel_front_right" (
-        prepend references = @./geometries.usd@</Geometries/wheel_front_right>
+    def Xform "wheel_tire" (
+        prepend references = @./geometries.usd@</Geometries/wheel_tire>
     )
     {
-        over "wheel_front_right" (
+        over "wheel_tire" (
             apiSchemas = ["MaterialBindingAPI"]
         )
         {
             custom rel material:binding
-            prepend rel material:binding = </Instances/wheel_front_right/VisualMaterials/_____________________________________1>
+            prepend rel material:binding = </Instances/wheel_tire/VisualMaterials/a_black>
+            custom string urdf:name = "wheel_tire"
         }
 
         def Scope "VisualMaterials"
         {
-            def Material "_____________________________________1" (
+            def Material "a_black" (
                 instanceable = true
-                prepend references = @./materials.usda@</Materials/____________________________________>
+                prepend references = @./materials.usda@</Materials/a_black>
             )
             {
             }
         }
     }
 
-    def Xform "wheel_rear_left" (
-        prepend references = @./geometries.usd@</Geometries/wheel_rear_left>
+    def Xform "wheel_rim_1" (
+        prepend references = @./geometries.usd@</Geometries/wheel_rim_1>
     )
     {
-        over "wheel_rear_left" (
+        over "wheel_rim_1" (
             apiSchemas = ["MaterialBindingAPI"]
         )
         {
             custom rel material:binding
-            prepend rel material:binding = </Instances/wheel_rear_left/VisualMaterials/_____________________________________2>
+            prepend rel material:binding = </Instances/wheel_rim_1/VisualMaterials/a_pla_orange>
+            custom string urdf:name = "wheel_rim"
         }
 
         def Scope "VisualMaterials"
         {
-            def Material "_____________________________________2" (
+            def Material "a_pla_orange" (
                 instanceable = true
-                prepend references = @./materials.usda@</Materials/____________________________________>
+                prepend references = @./materials.usda@</Materials/a_pla_orange>
             )
             {
             }
         }
     }
 
-    def Xform "wheel_rear_right" (
-        prepend references = @./geometries.usd@</Geometries/wheel_rear_right>
+    def Xform "wheel_tire_1" (
+        prepend references = @./geometries.usd@</Geometries/wheel_tire_1>
     )
     {
-        over "wheel_rear_right" (
+        over "wheel_tire_1" (
             apiSchemas = ["MaterialBindingAPI"]
         )
         {
             custom rel material:binding
-            prepend rel material:binding = </Instances/wheel_rear_right/VisualMaterials/_____________________________________3>
+            prepend rel material:binding = </Instances/wheel_tire_1/VisualMaterials/a_black>
+            custom string urdf:name = "wheel_tire"
         }
 
         def Scope "VisualMaterials"
         {
-            def Material "_____________________________________3" (
+            def Material "a_black" (
                 instanceable = true
-                prepend references = @./materials.usda@</Materials/____________________________________>
+                prepend references = @./materials.usda@</Materials/a_black>
             )
             {
             }
