@@ -19,12 +19,12 @@ over "waffle_4wd"
             prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsArticulationRootAPI", "NewtonArticulationRootAPI", "PhysicsMassAPI", "NewtonMassAPI"]
         )
         {
-            double[] newton:inertia = [0.1119787222, 0.1124158722, 0.05861987026, -0.0002127743229, 0.02736272862, 0.0006729951665]
+            double[] newton:inertia = [0.1115851023, 0.1123389503, 0.0582401553, -0.000213976906, 0.0273251424, 0.0006745998512]
             bool newton:selfCollisionEnabled = 1
-            point3f physics:centerOfMass = (-0.023760652, 0.0015622858, 0.105723165)
-            float3 physics:diagonalInertia = (0.047075108, 0.11242305, 0.123516314)
-            float physics:mass = 3.8703818
-            quatf physics:principalAxes = (-0.55291957, -0.00611089, 0.8332121, 0.00051712134)
+            point3f physics:centerOfMass = (-0.023959536, 0.0015707703, 0.105988555)
+            float3 physics:diagonalInertia = (0.04672019, 0.11234613, 0.12309789)
+            float physics:mass = 3.849476
+            quatf physics:principalAxes = (-0.5530352, -0.006138582, 0.8331352, 0.0004620091)
 
             over "wheel_left_front_link" (
                 prepend apiSchemas = ["PhysicsRigidBodyAPI", "PhysicsMassAPI", "NewtonMassAPI"]
@@ -1606,12 +1606,12 @@ over "waffle_4wd"
             prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.0037227874
-            float drive:angular:physics:maxForce = 1.8
+            float drive:angular:physics:damping = 0.002094395
+            float drive:angular:physics:maxForce = 1.35
             float drive:angular:physics:stiffness = 0
             uniform token drive:angular:physics:type = "force"
             float newton:damping = 0.000017453292
-            float newton:velocityLimit = 630
+            float newton:velocityLimit = 840
             uniform token physics:axis = "Z"
             custom rel physics:body0
             append rel physics:body0 = </waffle_4wd/Geometry/base_link>
@@ -1621,19 +1621,19 @@ over "waffle_4wd"
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (0.7071069, -0.70710665, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            custom float urdf:limit:effort = 1.8
+            custom float urdf:limit:effort = 1.35
         }
 
         def PhysicsRevoluteJoint "wheel_right_front_joint" (
             prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.0037227874
-            float drive:angular:physics:maxForce = 1.8
+            float drive:angular:physics:damping = 0.002094395
+            float drive:angular:physics:maxForce = 1.35
             float drive:angular:physics:stiffness = 0
             uniform token drive:angular:physics:type = "force"
             float newton:damping = 0.000017453292
-            float newton:velocityLimit = 630
+            float newton:velocityLimit = 840
             uniform token physics:axis = "Z"
             custom rel physics:body0
             append rel physics:body0 = </waffle_4wd/Geometry/base_link>
@@ -1643,19 +1643,19 @@ over "waffle_4wd"
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (0.7071069, -0.70710665, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            custom float urdf:limit:effort = 1.8
+            custom float urdf:limit:effort = 1.35
         }
 
         def PhysicsRevoluteJoint "wheel_left_rear_joint" (
             prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.0037227874
-            float drive:angular:physics:maxForce = 1.8
+            float drive:angular:physics:damping = 0.002094395
+            float drive:angular:physics:maxForce = 1.35
             float drive:angular:physics:stiffness = 0
             uniform token drive:angular:physics:type = "force"
             float newton:damping = 0.000017453292
-            float newton:velocityLimit = 630
+            float newton:velocityLimit = 840
             uniform token physics:axis = "Z"
             custom rel physics:body0
             append rel physics:body0 = </waffle_4wd/Geometry/base_link>
@@ -1665,19 +1665,19 @@ over "waffle_4wd"
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (0.7071069, -0.70710665, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            custom float urdf:limit:effort = 1.8
+            custom float urdf:limit:effort = 1.35
         }
 
         def PhysicsRevoluteJoint "wheel_right_rear_joint" (
             prepend apiSchemas = ["NewtonJointAPI", "PhysicsDriveAPI:angular", "PhysicsJointStateAPI:angular"]
         )
         {
-            float drive:angular:physics:damping = 0.0037227874
-            float drive:angular:physics:maxForce = 1.8
+            float drive:angular:physics:damping = 0.002094395
+            float drive:angular:physics:maxForce = 1.35
             float drive:angular:physics:stiffness = 0
             uniform token drive:angular:physics:type = "force"
             float newton:damping = 0.000017453292
-            float newton:velocityLimit = 630
+            float newton:velocityLimit = 840
             uniform token physics:axis = "Z"
             custom rel physics:body0
             append rel physics:body0 = </waffle_4wd/Geometry/base_link>
@@ -1687,7 +1687,7 @@ over "waffle_4wd"
             point3f physics:localPos1 = (0, 0, 0)
             quatf physics:localRot0 = (0.7071069, -0.70710665, 0, 0)
             quatf physics:localRot1 = (1, 0, 0, 0)
-            custom float urdf:limit:effort = 1.8
+            custom float urdf:limit:effort = 1.35
         }
 
         def PhysicsRevoluteJoint "joint1" (

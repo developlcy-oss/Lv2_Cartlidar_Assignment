@@ -3938,8 +3938,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
-                double3 xformOp:translate = (0.06175, 0.14265, 0.03228)
+                float3 xformOp:scale = (0.085003, 0.0189, 0.0395056)
+                double3 xformOp:translate = (0.0615015, 0.14265, 0.0307528)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3952,7 +3952,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (0.0468002, 0.1232, 0.04425)
+                double3 xformOp:translate = (0.0492865, 0.1232, 0.04425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3964,8 +3964,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
-                double3 xformOp:translate = (0.06175, -0.14265, 0.03228)
+                float3 xformOp:scale = (0.085003, 0.0189, 0.0395056)
+                double3 xformOp:translate = (0.0615015, -0.14265, 0.0307528)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3978,7 +3978,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (0.0468002, -0.1232, 0.04425)
+                double3 xformOp:translate = (0.0492865, -0.1232, 0.04425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -3990,8 +3990,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
-                double3 xformOp:translate = (-0.03675, 0.14265, 0.03228)
+                float3 xformOp:scale = (0.085003, 0.0189, 0.0395056)
+                double3 xformOp:translate = (-0.0365015, 0.14265, 0.0307528)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -4004,7 +4004,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (-0.0218002, 0.1232, 0.04425)
+                double3 xformOp:translate = (-0.0242865, 0.1232, 0.04425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -4016,8 +4016,8 @@ def Xform "waffle_4wd" (
                 uniform token purpose = "guide"
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
-                float3 xformOp:scale = (0.0855, 0.0189, 0.04256)
-                double3 xformOp:translate = (-0.03675, -0.14265, 0.03228)
+                float3 xformOp:scale = (0.085003, 0.0189, 0.0395056)
+                double3 xformOp:translate = (-0.0365015, -0.14265, 0.0307528)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 
@@ -4030,7 +4030,7 @@ def Xform "waffle_4wd" (
                 double size = 1
                 quatf xformOp:orient = (1, 0, 0, 0)
                 float3 xformOp:scale = (0.0285, 0.0404, 0.0465)
-                double3 xformOp:translate = (-0.0218002, -0.1232, 0.04425)
+                double3 xformOp:translate = (-0.0242865, -0.1232, 0.04425)
                 uniform token[] xformOpOrder = ["xformOp:translate", "xformOp:orient", "xformOp:scale"]
             }
 

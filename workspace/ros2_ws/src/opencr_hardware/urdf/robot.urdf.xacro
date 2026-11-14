@@ -7,7 +7,7 @@
   <xacro:arg name="use_gripper" default="false"/>
   <xacro:arg name="ports" default="/dev/ttyACM0,/dev/ttyACM1"/>
   <xacro:arg name="joy_required" default="true"/>
-  <!-- 구동 방식: belt = 증속벨트 1:1.5 (2026-10-27 장착), direct = 직결 (urdfv2). 바퀴 y · 한계 · 기어비가 같이 바뀐다 -->
+  <!-- 구동 방식: belt = 증속벨트 1:2.0 (v7 44T → 22T, 2026-11-14 설계 · 1:1.5 는 2026-10-27 장착), direct = 직결 (urdfv2). 바퀴 y · 한계 · 기어비가 같이 바뀐다 -->
   <xacro:arg name="drive" default="belt"/>
   <xacro:arg name="backend" default="opencr"/>   <!-- 하드웨어 플러그인: opencr (실물) | mock (장치 없이) | isaac (opencr.ros2_control.xacro) -->
   <!-- 예전 이름 sim 은 launch 에서만 받는다 (sim:=true → backend:=isaac). xacro 에 직접 주면 모르는 인자로 무시돼 실물로 펼쳐지므로 막음 -->
@@ -33,7 +33,7 @@
   <xacro:property name="wheel_y" value="${0.1585 if belt else 0.1372}"/>   <!-- 바퀴 중심 |y| (간격 belt 0.317 · direct 0.2744) -->
   <xacro:property name="wheel_x_front" value="0.0925"/>   <!-- 앞바퀴 x (기준 모델) -->
   <xacro:property name="wheel_x_rear" value="-0.0675"/>   <!-- 뒤바퀴 x (기준 모델) -->
-  <xacro:property name="wheel_gear" value="${1.5 if belt else 1.0}"/>      <!-- 바퀴 각속도 / 모터 각속도 (모터 36T → 바퀴 24T) -->
+  <xacro:property name="wheel_gear" value="${2.0 if belt else 1.0}"/>      <!-- 바퀴 각속도 / 모터 각속도 (v7 모터 44T → 바퀴 22T, 이전 v6 36T → 24T = 1.5) -->
   <xacro:property name="wheel_z" value="0.02625"/>    <!-- 바퀴 중심 z (base_link 위, 기준 모델) -->
   <xacro:property name="wheel_radius" value="0.0335"/> <!-- Ø67 (2026-11-13 홈 채운 림 R31.5 + 타이어, 이전 Ø66 0.033). controllers_4wd.yaml wheel_radius 와 같게 -->
 
@@ -55,7 +55,7 @@
       <origin xyz="${x} ${y} ${wheel_z}" rpy="0 0 0"/>
       <axis xyz="0 1 0"/>
       <!-- XM430-W210 11.1 V (3S 배터리 공칭, #15 2026-11-09): 2.7 N·m, 무부하 70 rpm (7.330383 rad/s)
-           → 바퀴 기준 토크 ÷ 기어비, 속도 × 기어비. belt 1.8 N·m · 10.995574 rad/s = Isaac 모델과 같음 -->
+           → 바퀴 기준 토크 ÷ 기어비, 속도 × 기어비. belt (v7 1:2.0) 1.35 N·m · 14.660766 rad/s = Isaac 모델과 같음 -->
       <limit effort="${2.7 / wheel_gear}" velocity="${7.330383 * wheel_gear}"/>
     </joint>
   </xacro:macro>
