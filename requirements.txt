@@ -52,7 +52,7 @@ python3-yaml
 #
 # 인지 노드 (perception_node · scan_merger · obstacle_stop 을 한 컨테이너에):
 #   시뮬레이션:  ros2 launch perception perception.launch.py use_sim_time:=true
-#   실물:        ros2 launch perception perception.launch.py use_tfmini:=true
+#   실물:        ros2 launch perception perception.launch.py standalone_tfmini:=true
 #   실험용 설정: ... config_dir:=<perception.yaml · lidar.yaml · tfmini.yaml 이 있는 폴더>
 #
 # 인지 노드 모의 시험 M1~M5 (Isaac Sim 없이, ROS_DOMAIN_ID=87 로 따로 돈다):

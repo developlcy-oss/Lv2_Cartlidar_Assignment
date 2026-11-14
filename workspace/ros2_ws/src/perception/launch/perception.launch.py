@@ -2,7 +2,7 @@
 
 ros2 launch perception perception.launch.py use_sim_time:=true          # 시뮬레이션 (Isaac Sim 이 영상·라이다 발행)
 ros2 launch perception perception.launch.py use_rear_obstacle:=false   # 후방 장애물 판독(뒤 D435 깊이) 끔
-ros2 launch perception perception.launch.py use_tfmini:=true           # 실물: TFmini 시리얼 읽기도 실행 (단독 시험용)
+ros2 launch perception perception.launch.py standalone_tfmini:=true    # 실물: TFmini 시리얼 읽기도 실행 (단독 시험용)
 ros2 launch perception perception.launch.py use_obstacle_stop:=false   # bringup 은 obstacle_stop 을 control_container 에 띄우므로 끔
 선택 인자: config_dir:=<폴더>(그 폴더의 perception.yaml · lidar.yaml · tfmini.yaml · puck_survey.yaml 사용 — 실험용 설정 사본)
           use_survey:=false(B0 퍽 등록부 끔), survey_output:=<파일>(조사 완료 JSON, 기본 ~/.ros/puck_survey/puck_survey.json)
@@ -56,7 +56,7 @@ def _setup(context):
         nodes.append(node('perception::ObstacleStopNode', 'obstacle_stop', 'lidar.yaml'))
     if as_bool(context.launch_configurations['use_rear_obstacle']):
         nodes.append(node('perception::RearObstacleNode', 'rear_obstacle', 'perception.yaml'))
-    if as_bool(context.launch_configurations['use_tfmini']):
+    if as_bool(context.launch_configurations['standalone_tfmini']):
         nodes.append(node('perception::TFminiNode', 'tfmini_node', 'tfmini.yaml'))
     actions = [ComposableNodeContainer(
         name='perception_container', namespace='', package='rclcpp_components',
@@ -73,7 +73,9 @@ def _setup(context):
 def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false', description='시뮬레이션 시계 사용'),
-        DeclareLaunchArgument('use_tfmini', default_value='false', description='TFmini 시리얼 읽기 실행 (실물)'),
+        # bringup 의 use_tfmini(control_container 에 tfmini_node)와 이름이 같으면 bringup 인자가 포함 launch 로 넘어와
+        # 두 컨테이너가 같은 /dev/tfmini 를 함께 열었음(Jetson 실물 11-13). 그래서 이 단독 실행용 인자는 이름을 따로 둠
+        DeclareLaunchArgument('standalone_tfmini', default_value='false', description='TFmini 시리얼 읽기 실행 (실물 단독 시험)'),
         DeclareLaunchArgument('use_obstacle_stop', default_value='true',
                               description='TFmini 비상 정지 판정 (bringup 은 false — control_container 에서 tfmini_node 와 함께 실행)'),
         DeclareLaunchArgument('use_rear_obstacle', default_value='true', description='뒤 D435 깊이로 후방 장애물 판독'),
