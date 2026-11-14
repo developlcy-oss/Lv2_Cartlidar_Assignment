@@ -64,7 +64,8 @@ manipulator_node:
       BOX_VIEW: [0.0, -0.65, 0.0, 1.95, 0.0, 0.0]
       #   ↑ 범퍼 → 면 0.02 m 가정. FINE 0.127 m 자리에서는 장소 중심보다 0.12 m 앞을 봄 → mission verify 는 box_look (#65)
       # 팔레트 궤적 이동 자세 (pallet_place_traj.json transit q_front_tilt, 집게 45°). place 뒤 이 자세로 돌아옴
-      TRANSIT_TILT: [0.0, -1.32032, 0.67766, 1.42805, 0.0, 0.0]
+      #   2026-11-14 높이 이동 판 (pallet_traj_direct.py): 쥔 퍽 바닥 0.230 m (모든 칸 퍽 위 + 38 mm) · J1 축 0.10 m. 예전 [0.0, -1.32032, 0.67766, 1.42805, 0.0, 0.0] (퍽 바닥 0.156 = 1 열 퍽 윗면 아래)
+      TRANSIT_TILT: [0.0, -0.89796, -0.10821, 1.79157, 0.0, 0.0]
 
     # 켜질 때 정리 자세 (include/control/startup_stow.hpp, #144). 켤 때는 늘 대기 자세 (STOW) 에서 시작하므로 (#166) 한 번 주행 자세로 편다.
     #   arm_controller 준비 · 팔 HOLD 해제 (리셋 버튼 = REARM, /diagnostics opencr/motors arm_hold 0) 뒤에 시작.
@@ -176,6 +177,11 @@ manipulator_node:
       approach_height: 0.05      # m
       approach_inward: 0.03      # m
       radial_offset: 0.002       # m, 잡는 점을 J1 에서 먼 쪽으로 -> 퍽이 손 안 반경 −2 mm 에 (칸 넣기 −4 ~ 0 mm 만 받음)
+      # 쥔 뒤 들기 (2026-11-14, pick.lift_height 대신 top 경로만). 예전 0.05 m 는 옆 퍽 (60 mm) 보다 낮아 다음 pallet_load 의
+      #   관절 직선 이동 (든 자세 -> 궤적 첫 점) 중 쥔 퍽이 상자 위 옆 퍽을 침 (FK: 옆 퍽 윗면 −2.4 mm).
+      #   0.085 + 높이 이동 궤적이면 옆 퍽 위 최소 +36 mm (옆 퍽 45 ~ 80 mm, 바깥 · 옆 방향 전부)
+      lift_height: 0.085         # m
+      lift_max_radius: 0.32      # m, J1 축에서 이보다 먼 퍽은 45° 로 0.085 곧장 못 듦 -> 들며 J1 쪽으로 (거리 − 이 값) 당김
     # 강화학습 집기 (skill.policies 에 toppick_tilt 를 넣고 skill.enabled true 면 같은 이름의 고정 IK 동작 대신 정책).
     #   policies.yaml toppick_tilt (tcp_delta(4), 관측 36 = include/control/toppick_obs.hpp), IK = arm_diff_ik.hpp. 값은 Isaac toppick_env_cfg 와 같게
     toppick_rl:

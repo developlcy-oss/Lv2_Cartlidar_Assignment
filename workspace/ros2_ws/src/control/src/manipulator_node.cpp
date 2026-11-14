@@ -32,6 +32,8 @@
 //                                    toppick.use_alignment 일 때만 (45° 는 집게 축이 퍽을 보지 않아 기본 끔, #82)
 //                                    접근 toppick.approach_mode top (기본): 잡는 점 위 · J1 쪽에서 벌린 채 직선으로 내려와 쥠,
 //                                    잡는 점은 J1 에서 먼 쪽으로 radial_offset (Isaac 검증 2026-11-09). axis = 집게 축 반대 (이전)
+//                                    쥔 뒤 toppick.lift_height (0.085) 곧장 들기 (J1 축 lift_max_radius 밖 퍽은 J1 쪽으로 당기며) —
+//                                    옆 퍽 (60 mm) 위로 들어야 다음 pallet_load 의 관절 직선 이동이 옆 퍽을 치지 않음 (2026-11-14)
 //     pallet_load_<열>_<칸>_tilt      쥔 퍽을 팔레트 칸에 놓기 = pallet_place_traj.json 의 칸 궤적 (3 열 쥔 구간 0.4 rad/s, #75)
 //     pallet_unload_<열>_<칸>_tilt    팔레트 칸의 퍽을 집어 들기 = 놓기 궤적 거꾸로 (빈 집게로 rotate_back · return · retract 거꾸로
 //                                     → 0.3 s → 쥠 → place · carry · rotate 거꾸로 → q_front, 0.8 rad/s, Isaac pallet_unload 24/24)
@@ -400,6 +402,10 @@ private:
     toppick_approach_height_ = declare_parameter<double>("toppick.approach_height", 0.05);
     toppick_approach_inward_ = declare_parameter<double>("toppick.approach_inward", 0.03);
     toppick_radial_offset_ = declare_parameter<double>("toppick.radial_offset", 0.002);
+    // 쥔 뒤 들기 (top 경로만, 2026-11-14): 옆 퍽 (60 mm) 보다 높이 들어야 팔레트 궤적 첫 점까지 관절 직선 이동이 옆 퍽 위로 지나감.
+    //   J1 축에서 lift_max_radius 보다 먼 퍽은 45° 로 곧장 못 듦 -> 드는 만큼 J1 쪽으로 당김 (옆 퍽은 늘 바깥 · 옆)
+    toppick_lift_height_ = declare_parameter<double>("toppick.lift_height", 0.085);
+    toppick_lift_max_radius_ = declare_parameter<double>("toppick.lift_max_radius", 0.32);
     // target_look 타겟체크자세 (#82, target_look_pose.hpp). 카메라 장착 = robot.urdf.xacro arm_camera_link
     target_look_.camera_x = declare_parameter<double>("target_look.camera_x", target_look_.camera_x);
     target_look_.camera_z = declare_parameter<double>("target_look.camera_z", target_look_.camera_z);
@@ -907,6 +913,8 @@ private:
     requirePositive("pick.range_mismatch_tolerance", range_mismatch_tol_);
     requirePositive("pick.max_final_approach", max_final_approach_);
     requireNonNegative("pick.lift_height", lift_height_);
+    requireNonNegative("toppick.lift_height", toppick_lift_height_);
+    requirePositive("toppick.lift_max_radius", toppick_lift_max_radius_);
     requirePositive("pick.max_waypoint_joint_step", max_waypoint_joint_step_);
     requirePositive("stale_timeout", stale_timeout_);
     requirePositive("pick.offset_tolerance", offset_tolerance_);
@@ -1733,6 +1741,11 @@ private:
     if (top) {
       grasp += radial * toppick_radial_offset_;
     }
+    // 들기 변위: top = toppick.lift_height 위 + (먼 퍽이면) J1 쪽으로, pick = pick.lift_height 위
+    const double r_grasp = std::hypot(grasp.x(), grasp.y());
+    lift_offset_ = top ?
+      Eigen::Vector3d(Eigen::Vector3d::UnitZ() * toppick_lift_height_ - radial * std::max(0.0, r_grasp - toppick_lift_max_radius_)) :
+      Eigen::Vector3d(Eigen::Vector3d::UnitZ() * lift_height_);
 
     // pitch 후보를 순서대로: 접근 위치 · 파지 위치 · 들어올린 위치가 모두 풀리는 첫 pitch
     std::optional<std::vector<double>> q_pre;
@@ -1742,7 +1755,7 @@ private:
         Eigen::Vector3d(grasp - ArmIK::approachDirection(yaw, pitch) * approach);
       auto q = solveArm(pre, pitch, *current);
       if (q && solveArm(grasp, pitch, *q) &&
-        solveArm(grasp + Eigen::Vector3d::UnitZ() * lift_height_, pitch, *q))
+        solveArm(grasp + lift_offset_, pitch, *q))
       {
         q_pre = q;
         pitch_ = pitch;
@@ -2093,7 +2106,7 @@ private:
   {
     step_ = PickStep::LIFT;
     publishStage(STAGE_LIFT);
-    moveTool(tool_pos_ + Eigen::Vector3d::UnitZ() * lift_height_,
+    moveTool(tool_pos_ + lift_offset_,
       [this]() {finishPick(true, "");});
   }
 
@@ -3915,6 +3928,8 @@ private:
   double toppick_latch_max_age_{30.0};
   bool toppick_top_{true}, pick_top_{false};   // toppick.approach_mode top · 지금 집기가 top 경로인지
   double toppick_approach_height_{0.05}, toppick_approach_inward_{0.03}, toppick_radial_offset_{0.002};
+  double toppick_lift_height_{0.085}, toppick_lift_max_radius_{0.32};
+  Eigen::Vector3d lift_offset_{0.0, 0.0, 0.05};   // 이번 집기의 들기 변위 (beginPick 에서 정함)
   TargetLookParams target_look_;
   std::map<std::string, TargetLookParams> look_params_;   // box_look · barcode_look (#65)
   double target_look_settle_{0.3}, target_look_arm_wait_{1.0}, target_look_timeout_{3.0}, target_look_match_{0.04};
