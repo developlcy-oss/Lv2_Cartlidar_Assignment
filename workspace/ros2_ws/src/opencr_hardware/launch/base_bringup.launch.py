@@ -61,22 +61,32 @@ def _setup(context):
     controllers = PathJoinSubstitution([pkg, 'config', f'controllers_{wheel_count}wd.yaml'])
     drive_params = PathJoinSubstitution([pkg, 'config', f'drive_{drive}.yaml'])   # 바퀴 간격 · 속도 한계 (뒤 파일이 덮어씀)
 
-    def spawner(name, extra=()):
-        return Node(package='controller_manager', executable='spawner', output='screen',
-                    arguments=[name, '--controller-manager', '/controller_manager',
-                               '--param-file', controllers, *extra])
+    # 컨트롤러는 spawner 하나로 (#275). spawner 는 모두가 같은 파일 잠금 (~/.ros/locks) 을 쓰므로 여럿을 따로 띄우면
+    # 하나가 controller_manager 를 기다리는 동안 나머지가 20 s × 5 번 잠금을 못 잡고 실패했음 (Jetson 시작 부하, 30 번 중 25 번).
+    # --controller <이름> [그 컨트롤러 인자] 문법 (controller_manager spawner) 으로 컨트롤러마다 param file · remap 을 따로 줌.
+    # 서비스 시간 초과도 늘림: 기본 service_call 10 s 로는 시작 부하 때 load_controller 응답을 못 받았음
+    def ctrl(name, extra=()):
+        return ['--controller', name, '--param-file', controllers, *extra]
+
+    ctrls = [
+        *ctrl('joint_state_broadcaster'),
+        # IMU 는 실물만 ros2_control 센서 — Isaac 은 브리지가 /imu/data 를 직접 발행, mock 은 IMU 없음
+        *(ctrl('imu_sensor_broadcaster', ['--controller-ros-args', '-r imu_sensor_broadcaster/imu:=/imu/data'])
+          if backend == 'opencr' else []),
+        *ctrl('diff_drive_controller', ['--param-file', drive_params, '--controller-ros-args',
+              '-r diff_drive_controller/cmd_vel:=/cmd_vel -r diff_drive_controller/odom:=/odom']),
+        *ctrl('arm_controller'),
+        *(ctrl('gripper_controller') if use_gripper else []),
+    ]
+    spawn_all = Node(package='controller_manager', executable='spawner', output='screen',
+                     arguments=['--controller-manager', '/controller_manager', '--controller-manager-timeout', '120',
+                                '--service-call-timeout', '15', '--switch-timeout', '30', *ctrls])
 
     nodes = [
         # ① ros2_control_node — 하드웨어 플러그인 (backend) 과 컨트롤러가 같은 프로세스
         Node(package='controller_manager', executable='ros2_control_node', output='screen',
              parameters=[controllers, clock], remappings=[('~/robot_description', '/robot_description')]),
-        spawner('joint_state_broadcaster'),
-        # IMU 는 실물만 ros2_control 센서 — Isaac 은 브리지가 /imu/data 를 직접 발행, mock 은 IMU 없음
-        *([spawner('imu_sensor_broadcaster', ['--controller-ros-args', '-r imu_sensor_broadcaster/imu:=/imu/data'])]
-          if backend == 'opencr' else []),
-        spawner('diff_drive_controller', ['--param-file', drive_params, '--controller-ros-args',
-                '-r diff_drive_controller/cmd_vel:=/cmd_vel -r diff_drive_controller/odom:=/odom']),
-        spawner('arm_controller'),
+        spawn_all,
         # ② base_container 묶음 (component 미지원 노드는 단독 실행)
         Node(package='robot_state_publisher', executable='robot_state_publisher', output='screen',
              parameters=[{'robot_description': robot_description}, clock]),
@@ -91,8 +101,6 @@ def _setup(context):
             name='release_estop', output='log',
             cmd=['ros2', 'topic', 'pub', '-r', '10', '--qos-reliability', 'reliable', '--qos-durability', 'transient_local',
                  '/e_stop', 'std_msgs/msg/Bool', '{data: false}']))
-    if use_gripper:
-        nodes.append(spawner('gripper_controller'))
     if use_teleop:
         # 조이스틱 입력: USB 게임패드 (joy_node) 또는 RC-100 (주행 OpenCR 의 BT-410 → STATE → /rc100/raw → rc100_joy). 둘 중 하나만
         nodes.append(

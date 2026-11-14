@@ -39,7 +39,8 @@
 import os
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler, TimerAction
+from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
@@ -126,6 +127,50 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(PathJoinSubstitution([mpl, 'launch', 'planner.launch.py'])),
             launch_arguments=args.items())]
 
+    # 무거운 노드 묶음 (#275 · #276): 카메라 · 인지 · 위치 추정 · 계획기 → (nav2_delay 뒤) Nav2.
+    #   Jetson 에서 전부 한꺼번에 뜨면 controller_manager 가 늦어 컨트롤러가 못 뜨고 (#275) bt_navigator 활성화도 실패 (#276).
+    #   stage_start:=true (기본) 이고 use_hardware 면 /joint_states 가 나온 뒤 (최대 stage_timeout 초) 띄움
+    heavy = [
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([per, 'launch', 'perception.launch.py'])),
+            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
+                              'use_obstacle_stop': 'false'}.items(),   # obstacle_stop 은 위 control_container
+            condition=IfCondition(LaunchConfiguration('use_perception'))),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([me, 'launch', 'sensors.launch.py'])),
+            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
+                              'front_serial': LaunchConfiguration('front_serial'),
+                              'rear_serial': LaunchConfiguration('rear_serial')}.items(),
+            condition=IfCondition(LaunchConfiguration('use_sensors'))),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(PathJoinSubstitution([loc, 'launch', 'localization.launch.py'])),
+            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
+                              'localization': LaunchConfiguration('localization'),
+                              'use_amcl_node': LaunchConfiguration('use_amcl_node'),
+                              'map': LaunchConfiguration('map'),
+                              'objects_map': LaunchConfiguration('objects_map'),
+                              'loc_map': LaunchConfiguration('loc_map')}.items(),
+            condition=IfCondition(LaunchConfiguration('use_localization'))),
+        OpaqueFunction(function=planner),
+        TimerAction(period=LaunchConfiguration('nav2_delay'), actions=[
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(PathJoinSubstitution([nav, 'launch', 'navigation.launch.py'])),
+                launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
+                                  'use_localization': 'false'}.items(),   # 위치 추정은 위 use_localization 하나만 (#116)
+                condition=IfCondition(LaunchConfiguration('use_nav2')))]),
+    ]
+
+    def staged(context):
+        hw_on = LaunchConfiguration('use_hardware').perform(context).lower() == 'true'
+        if not (hw_on and LaunchConfiguration('stage_start').perform(context).lower() == 'true'):
+            return heavy
+        t = LaunchConfiguration('stage_timeout').perform(context)
+        gate = ExecuteProcess(name='wait_joint_states', output='screen', cmd=['bash', '-c',
+            f'timeout {t} ros2 topic echo --once /joint_states sensor_msgs/msg/JointState > /dev/null '
+            f'&& echo "[bringup] /joint_states 받음 -> 인지 · 위치 추정 · Nav2 시작" '
+            f'|| echo "[bringup] /joint_states {t} s 안에 없음 -> 그래도 시작 (컨트롤러 확인, #275)"'])
+        return [gate, RegisterEventHandler(OnProcessExit(target_action=gate, on_exit=heavy))]
+
     return LaunchDescription([
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
         # 2026-11-12 sim 은 diag_timeout 기본값 (PythonExpression) 이 읽으므로 그보다 먼저 선언 (sim:= 안 주면 'launch configuration sim does not exist')
@@ -183,6 +228,10 @@ def generate_launch_description():
         DeclareLaunchArgument('skill_enabled', default_value='false',
                               description='정책 실행 — ONNX Runtime 빌드에서만 true (없으면 거절 → 미션 fallback)'),
         DeclareLaunchArgument('policies_file', default_value=PathJoinSubstitution([pol, 'config', 'policies.yaml'])),
+        DeclareLaunchArgument('stage_start', default_value='true',
+                              description='true: /joint_states 가 나온 뒤 인지 · 위치 추정 · 계획기 · Nav2 를 띄움 (Jetson 시작 부하, #275 · #276). use_hardware 일 때만'),
+        DeclareLaunchArgument('stage_timeout', default_value='90', description='/joint_states 를 기다릴 최대 [s]. 넘으면 그래도 띄움'),
+        DeclareLaunchArgument('nav2_delay', default_value='10.0', description='무거운 묶음 시작 뒤 Nav2 를 띄울 때까지 [s] (bt_navigator 활성화 실패 #276)'),
         DeclareLaunchArgument('use_sim_time', default_value='false', description='시뮬레이션 시계(/clock) 사용 — 모든 노드에 전달'),
 
         IncludeLaunchDescription(
@@ -192,33 +241,8 @@ def generate_launch_description():
                               'obstacle_lock': LaunchConfiguration('use_tfmini'),
                               'loc_lock': LaunchConfiguration('use_loc_lock')}.items(),
             condition=IfCondition(LaunchConfiguration('use_hardware'))),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([per, 'launch', 'perception.launch.py'])),
-            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
-                              'use_obstacle_stop': 'false'}.items(),   # obstacle_stop 은 위 control_container
-            condition=IfCondition(LaunchConfiguration('use_perception'))),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([me, 'launch', 'sensors.launch.py'])),
-            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
-                              'front_serial': LaunchConfiguration('front_serial'),
-                              'rear_serial': LaunchConfiguration('rear_serial')}.items(),
-            condition=IfCondition(LaunchConfiguration('use_sensors'))),
         OpaqueFunction(function=control_container),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([loc, 'launch', 'localization.launch.py'])),
-            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
-                              'localization': LaunchConfiguration('localization'),
-                              'use_amcl_node': LaunchConfiguration('use_amcl_node'),
-                              'map': LaunchConfiguration('map'),
-                              'objects_map': LaunchConfiguration('objects_map'),
-                              'loc_map': LaunchConfiguration('loc_map')}.items(),
-            condition=IfCondition(LaunchConfiguration('use_localization'))),
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(PathJoinSubstitution([nav, 'launch', 'navigation.launch.py'])),
-            launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
-                              'use_localization': 'false'}.items(),   # 위치 추정은 위 use_localization 하나만 (#116)
-            condition=IfCondition(LaunchConfiguration('use_nav2'))),
-        OpaqueFunction(function=planner),
+        OpaqueFunction(function=staged),
         # ⑥ /odom + IMU ω → /odom_icr (vy = −icr_x·ω, 스키드 회전 중심 옆 이동, #92) → ekf odom0
         Node(package='bringup', executable='odom_icr', name='odom_icr', output='screen',
              parameters=[geometry, sim], condition=IfCondition(LaunchConfiguration('use_ekf'))),
