@@ -80,7 +80,7 @@ def _setup(context):
     ]
     spawn_all = Node(package='controller_manager', executable='spawner', output='screen',
                      arguments=['--controller-manager', '/controller_manager', '--controller-manager-timeout', '120',
-                                '--service-call-timeout', '60', '--switch-timeout', '30', *ctrls])
+                                '--service-call-timeout', '15', '--switch-timeout', '30', *ctrls])
 
     nodes = [
         # ① ros2_control_node — 하드웨어 플러그인 (backend) 과 컨트롤러가 같은 프로세스
