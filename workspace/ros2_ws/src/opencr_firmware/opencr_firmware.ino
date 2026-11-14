@@ -10,8 +10,10 @@
 //   applySafety()  200 ms 무수신 · ESTOP 비트 · 물리 스위치 → 바퀴 0, 팔 HOLD (safety_core.h)
 //   handleCmd()    HOLD 가 아니면 승인된 명령을 rad/s 또는 rad → 모터 목표로 변환
 //   guardGripper() (팔) 그리퍼 칸이 막히면 목표를 "막힌 자리 + 쥐는 힘" 으로 (safety_core.h GripGuard, 2026-10-27 arm_bench)
+//   releaseStalledHold() (팔) HOLD 중 막혀 못 가는 관절은 목표를 현재 위치로 (계속 밀지 않음, 2026-11-14 #277)
 //   writeGoals()   역할에 해당하는 SyncWrite만 수행
 //   sendState()    상태 + IMU (주행) + 배터리 전압 (두 보드, 2026-11-11) + 오류 · HOLD · FAULT 비트
+//                  + 모터별 Hardware Error Status · 온도 (안 쓰는 쪽 칸, opencr_protocol.h diag_slot, 2026-11-14 #259)
 //   배터리 비프    전원 전압 → battery_alarm.h (잔량 · 저전압 · 방전 직전) → 부저 tone() (타이머 인터럽트, 루프를 막지 않음)
 //
 // 부팅 점검 (Xmen opencr_control.ino prepareAxis 참고): ping · 모델 번호 · Homing Offset 0 · Return Delay 0
@@ -65,7 +67,9 @@ static opencr_safety::SafetyCore g_safety(BOARD_ROLE, ARM_MIN_RAD, ARM_MAX_RAD, 
 static bool g_torque_on = false;
 static uint8_t g_error = 0;          // SyncRead · 물리 E-stop · 모터 HW · 모터 설정 (무수신 · 역할 · HOLD · FAULT 는 g_safety)
 static uint8_t g_state_seq = 0;
-static uint8_t g_hw_error_mask = 0;  // 모터별 HW 오류 비트 (k 번째 모터 = 1 << k), STATE 에는 비트 1개로 보고
+static uint8_t g_hw_error_mask = 0;  // 모터별 HW 오류 비트 (k 번째 모터 = 1 << k), STATE 오류에는 비트 1개로 보고
+static uint8_t g_hw_status[N_MOTORS];   // 모터별 마지막으로 읽은 Hardware Error Status 값 (STATE 진단 칸)
+static uint8_t g_temperature[N_MOTORS]; // 모터별 마지막으로 읽은 Present Temperature (°C, 0 = 아직 못 읽음)
 static float g_battery_v = 0.f;      // 저역 통과한 전원 전압
 static opencr_battery::BatteryAlarm g_battery_alarm({BATTERY_CELLS, BATTERY_NONE_V, BATTERY_WARN_V, BATTERY_CRIT_V,
   BATTERY_HYST_V, BATTERY_WARN_HOLD_MS, BATTERY_CRIT_HOLD_MS, BATTERY_RECOVER_HOLD_MS, BATTERY_SETTLE_MS,
@@ -283,8 +287,11 @@ static void readState()
     if (k < recv) {
       const int32_t st = dxl.readControlTableItem(HARDWARE_ERROR_STATUS, g_ids[k]);
       if (dxl.getLastLibErrCode() == DXL_LIB_OK) {
+        g_hw_status[k] = (uint8_t)st;
         if (st > 0) {g_hw_error_mask |= (uint8_t)(1u << k);} else {g_hw_error_mask &= (uint8_t)~(1u << k);}
       }
+      const int32_t temp = dxl.readControlTableItem(PRESENT_TEMPERATURE, g_ids[k]);
+      if (dxl.getLastLibErrCode() == DXL_LIB_OK) {g_temperature[k] = (uint8_t)(temp < 0 ? 0 : (temp > 255 ? 255 : temp));}
     }
     k = (k + 1) % N_MOTORS;
   }
@@ -323,6 +330,8 @@ static void receiveHost()
 }
 
 // ---- 명령 적용 ----
+static void syncWriteGoals();   // 아래 writeGoals 옆
+
 static void handleCmd()
 {
   if (!g_safety.have_cmd()) {return;}
@@ -339,6 +348,9 @@ static void handleCmd()
     if (BOARD_ROLE == opencr_proto::ROLE_WHEEL) {
       for (int i = 0; i < WHEEL_COUNT; ++i) {g_wheel_goal_raw[i] = 0;}
     }
+    // 목표 (RAM) 를 토크를 켜기 전에 먼저 써 둔다 — 켜는 순간부터 이 주기 writeGoals 까지 모터가 레지스터에 남은
+    //   예전 목표 (12 V 끊김 전 값 등) 를 따라가지 않게 (2026-11-12 실물: 토크 ON 직후 관절 5 가 돌아감, 원인 추정 #259)
+    syncWriteGoals();
     dxl.writeControlTableItem(TORQUE_ENABLE, DXL_BROADCAST_ID, 1);
 #if BUS_WATCHDOG_UNIT > 0
     // 100 Hz SyncWrite 가 계속 Watchdog 을 초기화 — OpenCR 이 멈추면 500 ms 뒤 모터가 스스로 정지
@@ -409,9 +421,37 @@ static void guardGripper()
   g_arm_goal_raw[GRIP_SLOT] = g_grip.update(g_arm_goal_raw[GRIP_SLOT], g_present[GRIP_SLOT].position, g_positions_valid, millis());
 }
 
-static void writeGoals()
+// HOLD 중 막힌 관절 풀기 (config.h HOLD_STALL_*, #277). HOLD 밖이거나 위치를 모르면 시간을 다시 잰다
+static void releaseStalledHold()
 {
-  if (!g_torque_on) {return;}
+  if (BOARD_ROLE != opencr_proto::ROLE_ARM) {return;}
+  static uint32_t t0[ARM_COUNT];
+  static int32_t d0[ARM_COUNT];
+  static bool watching[ARM_COUNT];
+  const bool active = g_torque_on && g_safety.hold() && g_positions_valid;
+  const uint32_t now = millis();
+  for (int i = 0; i < ARM_COUNT; ++i) {
+    if (i == GRIP_SLOT) {continue;}
+    const int32_t d = g_arm_goal_raw[i] - g_present[i].position;
+    const int32_t ad = d < 0 ? -d : d;
+    const int32_t v = g_present[i].velocity;
+    const bool still = v <= ESTOP_STILL_VEL_RAW && v >= -ESTOP_STILL_VEL_RAW;
+    if (!active || !still || ad <= HOLD_STALL_TICKS) {watching[i] = false; continue;}
+    if (!watching[i] || ad < d0[i] - HOLD_STALL_PROGRESS_TICKS) {   // 새로 보거나 아직 줄어드는 중 → 다시 잼
+      watching[i] = true;
+      t0[i] = now;
+      d0[i] = ad;
+      continue;
+    }
+    if (now - t0[i] >= HOLD_STALL_MS) {
+      g_arm_goal_raw[i] = g_present[i].position;
+      watching[i] = false;
+    }
+  }
+}
+
+static void syncWriteGoals()
+{
   if (BOARD_ROLE == opencr_proto::ROLE_WHEEL) {
     g_sw_wheel.is_info_changed = true;
     dxl.syncWrite(&g_sw_wheel);
@@ -419,6 +459,12 @@ static void writeGoals()
     g_sw_arm.is_info_changed = true;
     dxl.syncWrite(&g_sw_arm);
   }
+}
+
+static void writeGoals()
+{
+  if (!g_torque_on) {return;}
+  syncWriteGoals();
 #if GRIPPER_ID != 0
   if (BOARD_ROLE == opencr_proto::ROLE_ARM) {dxl.writeControlTableItem(GOAL_POSITION, GRIPPER_ID, g_gripper_goal_raw);}
 #endif
@@ -476,6 +522,11 @@ static void sendState()
       s.gyro[i] = imu.SEN.gyroADC[i] * GYRO_FACTOR;
       s.accel[i] = imu.SEN.accADC[i] * ACCEL_FACTOR;
     }
+  }
+  for (int i = 0; i < N_MOTORS; ++i) {   // 모터 진단 (안 쓰는 쪽 칸, opencr_protocol.h diag_slot)
+    const int k = opencr_proto::diag_slot(BOARD_ROLE, i);
+    s.vel[k] = g_hw_status[i];
+    s.effort[k] = g_temperature[i];
   }
   s.battery_v = g_battery_v;   // 두 보드 모두 (보드마다 배터리 따로, 2026-11-11). 예전 팔 펌웨어는 0 을 보냄
   if (g_config_error) {g_error |= opencr_proto::ERR_MOTOR_CONFIG;}
@@ -563,6 +614,7 @@ void loop()
 #endif
     applySafety();   // 무수신 · ESTOP · HOLD 판단을 먼저 하고 명령을 적용
     handleCmd();
+    releaseStalledHold();
     guardGripper();
     writeGoals();
     sendState();

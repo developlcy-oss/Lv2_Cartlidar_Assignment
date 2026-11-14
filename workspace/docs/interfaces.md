@@ -117,8 +117,12 @@
     펌웨어는 같은 전압으로 부저를 울린다: 켤 때 잔량 (1 ~ 4 번) · 저전압 11.1 V 미만 10 s → 30 s 마다 1 번 · 방전 직전 10.5 V 미만 3 s → 2 s 마다 3 번 (비프만, 모터는 그대로).
   - error 비트: 0x01 SyncRead 누락 · 0x02 명령 타임아웃 · 0x04 물리 E-stop · 0x08 모터 HW · 0x10 모터 설정 · 0x20 CMD 역할 불일치 ·
     0x40 HOLD (팔이 토크를 유지한 채 멈춤, REARM 으로만 풀림) · 0x80 FAULT (부팅 점검 실패, 토크 거부)
+  - 모터 진단 (2026-11-14, #259, 길이 · 버전 그대로): 각 보드는 자기 역할이 쓰지 않는 쪽 칸 (팔 보드 = 0 ~ 5, 주행 보드 = 6 ~ 11) 의
+    `vel` 에 모터별 Hardware Error Status (주소 70), `effort` 에 온도 (°C) 를 싣는다 (`opencr_protocol.h` `diag_slot`). 예전 펌웨어는 0.
+    호스트는 `/diagnostics` `opencr/motors` 에 `<관절>.hw_error` · `<관절>.temp_c` 로 내고, 값이 바뀌면 관절 이름과 함께 로그를 남긴다
+    (12 V 를 끄면 모터 오류가 지워지므로 로그 · 진단으로 남김).
 - `PROTOCOL_VERSION = 5`: 버전이 다르면 호스트가 활성화를 거부한다 (v3 은 길이도 다름). 호스트는 역할별 STATE를 하나씩 받고 두 보드 모두 v5인지 확인해야 활성화한다.
-- 명령이 끊기거나 (200 ms) ESTOP: 바퀴 0, 팔은 토크를 유지한 채 HOLD (무수신은 마지막 승인 목표, ESTOP 은 현재 위치 — 단 멈춰 있고 목표와 차이가 처짐 정도 (config.h ESTOP_KEEP_GOAL_TICKS) 안인 관절은 마지막 목표). 팔 HOLD 는 운용자 리셋 → 호스트 REARM 펄스로만 풀린다.
+- 명령이 끊기거나 (200 ms) ESTOP: 바퀴 0, 팔은 토크를 유지한 채 HOLD (무수신은 마지막 승인 목표, ESTOP 은 현재 위치 — 단 멈춰 있고 목표와 차이가 처짐 정도 (config.h ESTOP_KEEP_GOAL_TICKS) 안인 관절은 마지막 목표). HOLD 중 붙잡은 목표에 막혀 못 가는 관절 (멈춰 있고 차이 HOLD_STALL_TICKS 초과가 HOLD_STALL_MS 동안 줄지 않음) 은 목표를 현재 위치로 바꿔 계속 밀지 않는다 (2026-11-14, #277). 팔 HOLD 는 운용자 리셋 → 호스트 REARM 펄스로만 풀린다.
 - OpenCR 빌드: `OPENCR_BOARD_ROLE=1` 주행, `=2` 팔 — 빌드 옵션으로만 정한다 (기본값 없음, `opencr_firmware/tools/build_firmware.sh wheel|arm`).
 - 포트: `ports` 파라미터에 두 후보 경로를 쉼표로 전달한다. `/dev/ttyACM0`과 `/dev/ttyACM1`은 후보일 뿐이며, 실제 역할은 STATE.role로 연결한다.
 - 부팅 점검 (펌웨어): ping · 모델 번호 · Homing Offset 0 확인, Return Delay 0 기록, (팔) 모터 Min/Max Position Limit 가 관절 범위를 덮는지 확인.

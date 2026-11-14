@@ -184,3 +184,29 @@ TEST(ArmRearmSlew, DisabledOrUntouchedSlotsPassThrough)
   s.apply(false, cmd, pos, vel, 0.01);
   EXPECT_FLOAT_EQ(cmd[2], 0.7f) << "n 밖 칸 (그리퍼) 은 그대로";
 }
+
+// 잠긴 동안 막힌 관절: 펌웨어가 HOLD_STALL_MS 뒤 목표를 현재 위치로 바꾸므로 (#277) 추정도 같이 바꿈 → REARM 때 현재 위치에서 출발
+TEST(ArmRearmSlew, StalledJointFollowsFirmwareRelease)
+{
+  opencr_hardware::ArmRearmSlew s(0.3, 2);
+  const double tick = opencr_hardware::ArmRearmSlew::TICK_RAD;
+  float vel[2] = {0.f, 0.f};
+  float pos[2] = {static_cast<float>(1.0 - 45 * tick), static_cast<float>(0.5 - 30 * tick)};   // 0: 막힘 · 1: 처짐이 줄어드는 중
+  float cmd[2] = {1.0f, 0.5f};
+  s.apply(false, cmd, pos, vel, 0.01);
+  for (int i = 0; i < 150; ++i) {   // 1.5 s
+    cmd[0] = 1.0f; cmd[1] = 0.5f;
+    s.apply(true, cmd, pos, vel, 0.01);
+    if (i % 50 == 49) {pos[1] += static_cast<float>(5 * tick);}
+  }
+  EXPECT_FLOAT_EQ(cmd[0], 1.0f) << "2 s 전에는 붙잡은 목표";
+  for (int i = 0; i < 60; ++i) {
+    cmd[0] = 1.0f; cmd[1] = 0.5f;
+    s.apply(true, cmd, pos, vel, 0.01);
+  }
+  EXPECT_FLOAT_EQ(cmd[0], pos[0]) << "막혀 2 s 동안 줄지 않으면 현재 위치 (펌웨어와 같게)";
+  EXPECT_FLOAT_EQ(cmd[1], 0.5f) << "처짐이 줄어드는 관절은 목표 유지";
+  cmd[0] = 1.0f; cmd[1] = 0.5f;
+  s.apply(false, cmd, pos, vel, 0.01);
+  EXPECT_NEAR(cmd[0], pos[0] + 0.003, 1e-5) << "REARM 뒤 현재 위치에서 천천히";
+}

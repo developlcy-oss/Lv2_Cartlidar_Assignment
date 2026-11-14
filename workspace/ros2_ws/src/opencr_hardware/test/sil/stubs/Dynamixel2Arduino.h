@@ -19,7 +19,8 @@ namespace ControlTableItem
 enum ControlTableItemIndex { HOMING_OFFSET, RETURN_DELAY_TIME, BUS_WATCHDOG, PROFILE_VELOCITY, PROFILE_ACCELERATION,
   HARDWARE_ERROR_STATUS, TORQUE_ENABLE, GOAL_POSITION, GOAL_VELOCITY, OPERATING_MODE, MIN_POSITION_LIMIT, MAX_POSITION_LIMIT,
   POSITION_P_GAIN, POSITION_I_GAIN, POSITION_D_GAIN, PWM_LIMIT,
-  DRIVE_MODE, VELOCITY_LIMIT };   // 바퀴 부팅 설정 (prepareWheelConfig) — 뒤에 붙여 기존 값 유지
+  DRIVE_MODE, VELOCITY_LIMIT,   // 바퀴 부팅 설정 (prepareWheelConfig) — 뒤에 붙여 기존 값 유지
+  PRESENT_TEMPERATURE };        // 모터 진단 (STATE 진단 칸, #259)
 }
 
 namespace DYNAMIXEL
@@ -79,6 +80,7 @@ public:
     switch (item) {
       case ControlTableItem::HOMING_OFFSET: return m->homing_offset;
       case ControlTableItem::HARDWARE_ERROR_STATUS: return m->hw_error;
+      case ControlTableItem::PRESENT_TEMPERATURE: return m->temperature;
       case ControlTableItem::TORQUE_ENABLE: return m->torque ? 1 : 0;
       case ControlTableItem::BUS_WATCHDOG: return m->watchdog;
       case ControlTableItem::OPERATING_MODE: return m->mode;
@@ -176,7 +178,10 @@ private:
   static void apply(SilMotor & m, uint8_t item, int32_t v)
   {
     switch (item) {
-      case ControlTableItem::TORQUE_ENABLE: m.torque = v != 0; break;
+      case ControlTableItem::TORQUE_ENABLE:
+        if (v != 0 && !m.torque) {m.goal_at_torque_on = m.goal_position;}
+        m.torque = v != 0;
+        break;
       case ControlTableItem::BUS_WATCHDOG: m.watchdog = v; break;
       case ControlTableItem::OPERATING_MODE: m.mode = static_cast<uint8_t>(v); break;
       case ControlTableItem::HOMING_OFFSET: m.homing_offset = v; break;

@@ -118,15 +118,21 @@ private:
 //   잠긴 동안 펌웨어는 마지막 목표 (멈춰 있고 처짐 정도 차이) 또는 현재 위치를 붙잡는데, 컨트롤러 (arm_controller 궤적 등) 는
 //   계속 나아간다. REARM 순간 그 차이 (실물 3 ~ 15°) 를 한 번에 따라가며 튐 →
 //   잠기는 순간 펌웨어가 붙잡은 목표를 같은 규칙으로 추정하고, 풀린 뒤 호스트 명령까지 rate 이하로 따라간다 (따라잡으면 그대로 통과).
+//   잠긴 동안 펌웨어가 막힌 관절의 목표를 현재 위치로 바꾸는 것 (config.h HOLD_STALL_*, 2026-11-14 #277) 도 같은 규칙으로 따라 한다 —
+//   그 관절은 REARM 때 현재 위치에서 출발 (예전 목표로 다시 밀지 않음).
 //   관절 0 ~ n-1 만 (그리퍼 칸은 넣지 않음). rate ≤ 0 이면 끔 (그대로 통과)
 class ArmRearmSlew
 {
 public:
   static constexpr std::size_t MAX = 8;
+  static constexpr double TICK_RAD = 2.0 * M_PI / 4096.0;
   // keep_goal_rad · still_vel = 펌웨어 config.h ESTOP_KEEP_GOAL_TICKS (60 tick) · ESTOP_STILL_VEL_RAW (5 × 0.229 rpm)
-  ArmRearmSlew(double rate, std::size_t n, double keep_goal_rad = 60.0 * 2.0 * M_PI / 4096.0,
-    double still_vel = 5.0 * 0.229 * 2.0 * M_PI / 60.0)
-  : rate_(rate), n_(std::min(n, MAX)), keep_(keep_goal_rad), still_(still_vel) {}
+  // stall_rad · stall_progress_rad · stall_s = 펌웨어 HOLD_STALL_TICKS (20) · HOLD_STALL_PROGRESS_TICKS (3) · HOLD_STALL_MS (2000)
+  ArmRearmSlew(double rate, std::size_t n, double keep_goal_rad = 60.0 * TICK_RAD,
+    double still_vel = 5.0 * 0.229 * 2.0 * M_PI / 60.0, double stall_rad = 20.0 * TICK_RAD,
+    double stall_progress_rad = 3.0 * TICK_RAD, double stall_s = 2.0)
+  : rate_(rate), n_(std::min(n, MAX)), keep_(keep_goal_rad), still_(still_vel),
+    stall_(stall_rad), stall_progress_(stall_progress_rad), stall_s_(stall_s) {}
 
   // cmd: 이번 주기 호스트 명령 (보낼 값으로 바뀜). pos · vel: 펌웨어 STATE. dt: 주기 (s)
   void apply(bool latched, float * cmd, const float * pos, const float * vel, double dt)
@@ -141,7 +147,15 @@ public:
         for (std::size_t k = 0; k < n_; ++k) {
           const bool keep = std::abs(out_[k] - pos[k]) <= keep_ && std::abs(vel[k]) <= still_;
           if (!keep) {out_[k] = pos[k];}
+          watching_[k] = false;
         }
+      }
+      for (std::size_t k = 0; k < n_; ++k) {   // 막힌 관절 (펌웨어 releaseStalledHold 와 같은 규칙)
+        const double d = std::abs(out_[k] - pos[k]);
+        if (std::abs(vel[k]) > still_ || d <= stall_) {watching_[k] = false; continue;}
+        if (!watching_[k] || d < d0_[k] - stall_progress_) {watching_[k] = true; t_[k] = 0.0; d0_[k] = d; continue;}
+        t_[k] += std::max(dt, 0.0);
+        if (t_[k] >= stall_s_) {out_[k] = pos[k]; watching_[k] = false;}
       }
       catching_ = true;
     } else if (catching_) {
@@ -166,7 +180,10 @@ private:
   double rate_;
   std::size_t n_;
   double keep_, still_;
+  double stall_, stall_progress_, stall_s_;
   float out_[MAX] = {};
+  bool watching_[MAX] = {};
+  double t_[MAX] = {}, d0_[MAX] = {};
   bool valid_ = false, prev_latched_ = false, catching_ = false;
 };
 
