@@ -33,10 +33,12 @@ struct SilMotor
   int32_t velocity_limit = 1023;       // EEPROM Velocity Limit (0.229 rpm 단위, 시험 기본값 = 범위 최대 — 공장값 아님)
   bool eeprom_write_fails = false;      // 시험용: EEPROM 쓰기를 받지 않음 (Drive Mode · Velocity Limit)
   uint8_t hw_error = 0;         // Hardware Error Status
+  int32_t temperature = 31;     // Present Temperature (°C)
   uint8_t mode = 3;
   bool torque = false;
   int32_t watchdog = 0;
   int32_t goal_position = 2048;
+  int32_t goal_at_torque_on = -1;   // 시험용: 토크가 켜지는 순간의 Goal Position (-1 = 아직 안 켜짐)
   int32_t goal_velocity = 0;
   int32_t position = 2048;      // Present Position (tick)
   int32_t velocity = 0;
@@ -87,5 +89,5 @@ namespace sil_item
 enum : uint8_t { HOMING_OFFSET, RETURN_DELAY_TIME, BUS_WATCHDOG, PROFILE_VELOCITY, PROFILE_ACCELERATION,
   HARDWARE_ERROR_STATUS, TORQUE_ENABLE, GOAL_POSITION, GOAL_VELOCITY, OPERATING_MODE, MIN_POSITION_LIMIT, MAX_POSITION_LIMIT,
   POSITION_P_GAIN, POSITION_I_GAIN, POSITION_D_GAIN, PWM_LIMIT,
-  DRIVE_MODE, VELOCITY_LIMIT };
+  DRIVE_MODE, VELOCITY_LIMIT, PRESENT_TEMPERATURE };
 }

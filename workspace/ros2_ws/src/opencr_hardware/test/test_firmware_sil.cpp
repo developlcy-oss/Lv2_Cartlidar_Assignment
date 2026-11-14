@@ -703,6 +703,114 @@ TEST(FirmwareSil, SyncReadLossKeepsLastGoodAndBlocksTorqueOn)
   });
 }
 
+// HOLD 중 막힌 관절 풀기 (2026-11-14 #277): 붙잡은 목표에 막혀 못 가면 HOLD_STALL_MS 뒤 목표 = 현재 위치 (계속 밀지 않음).
+//   처짐이 줄어드는 중 · 차이가 작은 관절 · 움직이는 관절은 그대로 두고, 무수신 HOLD 도 같다
+TEST(FirmwareSil, HoldReleasesStalledJoint)
+{
+  for (const bool estop : {true, false}) {
+    isolated([estop] {
+      Bench b;
+      b.boot();
+      b.arm_activate();
+      for (int k = 0; k < 4; ++k) {b.ha.arm[k] = 0.3f;}
+      b.drive(50, NO_CMD, FLAG_TORQUE_ON);
+      b.a.motors_follow_goals = false;
+      const int32_t goal = arm_tick(0.3f);
+      b.arm_motor(2).position = goal - 45;                    // 막힘 (실물 #277 관절 3 과 같은 차이)
+      b.arm_motor(1).position = goal - 30;                    // 처짐 — 아래에서 조금씩 줄어듦 (I 게인)
+      b.arm_motor(3).position = goal - (HOLD_STALL_TICKS - 5);   // 차이가 작음 — 풀 대상 아님
+      if (estop) {
+        b.drive(50, NO_CMD, FLAG_TORQUE_ON | FLAG_ESTOP);
+      } else {
+        b.run(400);   // 무수신 HOLD (마지막 승인 목표 유지)
+      }
+      ASSERT_TRUE(b.ha.last().error & ERR_HOLD);
+      EXPECT_EQ(b.arm_goal(2), goal) << "HOLD 진입 때는 처짐 정도 차이라 목표 유지";
+      auto step = [&](int ms) {
+          if (estop) {b.drive(ms, NO_CMD, FLAG_TORQUE_ON | FLAG_ESTOP);} else {b.run(ms);}
+        };
+      for (int t = 0; t < 4; ++t) {        // 2 s: 관절 2 처짐은 500 ms 마다 5 tick 씩 줄어듦
+        step(500);
+        b.arm_motor(1).position += 5;
+      }
+      EXPECT_EQ(b.arm_goal(1), goal) << "처짐이 줄어드는 중이면 목표 유지";
+      step(500);
+      EXPECT_EQ(b.arm_goal(2), goal - 45) << "막혀 HOLD_STALL_MS 넘게 줄지 않으면 목표 = 현재 위치";
+      EXPECT_EQ(b.arm_goal(3), goal) << "차이가 HOLD_STALL_TICKS 안이면 그대로 (목표 유지)";
+    });
+  }
+  // 움직이는 관절은 막힘으로 보지 않음 · HOLD 가 아니면 (ACTIVE) 손대지 않음
+  isolated([] {
+    Bench b;
+    b.boot();
+    b.arm_activate();
+    b.ha.arm[2] = 0.3f;
+    b.drive(50, NO_CMD, FLAG_TORQUE_ON);
+    b.a.motors_follow_goals = false;
+    const int32_t goal = arm_tick(0.3f);
+    b.arm_motor(2).position = goal - 45;
+    b.drive(3000, NO_CMD, FLAG_TORQUE_ON);
+    EXPECT_EQ(b.arm_goal(2), goal) << "ACTIVE 에서는 호스트 명령 그대로";
+    b.arm_motor(2).velocity = 40;
+    b.drive(3000, NO_CMD, FLAG_TORQUE_ON | FLAG_ESTOP);
+    ASSERT_TRUE(b.ha.last().error & ERR_HOLD);
+    EXPECT_EQ(b.arm_goal(2), goal - 45) << "움직이던 관절은 ESTOP 때 이미 현재 위치에서 멈춤";
+  });
+}
+
+// 토크 ON: 목표 (= 현재 위치) 를 토크를 켜기 전에 써 둠 — 레지스터에 남은 예전 목표를 따라가지 않게 (#259)
+TEST(FirmwareSil, GoalWrittenBeforeTorqueOn)
+{
+  isolated([] {
+    Bench b;
+    for (int k = 0; k < ARM_JOINTS; ++k) {
+      b.arm_motor(k).position = arm_tick(0.1f * k - 0.2f);
+      b.arm_motor(k).goal_position = 3000;   // 12 V 끊김 전 등 예전 목표
+    }
+    b.boot();
+    b.drive(50, NO_CMD, FLAG_TORQUE_ON);
+    for (int k = 0; k < ARM_JOINTS; ++k) {
+      ASSERT_TRUE(b.arm_motor(k).torque);
+      EXPECT_EQ(b.arm_motor(k).goal_at_torque_on, arm_tick(0.1f * k - 0.2f)) << "칸 " << k << ": 켜는 순간 목표 = 현재 위치";
+    }
+  });
+}
+
+// 모터 진단 (#259): 모터별 Hardware Error Status · 온도를 STATE 의 안 쓰는 쪽 칸 (diag_slot) 에 — 자기 칸 · RC-100 칸은 그대로
+TEST(FirmwareSil, MotorDiagnosticsInState)
+{
+  isolated([] {
+    Bench b;
+    b.arm_motor(2).hw_error = HWERR_OVERLOAD | HWERR_OVERHEATING;
+    b.arm_motor(2).temperature = 72;
+    b.arm_motor(4).temperature = 45;
+    b.w.motors[WHEEL_IDS[1]].hw_error = HWERR_INPUT_VOLTAGE;
+    b.w.motors[WHEEL_IDS[1]].temperature = 38;
+    b.boot();
+    b.run(1000);   // 모터 하나씩 50 ms 마다 → 6 모터 한 바퀴 300 ms
+    const State sa = b.ha.last(), sw = b.hw.last();
+    EXPECT_TRUE(sa.error & ERR_MOTOR_HW);
+    for (int k = 0; k < ARM_JOINTS; ++k) {
+      const int d = diag_slot(ROLE_ARM, k);
+      EXPECT_LT(d, MAX_WHEELS) << "팔 보드 진단 = 바퀴 칸";
+      EXPECT_EQ(sa.vel[d], k == 2 ? float(HWERR_OVERLOAD | HWERR_OVERHEATING) : 0.f) << k;
+      EXPECT_EQ(sa.effort[d], k == 2 ? 72.f : (k == 4 ? 45.f : 31.f)) << k;
+    }
+    for (int k = 0; k < WHEEL_COUNT; ++k) {
+      const int d = diag_slot(ROLE_WHEEL, k);
+      EXPECT_GE(d, MAX_WHEELS) << "주행 보드 진단 = 팔 칸";
+      EXPECT_EQ(sw.vel[d], k == 1 ? float(HWERR_INPUT_VOLTAGE) : 0.f) << k;
+      EXPECT_EQ(sw.effort[d], k == 1 ? 38.f : 31.f) << k;
+    }
+    EXPECT_EQ(sw.pos[RC100_SLOT_BUTTONS], 0.f) << "RC-100 칸 (pos) 은 그대로";
+    EXPECT_EQ(sw.pos[RC100_SLOT_AGE], 0.f);
+    b.arm_motor(2).hw_error = 0;   // 12 V 를 껐다 켜면 모터 오류가 지워짐
+    b.run(400);
+    EXPECT_EQ(b.ha.last().vel[diag_slot(ROLE_ARM, 2)], 0.f);
+    EXPECT_FALSE(b.ha.last().error & ERR_MOTOR_HW);
+  });
+}
+
 // 모터 HW 오류 비트: 정상 모터를 확인할 때마다 지워지지 않고 유지
 TEST(FirmwareSil, HwErrorBitIsStable)
 {

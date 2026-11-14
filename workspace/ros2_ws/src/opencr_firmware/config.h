@@ -54,6 +54,7 @@ static const uint32_t BATTERY_CRIT_PERIOD_MS  = 2000;    // 방전 직전: 2 s �
 #define ADDR_GOAL_VELOCITY    104
 #define ADDR_GOAL_POSITION    116
 #define ADDR_PRESENT_START    126              // Present Current(2) · Velocity(4) · Position(4)
+#define ADDR_PRESENT_TEMP     146              // Present Temperature (°C) — HW 오류와 함께 하나씩 돌아가며 읽음 (STATE 진단 칸)
 #define LEN_PRESENT           10
 
 // ---- 단위 ----
@@ -123,6 +124,16 @@ static const uint16_t ARM_PROFILE_ACCEL[ARM_COUNT] = {  0,   0,   0,  50,  50,  
 //   움직이는 중 (|Present Velocity| > ESTOP_STILL_VEL_RAW) 이거나 이보다 멀면 지금처럼 현재 위치에서 멈춤
 static const int32_t  ESTOP_KEEP_GOAL_TICKS = 60;
 static const int32_t  ESTOP_STILL_VEL_RAW   = 5;      // 0.229 rpm 단위 = 약 0.12 rad/s. 이 안이면 '멈춰 있음' (처진 채 버티는 중)
+// HOLD 중 막힌 관절 풀기 (2026-11-14, #277): 위 규칙 (또는 무수신 HOLD 의 마지막 목표 유지) 로 붙잡은 목표가 물체에 막혀 닿지 못하면
+//   모터가 계속 민다 (실물 11-13: 관절 3 이 45 tick 모자란 채 0.6 ~ 0.7 A 로 약 7 분 → 그 뒤 관절 3 토크 꺼짐과 이어졌을 수 있음, #259).
+//   처짐은 I 게인 (관절 2 · 3) 으로 시간이 지나면 줄지만, 막힘은 줄지 않는다 →
+//   HOLD 중 멈춰 있고 (|속도| ≤ ESTOP_STILL_VEL_RAW) 목표 − 현재가 HOLD_STALL_TICKS 넘게 HOLD_STALL_MS 동안
+//   HOLD_STALL_PROGRESS_TICKS 도 줄지 않으면 그 관절 목표를 현재 위치로 (더 밀지 않음). 그리퍼 칸은 GripGuard 가 따로 다룸.
+//   처진 채 줄지 않는 관절도 같은 조건이면 현재 위치로 바뀌어 한 번 조금 더 처질 수 있다 (최대 처짐 정도, 약 3°) ★ 실물 확인
+static const int32_t  HOLD_STALL_TICKS          = 20;     // 약 1.76°
+static const int32_t  HOLD_STALL_PROGRESS_TICKS = 3;      // 이만큼 줄면 '아직 따라가는 중' 으로 보고 시간을 다시 잼
+static const uint32_t HOLD_STALL_MS             = 2000;
+static_assert(HOLD_STALL_TICKS < ESTOP_KEEP_GOAL_TICKS, "목표를 유지한 관절이 막혔으면 풀 수 있게");
 
 // 그리퍼 (6 번째 칸) 막힘 보호 (2026-10-27 arm_bench): 퍽을 쥐다가 MOTOR_HW (과부하 추정, 막힌 채 PWM 885 로 1.5 s) →
 //   모터 EEPROM PWM Limit 400 (dxl_setup w 15 400) + 펌웨어가 막힘을 보고 약하게 쥔다 (safety_core.h GripGuard).

@@ -42,6 +42,19 @@ static const int STATE_JOINTS = MAX_WHEELS + ARM_JOINTS;
 //   펌웨어는 리모컨으로 바퀴를 직접 움직이지 않는다 — 호스트 (rc100_joy) 가 /joy 로 바꿔 기존 조이스틱 경로로 보낸다.
 static const int RC100_SLOT_BUTTONS = MAX_WHEELS + 0;
 static const int RC100_SLOT_AGE = MAX_WHEELS + 1;
+// 모터 진단 (2026-11-14, #259): 각 보드는 STATE 에서 자기 역할이 쓰지 않는 쪽 칸의 vel · effort 에 자기 모터 값을 싣는다.
+//   길이 · 오프셋 · PROTOCOL_VERSION 은 그대로 (v5). 예전 펌웨어는 0 을 보냄 (= 오류 없음 · 온도 모름).
+//   vel[diag_slot(role, k)]    = k 번째 모터 (펌웨어 ARM_IDS · WHEEL_IDS 순서 = 패킷 칸 순서) Hardware Error Status (주소 70, 0 ~ 255)
+//   effort[diag_slot(role, k)] = 그 모터 Present Temperature (주소 146, °C)
+//   팔 보드: 바퀴 칸 0 ~ 5. 주행 보드: 팔 칸 6 ~ 11 (pos 의 RC100_SLOT_* 와 겹치지 않음 — vel · effort 만 씀).
+//   펌웨어가 모터 하나씩 돌아가며 읽으므로 (HW_ERR_POLL_MS) 모터마다 수백 ms 늦을 수 있다.
+//   Hardware Error Status 비트: 0 입력 전압 · 2 과열 · 3 모터 엔코더 · 4 전기 충격 · 5 과부하 (e-Manual XM430)
+inline int diag_slot(uint8_t role, int k) {return (role == ROLE_ARM ? 0 : MAX_WHEELS) + k;}
+static const uint8_t HWERR_INPUT_VOLTAGE = 0x01;
+static const uint8_t HWERR_OVERHEATING = 0x04;
+static const uint8_t HWERR_ENCODER = 0x08;
+static const uint8_t HWERR_ELECTRICAL_SHOCK = 0x10;
+static const uint8_t HWERR_OVERLOAD = 0x20;
 
 // CMD flags
 static const uint8_t FLAG_TORQUE_ON = 0x01;

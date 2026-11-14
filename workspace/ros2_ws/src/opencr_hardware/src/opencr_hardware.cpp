@@ -215,6 +215,31 @@ int64_t OpenCRHardware::steady_ns()
 }
 
 // RC-100 STATE 칸 (float) → 정수. 음수 · NaN · 너무 큰 값은 0 (예전 펌웨어는 0 을 보냄 = 받은 적 없음)
+// STATE 진단 칸 값 (float) → 0 ~ 255 (예전 펌웨어 · 이상한 값은 0)
+static uint8_t diag_byte(float v)
+{
+  if (!std::isfinite(v) || v <= 0.f) {return 0;}
+  return v >= 255.f ? 255 : static_cast<uint8_t>(std::lround(v));
+}
+
+// Hardware Error Status 비트 → 읽는 글 (e-Manual XM430)
+static std::string hw_error_text(uint8_t v)
+{
+  if (v == 0) {return "정상";}
+  std::string t;
+  auto add = [&](uint8_t bit, const char * name) {
+      if (v & bit) {t += t.empty() ? "" : " · "; t += name;}
+    };
+  add(opencr_proto::HWERR_INPUT_VOLTAGE, "입력 전압");
+  add(opencr_proto::HWERR_OVERHEATING, "과열");
+  add(opencr_proto::HWERR_ENCODER, "엔코더");
+  add(opencr_proto::HWERR_ELECTRICAL_SHOCK, "전기 충격");
+  add(opencr_proto::HWERR_OVERLOAD, "과부하");
+  char hex[8];
+  std::snprintf(hex, sizeof(hex), "0x%02X", v);
+  return std::string(hex) + (t.empty() ? "" : " " + t);
+}
+
 static uint32_t rc100_value(float v)
 {
   return (std::isfinite(v) && v >= 0.f && v < 1.0e9f) ? static_cast<uint32_t>(v) : 0u;
@@ -293,14 +318,25 @@ void OpenCRHardware::publish_diagnostics(bool force)
     {{"bad_frames", std::to_string(bad_frames_.load())}, {"ports", port_}});
   const bool motor_bad = err & (opencr_proto::ERR_MOTOR_HW | opencr_proto::ERR_SYNCREAD |
       opencr_proto::ERR_MOTOR_CONFIG | opencr_proto::ERR_ROLE_MISMATCH | opencr_proto::ERR_FAULT);
+  // 모터별 Hardware Error Status · 온도 (#259): 관절마다 '<관절>.hw_error' · '<관절>.temp_c' (0 = 예전 펌웨어 · 아직 못 읽음)
+  std::vector<std::pair<std::string, std::string>> motor_kv = {{"error_bits", std::to_string(err)},
+    {"fw_version", std::to_string(fw_version_.load())}, {"arm_hold", (err & opencr_proto::ERR_HOLD) ? "1" : "0"}};
+  std::string hw_joints;
+  for (const auto & j : joints_) {
+    if (j.role == Role::GRIPPER) {continue;}
+    const int k = (j.role == Role::WHEEL ? 0 : opencr_proto::MAX_WHEELS) + j.slot;
+    const uint8_t hw = motor_hw_[k].load();
+    motor_kv.push_back({j.name + ".hw_error", hw_error_text(hw)});
+    motor_kv.push_back({j.name + ".temp_c", std::to_string(motor_temp_[k].load())});
+    if (hw) {hw_joints += (hw_joints.empty() ? "" : ", ") + j.name + " " + hw_error_text(hw);}
+  }
   add("motors", motor_bad ? DiagnosticStatus::ERROR : DiagnosticStatus::OK,
     (err & opencr_proto::ERR_MOTOR_CONFIG) ? "부팅 점검 실패 (응답 · 모델 · Homing Offset)" :
     (err & opencr_proto::ERR_FAULT) ? "펌웨어 FAULT" :
-    (err & opencr_proto::ERR_MOTOR_HW) ? "모터 Hardware Error" :
+    (err & opencr_proto::ERR_MOTOR_HW) ? "모터 Hardware Error" + (hw_joints.empty() ? std::string() : ": " + hw_joints) :
     (err & opencr_proto::ERR_ROLE_MISMATCH) ? "CMD 역할 불일치" :
     (err & opencr_proto::ERR_SYNCREAD) ? "SyncRead 응답 부족" : "정상",
-    {{"error_bits", std::to_string(err)}, {"fw_version", std::to_string(fw_version_.load())},
-      {"arm_hold", (err & opencr_proto::ERR_HOLD) ? "1" : "0"}});
+    motor_kv);
   // 배터리 (2026-11-11): 보드마다 전용 배터리 → 두 보드 각각 판정, 수준은 나쁜 쪽. 링크가 없으면 판정하지 않음 (link 항목이 ERROR)
   //   voltage 키 = 주행 보드 (예전 계약 그대로). 팔은 예전 펌웨어면 0 → "보고 없음"
   const BatteryReport wb = evaluate_battery(bat, battery_warn_v_, battery_error_v_, battery_cells_, true);
@@ -425,11 +461,19 @@ void OpenCRHardware::refresh_aggregate_state()
       rc100_buttons_.store(rc100_value(s.pos[opencr_proto::RC100_SLOT_BUTTONS]));
       rc100_age_.store(rc100_value(s.pos[opencr_proto::RC100_SLOT_AGE]));
       rc100_rx_ns_.store(steady_ns());
+      for (int i = 0; i < opencr_proto::MAX_WHEELS; ++i) {
+        const int d = opencr_proto::diag_slot(opencr_proto::ROLE_WHEEL, i);
+        motor_hw_[i].store(diag_byte(s.vel[d]));
+        motor_temp_[i].store(diag_byte(s.effort[d]));
+      }
     } else if (s.role == opencr_proto::ROLE_ARM) {
       arm = true;
       for (int i = 0; i < opencr_proto::ARM_JOINTS; ++i) {
         const int k = opencr_proto::MAX_WHEELS + i;
         merged.pos[k] = s.pos[k]; merged.vel[k] = s.vel[k]; merged.effort[k] = s.effort[k];
+        const int d = opencr_proto::diag_slot(opencr_proto::ROLE_ARM, i);
+        motor_hw_[k].store(diag_byte(s.vel[d]));
+        motor_temp_[k].store(diag_byte(s.effort[d]));
       }
       arm_battery_raw_ = s.battery_v;
     }
@@ -655,6 +699,21 @@ return_type OpenCRHardware::read(const rclcpp::Time &, const rclcpp::Duration &)
         !!(latest_.error & opencr_proto::ERR_HOLD), !!(latest_.error & opencr_proto::ERR_FAULT));
     }
     last_error_ = latest_.error;
+  }
+  // 모터별 Hardware Error Status 가 바뀌면 관절 이름 · 값 · 온도를 남김 — 12 V 를 끄면 모터 오류가 지워져 나중에 읽을 수 없음 (#259)
+  for (const auto & j : joints_) {
+    if (j.role == Role::GRIPPER) {continue;}
+    const int k = (j.role == Role::WHEEL ? 0 : opencr_proto::MAX_WHEELS) + j.slot;
+    const uint8_t hw = motor_hw_[k].load();
+    if (hw == logged_motor_hw_[k]) {continue;}
+    if (hw) {
+      RCLCPP_ERROR(get_logger(), "모터 %s Hardware Error Status %s (온도 %u °C, 팔 OpenCR 12 V 를 끄기 전에 기록)",
+        j.name.c_str(), hw_error_text(hw).c_str(), static_cast<unsigned>(motor_temp_[k].load()));
+    } else {
+      RCLCPP_WARN(get_logger(), "모터 %s Hardware Error Status 0 으로 돌아옴 (이전 %s)", j.name.c_str(),
+        hw_error_text(logged_motor_hw_[k]).c_str());
+    }
+    logged_motor_hw_[k] = hw;
   }
   apply_state_to_interfaces();
   return return_type::OK;

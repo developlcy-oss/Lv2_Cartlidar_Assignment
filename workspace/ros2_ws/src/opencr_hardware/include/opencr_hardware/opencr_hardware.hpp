@@ -11,6 +11,7 @@
 //   read()/write() 실시간 루프와는 atomic 값으로만 주고받는다 (실시간 루프에서 할당 · 발행 없음).
 #pragma once
 
+#include <array>
 #include <atomic>
 #include <cstdint>
 #include <limits>
@@ -137,6 +138,11 @@ private:
   std::atomic<uint32_t> rc100_buttons_{0};
   std::atomic<uint32_t> rc100_age_{0};
   std::atomic<int64_t> rc100_rx_ns_{0};   // 주행 보드 STATE 를 마지막으로 받은 시각 (0 = 아직)
+  // 모터별 Hardware Error Status · 온도 (°C, 0 = 모름) — STATE 진단 칸 (opencr_protocol diag_slot, 2026-11-14 #259).
+  //   칸 = 관절 상태 칸 (바퀴 0 ~ 5, 팔 MAX_WHEELS + 0 ~ 5). read() 가 쓰고 진단 타이머가 읽음
+  std::array<std::atomic<uint8_t>, opencr_proto::STATE_JOINTS> motor_hw_{};
+  std::array<std::atomic<uint8_t>, opencr_proto::STATE_JOINTS> motor_temp_{};
+  std::array<uint8_t, opencr_proto::STATE_JOINTS> logged_motor_hw_{};   // read() 안에서만 (바뀌면 로그)
   uint32_t rc100_sent_buttons_ = 0xFFFFFFFFu;
   int64_t rc100_sent_ns_ = 0;
 
