@@ -1,6 +1,6 @@
 """주행 과제용 로봇 설정 = 팀 공유본 ``workspace/urdf_and_usd/isaac/waffle_4wd_isaac`` 를 그대로 불러 씀 (바꾸지 않고 읽기만).
 
-팀 light USD (차체 충돌 = 상자): 축간 0.16 · 좌우 0.317 m, 바퀴 1.8 N·m · 10.996 rad/s, 마찰 1.0, 시작 자세 drive (팔 접음).
+팀 light USD (차체 충돌 = 상자): 축간 0.16 · 좌우 0.317 m, 바퀴 1.35 N·m · 14.661 rad/s (v7 벨트 1:2.0, 2026-11-14 · 이전 1:1.5 = 1.8 · 10.996), 마찰 1.0, 시작 자세 drive (팔 접음).
 물리값은 팀 ``robot_params.json``. Isaac 앱이 뜬 뒤에만 import 한다 (isaaclab.sim 을 씀). 명령 한계 상수는 base_cmd.py.
 팀 폴더를 다른 곳에서 쓰려면 WAFFLE_ISAAC_DIR=/경로/isaac.
 """

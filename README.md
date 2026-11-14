@@ -42,7 +42,7 @@ ros2 launch bringup bringup.launch.py use_localization:=true use_nav2:=true
 
 미션은 기본이 plan 모드 (`mission_source:=plan`: `mission_plan.yaml` 덧씌움 + 계획기 `mission_planner_node`). 옛 태그 미션표는 `mission_source:=tag` 일 때만 불러온다.
 주요 인자: `use_hardware` · `use_teleop` · `use_perception` · `use_ekf` · `use_tfmini` (기본 true — TFmini 박스 거리 · obstacle_stop · twist_mux obstacle lock, 시뮬레이션은 false), `ports` (기본 `/dev/ttyACM0,/dev/ttyACM1`, 역할은 프로토콜 응답으로 판별), `skill_enabled` (기본 false, ONNX 빌드에서만 true),
-`drive` (기본 `belt` = 증속벨트 1:1.5, `direct` = 직결 — URDF 바퀴 위치 · 한계, 기어비, diff_drive 바퀴 간격 · 속도 한계가 같이 바뀜).
+`drive` (기본 `belt` = 증속벨트 1:2.0 (v7 44T → 22T), `direct` = 직결 — URDF 바퀴 위치 · 한계, 기어비, diff_drive 바퀴 간격 · 속도 한계가 같이 바뀜).
 nav2 · slam_toolbox 는 기존 launch 를 쓰고, nav2 체인의 마지막 출력만 `/cmd_vel_nav` 로 둔다.
 퍽 박스(205 × 205 × 70 mm)는 LiDAR 평면(바닥 위 약 80 mm)보다 낮아 `/scan` 에 잡히지 않는다 → 주행 지도 `mission_planner/maps/map_nav` 에 박스(70 mm)가 들어 있다 (AMCL 용 `map_amcl` 은 스캔면 위만). 마지막 접근은 drive 정렬(COARSE → FINE, TFmini 박스 거리)이 맡는다
 Gazebo 모의에서 TFmini 를 쓰려면 `ros2 run perception scan_to_range` (`/tfmini/scan` LaserScan → `/tfmini/range`).

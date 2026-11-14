@@ -1,10 +1,10 @@
 {
  "_설명": "waffle_4wd Isaac 공유본 물리값 (2026-10-29 사용자와 하나씩 정함). value 만 코드가 읽음. status = 값의 근거. 실측하면 여기만 고치고 convert 를 다시 (Isaac Lab 로봇 설정은 USD 를 다시 안 만들어도 이 값으로 덮어씀).",
  "wheels": {
-  "effort_limit": {"value": 1.8, "unit": "N·m", "status": "URDF (벨트 1:1.5)", "source": "받은 URDF 바퀴 관절 effort. 사용자 결정 2026-10-29: 벨트 1:1.5 (URDF 그대로). 팀 펌웨어 config.h 는 직결 WHEEL_GEAR 1.0 (W210 3.0 N·m) 이라 다름"},
-  "velocity_limit": {"value": 10.995574, "unit": "rad/s", "status": "URDF (벨트 1:1.5)", "source": "받은 URDF 바퀴 관절 velocity (= 0.363 m/s). 팀 펌웨어 한계는 7.91 rad/s (WHEEL_VEL_LIMIT_RAW 330, 직결 기준)"},
-  "damping": {"value": 0.2133, "unit": "N·m·s/rad", "status": "펌웨어 기본 게인 환산", "source": "XM430-W210 Velocity P 100 모터 축 환산 0.48 (TeamRobot robot_params) / 1.5² (벨트). 사용자 결정 2026-10-29"},
-  "armature": {"value": 0.00222, "unit": "kg·m²", "status": "추정", "source": "모터 반사 관성 0.005 (TeamRobot 추정) / 1.5². 너무 작으면 제자리 회전 때 바퀴 속도가 튐"},
+  "effort_limit": {"value": 1.35, "unit": "N·m", "status": "URDF (벨트 v7 1:2.0)", "source": "[v7 2026-11-14] 44T → 22T: XM430-W210 11.1 V 2.7 N·m / 2.0 (이전 1:1.5 = 1.8). 받은 URDF 바퀴 관절 effort. 사용자 결정 2026-10-29: 벨트 1:1.5 (URDF 그대로). 팀 펌웨어 config.h 는 직결 WHEEL_GEAR 1.0 (W210 3.0 N·m) 이라 다름"},
+  "velocity_limit": {"value": 14.660766, "unit": "rad/s", "status": "URDF (벨트 v7 1:2.0)", "source": "[v7 2026-11-14] 7.330383 × 2.0 (= 0.491 m/s @ r 0.0335, 이전 1:1.5 = 10.995574). 받은 URDF 바퀴 관절 velocity (= 0.363 m/s). 팀 펌웨어 한계는 7.91 rad/s (WHEEL_VEL_LIMIT_RAW 330, 직결 기준)"},
+  "damping": {"value": 0.12, "unit": "N·m·s/rad", "status": "펌웨어 기본 게인 환산", "source": "XM430-W210 Velocity P 100 모터 축 환산 0.48 (TeamRobot robot_params) / 1.5² (벨트). 사용자 결정 2026-10-29. [v7 2026-11-14] 1:2.0 → 0.48 / 2.0² = 0.12"},
+  "armature": {"value": 0.00125, "unit": "kg·m²", "status": "추정", "source": "모터 반사 관성 0.005 (TeamRobot 추정) / 1.5². [v7 2026-11-14] / 2.0² = 0.00125. 너무 작으면 제자리 회전 때 바퀴 속도가 튐"},
   "radius": {"value": 0.0335, "unit": "m", "status": "URDF", "source": "바퀴 Ø67: 홈 채운 림 R31.5 (wheel_rim_filled_R31.50_4EA) + ROBOTIS 18x66 타이어 2 mm (2026-11-13, 이전 Ø66 0.033)"},
   "separation": {"value": 0.317, "unit": "m", "status": "URDF (바퀴 폭 가운데) = 실물 (팀원 확인)", "source": "좌우 바퀴 폭 가운데 y ±0.1585 (바퀴 메시 · 충돌 원통). 바퀴 관절 원점 ±0.1546 (간격 0.3092) 은 3.9 mm 안쪽이라 쓰지 않음. 팀 controllers_4wd.yaml 0.317 과 같음. 2026-10-29 정정 (처음 0.3092 는 관절 원점 간격을 잘못 쓴 것)"}
  },

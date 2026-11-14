@@ -25,36 +25,36 @@ def Xform "waffle_4wd" (
             prepend apiSchemas = ["PhysxJointAPI"]
         )
         {
-            float drive:angular:physics:maxForce = 1.8
-            float physxJoint:armature = 0.00222
-            float physxJoint:maxJointVelocity = 630
+            float drive:angular:physics:maxForce = 1.35
+            float physxJoint:armature = 0.00125
+            float physxJoint:maxJointVelocity = 840
         }
 
         over "wheel_right_front_joint" (
             prepend apiSchemas = ["PhysxJointAPI"]
         )
         {
-            float drive:angular:physics:maxForce = 1.8
-            float physxJoint:armature = 0.00222
-            float physxJoint:maxJointVelocity = 630
+            float drive:angular:physics:maxForce = 1.35
+            float physxJoint:armature = 0.00125
+            float physxJoint:maxJointVelocity = 840
         }
 
         over "wheel_left_rear_joint" (
             prepend apiSchemas = ["PhysxJointAPI"]
         )
         {
-            float drive:angular:physics:maxForce = 1.8
-            float physxJoint:armature = 0.00222
-            float physxJoint:maxJointVelocity = 630
+            float drive:angular:physics:maxForce = 1.35
+            float physxJoint:armature = 0.00125
+            float physxJoint:maxJointVelocity = 840
         }
 
         over "wheel_right_rear_joint" (
             prepend apiSchemas = ["PhysxJointAPI"]
         )
         {
-            float drive:angular:physics:maxForce = 1.8
-            float physxJoint:armature = 0.00222
-            float physxJoint:maxJointVelocity = 630
+            float drive:angular:physics:maxForce = 1.35
+            float physxJoint:armature = 0.00125
+            float physxJoint:maxJointVelocity = 840
         }
 
         over "joint1" (

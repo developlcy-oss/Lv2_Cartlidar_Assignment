@@ -137,7 +137,7 @@ def generate_launch_description():
         DeclareLaunchArgument('ports', default_value='/dev/ttyACM0,/dev/ttyACM1',
                               description='역할 자동 판별을 위한 두 OpenCR 후보 포트, 쉼표로 구분'),
         DeclareLaunchArgument('drive', default_value='belt',
-                              description='구동: belt (증속벨트 1:1.5) | direct (직결) — URDF · 기어비 · diff_drive 가 같이 바뀜'),
+                              description='구동: belt (증속벨트 1:2.0, v7) | direct (직결) — URDF · 기어비 · diff_drive 가 같이 바뀜'),
         DeclareLaunchArgument('backend', default_value='opencr',
                               description='하드웨어: opencr (실물 OpenCR 2대) | mock (장치 없이) | '
                                           'isaac (Isaac Sim: TopicBasedSystem /isaac_joint_states · /isaac_joint_commands + /clock)'),

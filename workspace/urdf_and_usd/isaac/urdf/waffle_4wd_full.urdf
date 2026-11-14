@@ -96,9 +96,9 @@
   </material>
   <link name="base_link">
     <inertial>
-      <origin rpy="0 0 0" xyz="-0.0233398903 0.00156530242 0.112417279" />
-      <mass value="3.47257131" />
-      <inertia ixx="0.110032394" ixy="-0.000248713626" ixz="0.0275917695" iyy="0.107965721" iyz="0.000671876904" izz="0.0556548212" />
+      <origin rpy="0 0 0" xyz="-0.0235591481 0.00157478298 0.112753793" />
+      <mass value="3.45166562" />
+      <inertia ixx="0.10962404" ixy="-0.000249905429" ixz="0.0275494955" iyy="0.107874692" iyz="0.000673706071" izz="0.0552757329" />
     </inertial>
     <visual name="body_keep">
       <origin rpy="0 0 0" xyz="0 0 0" />
@@ -253,49 +253,49 @@
       </geometry>
     </collision>
     <collision name="belt_guard_FL">
-      <origin rpy="0 0 0" xyz="0.06175 0.14265 0.03228" />
+      <origin rpy="0 0 0" xyz="0.0615015 0.14265 0.0307528" />
       <geometry>
-        <box size="0.0855 0.0189 0.04256" />
+        <box size="0.085003 0.0189 0.0395056" />
       </geometry>
     </collision>
     <collision name="belt_motor_FL">
-      <origin rpy="0 0 0" xyz="0.0468002 0.1232 0.04425" />
+      <origin rpy="0 0 0" xyz="0.0492865 0.1232 0.04425" />
       <geometry>
         <box size="0.0285 0.0404 0.0465" />
       </geometry>
     </collision>
     <collision name="belt_guard_FR">
-      <origin rpy="0 0 0" xyz="0.06175 -0.14265 0.03228" />
+      <origin rpy="0 0 0" xyz="0.0615015 -0.14265 0.0307528" />
       <geometry>
-        <box size="0.0855 0.0189 0.04256" />
+        <box size="0.085003 0.0189 0.0395056" />
       </geometry>
     </collision>
     <collision name="belt_motor_FR">
-      <origin rpy="0 0 0" xyz="0.0468002 -0.1232 0.04425" />
+      <origin rpy="0 0 0" xyz="0.0492865 -0.1232 0.04425" />
       <geometry>
         <box size="0.0285 0.0404 0.0465" />
       </geometry>
     </collision>
     <collision name="belt_guard_RL">
-      <origin rpy="0 0 0" xyz="-0.03675 0.14265 0.03228" />
+      <origin rpy="0 0 0" xyz="-0.0365015 0.14265 0.0307528" />
       <geometry>
-        <box size="0.0855 0.0189 0.04256" />
+        <box size="0.085003 0.0189 0.0395056" />
       </geometry>
     </collision>
     <collision name="belt_motor_RL">
-      <origin rpy="0 0 0" xyz="-0.0218002 0.1232 0.04425" />
+      <origin rpy="0 0 0" xyz="-0.0242865 0.1232 0.04425" />
       <geometry>
         <box size="0.0285 0.0404 0.0465" />
       </geometry>
     </collision>
     <collision name="belt_guard_RR">
-      <origin rpy="0 0 0" xyz="-0.03675 -0.14265 0.03228" />
+      <origin rpy="0 0 0" xyz="-0.0365015 -0.14265 0.0307528" />
       <geometry>
-        <box size="0.0855 0.0189 0.04256" />
+        <box size="0.085003 0.0189 0.0395056" />
       </geometry>
     </collision>
     <collision name="belt_motor_RR">
-      <origin rpy="0 0 0" xyz="-0.0218002 -0.1232 0.04425" />
+      <origin rpy="0 0 0" xyz="-0.0242865 -0.1232 0.04425" />
       <geometry>
         <box size="0.0285 0.0404 0.0465" />
       </geometry>
@@ -3642,7 +3642,7 @@
     <child link="wheel_left_front_link" />
     <origin rpy="-1.570796 0.000000 0.000000" xyz="0.0925 0.154600 0.026250" />
     <axis xyz="0.000000 0.000000 1.000000" />
-    <limit effort="1.8" velocity="10.995574" />
+    <limit effort="1.35" velocity="14.660766" />
     <dynamics damping="0.001" friction="0" />
   </joint>
   <joint name="wheel_right_front_joint" type="continuous">
@@ -3650,7 +3650,7 @@
     <child link="wheel_right_front_link" />
     <origin rpy="-1.570796 0.000000 0.000000" xyz="0.0925 -0.154600 0.026250" />
     <axis xyz="0.000000 0.000000 1.000000" />
-    <limit effort="1.8" velocity="10.995574" />
+    <limit effort="1.35" velocity="14.660766" />
     <dynamics damping="0.001" friction="0" />
   </joint>
   <joint name="wheel_left_rear_joint" type="continuous">
@@ -3658,7 +3658,7 @@
     <child link="wheel_left_rear_link" />
     <origin rpy="-1.570796 0.000000 0.000000" xyz="-0.0675 0.154600 0.026250" />
     <axis xyz="0.000000 0.000000 1.000000" />
-    <limit effort="1.8" velocity="10.995574" />
+    <limit effort="1.35" velocity="14.660766" />
     <dynamics damping="0.001" friction="0" />
   </joint>
   <joint name="wheel_right_rear_joint" type="continuous">
@@ -3666,7 +3666,7 @@
     <child link="wheel_right_rear_link" />
     <origin rpy="-1.570796 0.000000 0.000000" xyz="-0.0675 -0.154600 0.026250" />
     <axis xyz="0.000000 0.000000 1.000000" />
-    <limit effort="1.8" velocity="10.995574" />
+    <limit effort="1.35" velocity="14.660766" />
     <dynamics damping="0.001" friction="0" />
   </joint>
   <link name="top_camera_rear_link" />
