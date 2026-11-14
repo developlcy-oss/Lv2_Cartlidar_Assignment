@@ -32,6 +32,8 @@
 //                                    toppick.use_alignment 일 때만 (45° 는 집게 축이 퍽을 보지 않아 기본 끔, #82)
 //                                    접근 toppick.approach_mode top (기본): 잡는 점 위 · J1 쪽에서 벌린 채 직선으로 내려와 쥠,
 //                                    잡는 점은 J1 에서 먼 쪽으로 radial_offset (Isaac 검증 2026-11-09). axis = 집게 축 반대 (이전)
+//                                    쥔 뒤 toppick.lift_height (0.085) 곧장 들기 (J1 축 lift_max_radius 밖 퍽은 J1 쪽으로 당기며) —
+//                                    옆 퍽 (60 mm) 위로 들어야 다음 pallet_load 의 관절 직선 이동이 옆 퍽을 치지 않음 (2026-11-14)
 //     pallet_load_<열>_<칸>_tilt      쥔 퍽을 팔레트 칸에 놓기 = pallet_place_traj.json 의 칸 궤적 (3 열 쥔 구간 0.4 rad/s, #75)
 //     pallet_unload_<열>_<칸>_tilt    팔레트 칸의 퍽을 집어 들기 = 놓기 궤적 거꾸로 (빈 집게로 rotate_back · return · retract 거꾸로
 //                                     → 0.3 s → 쥠 → place · carry · rotate 거꾸로 → q_front, 0.8 rad/s, Isaac pallet_unload 24/24)
@@ -400,6 +402,10 @@ private:
     toppick_approach_height_ = declare_parameter<double>("toppick.approach_height", 0.05);
     toppick_approach_inward_ = declare_parameter<double>("toppick.approach_inward", 0.03);
     toppick_radial_offset_ = declare_parameter<double>("toppick.radial_offset", 0.002);
+    // 쥔 뒤 들기 (top 경로만, 2026-11-14): 옆 퍽 (60 mm) 보다 높이 들어야 팔레트 궤적 첫 점까지 관절 직선 이동이 옆 퍽 위로 지나감.
+    //   J1 축에서 lift_max_radius 보다 먼 퍽은 45° 로 곧장 못 듦 -> 드는 만큼 J1 쪽으로 당김 (옆 퍽은 늘 바깥 · 옆)
+    toppick_lift_height_ = declare_parameter<double>("toppick.lift_height", 0.085);
+    toppick_lift_max_radius_ = declare_parameter<double>("toppick.lift_max_radius", 0.32);
     // target_look 타겟체크자세 (#82, target_look_pose.hpp). 카메라 장착 = robot.urdf.xacro arm_camera_link
     target_look_.camera_x = declare_parameter<double>("target_look.camera_x", target_look_.camera_x);
     target_look_.camera_z = declare_parameter<double>("target_look.camera_z", target_look_.camera_z);
@@ -440,6 +446,15 @@ private:
     pallet_start_poses_ = declare_parameter<std::vector<std::string>>("pallet.start_poses", {"DRIVE", "ALIGN", "TRANSIT_TILT"});
     pallet_start_pose_tol_ = declare_parameter<double>("pallet.start_pose_tolerance", 0.15);
     pallet_prep_vel_ = declare_parameter<double>("pallet.prep_velocity", 0.3);
+    // 꺼내기에서 빈손이면 칸 안에 멈추지 말고 이동 자세까지 빠져나온 뒤 실패 (true). false = 예전처럼 그 자리에서 멈춤
+    pallet_retreat_on_fail_ = declare_parameter<bool>("pallet.retreat_on_fail", true);
+    // 이름 자세 (/manipulator/pose) · 켜질 때 정리는 관절 공간 직선 이동이라 주변 (팔레트 · 프로파일) 을 모른다.
+    //   지금 자세가 알려진 자세 (poses.* · 팔레트 이동 자세 · 칸 앞 자세) 중 하나에서 start_tolerance [rad] 안일 때만 움직임.
+    //   2026-11-14 실물: 칸 안 자세 (J1 2.66) 에서 pose DRIVE → J1 이 돌며 오른쪽 프로파일에 부딪힘
+    pose_start_tol_ = declare_parameter<double>("pose.start_tolerance", 0.2);
+    pose_front_j1_max_ = declare_parameter<double>("pose.front_j1_max", 0.6);   // rad, 이 안이면 앞쪽 (상자 쪽) 으로 봄
+    // 이름 자세로 직접 보내지 않는 자세 (STOW = 켜질 때 정리의 역순으로만 · READY = 11-08 상단 카메라 충돌)
+    pose_blocked_ = declare_parameter<std::vector<std::string>>("pose.blocked", {"STOW", "READY"});
     // 칸 안에서 벌리는 폭: 끝까지 열면 손가락이 칸 벽에 닿음 (Isaac FINGER_RELEASED 37.6 mm). 기본 = gripper.open_position
     pallet_release_ = declare_parameter<double>("pallet.release_position", gripper_open_);
     pallet_dwell_ = declare_parameter<double>("pallet.place_dwell", 0.3);
@@ -815,6 +830,8 @@ private:
     requirePositive("pallet.start_tolerance", pallet_start_tol_);
     requirePositive("pallet.start_pose_tolerance", pallet_start_pose_tol_);
     requirePositive("pallet.prep_velocity", pallet_prep_vel_);
+    requirePositive("pose.start_tolerance", pose_start_tol_);
+    requirePositive("pose.front_j1_max", pose_front_j1_max_);
     requirePositive("startup.skip_tolerance", startup_skip_tol_);
     requireNonNegative("startup.diag_wait", startup_diag_wait_);
     requirePositive("startup.warn_after", startup_warn_after_);
@@ -896,6 +913,8 @@ private:
     requirePositive("pick.range_mismatch_tolerance", range_mismatch_tol_);
     requirePositive("pick.max_final_approach", max_final_approach_);
     requireNonNegative("pick.lift_height", lift_height_);
+    requireNonNegative("toppick.lift_height", toppick_lift_height_);
+    requirePositive("toppick.lift_max_radius", toppick_lift_max_radius_);
     requirePositive("pick.max_waypoint_joint_step", max_waypoint_joint_step_);
     requirePositive("stale_timeout", stale_timeout_);
     requirePositive("pick.offset_tolerance", offset_tolerance_);
@@ -1532,6 +1551,20 @@ private:
       RCLCPP_WARN(get_logger(), "startup: no opencr diagnostics for %.1f s -> moving without HOLD check (simulation?)",
         startup_diag_wait_);
     }
+    // 정리 순서 (startup.stages) 는 대기 자세 (STOW) 에서 출발하도록 실물로 정한 것. 팔이 HOLD 로 버티던 채 호스트만 다시 켜면
+    //   하드웨어의 대기 자세 검사를 건너뛰므로 여기서 다시 본다: STOW 또는 이미 정리 자세 근처일 때만 움직임
+    //   (2026-11-14 실물: 칸 안 자세에서 정리 시작 → J1 이 돌며 주변에 닿을 수 있음). 아니면 기다림 (goal 도 계속 거절)
+    {
+      const auto stow = poses_.find("STOW");
+      const double d_stow = stow != poses_.end() ? armDistance(*current, stow->second) : 1e9;
+      const double d_goal = armDistance(*current, poses_.at(startup_pose_));
+      if (d_stow > pose_start_tol_ && d_goal > pose_start_tol_) {
+        RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 10000,
+          "startup: arm is not at STOW (%.2f rad) nor '%s' (%.2f rad) -> not moving. Put the arm in STOW by hand "
+          "(support it, 12 V off), then power on / restart bringup", d_stow, startup_pose_.c_str(), d_goal);
+        return;
+      }
+    }
     job_ = Job::STARTUP;
     startup_stage_ = 0;
     RCLCPP_INFO(get_logger(), "startup: moving arm to '%s' (%zu stages, %.2f rad/s)",
@@ -1606,6 +1639,27 @@ private:
     if (!current) {
       finishPose(false, "no recent /joint_states for arm joints");
       return;
+    }
+    if (std::find(pose_blocked_.begin(), pose_blocked_.end(), pose_name_) != pose_blocked_.end()) {
+      finishPose(false, "pose '" + pose_name_ + "' is blocked (pose.blocked): joint-space move is not collision-checked");
+      return;
+    }
+    {
+      // 앞쪽 (|J1| ≤ pose.front_j1_max) 에서 끝나는 스킬 (상자 보기 · 집기) 뒤 이동은 그대로 두고, 뒤 · 옆 (팔레트 · 프로파일 쪽) 에
+      //   있을 때는 알려진 자세 근처일 때만. STOW 근처면 켜질 때 정리 (단계 순서) 로만
+      const auto known = nearestKnownPose(*current);
+      const auto stow = poses_.find("STOW");
+      if (stow != poses_.end() && armDistance(*current, stow->second) <= pose_start_tol_) {
+        finishPose(false, "arm is at STOW -> use the startup sequence (REARM), not a direct joint-space move");
+        return;
+      }
+      if (std::abs((*current)[0]) > pose_front_j1_max_ && known.second > pose_start_tol_) {
+        char buf[200];
+        std::snprintf(buf, sizeof(buf), "arm is behind/side (joint1 %.2f rad) and %.2f rad from any known pose (nearest %s) "
+          "-> refuse joint-space move (may hit pallet / frame). Recover by hand", (*current)[0], known.second, known.first.c_str());
+        finishPose(false, buf);
+        return;
+      }
     }
     auto target = poses_.at(pose_name_);
     if (gripper_mode_ == GripperMode::ARM_JOINT) {
@@ -1687,6 +1741,11 @@ private:
     if (top) {
       grasp += radial * toppick_radial_offset_;
     }
+    // 들기 변위: top = toppick.lift_height 위 + (먼 퍽이면) J1 쪽으로, pick = pick.lift_height 위
+    const double r_grasp = std::hypot(grasp.x(), grasp.y());
+    lift_offset_ = top ?
+      Eigen::Vector3d(Eigen::Vector3d::UnitZ() * toppick_lift_height_ - radial * std::max(0.0, r_grasp - toppick_lift_max_radius_)) :
+      Eigen::Vector3d(Eigen::Vector3d::UnitZ() * lift_height_);
 
     // pitch 후보를 순서대로: 접근 위치 · 파지 위치 · 들어올린 위치가 모두 풀리는 첫 pitch
     std::optional<std::vector<double>> q_pre;
@@ -1696,7 +1755,7 @@ private:
         Eigen::Vector3d(grasp - ArmIK::approachDirection(yaw, pitch) * approach);
       auto q = solveArm(pre, pitch, *current);
       if (q && solveArm(grasp, pitch, *q) &&
-        solveArm(grasp + Eigen::Vector3d::UnitZ() * lift_height_, pitch, *q))
+        solveArm(grasp + lift_offset_, pitch, *q))
       {
         q_pre = q;
         pitch_ = pitch;
@@ -2047,7 +2106,7 @@ private:
   {
     step_ = PickStep::LIFT;
     publishStage(STAGE_LIFT);
-    moveTool(tool_pos_ + Eigen::Vector3d::UnitZ() * lift_height_,
+    moveTool(tool_pos_ + lift_offset_,
       [this]() {finishPick(true, "");});
   }
 
@@ -3230,6 +3289,22 @@ private:
     return d;
   }
 
+  // 지금 자세에서 가장 가까운 알려진 자세 (이름 자세 · 팔레트 이동 자세 · 칸 앞 자세) 와 거리 [rad, 5 관절 최대]
+  std::pair<std::string, double> nearestKnownPose(const std::vector<double> & q) const
+  {
+    std::pair<std::string, double> best{"-", 1e9};
+    auto consider = [&](const std::string & name, const std::vector<double> & p) {
+        const double d = armDistance(q, p);
+        if (d < best.second) {best = {name, d};}
+      };
+    for (const auto & kv : poses_) {consider(kv.first, kv.second);}
+    if (!transit_tilt_.empty()) {consider("transit_tilt", transit_tilt_);}
+    for (const auto & kv : pallet_front_) {
+      consider("q_front_" + std::to_string(kv.first.first) + "_" + std::to_string(kv.first.second), kv.second);
+    }
+    return best;
+  }
+
   static std::string joinNames(const std::vector<std::string> & v)
   {
     std::string out;
@@ -3320,6 +3395,7 @@ private:
     sag_int_ = SagIntegrator(sag_ki_, sag_bias_max_);
     sag_load_ = load;
     sag_done_msg_ = load ? "loaded" : "unloaded";
+    sag_fail_msg_.clear();
     sag_end_plan_.reset();
     sag_start_ = sag_last_ = now();
     RCLCPP_INFO(get_logger(), "pallet %s: stream %.1f s (settle %.1f s, ki %.1f, %.0f Hz)", load ? "load" : "unload",
@@ -3386,11 +3462,25 @@ private:
       sag_check_t_.reset();
       const auto holding = gripperHolding();
       if (gripper_fail_on_empty_ && (!holding || !*holding)) {
-        finishSkill(false, "pallet_unload: empty grasp (no puck in slot?)");
-        return;
+        if (!pallet_retreat_on_fail_) {
+          finishSkill(false, "pallet_unload: empty grasp (no puck in slot?)");
+          return;
+        }
+        // 빈손이어도 칸 안에 멈추지 않고 나머지 (칸에서 빠져나와 이동 자세까지) 를 마친 뒤 실패로 끝냄 (pallet.retreat_on_fail).
+        //   2026-11-14 실물: 빈 칸 꺼내기 실패 → 칸 안 자세 그대로 유지 → 다음 명령 · 미션 재시도가 칸 안에서 출발
+        sag_fail_msg_ = "pallet_unload: empty grasp (no puck in slot?) — retreated to transit";
+        RCLCPP_WARN(get_logger(), "pallet unload: empty grasp -> finish the leave path, then fail");
       }
     }
     if (t >= sag_tl_->duration()) {
+      if (!sag_fail_msg_.empty()) {   // 빈손으로 빠져나옴: 다음 놓기가 이 bias 를 이어 쓰지 않게
+        sag_tl_.reset();
+        stream_active_ = false;
+        const auto msg = sag_fail_msg_;
+        sag_fail_msg_.clear();
+        finishSkill(false, msg);
+        return;
+      }
       const auto & b = sag_int_.bias();
       RCLCPP_INFO(get_logger(), "pallet: sag bias [%.3f %.3f %.3f %.3f %.3f] rad", b[0], b[1], b[2], b[3], b[4]);
       sag_end_plan_ = sag_tl_->points().back().q;   // 다음 놓기 스트림이 이 bias 를 이어 씀
@@ -3838,12 +3928,18 @@ private:
   double toppick_latch_max_age_{30.0};
   bool toppick_top_{true}, pick_top_{false};   // toppick.approach_mode top · 지금 집기가 top 경로인지
   double toppick_approach_height_{0.05}, toppick_approach_inward_{0.03}, toppick_radial_offset_{0.002};
+  double toppick_lift_height_{0.085}, toppick_lift_max_radius_{0.32};
+  Eigen::Vector3d lift_offset_{0.0, 0.0, 0.05};   // 이번 집기의 들기 변위 (beginPick 에서 정함)
   TargetLookParams target_look_;
   std::map<std::string, TargetLookParams> look_params_;   // box_look · barcode_look (#65)
   double target_look_settle_{0.3}, target_look_arm_wait_{1.0}, target_look_timeout_{3.0}, target_look_match_{0.04};
   std::string pallet_file_;
   double pallet_speed_{0.8}, pallet_row3_hold_speed_{0.4};
   bool pallet_apply_offsets_{false};
+  bool pallet_retreat_on_fail_{true};
+  double pose_start_tol_{0.2}, pose_front_j1_max_{0.6};
+  std::vector<std::string> pose_blocked_;
+  std::string sag_fail_msg_;
   double pallet_start_tol_{0.05}, pallet_start_pose_tol_{0.15}, pallet_prep_vel_{0.3};
   std::vector<std::string> pallet_start_poses_;
   bool startup_block_goals_{true};
