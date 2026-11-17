@@ -2,7 +2,7 @@
 
 저장소: https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment
 기준 시각: 2026-11-17 (KST), `dev` · `Integration` 병합 기록과 GitHub PR · 이슈 기준.
-같이 볼 문서: [architecture.md](architecture.md) (전체 구조, 작성 중) · [issues.md](issues.md) (이슈 표)
+같이 볼 문서: [architecture.md](architecture.md) (전체 구조) · [issues.md](issues.md) (이슈 표) · [contributions_log.md](contributions_log.md) (사람별 이슈 · 날짜별 커밋 전체)
 
 팀원마다 **맡은 일** 과 근거 네 가지를 적는다. 근거는 할 일 목록이 아니라, 링크와 결과가 있는 것만 적는다.
 
@@ -17,10 +17,78 @@
 
 | 팀원 | GitHub | 병합된 PR | 닫힌 PR (병합 안 됨) |
 |---|---|---|---|
-| 이창엽 (팀장) | developlcy-oss | 45 | 2 |
+| 이창엽 (팀장) | developlcy-oss | 47 | 2 |
 | 이홍주 | kanichong | 55 | 0 |
 | 온창범 | Onbeom | 91 | 1 |
 | 한상준 | WindForce08 | 16 | 0 |
+
+---
+
+## 0. 팀원별 저장소 기록 요약 (커밋 · 이슈 · 댓글 · PR)
+
+`dev` 의 병합 제외 커밋 (작성자 이메일로 구분) 과 GitHub 이슈 · 이슈 댓글 · PR 을 사람별로 센 것이다 (2026-11-17).
+줄 수는 메시 · 모델 · CSV · JSON · 이미지 · 로그 같은 데이터 파일을 뺀 **코드 · 문서** 줄이다. 전체 목록은 [contributions_log.md](contributions_log.md).
+
+| | 이창엽 (developlcy-oss) | 이홍주 (kanichong) | 온창범 (Onbeom) | 한상준 (WindForce08) |
+|---|---|---|---|---|
+| 커밋 (dev) | 68 | 79 | **144** | 30 |
+| 일한 날 (커밋 기준) | 15 일 (10-16 ~ 11-17) | 18 일 (10-22 ~ 11-17) | **23 일** (10-22 ~ 11-16) | 13 일 (10-22 ~ 11-16) |
+| 코드 · 문서 줄 (+ / −) | +42,679 / −2,828 | **+68,042** / −30,720 | +25,646 / −2,471 | +17,448 / −584 |
+| 많이 바꾼 곳 | URDF · Isaac 모델, `control` (manipulator), RL 정책, `tools/arm_bench`, `project2` | URDF · Isaac 모델 생성기, `mission_planner`, `control`, RL 정책 (TopPick) | `perception`, `mission`, `localization`, RL 정책 (lie_upright) | `opencr_hardware` · `opencr_firmware`, `tools/arm_bench` · `drive_demo` · `drive_rl`, `navigation` |
+| 작성 PR (병합) | 49 (47) | 55 (55) | 93 (91) | 16 (16) |
+| 올린 이슈 (열림) | 7 (0) | 30 (2) | **70** (14) | 3 (0) |
+| 이슈 · PR 댓글 (다른 팀원 글에) | 62 (51) | **89** (56) | 59 (15) | 45 (40) |
+| 리뷰한 다른 팀원 PR (본문 있는 리뷰 수) | **153** (2) | 3 (4) | 1 (1) | 6 (5) |
+| 다른 팀원 PR 병합 | **161** | 1 | 0 | 2 |
+
+누가 누구 글에 댓글을 달았나 (이슈 · PR 댓글 수)
+
+| 댓글 쓴 사람 ↓ / 글 쓴 사람 → | 이창엽 | 이홍주 | 온창범 | 한상준 |
+|---|---|---|---|---|
+| 이창엽 | — | 4 | **46** | 1 |
+| 이홍주 | 5 | — | **47** | 4 |
+| 온창범 | 7 | 7 | — | 1 |
+| 한상준 | 5 | 12 | **23** | — |
+
+읽는 법: 온창범 이 이슈를 가장 많이 올렸고 (70 건, 인지 쪽 요청 · 실물 측정 결과), 나머지 세 명이 그 이슈에 답하며 일을 나눴다.
+PR 리뷰는 팀장이 거의 다 승인 · 병합했고 (153 건 리뷰 · 161 건 병합) 글로 남긴 리뷰는 팀 전체에 적다 — 구체적인 검토 의견은 대부분 이슈 댓글에 있다.
+
+### 0.1 이창엽 — 팀장 · 저장소 · 매니퓰레이터 · 강화학습 · 실물 팔
+
+- **10-16 ~ 10-30 시작 · 뼈대**: 저장소 · 기본 트리 · 노드 구조, `center` → `mission` 이름 바꿈과 mission · control 노드 ([#4](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/4)), 4 륜 바퀴 펌웨어 실물 맞춤 ([#10](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/10)), 261028 URDF · Isaac USD · 매니퓰레이터 강화학습 첫 반영 ([#20](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/20)).
+- **11-03 ~ 11-06 미션 · 팔 동작**: mission 의 인지 출력 사용 (신호등 · 바코드 · 장소 태그 · 주사위 · 퍽 측량, [#94](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/94)), 측량 다시 보기 거리 · 발제 좌표 위치표, observe · verify 계산 자세, RL 집기 시작 자세 · 재시도, 위치 잃음 동안 기다리기.
+- **11-08 ~ 11-16 젯슨 실물 팔 · 정책**: 켜질 때 자동 STOW · HOLD 안전 정지, 처짐 보정, 45° 집기 정책 k7 → k8 (실측 영점) → k9 (실측 지연), 팔 덜컹 1.4° → 0.07°, E-stop 튐, 쥠 판정, 최소 저크 궤적, 팔 안전 검사, 수직 넣기, 실측 칸 좌표 · 팔 속도 통일, 관절 1 180° 대응 (#311 → #314 → #316). Isaac 꺼내기 → 놓기 98.2 ~ 98.3 %.
+- **올린 이슈 7 건**은 모두 다른 파트에 걸친 문제를 정리한 것: 팔 카메라로 손 안 퍽 재기 ([#128](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/128)), 팔 카메라 보정 파일 없음 ([#143](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/143)), 팔 시작 정리 ([#144](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/144)), RL 운영 · 진도 ([#185](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/185) · [#190](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/190)), 상자 앞 정차 간격 ([#194](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/194)), 칸 배정에 퍽 모양 ([#230](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/230)).
+- **댓글 62 개 중 46 개가 온창범 이슈**: 인지 → 매니퓰레이터 요청 (팔 카메라 자세, 정책 관측 오차, 누운 직육면체 다시 잡기 등) 에 답하고 정한 것.
+- **통합 관리**: 다른 팀원 PR 153 건 리뷰 · 161 건 병합, `Integration` → `dev` 병합, 최종 제출물 (`project2/`, #321 · #322).
+
+### 0.2 이홍주 — 미션 계획기 · 시뮬레이션 모델 · TopPick 강화학습 · 통합 시험
+
+- **10-22 ~ 10-28 기반**: 초기 SYSTEM 구조, 증속벨트 · drive 구동 구성 선택, 주행 skill 장애물 처리 · 팔 정책 속도 제한, Isaac Sim 6.2 브리지 (TopicBasedSystem), TF · 카메라 프레임 규약 · URDF 시험 · USD 정적 검사.
+- **11-02 ~ 11-05 미션 설계 · 계획기**: mission plan 모드 ↔ `mission_planner_node`, **할당 · 적재 · 경로 계획기 (GTSP)** · 문서 좌표 지도 · AMCL 설정, 모든 집기 · 놓기 45° · 상자 퍽 ±17° 회전, 팔레트 놓기 · 꺼내기 경로, 처짐 보정 스트리밍, TopPick 물리 무작위화 · 학습 기록, TopPick 정책 실기 연결 · 집기 → 칸 이어 평가, 통합 launch.
+- **11-06 ~ 11-10 Nav2 · Gazebo 통합 시험 · 중간 제출**: Nav2 통합 실행 · loc_gate · Gazebo 미션 연동 시험, 좁은 통로 대기 자리 (#135), FINE 정렬 float32 거부 버그 · TFmini 비상 정지 유지 (#157 · #168), TP8 · TP9 정책, **중간 제출물 · 도전 B (`challenge/B`) · `mission_submit`**.
+- **11-11 ~ 11-14 기록 · 채점 · 실물 대응**: 재검증 기록 중복 합치기 (#172), 복귀 기록 · **채점 스크립트 `mission_score`**, 부분 실물 시험 `stop_after`, 칸 배정에 퍽 모양 (#230), `avoid_slots` (#219), 시작 박스 회전 범위 (#226), 세운 퍽 먼저 (#193), B 안 모델 생성기 (증속벨트 v6.1 · v7 · 캐리어 v7 · LDS-03 브라켓), `odom_icr` C++ · 계획기 시작 33 → 3 s (#265), spawner 대기 · bringup 순서 (#275), 준비 확인 · 퍽 건너뛰기 · HOME 복귀.
+- **11-15 ~ 11-17**: Nav2 한 프로세스 (`nav2_composed`), 무작위 퍽 자리 측량 · 계획, 떨어뜨린 퍽 다시 집기, TopPick TP14 ~ TP17, 장소 상자 놓기 Isaac 평가 `--place`.
+- **올린 이슈 30 건**: 11-02 ~ 11-04 에 미션을 할 일 단위로 쪼갠 이슈 (skill 목록 #63, FINE 간격 #64, observe 자세 #65, 정책 배포 #69 · #78, 팔레트 속도 #75, 회전 skill #77, 실측 항목 #87 · #109, 시험 #110 ~ #116) 와 11-09 이후 통합 버그 (#135 · #151 · #168) · 실측 요청 (#266).
+- **댓글 89 개 (팀 최다), 다른 팀원 글에 56**: 온창범 이슈 47 개에 답함 (인지 요청 → 계획기 · 미션 반영).
+
+### 0.3 온창범 — 인지 (perception) · 위치 추정 · 실물 측정 · 누운 퍽 세우기
+
+- **10-22 ~ 11-06 인지 전체**: 카메라 영상 토픽 · 라이다 합치기 · TFmini 비상 정지, **신호등 점멸 순서 세기 · 주사위 3×3 확인** (메시지 · 서비스 포함), 퍽 · 장소 태그 (16 mm · tag36h11 48 mm) · 끝면 모양, 같은 색 퍽 깊이로 나누기, **바코드 R3 C++ (D435 라벨 찾기 · 팔 카메라 zbar)**, 카메라 사이 퍽 병합, YOLO 엔진 (D → E2 → E3, FP16) · 엔진 해시 검사, B0 측량 (`perception_survey`) · 다시 보기, 뒤 D435 `rear_obstacle`, 팔 카메라 평면 교차 `/arm_range`, 장소 상자 윗면 찾기, 따뜻한 조명 신호등 문턱.
+- **위치 추정**: `localization` 패키지 (loc_monitor · 지도 · AMCL), 거짓 LOST 고침, 11-16 위치 추정 노드 C++ 판.
+- **11-09 ~ 11-10 실물 · 미션 기록**: 실물 IMU yaw −90°, 팔 카메라 태그 검색 · 촬영 시각 TF, **미션마다 기록 폴더 · 이동 전후 사진 · 계획기 기록 · 퍽 등록표 사본** (채점 근거), `/perception/snapshot`.
+- **11-11 누운 직육면체 세우기 RL**: Isaac `Waffle-LieUpright` 환경 · 정책 r2e → r2g2 · 관절 속도 비율 축소 (#192 · #193).
+- **11-12 ~ 11-16 실물 대응**: 시작 박스 재기 · 비스듬히 서기 (#226 · #229), 앞 · 뒤 D435 피치 실측, place_box 배율 · 시차 보정, udev (TFmini · 라이다), 팔 카메라 자세별 실측 보정 (#278), 라이다 TF 요 180° (#303), survey TF 리스너 CPU 절약.
+- **올린 이슈 70 건 (팀 최다, 열림 14)**: 10-27 ~ 11-03 은 다른 파트에 인지 출력을 연결해 달라는 `[요청]` (mission · interfaces · bringup · Isaac 브리지 · drive), 11-09 이후는 실물에서 찾은 문제와 측정 결과 — 관절 1 영점 180° (#161), 팔 펌웨어 실기 확인 (#165), 정책 관측 오차 실측 (#191), ALIGN · DRIVE 자세 충돌 계산 (#218 · #219), 직진 옆 미끄럼 2.35° (#248), Jetson CPU 85 ~ 95 % (#265), spawner · bt_navigator 실패 (#275 · #276), 팔 카메라 높이 · 링크 길이 차이 (#278 · #295), Cartographer 지도 시도 (#317).
+
+### 0.4 한상준 — OpenCR 펌웨어 · 팔 벤치 · 주행 (Nav2 · 주행 RL · 시연 도구)
+
+- **10-22 ~ 10-27 펌웨어 · 팔 벤치**: 4 륜 전환 · 역할별 펌웨어 빌드 (wheel · arm), **펌웨어 v5 안전 코어 · SIL 시험**, 팔 벤치 도구 · 기록 (범위 · 게인 · 그리퍼 보호), pick RL 과제.
+- **11-03 ~ 11-04 주행**: Isaac Lab 미로 주행 RL (`drive_rl`), `opencr_hardware` 백엔드 선택 (opencr · mock · isaac), **Nav2 패키지** (Smac 2D · RotationShim + MPPI · Gazebo 시험), 후진 때 뒤 카메라 확인 (#84), 출발 자세 통일.
+- **11-09 ~ 11-13 실물 안전 · 주행 한계**: 팔이 대기 자세가 아니면 시작 거부 (#166), 실물 기본 지도 = 발제 SDF 지도 (#116), `/arm/skill_state` 등 삭제 (#86), footprint 에 주행 자세 팔, 바퀴 속도 한계 7.51 rad/s · 보드별 배터리 상태, diff_drive 회전 상한 1.0 rad/s (벨트 보호), RC-100 리모컨 주행.
+- **11-15 ~ 11-16 경기 주행**: **`drive_demo` 규칙 v2 주행 시연 도구 · 팀원용 시험 안내**, 조각 실패 시 되찾기 · 실물형 회전 시뮬, 방향 맞추기 거부 시 건너뛰기 — 11-16 공식 1 · 2 회차에 쓴 도구 ([results/official_scoring.md](../results/official_scoring.md)), 11-15 실물 실행 기록은 [results/reproduction.md](../results/reproduction.md).
+- **올린 이슈 3 건**은 모두 실물 통합 막힘: 팔 카메라가 READY · BOX_VIEW 에서 퍽을 못 봄 (#154), FINE 정렬 뒤 TFmini 비상 정지 재발 (#157), 빈 상자 장소 접근 실패 (#160).
+- **댓글 45 개 중 40 개가 다른 팀원 글**: 온창범 이슈 23 · 이홍주 12 · 이창엽 5. 리뷰한 PR 6 건에 본문 있는 리뷰 5 개 (구체적인 것은 #153).
 
 ---
 
