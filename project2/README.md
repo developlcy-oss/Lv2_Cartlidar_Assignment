@@ -201,6 +201,8 @@ ros2 launch bringup bringup.launch.py        # 하드웨어 · 센서 · 인식 
 |---|---|
 | 공식 경기 영상 (2026-11-16, 공식 1 · 2 회차) | [Google Drive](https://drive.google.com/file/d/1GLdKyPdjwA_KjS184HGRhl4CGkyOpnHt/view?usp=drive_link) — 회차 대응 · 점수는 [results/official_scoring.md](results/official_scoring.md) |
 | 발표 자료 | [docs/presentation.pdf](docs/presentation.pdf) (10 쪽) |
+| 모의 시험 영상 (온창범, 20 개) | [results/sim_videos/](results/sim_videos/) — 주행 방식 V1 ~ V9 · MuJoCo M 시험 · 무게추 비교 |
+| 개인 보고서 (온창범) | [docs/contributions/온창범_보고서.md](docs/contributions/온창범_보고서.md) |
 
 ### 남은 제출 항목
 
