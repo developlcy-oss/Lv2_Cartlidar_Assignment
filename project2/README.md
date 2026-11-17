@@ -195,12 +195,16 @@ ros2 launch bringup bringup.launch.py        # 하드웨어 · 센서 · 인식 
 | [results/reproduction.md](results/reproduction.md) | 재현 절차 · 결과 | 없음 |
 | [challenge/B/](challenge/B/) | 도전 B: 퍽 할당 알고리즘 비교 (순차 vs 탐색, `report.md` · `cases.json` · `expected.json` · `results.csv`) | 있음 |
 
+## 10. 경기 영상 · 발표 자료
+
+| 항목 | 위치 |
+|---|---|
+| 공식 경기 영상 (2026-11-16, 공식 1 · 2 회차) | [Google Drive](https://drive.google.com/file/d/1GLdKyPdjwA_KjS184HGRhl4CGkyOpnHt/view?usp=drive_link) — 회차 대응 · 점수는 [results/official_scoring.md](results/official_scoring.md) |
+| 발표 자료 | [docs/presentation.pdf](docs/presentation.pdf) (10 쪽) |
+
 ### 남은 제출 항목
 
 | 항목 | 내용 |
 |---|---|
-| 공식 경기 영상 1 회차 | 링크: _(작성 필요)_ |
-| 공식 경기 영상 2 회차 | 링크: _(작성 필요)_ |
-| 발표 자료 | `project2/docs/presentation/` 에 올림 (예: `project2/docs/presentation/발표자료.pdf`) — _(작성 필요)_ |
 | 태그 `project2-submit` | 최종 제출 커밋에 (아직 없음) |
 | 태그 `project2-problem-submit` | 문제 패키지 (`problem/`) 제출 커밋에 (아직 없음, 공식 문제로 교체 뒤) |
