@@ -1,0 +1,10 @@
+이름: 갑자기_상자_0.5m_TFmini고침
+시각: 2026-11-17 21:36:15
+시나리오: /home/pa31/GIT/lv2_CartLidar/Lv2_Cartlidar_Assignment/workspace/tools/drive_avoid/sim/scenarios/S_상자_05.json
+경로: HOME → L2 L1
+속도: max (전진 0.45 · 후진 0.15 · 제자리 0.5)
+장애물 멈춤: 켬
+GUI=0
+추가 인자: Gazebo 장애물 시나리오 S_상자_05.json · 경기 도구 (max) RPP 전진 0.45 · 후진 0.15 · Spin · 규칙 v2 필터 (벨트 2.0 · 꺾는 중 모터 ≤ 3.0) · 장애물 감시 · 정지 관문
+감시 인자: 기본 (원래 스캔 · 차체 상자 앞 0.16 · 0.75 m 안 한 스캔 · TFmini)
+저장소: drive_avoid (sim/run_sim.sh)

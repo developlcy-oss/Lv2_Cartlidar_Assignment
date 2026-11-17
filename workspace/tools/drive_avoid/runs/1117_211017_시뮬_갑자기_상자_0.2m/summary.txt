@@ -1,0 +1,6 @@
+장애물 주행 (Gazebo): 구간 2/2 성공 · 52.5 s · 간 곳 HOME → L2 → L1 · 장애물 멈춤 3 번
+HOME>L2: ok · 22.9 s · 정지점 어긋남 7.0 cm
+L2>L1: ok · 26.7 s · 정지점 어긋남 3.1 cm
+  장애물 HOME>L2 t 56.63 · cleared · 멈춤 3.22 s · AMCL σ 0.7 cm
+  장애물 L2>L1 t 71.43 · cleared · 멈춤 3.18 s · AMCL σ 0.7 cm
+  장애물 L2>L1 t 85.27 · cleared · 멈춤 3.28 s · AMCL σ 0.5 cm

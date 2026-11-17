@@ -1,0 +1,1 @@
+{"obstacles": [{"id": "obsP", "leg": "L3>L2", "after_m": 0.3, "ahead_m": 1.0, "lateral": 0.0, "shape": "person", "remove_after_stop_s": 1.5}]}

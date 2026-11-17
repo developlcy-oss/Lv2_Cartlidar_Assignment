@@ -1,0 +1,6 @@
+# 시험 기록 중 디버그 · 고치기 전 실행 (이름에 '무시') 과 녹화 (bag) 는 안 올림. *.log · *.jsonl 은 저장소 루트 .gitignore 가 뺌
+runs/*무시*/
+runs/*/bag/
+# 회전 속도 페이지 (turn_speed/calc.py 가 data.json · template.html 로 만듦)
+turn_speed/회전속도_비교.html
+__pycache__/

@@ -1,0 +1,31 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>L2",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 22.9,
+  "end_err_cm": 7.0,
+  "end_err_deg": 0.6,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": [
+   -9.1,
+   -8.6
+  ]
+ },
+ {
+  "seg": "S1",
+  "name": "L2>L1",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 26.7,
+  "end_err_cm": 3.1,
+  "end_err_deg": 0.7,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": [
+   8.0
+  ]
+ }
+]

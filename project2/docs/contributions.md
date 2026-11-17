@@ -579,10 +579,12 @@ AMCL (map → odom) ─▶ loc_monitor ─(/localization/status · /localization
 
 ## 4. 한상준 (WindForce08)
 
-> 저장소 기록 (커밋 · PR · 이슈) 으로 정리함 — 본인 확인 필요
+> 저장소 기록 (커밋 · PR · 이슈) 으로 정리하고 본인이 확인함 (2026-11-17)
 > git 작성자 `WindForce08 <hsj38038@gmail.com>` (dev 비병합 커밋 30 개), GitHub `WindForce08`.
 
 ### 4.1 맡은 일
+
+**하드웨어 · 주행 담당** — OpenCR 2 대 펌웨어와 호스트 (ros2_control), Nav2 주행 설정, 실물 주행 시험 · 운용.
 
 | 영역 | 내용 | 주요 파일 |
 |---|---|---|
@@ -591,6 +593,8 @@ AMCL (map → odom) ─▶ loc_monitor ─(/localization/status · /localization
 | 주행 (Nav2) | `navigation` 패키지 (Smac 2D · RotationShim + MPPI), 출발 자세 통일, 후진 때 뒤 카메라, footprint, 속도 한계 인자 · 시작 지연 · 모서리 대책, 실물 기본 지도, 실물 첫 실행 문서 | `workspace/ros2_ws/src/navigation/` |
 | 주행 도구 | Isaac 주행 RL `drive_rl`, 규칙 v2 주행 시연 `drive_demo` (경로 이탈 멈춤 · 되찾기) | `workspace/tools/drive_rl/`, `workspace/tools/drive_demo/` |
 | 팔 벤치 (초기) | 팔 OpenCR 단독 시험, 슬라이더 · 모니터 · pick RL task | `workspace/tools/arm_bench/`, `workspace/docs/arm_bench_test_2026-10-2*.md` |
+| 실물 통합 · 시험 | Jetson 에 OpenCR 2 대 연결 (udev · 전원 순서: 배터리 먼저 · RESET), 바퀴 ID · 방향 · 속도 한계 · 벨트 실측 (띄움 · 바닥), 라이다 2 대 USB 자리 · 방향 확인, Jetson 점검 스크립트, 11-15 · 11-16 실물 주행 운용 (근거 4.3) | `opencr_hardware/udev/99-opencr.rules`, `workspace/tools/drive_demo/` (`jetson_check.sh` · `scan_rotate.py` · README 전원 순서 · USB 자리) |
+| 경기 뒤 (11-17) | 자율주행만 다시: 장애물 감시 · 즉시 멈춤 · 3 초 판단 · 다시 계획 · 정지점 건너뛰기 (Gazebo), 실물 bag 으로 미로 SLAM 지도, 회전 속도 상한 비교. 픽 앤 플레이스 포함 전체 미션 Isaac 시뮬 준비 | `workspace/tools/drive_avoid/`, `workspace/tools/mission_rl/` |
 
 ### 4.2 구현 (작성 · 병합된 PR)
 
@@ -652,6 +656,23 @@ AMCL (map → odom) ─▶ loc_monitor ─(/localization/status · /localization
 | 실물형 회전 시뮬 | 꺾기 79 % · 제자리 70 % | 10 구간 끝까지, 정지점 3 곳 5 cm 넘음 (6.9 · 5.9 · 6.2 cm) | [#319](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/319) |
 | 펌웨어 SIL · colcon | 펌웨어 SIL · opencr_hardware | v5 SIL 77 건, 배터리 130 / 0, RC-100 141 중 실패 1 (기존 `test_real_vs_isaac`) · 펌웨어에서 리모컨 읽기를 빼면 실패함을 확인 | [#6](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/6), [#207](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/207), [#257](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/257) |
 
+**시뮬레이션 → 적용 (정리)**
+
+실물에 올리기 전에 시뮬로 먼저 확인하고, 결과로 설정 · 경로를 바꿨다. 시뮬 · 실물 주행 기록을 한 페이지에 모은 것: [미로 주행 기록](https://claude.ai/artifact/TEYkNqHvpLi5gUZuY7qvvB?sk=pgH8zpXgutNf41-f-OJaHg) (궤적 · 정지점 오차 · 규칙 v2 판정 · PPO 학습 곡선 · 11-17 장애물 시험).
+
+| 시뮬레이션 (날짜) | 무엇을 확인 | 결과 | 적용 · 결정 | 근거 |
+|---|---|---|---|---|
+| Isaac 주행 RL `drive_rl` (11-02 ~ 11-15) | 미로 경로 (정지점 58) 를 PPO 로 따라가기 | 58/58 완주까지 갔으나 정책이 후진 74 % · 제자리 180° 회전에 기댐, 벨트 v7 물리에서 1/58 | 실물에는 안 씀 → 회전 규칙 v2 와 미리 계산한 경로로 방향 바꿈 | [#76](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/76) · [#302](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/302), 주행 기록 페이지 PPO 곡선 |
+| Nav2 경로 시험 (11-13, Gazebo) | 제자리 회전을 줄인 Nav2 설정 (through-poses BT · Hybrid-A* Reeds-Shepp · MPPI Ackermann · Spin 뺀 BT) | 완주 10/10 인 판은 후진 78 %, 반경 0.20 판은 앞 8 구간 5/8 (B5:N → B6:W 벽 닿음) | Nav2 계획기만으로는 규칙 v2 를 못 지킴 → 경로는 미리 계산하고 Nav2 는 따라가기만 | 주행 기록 페이지 |
+| 규칙 v2 경로 계획 (11-14 ~ 15, Hybrid A*) | 제자리 ≤ 90° · 후진 ≤ 0.40 m · 반경 ≥ 0.20 m 을 지키는 한 바퀴 | 209.7 s · 후진 5.8 % · 규칙 모두 지킴. 상자 실측 (box1 이 지도보다 북 18.6 cm) · 칠판 L 실측으로 다시 계획 | 경기 경로 = `drive_demo/legs.json` · `demo_plan.json` | [#306](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/306) |
+| 실물형 회전 시뮬 (11-15 ~ 16) | 벨트 v7 실물이 명령의 79 % (꺾기) · 66 ~ 80 % (제자리) 만 도는 것을 시뮬에 넣음 | 10 구간 끝까지, 정지점 3 곳 5 cm 넘음 | `params_demo_v7B/C.yaml`, 경로 이탈 멈춤 · 되찾기 | [#319](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/319) |
+| drive_demo loopback · Gazebo 묶음 (11-15 ~ 16) | 경기 도구 전체 흐름 | loopback 10/10, Gazebo 전체 미션 DONE 451 s, 새벽 묶음 10/12 | 경기 당일 사용 | 위 표, CSV S-32 ~ S-34 |
+| **장애물 멈춤 · 다시 계획** (11-17, Gazebo · 진짜 Nav2 · AMCL) | 경기에서 못 한 것: 길 위 장애물 → 멈춤 → 위치 다시 찾기 → 3 초 판단 → 원래 길 / 다시 계획 / 건너뛰기 | 치움 2/2 (멈춤 3.3 s 뒤 원래 길) · 그대로 2/2 (5.7 s 뒤 다시 계획, 장애물 여유 6.8 cm) · 통로 막힘 → box2 건너뛰고 box6 먼저 | 실물은 아직 (경기 뒤) | [`drive_avoid/README.md`](../../workspace/tools/drive_avoid/README.md), `runs/` |
+| **갑자기 나타난 장애물** (11-17, 최고 속도 0.44 ~ 0.46 m/s) | 예전 감시 (경기 때 위치 감시 스캔 · 2 스캔 확인) 대 새 감시 (원래 스캔 · 가까우면 한 스캔 · TFmini) | 상자 0.3 m 앞: 예전 31.2 cm · 1.4 s 에 멈춰 **차체 닿음**, 새 20.5 cm · 0.5 s · 차체 여유 9.4 cm. 0.2 m 앞까지 차체 안 닿음. TFmini 거짓 멈춤 (Gazebo 집게 손가락이 빛을 가림) 2 → 0 번 | 감시 인자 확정 (`obstacle_guard.py`) | [`runs/sudden_table.json`](../../workspace/tools/drive_avoid/runs/sudden_table.json) |
+| 실물 미로 SLAM (11-17) | 팀원 녹화 bag → slam_toolbox → 발제 좌표 | 벽 중앙 2.5 cm · 북벽 5 ~ 10 cm 어긋남, 라이다가 7 cm 상자 · L 을 봄, 그 녹화의 스캔은 180° 돌아가 있었음 | 장애물 감시의 '알려진 물체 지도' 후보 `maze_real_aligned` · `maze_real_walls` | [`drive_avoid/real_map/`](../../workspace/tools/drive_avoid/real_map/) |
+| 회전 속도 상한 (11-17, 계산) | 직진 모터 7 에서 꺾기로 자연스럽게 이어지는 상한 4 안 | 한 바퀴 153.7 (지금) · 152.7 · 149.0 · 139.8 s, 대신 모터 3.0 넘는 꺾기 1.8 → 23.7 s | 아직 안 고름 (벨트 보호와 맞바꿈) | [`drive_avoid/turn_speed/`](../../workspace/tools/drive_avoid/turn_speed/) |
+| **픽 앤 플레이스 포함 전체 미션** (11-17, Isaac) | 팀 팔 확인 재현 (P0) → 미션 계획 Q1 을 한 장면에서 집기 → 팔레트 → L 놓기로 이어서 (P1) | P0: 집기 → 칸 173/192 (90.1 %) · 놓기 24/24 · 빼기 24/24. P1 (4 대 · 앞 14 단계): 집기 5 번 모두 4/4 칸 3 mm 안, L2 놓기 셀 15 mm 안 3/4 | 다음: 전체 24 단계 기준선 → 약한 단계 학습 | [`mission_rl/README.md`](../../workspace/tools/mission_rl/README.md) |
+
 ### 4.4 리뷰
 
 **사실 그대로의 집계 (GitHub, 2026-11-17)**
@@ -694,3 +715,4 @@ AMCL (map → odom) ─▶ loc_monitor ─(/localization/status · /localization
 5. Gazebo 창 모드 Nav2 시작이 7 번 중 3 번 실패하는 문제를 남긴 채 병합했다 ([#241](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/241)). 이후 이홍주 [#307](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/307) 로 이어짐.
 6. PR 리뷰에서 낸 부탁 일부 ([#301](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/301) 제목, [#153](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/153) newK, [#175](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/175) 상한) 가 반영되지 않았고, 그 뒤 따라간 기록이 없다.
 7. `drive_demo` 는 ROS 패키지 밖 도구이고, 계획을 새로 만드는 도구는 제어 담당 노트북에만 있다 ([#306](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/pull/306) 본문).
+8. 11-17 장애물 회피 · 실물 SLAM 지도 · 미션 시뮬은 **경기 뒤 시뮬 결과뿐**이고 실물에서 돌려 보지 않았다. 미션 시뮬은 4 대 · 앞 14 단계만 돌렸다 (전체 기준선 아직).
