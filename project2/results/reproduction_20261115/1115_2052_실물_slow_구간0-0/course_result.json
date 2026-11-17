@@ -1,0 +1,25 @@
+[
+ {
+  "seg": "S0",
+  "name": "S0 signal→box1",
+  "points": [
+   0,
+   1
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": "",
+    "t": 35.0
+   }
+  ],
+  "sim_s": 35.0,
+  "end_err_cm": 3.8,
+  "end_err_deg": 1.2,
+  "head_fix_deg": [
+   26.4
+  ],
+  "detour": false
+ }
+]

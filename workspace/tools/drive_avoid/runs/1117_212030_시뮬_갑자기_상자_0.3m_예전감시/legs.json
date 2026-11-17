@@ -1,0 +1,32 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>L2",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 19.3,
+  "end_err_cm": 8.5,
+  "end_err_deg": 0.7,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": [
+   -16.4
+  ]
+ },
+ {
+  "seg": "S1",
+  "name": "L2>L1",
+  "result": "skip",
+  "ok": false,
+  "sim_s": 220.3,
+  "end_err_cm": 160.4,
+  "end_err_deg": 83.1,
+  "replans": 1,
+  "notes": [
+   "다시 계획 1: 규칙 v2 로 길 없음 (띠 0.7: 못 찾음, 띠 None: 못 찾음, 펼침 상한 100000) · 256.8 s"
+  ],
+  "head_fix_deg": [
+   11.2
+  ]
+ }
+]

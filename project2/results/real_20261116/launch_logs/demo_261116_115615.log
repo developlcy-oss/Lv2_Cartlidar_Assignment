@@ -1,0 +1,992 @@
+[INFO] [launch]: All log files can be found below /home/cart11/.ros/log/2026-11-16-11-56-16-589106-cart11-8835
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ros2_control_node-1]: process started with pid [8858]
+[INFO] [spawner-2]: process started with pid [8859]
+[INFO] [robot_state_publisher-3]: process started with pid [8860]
+[INFO] [twist_mux-4]: process started with pid [8861]
+[INFO] [rc100_joy.py-5]: process started with pid [8862]
+[INFO] [joy_teleop-6]: process started with pid [8863]
+[INFO] [teleop_node-7]: process started with pid [8864]
+[INFO] [component_container_mt-8]: process started with pid [8865]
+[INFO] [wait_joint_states-9]: process started with pid [8870]
+[INFO] [odom_icr-10]: process started with pid [8871]
+[INFO] [ekf_node-11]: process started with pid [8872]
+[component_container_mt-8] [WARN] [1794797777.666755870] [component_container_mt]: This executable is deprecated and will be removed in M-turtle.
+[component_container_mt-8] Use 'component_container --executor-type multi-threaded' instead.
+[twist_mux-4] [INFO] [1794797778.303023550] [twist_mux]: Topic handler 'topics.drive' subscribed to topic 'cmd_vel_drive': timeout = 0.250000s , priority = 50.
+[twist_mux-4] [INFO] [1794797778.306428754] [twist_mux]: Topic handler 'topics.nav' subscribed to topic 'cmd_vel_nav': timeout = 0.500000s , priority = 10.
+[twist_mux-4] [INFO] [1794797778.330830283] [twist_mux]: Topic handler 'topics.teleop' subscribed to topic 'cmd_vel_teleop': timeout = 0.500000s , priority = 100.
+[odom_icr-10] [INFO] [1794797778.339672406] [odom_icr]: /odom + /imu/data -> /odom_icr, icr_x -0.0658 m
+[twist_mux-4] [INFO] [1794797778.343394068] [twist_mux]: Topic handler 'locks.e_stop' subscribed to topic 'e_stop': timeout = 0.500000s , priority = 255.
+[teleop_node-7] [INFO] [1794797778.346681635] [TeleopTwistJoy]: Teleop enable button 4.
+[teleop_node-7] [INFO] [1794797778.346794311] [TeleopTwistJoy]: Linear axis x on 1 at scale 0.200000.
+[teleop_node-7] [INFO] [1794797778.346813896] [TeleopTwistJoy]: Angular axis yaw on 0 at scale 1.000000.
+[twist_mux-4] [INFO] [1794797778.351387491] [twist_mux]: Topic handler 'locks.localization' subscribed to topic '/localization/lock': timeout = 0.500000s , priority = 20.
+[twist_mux-4] [INFO] [1794797778.355268134] [twist_mux]: Topic handler 'locks.obstacle' subscribed to topic '/perception/obstacle_stop': timeout = 0.500000s , priority = 60.
+[robot_state_publisher-3] [INFO] [1794797778.362258482] [robot_state_publisher]: Robot initialized
+[component_container_mt-8] [INFO] [1794797778.379276114] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission/lib/libmission_component.so
+[ros2_control_node-1] [INFO] [1794797778.393720923] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[component_container_mt-8] [INFO] [1794797778.406097405] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[component_container_mt-8] [INFO] [1794797778.406276963] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[ros2_control_node-1] [INFO] [1794797778.468211315] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-1] [INFO] [1794797778.468458235] [controller_manager]: update rate is 100 Hz
+[ros2_control_node-1] [INFO] [1794797778.468522237] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-1] [INFO] [1794797778.468559038] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-1] [WARN] [1794797778.471244313] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.
+[ros2_control_node-1] [INFO] [1794797778.484305395] [controller_manager]: Received robot description from topic.
+[ros2_control_node-1] [INFO] [1794797778.484685536] [controller_manager]: Enforcing command limits is enabled...
+[ros2_control_node-1] [INFO] [1794797778.492665518] [controller_manager]: Using JointLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem' : '  has position limits: true [-0.7946, 0.9541]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794797778.492855924] [controller_manager]: Creating JointSaturationLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.492942327] [controller_manager]: Using JointLimiter for joint 'joint5' in hardware 'OpenCRSystem' : '  has position limits: true [-2.8, 2.8]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794797778.493007514] [controller_manager]: Creating JointSaturationLimiter for joint 'joint5' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.493072316] [controller_manager]: Using JointLimiter for joint 'joint2' in hardware 'OpenCRSystem' : '  has position limits: true [-2.14, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794797778.493125117] [controller_manager]: Creating JointSaturationLimiter for joint 'joint2' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.493175903] [controller_manager]: Using JointLimiter for joint 'joint4' in hardware 'OpenCRSystem' : '  has position limits: true [-1.92, 2]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794797778.493230401] [controller_manager]: Creating JointSaturationLimiter for joint 'joint4' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.493289091] [controller_manager]: Using JointLimiter for joint 'joint1' in hardware 'OpenCRSystem' : '  has position limits: true [-3.14159, 3.14159]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794797778.493338725] [controller_manager]: Creating JointSaturationLimiter for joint 'joint1' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.494428554] [controller_manager]: Joint limits are disabled for joint 'wheel_right_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.494511340] [controller_manager]: Joint limits are disabled for joint 'wheel_right_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.494580655] [controller_manager]: Using JointLimiter for joint 'joint3' in hardware 'OpenCRSystem' : '  has position limits: true [-1.6, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794797778.494697651] [controller_manager]: Creating JointSaturationLimiter for joint 'joint3' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.494759477] [controller_manager]: Joint limits are disabled for joint 'wheel_left_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.494810711] [controller_manager]: Joint limits are disabled for joint 'wheel_left_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.497665687] [controller_manager]: Loading hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794797778.506398271] [controller_manager]: Loaded hardware 'OpenCRSystem' from plugin 'opencr_hardware/OpenCRHardware'
+[ros2_control_node-1] [INFO] [1794797778.506770251] [controller_manager]: Initialize hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794797778.537612382] [controller_manager.hardware_component.system.OpenCRSystem]: 바퀴 기어비 2.00 (바퀴 / 모터)
+[ros2_control_node-1] [INFO] [1794797778.537818853] [controller_manager.hardware_component.system.OpenCRSystem]: 팔 대기 자세 검사 켬 (처음 켤 때 범위 밖이면 시작 거부): 3425,653,3025,797,1849,1531 ~ 3570,721,3091,1024,2246,2669
+[ros2_control_node-1] [INFO] [1794797778.537919945] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCRHardware: 관절 10개, IMU 'imu', 후보 포트 /dev/ttyACM0,/dev/ttyACM1
+[ros2_control_node-1] [INFO] [1794797778.538036077] [controller_manager]: Successful initialization of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794797778.539505054] [controller_manager]: Activating component 'OpenCRSystem'.
+[ros2_control_node-1] [INFO] [1794797778.540330682] [resource_manager]: 'configure' hardware 'OpenCRSystem' 
+[ros2_control_node-1] [ERROR] [1794797778.540426334] [controller_manager.hardware_component.system.OpenCRSystem]: 후보 포트 열기 실패: /dev/ttyACM0: No such file or directory
+[ros2_control_node-1] [ERROR] [1794797778.540640485] [resource_manager]: Failed to 'configure' hardware 'OpenCRSystem'
+[ros2_control_node-1] [ERROR] [1794797778.541531619] [controller_manager]: Failed to set the initial state of the component : 'OpenCRSystem' to 'active'
+[ros2_control_node-1] [INFO] [1794797778.541870895] [controller_manager]: Registering statistics for : OpenCRSystem
+[ros2_control_node-1] [INFO] [1794797778.542362719] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[component_container_mt-8] [INFO] [1794797778.542670506] [mission_node]: survey: 6 pose(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/config/approach_poses.yaml
+[component_container_mt-8] [INFO] [1794797778.566813082] [mission_node]: place_box: 켬 (장소 3 곳)
+[component_container_mt-8] [INFO] [1794797778.955152684] [mission_node]: mission_node ready (source: plan, missions: 0, auto_start: false)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/mission_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794797778.966256867] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/lib/libdrive_node.so
+[component_container_mt-8] [INFO] [1794797778.980727053] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<control::DriveNode>
+[component_container_mt-8] [INFO] [1794797778.982043513] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<control::DriveNode>
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/drive_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794797779.307611989] [drive_node]: drive_node 준비 (align 20 Hz, 정책 사용 안 함)
+[component_container_mt-8] [INFO] [1794797779.339964346] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/lib/libmanipulator_node.so
+[component_container_mt-8] [INFO] [1794797779.357726002] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<control::ManipulatorNode>
+[component_container_mt-8] [INFO] [1794797779.357929209] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<control::ManipulatorNode>
+[spawner-2] [INFO] [1794797779.482734899] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for joint_state_broadcaster
+[rc100_joy.py-5] [INFO] [1794797779.484815481] [rc100_joy]: /rc100/raw → /joy · 앞뒤 0.5 × 0.2 m/s · 회전 0.5 × 1.0 rad/s · hold_timeout 0.5 s · link_timeout 0.3 s · 1 = E-stop · 2+3 = 풀기 (켤 때 한 번)
+[spawner-2] [INFO] [1794797779.497894515] [spawner_joint_state_broadcaster]: Setting controller param "type" to "joint_state_broadcaster/JointStateBroadcaster" for joint_state_broadcaster
+[ros2_control_node-1] [INFO] [1794797779.516601611] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-1] [INFO] [1794797779.518974844] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[component_container_mt-8] [0;93m2026-11-16 11:56:19.520650228 [W:onnxruntime:robot_policy, device_discovery.cc:283 GetGpuDevices] Failed to detect devices under "/sys/class/drm/card1": device_discovery.cc:93 ReadFileContents Failed to open file: "/sys/class/drm/card1/device/vendor"[m
+[component_container_mt-8] [0;93m2026-11-16 11:56:19.520765784 [W:onnxruntime:robot_policy, device_discovery.cc:283 GetGpuDevices] Failed to detect devices under "/sys/class/drm/card0": device_discovery.cc:93 ReadFileContents Failed to open file: "/sys/class/drm/card0/device/vendor"[m
+[ros2_control_node-1] [INFO] [1794797779.527246803] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml'
+[component_container_mt-8] [INFO] [1794797779.533865363] [manipulator_node]: lie_upright: policy 'lie_upright' loaded (/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/robot_policy/share/robot_policy/config/models/lieupright_r2g2.onnx, 30 Hz)
+[spawner-2] [INFO] [1794797779.607308965] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-1] [INFO] [1794797779.620583653] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-1] [INFO] [1794797779.624637390] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. Will try to publish all available state interfaces of the URDF joints.
+[component_container_mt-8] [INFO] [1794797779.664350349] [manipulator_node]: pallet: 10 slot(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/share/control/config/pallet_place_traj.json (joint offsets not applied)
+[ros2_control_node-1] [INFO] [1794797779.670191730] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-1] [INFO] [1794797779.674972948] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [ERROR] [1794797779.675419331] [joint_state_broadcaster]: No state interfaces found to publish.
+[ros2_control_node-1] [ERROR] [1794797779.675610857] [joint_state_broadcaster]: Error initializing joint data. JointStateBroadcaster will not run.
+[ros2_control_node-1] [WARN] [1794797779.676547049] [joint_state_broadcaster]: Callback returned ERROR during the transition: activate
+[ros2_control_node-1] [ERROR] [1794797779.676661677] [controller_manager]: After activation, controller 'joint_state_broadcaster' is in state 'unconfigured' (1), expected 'active' (3). Releasing interfaces!
+[ros2_control_node-1] [ERROR] [1794797779.676718319] [controller_manager]: At least one controller failed to be activated. Releasing all interfaces and stopping all activated controllers because the switch strictness is set to STRICT.
+[ros2_control_node-1] [ERROR] [1794797779.676786481] [controller_manager]: Could not activate controller : 'joint_state_broadcaster'
+[ros2_control_node-1] [ERROR] [1794797779.676853555] [controller_manager]: Failed switching controllers.... 
+[ros2_control_node-1] [ERROR] [1794797779.676898197] [controller_manager]: Unable to activate controllers: [ joint_state_broadcaster  ]
+[spawner-2] [ERROR] [1794797779.687131246] [spawner_joint_state_broadcaster]: Failed to activate controller : joint_state_broadcaster
+[component_container_mt-8] [INFO] [1794797779.692016660] [manipulator_node]: place: 27 cell(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/config/approach_poses.yaml
+[component_container_mt-8] [INFO] [1794797779.907745134] [manipulator_node]: manipulator_node ready (poses: 8, gripper mode: arm_joint, pallet slots: 10, place cells: 27)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/manipulator_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794797779.913356524] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_lidar.so
+[component_container_mt-8] [INFO] [1794797779.918453176] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-8] [INFO] [1794797779.918631550] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-8] [INFO] [1794797779.918689568] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanBodyMaskNode>
+[component_container_mt-8] [INFO] [1794797779.918740802] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanMergerNode>
+[component_container_mt-8] [INFO] [1794797779.918771523] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanToRangeNode>
+[component_container_mt-8] [INFO] [1794797779.918796676] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::TFminiNode>
+[component_container_mt-8] [INFO] [1794797779.918820388] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::TFminiNode>
+[component_container_mt-8] [INFO] [1794797779.958027825] [mission_node]: [준비 확인] NOT READY 4/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [대기] joint_state_broadcaster: controller_manager 응답 기다림
+[component_container_mt-8]     [대기] diff_drive_controller: controller_manager 응답 기다림
+[component_container_mt-8]     [대기] arm_controller: controller_manager 응답 기다림
+[component_container_mt-8]     [대기] imu_sensor_broadcaster: controller_manager 응답 기다림
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[component_container_mt-8] [INFO] [1794797779.974375962] [tfmini_node]: 출력 mm, 보정점 0개, 오프셋 0.000 m
+[component_container_mt-8] [WARN] [1794797779.983764375] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/tfmini_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794797779.993396669] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-8] [INFO] [1794797779.993576131] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-8] [INFO] [1794797779.993616708] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-8] [INFO] [1794797780.045884841] [obstacle_stop]: 정지 0.25 m 미만, 해제 0.35 m 이상 3회, 입력 끊김 0.20 s
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/obstacle_stop' in container '/control_container'
+[component_container_mt-8] [INFO] [1794797780.146460749] [obstacle_stop]: 비상 정지 켬 (stale)
+[ERROR] [spawner-2]: process has died [pid 8859, exit code 1, cmd '/opt/ros/lyrical/lib/controller_manager/spawner --controller-manager /controller_manager --controller-manager-timeout 120 --service-call-timeout 15 --switch-timeout 30 --controller joint_state_broadcaster --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --controller imu_sensor_broadcaster --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --controller-ros-args -r imu_sensor_broadcaster/imu:=/imu/data --controller diff_drive_controller --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/drive_belt.yaml --controller-ros-args -r diff_drive_controller/cmd_vel:=/cmd_vel -r diff_drive_controller/odom:=/odom --controller arm_controller --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --ros-args'].
+[component_container_mt-8] [INFO] [1794797780.956617348] [mission_node]: [준비 확인] NOT READY 4/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[demo_start] /mission/start 서비스 보임 → 시작 요청
+[demo_start] 시도 1: 
+[component_container_mt-8] [WARN] [1794797784.986557417] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797789.987517205] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 2: 
+[component_container_mt-8] [WARN] [1794797794.988391752] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797795.008158170] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 3: 
+[component_container_mt-8] [WARN] [1794797799.989304213] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 4: 
+[component_container_mt-8] [WARN] [1794797804.990198506] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797805.008186012] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 5: 
+[component_container_mt-8] [WARN] [1794797809.991145913] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 6: 
+[component_container_mt-8] [WARN] [1794797814.992007725] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797815.008390692] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 7: 
+[component_container_mt-8] [WARN] [1794797819.992927319] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 8: 
+[component_container_mt-8] [WARN] [1794797824.993833830] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797825.058184008] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 9: 
+[component_container_mt-8] [WARN] [1794797829.994645956] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 10: 
+[component_container_mt-8] [WARN] [1794797834.995490116] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797835.108175010] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[component_container_mt-8] [WARN] [1794797839.996331761] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 11: 
+[component_container_mt-8] [WARN] [1794797844.997249436] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797845.158143897] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 12: 
+[component_container_mt-8] [WARN] [1794797849.998163120] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 13: 
+[component_container_mt-8] [WARN] [1794797854.999127706] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797855.208128987] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 14: 
+[component_container_mt-8] [WARN] [1794797860.000054246] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 15: 
+[component_container_mt-8] [WARN] [1794797865.000965183] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797865.208156466] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[wait_joint_states-9] [bringup] /joint_states 90 s 안에 없음 -> 그래도 시작 (컨트롤러 확인, #275)
+[INFO] [wait_joint_states-9]: process has finished cleanly [pid 8870]
+[INFO] [component_container_mt-12]: process started with pid [9617]
+[INFO] [puck_survey-13]: process started with pid [9618]
+[INFO] [realsense2_camera_node-14]: process started with pid [9619]
+[INFO] [realsense2_camera_node-15]: process started with pid [9620]
+[INFO] [arm_camera_node.py-16]: process started with pid [9621]
+[INFO] [multi_coin_d4_node-17]: process started with pid [9622]
+[INFO] [scan_body_mask-18]: process started with pid [9623]
+[INFO] [map_server-19]: process started with pid [9624]
+[INFO] [map_server-20]: process started with pid [9627]
+[INFO] [loc_scan_merge-21]: process started with pid [9632]
+[INFO] [amcl-22]: process started with pid [9638]
+[INFO] [loc_monitor-23]: process started with pid [9644]
+[INFO] [mission_planner_node-24]: process started with pid [9649]
+[component_container_mt-12] [WARN] [1794797868.236916495] [component_container_mt]: This executable is deprecated and will be removed in M-turtle.
+[component_container_mt-12] Use 'component_container --executor-type multi-threaded' instead.
+[component_container_mt-12] [INFO] [1794797869.156001920] [perception_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_node.so
+[multi_coin_d4_node-17] [INFO] [1794797869.169396546] [lidar_node]: version M1CT_TOF
+[multi_coin_d4_node-17] [INFO] [1794797869.169594664] [lidar_node]: lidar_front. lidar port: /dev/lidar_front
+[multi_coin_d4_node-17] [INFO] [1794797869.330497795] [lidar_node]: version M1CT_TOF
+[multi_coin_d4_node-17] [INFO] [1794797869.330586758] [lidar_node]: lidar_rear. lidar port: /dev/lidar_rear
+[realsense2_camera_node-15] [INFO] [1794797869.457479420] [top_camera_rear]: RealSense ROS v4.57.7
+[realsense2_camera_node-15] [INFO] [1794797869.457666754] [top_camera_rear]: Built with LibRealSense v2.57.7
+[realsense2_camera_node-15] [INFO] [1794797869.457692579] [top_camera_rear]: Running with LibRealSense v2.57.7
+[realsense2_camera_node-15]  16/11 11:57:49,462 ERROR [281472459860320] (context.cpp:41) No valid configuration file found at : /home/cart11/.realsense-config.json loading defaults
+[realsense2_camera_node-14] [INFO] [1794797869.500591997] [top_camera_front]: RealSense ROS v4.57.7
+[realsense2_camera_node-14] [INFO] [1794797869.500783651] [top_camera_front]: Built with LibRealSense v2.57.7
+[realsense2_camera_node-14] [INFO] [1794797869.500810884] [top_camera_front]: Running with LibRealSense v2.57.7
+[realsense2_camera_node-14]  16/11 11:57:49,513 ERROR [281472471591264] (context.cpp:41) No valid configuration file found at : /home/cart11/.realsense-config.json loading defaults
+[amcl-22] [INFO] [1794797869.582879588] [amcl]: 
+[amcl-22] 	amcl lifecycle node launched. 
+[amcl-22] 	Waiting on external lifecycle transitions to activate
+[amcl-22] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[amcl-22] [INFO] [1794797869.584235022] [amcl]: Creating
+[multi_coin_d4_node-17] [INFO] [1794797869.675493741] [lidar_node]: Activated lidar grab thread for port /dev/lidar_rear
+[multi_coin_d4_node-17] [INFO] [1794797869.675690195] [lidar_node]: Activated lidar publish thread for port /dev/lidar_rear
+[multi_coin_d4_node-17] [INFO] [1794797869.675794838] [lidar_node]: Activated lidar grab thread for port /dev/lidar_front
+[multi_coin_d4_node-17] [INFO] [1794797869.675831608] [lidar_node]: Lidar status changed for /dev/lidar_rear : 0 -> 1
+[multi_coin_d4_node-17] [INFO] [1794797869.676032350] [lidar_node]: Lidar status changed for /dev/lidar_front : 0 -> 1
+[multi_coin_d4_node-17] [INFO] [1794797869.675894969] [lidar_node]: Activated lidar publish thread for port /dev/lidar_front
+[map_server-20] [INFO] [1794797869.754157859] [map_objects_server]: 
+[map_server-20] 	map_objects_server lifecycle node launched. 
+[map_server-20] 	Waiting on external lifecycle transitions to activate
+[map_server-20] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[map_server-20] [INFO] [1794797869.758105502] [map_objects_server]: Creating
+[component_container_mt-8] [WARN] [1794797870.001848209] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[realsense2_camera_node-14] [INFO] [1794797870.134044554] [top_camera_front]: Device with serial number 261822072247 was found.
+[realsense2_camera_node-14] 
+[realsense2_camera_node-14] [INFO] [1794797870.134193551] [top_camera_front]: Device with physical ID /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.1/2-1.1:1.0/video4linux/video4 was found.
+[realsense2_camera_node-14] [INFO] [1794797870.134228272] [top_camera_front]: Device with name Intel RealSense D435 was found.
+[realsense2_camera_node-14] [INFO] [1794797870.134637565] [top_camera_front]: Device with port number 2-1.1 was found.
+[realsense2_camera_node-14] [INFO] [1794797870.134677502] [top_camera_front]: Device USB type: 3.2
+[realsense2_camera_node-14] [INFO] [1794797870.134865444] [top_camera_front]: getParameters...
+[realsense2_camera_node-14] [INFO] [1794797870.141172584] [top_camera_front]: JSON file is not provided
+[realsense2_camera_node-15] [INFO] [1794797870.136793696] [top_camera_rear]: Device with serial number 261822072247 was found.
+[realsense2_camera_node-15] 
+[realsense2_camera_node-15] [INFO] [1794797870.136930468] [top_camera_rear]: Device with physical ID /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.1/2-1.1:1.0/video4linux/video4 was found.
+[realsense2_camera_node-15] [INFO] [1794797870.136967141] [top_camera_rear]: Device with name Intel RealSense D435 was found.
+[realsense2_camera_node-15] [INFO] [1794797870.137387730] [top_camera_rear]: Device with port number 2-1.1 was found.
+[realsense2_camera_node-14] [INFO] [1794797870.148523725] [top_camera_front]: Device Name: Intel RealSense D435
+[realsense2_camera_node-14] [INFO] [1794797870.148597936] [top_camera_front]: Device Serial No: 261822072247
+[realsense2_camera_node-14] [INFO] [1794797870.148620881] [top_camera_front]: Device physical port: /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.1/2-1.1:1.0/video4linux/video4
+[realsense2_camera_node-14] [INFO] [1794797870.148644081] [top_camera_front]: Device FW version: 5.15.1.55
+[realsense2_camera_node-14] [INFO] [1794797870.148662162] [top_camera_front]: Device Product ID: 0x0B07
+[realsense2_camera_node-14] [INFO] [1794797870.148678290] [top_camera_front]: Sync Mode: Off
+[realsense2_camera_node-15] [INFO] [1794797870.199225658] [top_camera_rear]: Device with serial number 261822079801 was found.
+[realsense2_camera_node-15] 
+[realsense2_camera_node-15] [INFO] [1794797870.199353246] [top_camera_rear]: Device with physical ID /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.2/2-1.2:1.0/video4linux/video10 was found.
+[realsense2_camera_node-15] [INFO] [1794797870.199381471] [top_camera_rear]: Device with name Intel RealSense D435 was found.
+[realsense2_camera_node-15] [INFO] [1794797870.200476897] [top_camera_rear]: Device with port number 2-1.2 was found.
+[realsense2_camera_node-15] [INFO] [1794797870.200537347] [top_camera_rear]: Device USB type: 3.2
+[realsense2_camera_node-15] [INFO] [1794797870.201959087] [top_camera_rear]: getParameters...
+[realsense2_camera_node-15] [INFO] [1794797870.205253974] [top_camera_rear]: JSON file is not provided
+[realsense2_camera_node-15] [INFO] [1794797870.205367705] [top_camera_rear]: Device Name: Intel RealSense D435
+[realsense2_camera_node-15] [INFO] [1794797870.205399994] [top_camera_rear]: Device Serial No: 261822079801
+[realsense2_camera_node-15] [INFO] [1794797870.205421147] [top_camera_rear]: Device physical port: /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.2/2-1.2:1.0/video4linux/video10
+[realsense2_camera_node-15] [INFO] [1794797870.205442780] [top_camera_rear]: Device FW version: 5.15.1.55
+[realsense2_camera_node-15] [INFO] [1794797870.205461500] [top_camera_rear]: Device Product ID: 0x0B07
+[realsense2_camera_node-15] [INFO] [1794797870.205478141] [top_camera_rear]: Sync Mode: Off
+[map_server-19] [INFO] [1794797870.279854123] [map_server]: 
+[map_server-19] 	map_server lifecycle node launched. 
+[map_server-19] 	Waiting on external lifecycle transitions to activate
+[map_server-19] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[map_server-19] [INFO] [1794797870.281378363] [map_server]: Creating
+[component_container_mt-12] [INFO] [1794797870.287280755] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::PerceptionNode>
+[component_container_mt-12] [INFO] [1794797870.287630206] [perception_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::PerceptionNode>
+[realsense2_camera_node-14] [WARN] [1794797870.440961097] [top_camera_front]: re-enable the stream for the change to take effect.
+[realsense2_camera_node-15] [WARN] [1794797870.449597398] [top_camera_rear]: re-enable the stream for the change to take effect.
+[realsense2_camera_node-14] [WARN] [1794797870.481177518] [top_camera_front]: re-enable the stream for the change to take effect.
+[realsense2_camera_node-14] [INFO] [1794797870.535660209] [top_camera_front]: Stopping Sensor: Depth Module
+[realsense2_camera_node-14] [INFO] [1794797870.536647247] [top_camera_front]: Stopping Sensor: RGB Camera
+[realsense2_camera_node-15] [WARN] [1794797870.532833849] [top_camera_rear]: re-enable the stream for the change to take effect.
+[ros2_control_node-1] [WARN] [1794797870.548160662] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 14.772080 ms (missed cycles : 2).
+[realsense2_camera_node-15] [INFO] [1794797870.562971364] [top_camera_rear]: Stopping Sensor: Depth Module
+[realsense2_camera_node-15] [INFO] [1794797870.565891647] [top_camera_rear]: Stopping Sensor: RGB Camera
+[loc_monitor-23] [INFO] [1794797870.638855041] [loc_monitor]: {"t": 1794797870.639, "event": "start", "state": "OK", "backend": "amcl", "gate": false, "traj": 1, "res_thr": 0.034, "res_mode": "interp_p75", "check_mode": "pair"}
+[multi_coin_d4_node-17] [INFO] [1794797870.785099600] [lidar_node]: TOF version lidar start for /dev/lidar_rear
+[multi_coin_d4_node-17] [INFO] [1794797870.785220500] [lidar_node]: TOF version lidar start for /dev/lidar_front
+[realsense2_camera_node-15] [INFO] [1794797871.008503683] [top_camera_rear]: Starting Sensor: Depth Module
+[realsense2_camera_node-15] [INFO] [1794797871.037360838] [top_camera_rear]: Open profile: stream_type: Depth(0), Format: Z16, Width: 640, Height: 480, FPS: 30
+[realsense2_camera_node-15] [INFO] [1794797871.183996893] [top_camera_rear]: Starting Sensor: RGB Camera
+[realsense2_camera_node-15] [INFO] [1794797871.203424058] [top_camera_rear]: Open profile: stream_type: Color(0), Format: RGB8, Width: 640, Height: 480, FPS: 30
+[realsense2_camera_node-14] [INFO] [1794797871.229778351] [top_camera_front]: Starting Sensor: Depth Module
+[realsense2_camera_node-14] [INFO] [1794797871.286430196] [top_camera_front]: Open profile: stream_type: Depth(0), Format: Z16, Width: 640, Height: 480, FPS: 30
+[INFO] [lifecycle_manager-25]: process started with pid [9884]
+[INFO] [lifecycle_manager-26]: process started with pid [9886]
+[component_container_mt-12] [TensorRT] Using an engine plan file across different models of devices is not supported and is likely to affect performance or even cause errors or deadlock.
+[realsense2_camera_node-15] [INFO] [1794797871.666296779] [top_camera_rear]: RealSense Node Is Up!
+[ros2_control_node-1] [WARN] [1794797871.813514709] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.126895 ms (missed cycles : 2).
+[realsense2_camera_node-14] [INFO] [1794797872.225970974] [top_camera_front]: Starting Sensor: RGB Camera
+[realsense2_camera_node-14] [INFO] [1794797872.255539062] [top_camera_front]: Open profile: stream_type: Color(0), Format: RGB8, Width: 640, Height: 480, FPS: 30
+[component_container_mt-12] [TensorRT] WARNING The logger passed into createInferRuntime differs from one already registered for an existing builder, runtime, or refitter. So the current new logger is ignored, and TensorRT will use the existing one which is returned by nvinfer1::getLogger() instead.
+[component_container_mt-12] [TensorRT] Using an engine plan file across different models of devices is not supported and is likely to affect performance or even cause errors or deadlock.
+[lifecycle_manager-25] [INFO] [1794797872.552976063] [lifecycle_manager_maps]: Creating
+[lifecycle_manager-25] [INFO] [1794797872.557224163] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[lifecycle_manager-25] [INFO] [1794797872.571572194] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[component_container_mt-12] [INFO] [1794797872.651122862] [perception_node]: 검출기: tensorrt TensorRT /home/cart11/yolo_D/deploy/yolo11n_task4_E3_480_fp16.engine (입력 640×480, 클래스 4) · 해시 일치 d7cea24d68d94bd9 · 팔 tensorrt TensorRT /home/cart11/yolo_D/deploy/yolo11n_task4_E3_384_fp16.engine (입력 640×384, 클래스 4) · 해시 일치 5d09c3620eb9bc66 · 태그 사용 가능 · 마커 사용 가능
+[demo_start] 시도 16: 
+[lifecycle_manager-26] [INFO] [1794797872.885380681] [lifecycle_manager_amcl]: Creating
+[lifecycle_manager-26] [INFO] [1794797872.893809583] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[lifecycle_manager-26] [INFO] [1794797872.913433330] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[realsense2_camera_node-15] [WARN] [1794797873.022032485] [top_camera_rear]: XXX Hardware Notification:Depth stream start failure,1.7948e+12,Error,Hardware Error
+[realsense2_camera_node-15] [WARN] [1794797873.022305902] [top_camera_rear]: Hardware Notification:Depth stream start failure,1.7948e+12,Error,Hardware Error
+[realsense2_camera_node-14] [INFO] [1794797873.045359547] [top_camera_front]: RealSense Node Is Up!
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/perception_node' in container '/perception_container'
+[component_container_mt-12] [INFO] [1794797873.517823136] [perception_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_lidar.so
+[component_container_mt-12] [INFO] [1794797873.573546981] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-12] [INFO] [1794797873.581685250] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-12] [INFO] [1794797873.581951594] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanBodyMaskNode>
+[component_container_mt-12] [INFO] [1794797873.582148208] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanMergerNode>
+[component_container_mt-12] [INFO] [1794797873.582362967] [perception_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::ScanMergerNode>
+[lifecycle_manager-26] [INFO] [1794797873.772333291] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[lifecycle_manager-26] [INFO] [1794797873.942083114] [lifecycle_manager_amcl]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-26] [INFO] [1794797873.950321610] [lifecycle_manager_amcl]: [34m[1mConfiguring amcl[0m[0m
+[component_container_mt-8] [INFO] [1794797873.959637388] [mission_node]: [준비 확인] NOT READY 5/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [ OK ] /localization/status: OK
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[amcl-22] [INFO] [1794797873.993350724] [amcl]: Configuring
+[amcl-22] [INFO] [1794797874.008810309] [amcl]: initTransforms
+[component_container_mt-12] [INFO] [1794797874.036434527] [scan_merger]: 라이다 2대 → /scan (base_link, 360칸)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/scan_merger' in container '/perception_container'
+[component_container_mt-12] [INFO] [1794797874.105362813] [perception_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_rear.so
+[component_container_mt-12] [INFO] [1794797874.179603168] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::RearObstacleNode>
+[component_container_mt-12] [INFO] [1794797874.179794342] [perception_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::RearObstacleNode>
+[amcl-22] [INFO] [1794797874.241171033] [amcl]: initPubSub
+[amcl-22] [INFO] [1794797874.571987233] [amcl]: Subscribed to map topic.
+[component_container_mt-12] [WARN] [1794797874.711113925] [scan_merger]: /scan_front 가 0.5 s 넘게 없음: /scan_rear 기준으로 발행
+[component_container_mt-12] [WARN] [1794797874.723336257] [scan_merger]: 라이다 1/2대만 합침 (나머지는 없거나 0.15 s 넘게 차이)
+[lifecycle_manager-26] [INFO] [1794797874.763476512] [lifecycle_manager_amcl]: [34m[1mActivating amcl[0m[0m
+[amcl-22] [INFO] [1794797874.794213243] [amcl]: Activating
+[amcl-22] [INFO] [1794797874.794397857] [amcl]: initialPoseReceived
+[amcl-22] [INFO] [1794797874.794610088] [amcl]: Setting pose (1794797874.794607): 0.694 0.950 3.142
+[amcl-22] [INFO] [1794797874.806552155] [amcl]: Creating bond (amcl) to lifecycle manager.
+[arm_camera_node.py-16] [INFO] [1794797874.852535280] [arm_camera.arm_camera_driver]: 열림 /dev/arm_cam 1280x720 @ 30 fps (MJPG)
+[component_container_mt-12] [INFO] [1794797874.917030564] [rear_obstacle]: 통로 x < -0.229, |y| ≤ 0.218, 높이 0.02~0.45 m · 정지 0.40 m 미만, 해제 0.50 m 이상 3회, 입력 끊김 0.50 s
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/rear_obstacle' in container '/perception_container'
+[component_container_mt-8] [INFO] [1794797874.964310241] [mission_node]: [준비 확인] NOT READY 7/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [ OK ] /localization/status: OK
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[component_container_mt-12] [INFO] [1794797874.988994272] [rear_obstacle]: 후방 장애물 있음 (obstacle)
+[component_container_mt-8] [WARN] [1794797875.003989746] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[amcl-22] [INFO] [1794797875.093809751] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797874.677 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[lifecycle_manager-26] [INFO] [1794797875.132487048] [lifecycle_manager_amcl]: Server amcl connected with bond.
+[lifecycle_manager-26] [INFO] [1794797875.132697423] [lifecycle_manager_amcl]: [34m[1mManaged nodes are active[0m[0m
+[lifecycle_manager-26] [INFO] [1794797875.132781585] [lifecycle_manager_amcl]: [34m[1mCreating bond timer...[0m[0m
+[component_container_mt-8] [WARN] [1794797875.208360860] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[lifecycle_manager-25] [INFO] [1794797875.255592823] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[lifecycle_manager-25] [INFO] [1794797875.331871735] [lifecycle_manager_maps]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-25] [INFO] [1794797875.332150048] [lifecycle_manager_maps]: [34m[1mConfiguring map_server[0m[0m
+[map_server-19] [INFO] [1794797875.333792595] [map_server]: Configuring
+[map_server-19] [INFO] [1794797875.334216000] [map_io]: Loading yaml file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.yaml
+[map_server-19] [INFO] [1794797875.334793458] [map_io]: resolution: 0.025
+[map_server-19] [INFO] [1794797875.334818547] [map_io]: origin[0]: -0.15
+[map_server-19] [INFO] [1794797875.334827059] [map_io]: origin[1]: -0.15
+[map_server-19] [INFO] [1794797875.334833971] [map_io]: origin[2]: 0
+[map_server-19] [INFO] [1794797875.334840148] [map_io]: free_thresh: 0.25
+[map_server-19] [INFO] [1794797875.334845972] [map_io]: occupied_thresh: 0.65
+[map_server-19] [INFO] [1794797875.334856180] [map_io]: mode: trinary
+[map_server-19] [INFO] [1794797875.334865076] [map_io]: negate: 0
+[map_server-19] [INFO] [1794797875.335282817] [map_io]: Loading image_file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.pgm
+[map_server-19] [INFO] [1794797875.339103640] [map_io]: Read map /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.pgm: 191 X 267 map @ 0.025 m/cell
+[lifecycle_manager-25] [INFO] [1794797875.560392271] [lifecycle_manager_maps]: [34m[1mConfiguring map_objects_server[0m[0m
+[map_server-20] [INFO] [1794797875.571506248] [map_objects_server]: Configuring
+[map_server-20] [INFO] [1794797875.574826991] [map_io]: Loading yaml file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.yaml
+[map_server-20] [INFO] [1794797875.578903630] [map_io]: resolution: 0.025
+[map_server-20] [INFO] [1794797875.578953872] [map_io]: origin[0]: -0.15
+[map_server-20] [INFO] [1794797875.578966704] [map_io]: origin[1]: -0.15
+[map_server-20] [INFO] [1794797875.578973776] [map_io]: origin[2]: 0
+[map_server-20] [INFO] [1794797875.578980880] [map_io]: free_thresh: 0.25
+[map_server-20] [INFO] [1794797875.578987825] [map_io]: occupied_thresh: 0.65
+[map_server-20] [INFO] [1794797875.578999217] [map_io]: mode: trinary
+[map_server-20] [INFO] [1794797875.579009713] [map_io]: negate: 0
+[map_server-20] [INFO] [1794797875.594995362] [map_io]: Loading image_file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.pgm
+[map_server-20] [INFO] [1794797875.604119357] [map_io]: Read map /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.pgm: 191 X 267 map @ 0.025 m/cell
+[lifecycle_manager-25] [INFO] [1794797875.735789558] [lifecycle_manager_maps]: [34m[1mActivating map_server[0m[0m
+[map_server-19] [INFO] [1794797875.738111422] [map_server]: Activating
+[map_server-19] [INFO] [1794797875.745087958] [map_server]: Creating bond (map_server) to lifecycle manager.
+[amcl-22] [INFO] [1794797875.748598307] [amcl]: Received a 191 X 267 map @ 0.025 m/pix
+[lifecycle_manager-25] [INFO] [1794797876.049269595] [lifecycle_manager_maps]: Server map_server connected with bond.
+[lifecycle_manager-25] [INFO] [1794797876.049539267] [lifecycle_manager_maps]: [34m[1mActivating map_objects_server[0m[0m
+[map_server-20] [INFO] [1794797876.051424670] [map_objects_server]: Activating
+[map_server-20] [INFO] [1794797876.052059665] [map_objects_server]: Creating bond (map_objects_server) to lifecycle manager.
+[lifecycle_manager-25] [INFO] [1794797876.345702472] [lifecycle_manager_maps]: Server map_objects_server connected with bond.
+[lifecycle_manager-25] [INFO] [1794797876.346723464] [lifecycle_manager_maps]: [34m[1mManaged nodes are active[0m[0m
+[lifecycle_manager-25] [INFO] [1794797876.347098580] [lifecycle_manager_maps]: [34m[1mCreating bond timer...[0m[0m
+[scan_body_mask-18] [INFO] [1794797876.597919578] [scan_body_mask]: /scan_front: 고정 칸 233칸 학습(210.2°)
+[scan_body_mask-18] [INFO] [1794797876.672963027] [scan_body_mask]: /scan_rear: 고정 칸 113칸 학습(101.7°)
+[amcl-22] [INFO] [1794797877.616526337] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797877.199 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[INFO] [nav2_composed-27]: process started with pid [9989]
+[scan_body_mask-18] [INFO] [1794797879.073138065] [scan_body_mask]: /scan_front: 스캔 46, 평균 가린 칸 231.3
+[scan_body_mask-18] [INFO] [1794797879.073487163] [scan_body_mask]: /scan_rear: 스캔 45, 평균 가린 칸 113.7
+[nav2_composed-27] [INFO] [1794797879.165434106] [controller_server]: 
+[nav2_composed-27] 	controller_server lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797879.215647852] [controller_server]: Creating controller server
+[nav2_composed-27] [INFO] [1794797879.772096279] [local_costmap.local_costmap]: 
+[nav2_composed-27] 	local_costmap lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797879.775146261] [local_costmap.local_costmap]: Creating Costmap
+[nav2_composed-27] [INFO] [1794797879.775840683] [nav2_composed]: 실음: controller_server (nav2_controller::ControllerServer)
+[ros2_control_node-1] [WARN] [1794797879.824142242] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.753916 ms (missed cycles : 2).
+[nav2_composed-27] [INFO] [1794797879.917728692] [planner_server]: 
+[nav2_composed-27] 	planner_server lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797879.932997324] [planner_server]: Creating
+[component_container_mt-8] [WARN] [1794797880.011502794] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[nav2_composed-27] [INFO] [1794797880.044329986] [global_costmap.global_costmap]: 
+[nav2_composed-27] 	global_costmap lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797880.045572616] [global_costmap.global_costmap]: Creating Costmap
+[nav2_composed-27] [INFO] [1794797880.046095577] [nav2_composed]: 실음: planner_server (nav2_planner::PlannerServer)
+[amcl-22] [INFO] [1794797880.183379824] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797879.756 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797880.207459128] [behavior_server]: 
+[nav2_composed-27] 	behavior_server lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797880.225155804] [nav2_composed]: 실음: behavior_server (behavior_server::BehaviorServer)
+[nav2_composed-27] [INFO] [1794797880.305604981] [velocity_smoother]: 
+[nav2_composed-27] 	velocity_smoother lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797880.306114116] [nav2_composed]: 실음: velocity_smoother (nav2_velocity_smoother::VelocitySmoother)
+[nav2_composed-27] [INFO] [1794797880.379167224] [bt_navigator]: 
+[nav2_composed-27] 	bt_navigator lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797880.384328440] [bt_navigator]: Creating
+[nav2_composed-27] [INFO] [1794797880.384831623] [nav2_composed]: 실음: bt_navigator (nav2_bt_navigator::BtNavigator)
+[demo_start] 시도 17: 
+[loc_monitor-23] [INFO] [1794797880.637158213] [loc_monitor]: {"t": 1794797880.637, "event": "report", "state": "OK", "n_check": 0, "n_skip": 58, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[nav2_composed-27] [INFO] [1794797881.044600064] [collision_monitor]: 
+[nav2_composed-27] 	collision_monitor lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-27] [INFO] [1794797881.045654049] [nav2_composed]: 실음: collision_monitor (nav2_collision_monitor::CollisionMonitor)
+[amcl-22] [INFO] [1794797882.774577044] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797882.360 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[ros2_control_node-1] [WARN] [1794797884.093409850] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.022068 ms (missed cycles : 2).
+[nav2_composed-27] [INFO] [1794797884.135932122] [lifecycle_manager_navigation]: Creating
+[nav2_composed-27] [INFO] [1794797884.139639148] [nav2_composed]: 실음: lifecycle_manager_navigation (nav2_lifecycle_manager::LifecycleManager)
+[nav2_composed-27] [INFO] [1794797884.139884980] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[nav2_composed-27] [INFO] [1794797884.146529121] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[nav2_composed-27] [INFO] [1794797884.352394574] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[nav2_composed-27] [INFO] [1794797884.412636112] [lifecycle_manager_navigation]: [34m[1mStarting managed nodes bringup...[0m[0m
+[nav2_composed-27] [INFO] [1794797884.413053725] [lifecycle_manager_navigation]: [34m[1mConfiguring controller_server[0m[0m
+[nav2_composed-27] [INFO] [1794797884.418633225] [controller_server]: Configuring controller interface
+[nav2_composed-27] [INFO] [1794797884.418858800] [local_costmap.local_costmap]: Configuring
+[nav2_composed-27] [INFO] [1794797884.474857263] [local_costmap.local_costmap]: Using plugin "static_layer"
+[nav2_composed-27] [INFO] [1794797884.487883937] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[nav2_composed-27] [INFO] [1794797884.498133245] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[nav2_composed-27] [INFO] [1794797884.500847473] [local_costmap.local_costmap]: Using plugin "objects_layer"
+[nav2_composed-27] [INFO] [1794797884.502694698] [local_costmap.local_costmap]: Subscribing to the map topic (/map_objects) with transient local durability
+[nav2_composed-27] [INFO] [1794797884.508177171] [local_costmap.local_costmap]: Initialized plugin "objects_layer"
+[nav2_composed-27] [INFO] [1794797884.511283155] [local_costmap.local_costmap]: Using plugin "obstacle_layer"
+[nav2_composed-27] [INFO] [1794797884.519256297] [local_costmap.local_costmap]: Subscribed to Topics: scan
+[nav2_composed-27] [INFO] [1794797884.544768476] [local_costmap.local_costmap]: Initialized plugin "obstacle_layer"
+[nav2_composed-27] [INFO] [1794797884.544971938] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[nav2_composed-27] [INFO] [1794797884.549253318] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[component_container_mt-8] [INFO] [1794797884.971170747] [mission_node]: [준비 확인] NOT READY 7/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [ OK ] /localization/status: OK
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: 응답 기다림
+[component_container_mt-8] [WARN] [1794797885.013045447] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797885.214820594] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[amcl-22] [INFO] [1794797885.282498264] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797884.862 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797885.290407179] [controller_server]: Controller frequency set to 20.0000Hz
+[nav2_composed-27] [INFO] [1794797885.290534127] [controller_server]: getting progress checker plugins..
+[nav2_composed-27] [INFO] [1794797885.290663763] [controller_server]: getting goal checker plugins..
+[nav2_composed-27] [INFO] [1794797885.290744150] [controller_server]: getting controller plugins..
+[nav2_composed-27] [INFO] [1794797885.290848793] [controller_server]: getting path handler plugins..
+[nav2_composed-27] [INFO] [1794797885.292957786] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[nav2_composed-27] [INFO] [1794797885.304139667] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[nav2_composed-27] [INFO] [1794797885.308354452] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[nav2_composed-27] [INFO] [1794797885.311869121] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[nav2_composed-27] [INFO] [1794797885.315082788] [controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[nav2_composed-27] [INFO] [1794797885.315244169] [controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[nav2_composed-27] [INFO] [1794797885.321590732] [controller_server]: Created path handler : PathHandler of type nav2_controller::FeasiblePathHandler
+[nav2_composed-27] [INFO] [1794797885.321793363] [controller_server]: Controller Server has PathHandler  path handlers available.
+[nav2_composed-27] [INFO] [1794797885.343921949] [controller_server]: Created controller : FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[nav2_composed-27] [INFO] [1794797885.354359454] [controller_server]: Created internal controller for rotation shimming: FollowPath of type nav2_mppi_controller::MPPIController
+[nav2_composed-27] [INFO] [1794797885.372094593] [controller_server]: Loaded motion model plugin: mppi::DiffDriveMotionModel
+[nav2_composed-27] [INFO] [1794797885.372359529] [controller_server]: Controller period is equal to model dt. Control sequence shifting is ON
+[nav2_composed-27] [INFO] [1794797885.418891587] [controller_server]: ConstraintCritic instantiated with 1 power and 4.000000 weight.
+[nav2_composed-27] [INFO] [1794797885.419649531] [controller_server]: Critic loaded : mppi::critics::ConstraintCritic
+[nav2_composed-27] [WARN] [1794797885.420984516] [controller_server]: Near collision cost is set higher than INSCRIBED_INFLATED_OBSTACLE
+[nav2_composed-27] [INFO] [1794797885.422428048] [controller_server]: InflationCostCritic instantiated with 1 power and 300.000000 / 0.015000 weights. Critic will collision check based on footprint cost.
+[nav2_composed-27] [INFO] [1794797885.422686680] [controller_server]: Critic loaded : mppi::critics::CostCritic
+[nav2_composed-27] [INFO] [1794797885.426166307] [controller_server]: GoalCritic instantiated with 1 power and 5.000000 weight.
+[nav2_composed-27] [INFO] [1794797885.426476525] [controller_server]: Critic loaded : mppi::critics::GoalCritic
+[nav2_composed-27] [INFO] [1794797885.428962586] [controller_server]: GoalAngleCritic instantiated with 1 power, 3.000000 weight, 0.150000 angular threshold and symmetric_yaw_tolerance disabled
+[nav2_composed-27] [INFO] [1794797885.429621582] [controller_server]: Critic loaded : mppi::critics::GoalAngleCritic
+[nav2_composed-27] [INFO] [1794797885.430808819] [controller_server]: ReferenceTrajectoryCritic instantiated with 1 power and 28.000000 weight
+[nav2_composed-27] [INFO] [1794797885.431234208] [controller_server]: Critic loaded : mppi::critics::PathAlignCritic
+[nav2_composed-27] [INFO] [1794797885.432774863] [controller_server]: Critic loaded : mppi::critics::PathFollowCritic
+[nav2_composed-27] [INFO] [1794797885.433905074] [controller_server]: PathAngleCritic instantiated with 1 power and 2.000000 weight. Mode set to: Forward Preference
+[nav2_composed-27] [INFO] [1794797885.434322911] [controller_server]: Critic loaded : mppi::critics::PathAngleCritic
+[nav2_composed-27] [INFO] [1794797885.435422305] [controller_server]: PreferForwardCritic instantiated with 1 power and 5.000000 weight.
+[nav2_composed-27] [INFO] [1794797885.435610727] [controller_server]: Critic loaded : mppi::critics::PreferForwardCritic
+[nav2_composed-27] [INFO] [1794797885.447691931] [controller_server]: Loaded trajectory validator plugin: mppi::DefaultOptimalTrajectoryValidator
+[nav2_composed-27] [INFO] [1794797885.458667437] [controller_server]: Optimizer reset
+[nav2_composed-27] [INFO] [1794797885.505089796] [MPPIController]: Configured MPPI Controller: FollowPath.primary_controller
+[nav2_composed-27] [INFO] [1794797885.505195239] [controller_server]: Controller Server has FollowPath  controllers available.
+[nav2_composed-27] [INFO] [1794797885.807759508] [lifecycle_manager_navigation]: [34m[1mConfiguring planner_server[0m[0m
+[nav2_composed-27] [INFO] [1794797885.816176824] [planner_server]: Configuring
+[nav2_composed-27] [INFO] [1794797885.816399743] [global_costmap.global_costmap]: Configuring
+[loc_monitor-23] [INFO] [1794797885.841686826] [loc_monitor]: {"t": 1794797885.842, "event": "state", "state": "LOST", "old": "OK", "new": "LOST", "why": "no_tracked_pose", "after_s": 15.1}
+[loc_monitor-23] [INFO] [1794797885.847206580] [loc_monitor]: {"t": 1794797885.847, "event": "state", "state": "RECOVERING", "old": "LOST", "new": "RECOVERING"}
+[nav2_composed-27] [INFO] [1794797885.879410645] [global_costmap.global_costmap]: Using plugin "static_layer"
+[nav2_composed-27] [INFO] [1794797885.883377839] [global_costmap.global_costmap]: Subscribing to the map topic (/map) with transient local durability
+[nav2_composed-27] [INFO] [1794797885.891374853] [global_costmap.global_costmap]: Initialized plugin "static_layer"
+[nav2_composed-27] [INFO] [1794797885.893479878] [global_costmap.global_costmap]: Using plugin "objects_layer"
+[nav2_composed-27] [INFO] [1794797885.896307389] [global_costmap.global_costmap]: Subscribing to the map topic (/map_objects) with transient local durability
+[nav2_composed-27] [INFO] [1794797885.904585917] [global_costmap.global_costmap]: Initialized plugin "objects_layer"
+[nav2_composed-27] [INFO] [1794797885.904732577] [global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[nav2_composed-27] [INFO] [1794797885.905341716] [global_costmap.global_costmap]: Subscribed to Topics: scan
+[nav2_composed-27] [INFO] [1794797885.919714735] [global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[nav2_composed-27] [INFO] [1794797885.919959670] [global_costmap.global_costmap]: Using plugin "inflation_layer"
+[nav2_composed-27] [INFO] [1794797885.920415909] [global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[ros2_control_node-1] [WARN] [1794797885.985991658] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.603396 ms (missed cycles : 2).
+[nav2_composed-27] [INFO] [1794797886.049985181] [global_costmap.global_costmap]: StaticLayer: Resizing costmap to 191 X 267 at 0.025000 m/pix
+[nav2_composed-27] [WARN] [1794797886.050244133] [global_costmap.global_costmap]: StaticLayer: Costmap origin coordinates are not perfectly aligned with the resolution. This may cause misalignment aliasing between rolling and non-rolling costmaps.
+[nav2_composed-27] Map origin: (-0, -0) | Resolution: 0
+[nav2_composed-27] [INFO] [1794797886.052035164] [planner_server]: Created global planner plugin GridBased of type nav2_smac_planner::SmacPlanner2D
+[nav2_composed-27] [INFO] [1794797886.052299236] [planner_server]: Configuring GridBased of type SmacPlanner2D
+[nav2_composed-27] [ERROR] [1794797886.052789555] [planner_server]: Inflation layer either not found or inflation is not set sufficiently for optimized non-circular collision checking capabilities. It is HIGHLY recommended to set the inflation radius to be at MINIMUM half of the robot's largest cross-section. See github.com/ros-planning/navigation2/tree/main/nav2_smac_planner#potential-fields for full instructions. This will substantially impact run-time performance.
+[nav2_composed-27] [INFO] [1794797886.070687579] [planner_server]: Configured plugin GridBased of type SmacPlanner2D with tolerance 0.05, maximum iterations 1000000, max on approach iterations 1000, and not allowing unknown traversal.
+[nav2_composed-27] [INFO] [1794797886.071086183] [planner_server]: Planner Server has GridBased  planners available.
+[component_container_mt-8] [INFO] [1794797886.110532902] [mission_node]: [준비 확인] NOT READY 6/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [실패] /localization/status: RECOVERING
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: 응답 기다림
+[nav2_composed-27] [INFO] [1794797886.290823542] [lifecycle_manager_navigation]: [34m[1mConfiguring behavior_server[0m[0m
+[nav2_composed-27] [INFO] [1794797886.292770802] [behavior_server]: Configuring
+[nav2_composed-27] [INFO] [1794797886.319654798] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[nav2_composed-27] [INFO] [1794797886.325958704] [behavior_server]: Creating behavior plugin backup of type nav2_behaviors::BackUp
+[nav2_composed-27] [INFO] [1794797886.330442267] [behavior_server]: Creating behavior plugin wait of type nav2_behaviors::Wait
+[nav2_composed-27] [INFO] [1794797886.393366188] [behavior_server]: Configuring spin
+[nav2_composed-27] [INFO] [1794797886.533962071] [behavior_server]: Configuring backup
+[nav2_composed-27] [INFO] [1794797886.739505297] [behavior_server]: Configuring wait
+[nav2_composed-27] [INFO] [1794797886.823247140] [lifecycle_manager_navigation]: [34m[1mConfiguring velocity_smoother[0m[0m
+[nav2_composed-27] [INFO] [1794797886.831004179] [velocity_smoother]: Configuring velocity smoother
+[nav2_composed-27] [INFO] [1794797886.901128995] [lifecycle_manager_navigation]: [34m[1mConfiguring collision_monitor[0m[0m
+[nav2_composed-27] [INFO] [1794797886.901840280] [collision_monitor]: Configuring
+[nav2_composed-27] [INFO] [1794797886.935677035] [collision_monitor]: [scan]: Creating Scan
+[nav2_composed-27] [INFO] [1794797886.948178604] [collision_monitor]: [FootprintApproach]: Creating Polygon
+[nav2_composed-27] [INFO] [1794797886.949021190] [collision_monitor]: [FootprintApproach]: Polygon points are not defined. Using dynamic subscription instead.
+[nav2_composed-27] [INFO] [1794797886.950256140] [collision_monitor]: [FootprintApproach]: Making footprint subscriber on /local_costmap/published_footprint topic
+[nav2_composed-27] [INFO] [1794797887.131333906] [collision_monitor]: Collision monitor is enabled at startup.
+[nav2_composed-27] [INFO] [1794797887.155166447] [lifecycle_manager_navigation]: [34m[1mConfiguring bt_navigator[0m[0m
+[nav2_composed-27] [INFO] [1794797887.163444910] [bt_navigator]: Configuring
+[nav2_composed-27] [INFO] [1794797887.240647830] [bt_navigator]: Creating navigator id navigate_to_pose of type nav2_bt_navigator::NavigateToPoseNavigator
+[nav2_composed-27] [WARN] [1794797887.280659845] [bt_navigator]: error_code_name_prefixes parameters were not set. Using default values of: assisted_teleop backup compute_path dock_robot drive_on_heading follow_object follow_path nav_thru_poses nav_to_pose spin undock_robot wait
+[nav2_composed-27] Make sure these match your BT and there are not other sources of error codes youreported to your application
+[nav2_composed-27] [INFO] [1794797887.663189250] [bt_navigator_navigate_to_pose_rclcpp_node]: 
+[nav2_composed-27] 	bt_navigator_navigate_to_pose_rclcpp_node lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[amcl-22] [INFO] [1794797887.796470888] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797887.369 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797887.876061529] [bt_navigator]: Creating navigator id navigate_through_poses of type nav2_bt_navigator::NavigateThroughPosesNavigator
+[nav2_composed-27] [WARN] [1794797887.886334549] [bt_navigator]: error_code_name_prefixes parameters were not set. Using default values of: assisted_teleop backup compute_path dock_robot drive_on_heading follow_object follow_path nav_thru_poses nav_to_pose spin undock_robot wait
+[nav2_composed-27] Make sure these match your BT and there are not other sources of error codes youreported to your application
+[nav2_composed-27] [INFO] [1794797888.198583514] [bt_navigator_navigate_through_poses_rclcpp_node]: 
+[nav2_composed-27] 	bt_navigator_navigate_through_poses_rclcpp_node lifecycle node launched. 
+[nav2_composed-27] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-27] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[ros2_control_node-1] [WARN] [1794797888.433416304] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.029066 ms (missed cycles : 2).
+[nav2_composed-27] [INFO] [1794797888.506771328] [lifecycle_manager_navigation]: [34m[1mActivating controller_server[0m[0m
+[nav2_composed-27] [INFO] [1794797888.512359692] [controller_server]: Activating
+[nav2_composed-27] [INFO] [1794797888.512589203] [local_costmap.local_costmap]: Activating
+[nav2_composed-27] [INFO] [1794797888.512737496] [local_costmap.local_costmap]: Checking transform
+[nav2_composed-27] [INFO] [1794797888.512861948] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797889.012941134] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[scan_body_mask-18] [INFO] [1794797889.072814142] [scan_body_mask]: /scan_front: 스캔 146, 평균 가린 칸 237.7
+[scan_body_mask-18] [INFO] [1794797889.073553269] [scan_body_mask]: /scan_rear: 스캔 146, 평균 가린 칸 113.1
+[nav2_composed-27] [INFO] [1794797889.512933780] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797890.012941913] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797890.021803017] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 18: 
+[amcl-22] [INFO] [1794797890.395769253] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797889.969 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797890.512925011] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_monitor-23] [INFO] [1794797890.637131705] [loc_monitor]: {"t": 1794797890.637, "event": "report", "state": "RECOVERING", "n_check": 0, "n_skip": 100, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[nav2_composed-27] [INFO] [1794797891.012927149] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797891.512917788] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797892.012934091] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[mission_planner_node-24] [INFO] [1794797892.327991305] [mission_planner_node]: ready (mode hybrid, stop_after none, avoid_slots [], row_rule free, pucks /home/cart11/Lv2_Cartlidar_Assignment/mission_log/pucks_survey.yaml, log /home/cart11/Lv2_Cartlidar_Assignment/mission_log/planner)
+[nav2_composed-27] [INFO] [1794797892.512934032] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797892.896946927] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797892.473 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[component_container_mt-8] [INFO] [1794797892.959668274] [mission_node]: [준비 확인] NOT READY 7/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-8]     [ OK ] /mission_planner/plan (계획기): 있음
+[component_container_mt-8]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [실패] /localization/status: RECOVERING
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: 응답 기다림
+[nav2_composed-27] [INFO] [1794797893.012949012] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797893.512931405] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797894.012927526] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797894.513029623] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797895.012918722] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797895.022848050] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797895.258177970] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[amcl-22] [INFO] [1794797895.495123012] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797895.077 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797895.512931493] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797896.012928776] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[demo_start] 시도 19: 
+[nav2_composed-27] [INFO] [1794797896.512936929] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797897.012939354] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797897.512929799] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797897.995328507] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797897.580 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797898.012929204] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797898.512908663] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797899.012932826] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[scan_body_mask-18] [INFO] [1794797899.072877151] [scan_body_mask]: /scan_front: 스캔 245, 평균 가린 칸 239.0
+[scan_body_mask-18] [INFO] [1794797899.073240522] [scan_body_mask]: /scan_rear: 스캔 246, 평균 가린 칸 113.0
+[nav2_composed-27] [INFO] [1794797899.512933842] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797900.012926058] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797900.023941530] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[nav2_composed-27] [INFO] [1794797900.512959768] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797900.515157467] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797900.085 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[loc_monitor-23] [INFO] [1794797900.637228165] [loc_monitor]: {"t": 1794797900.637, "event": "report", "state": "RECOVERING", "n_check": 0, "n_skip": 100, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[nav2_composed-27] [INFO] [1794797901.012925029] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797901.512914919] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797902.012919594] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797902.512936482] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797903.012941531] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797903.114662930] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797902.686 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797903.512932872] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797904.012974262] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797904.512940856] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_scan_merge-21] [INFO] [1794797904.614207168] [scan_merge]: 합친 스캔 300 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 300)
+[nav2_composed-27] [INFO] [1794797905.012936539] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797905.024888230] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797905.260943595] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[nav2_composed-27] [INFO] [1794797905.512925555] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797905.615700806] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797905.187 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[demo_start] 시도 20: 
+[nav2_composed-27] [INFO] [1794797906.012929420] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797906.512932474] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797907.012940232] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797907.512947948] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797908.012942607] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797908.215226149] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797907.788 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797908.512941801] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797909.012954978] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[scan_body_mask-18] [INFO] [1794797909.072856377] [scan_body_mask]: /scan_front: 스캔 345, 평균 가린 칸 239.2
+[scan_body_mask-18] [INFO] [1794797909.073147554] [scan_body_mask]: /scan_rear: 스캔 347, 평균 가린 칸 112.9
+[nav2_composed-27] [INFO] [1794797909.512931185] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797910.012926079] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797910.025831142] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[nav2_composed-27] [INFO] [1794797910.512924068] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_monitor-23] [INFO] [1794797910.637149910] [loc_monitor]: {"t": 1794797910.637, "event": "report", "state": "RECOVERING", "n_check": 0, "n_skip": 100, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[amcl-22] [INFO] [1794797910.715704992] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797910.290 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797911.012923304] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797911.512927395] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797912.012923229] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797912.512931758] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[demo_start] 시도 21: 
+[nav2_composed-27] [INFO] [1794797913.012931390] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797913.315235917] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797912.890 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797913.512935908] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797914.012929898] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797914.512917541] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797915.012922017] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797915.027890341] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797915.308303636] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[nav2_composed-27] [INFO] [1794797915.512936947] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797915.914830613] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797915.491 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797916.012924709] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797916.512924077] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797917.012938837] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797917.512931986] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797918.012926640] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797918.414989790] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797917.993 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797918.512930116] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797919.012931351] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[scan_body_mask-18] [INFO] [1794797919.074319407] [scan_body_mask]: /scan_front: 스캔 445, 평균 가린 칸 239.3
+[scan_body_mask-18] [INFO] [1794797919.074536534] [scan_body_mask]: /scan_rear: 스캔 447, 평균 가린 칸 112.9
+[demo_start] 시도 22: 
+[nav2_composed-27] [INFO] [1794797919.512949730] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797920.012947692] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797920.028848394] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[nav2_composed-27] [INFO] [1794797920.512921643] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_monitor-23] [INFO] [1794797920.637195237] [loc_monitor]: {"t": 1794797920.637, "event": "report", "state": "RECOVERING", "n_check": 0, "n_skip": 99, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[nav2_composed-27] [INFO] [1794797921.012946827] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797921.015638684] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797920.594 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797921.512938113] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797922.012945848] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797922.512923587] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797923.012956401] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797923.512930130] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797923.617191660] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797923.197 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797924.012925237] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797924.512925421] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797925.012929638] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797925.030003686] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797925.358638979] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[nav2_composed-27] [INFO] [1794797925.512931254] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797926.012932709] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797926.117524322] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797925.698 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797926.512932874] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[demo_start] 시도 23: 
+[nav2_composed-27] [INFO] [1794797927.012926959] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797927.512932427] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797928.012944487] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797928.512933753] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797928.715015993] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797928.299 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797929.012936523] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[scan_body_mask-18] [INFO] [1794797929.072785001] [scan_body_mask]: /scan_front: 스캔 545, 평균 가린 칸 239.3
+[scan_body_mask-18] [INFO] [1794797929.072961903] [scan_body_mask]: /scan_rear: 스캔 548, 평균 가린 칸 113.0
+[nav2_composed-27] [INFO] [1794797929.512933780] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797930.012953949] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797930.030988664] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[nav2_composed-27] [INFO] [1794797930.512985469] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_monitor-23] [INFO] [1794797930.637180125] [loc_monitor]: {"t": 1794797930.637, "event": "report", "state": "RECOVERING", "n_check": 0, "n_skip": 97, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[nav2_composed-27] [INFO] [1794797931.012946747] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797931.215445948] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797930.799 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797931.512928465] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797932.012994376] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797932.512937939] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797933.012956896] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797933.517444232] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797933.823769018] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797933.400 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[demo_start] 시도 24: 
+[nav2_composed-27] [INFO] [1794797934.012934373] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797934.512943678] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_scan_merge-21] [INFO] [1794797934.614303820] [scan_merge]: 합친 스캔 600 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 600)
+[nav2_composed-27] [INFO] [1794797935.015023926] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797935.031859147] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797935.408295898] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[nav2_composed-27] [INFO] [1794797935.515055271] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797936.012936024] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797936.414368008] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797936.000 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797936.512935295] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797937.012935974] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797937.512929955] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797938.012924960] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[ros2_control_node-1] [WARN] [1794797938.369449930] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 16.060548 ms (missed cycles : 2).
+[nav2_composed-27] [INFO] [1794797938.515074581] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797938.914592445] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797938.500 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797939.012945290] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[scan_body_mask-18] [INFO] [1794797939.072829693] [scan_body_mask]: /scan_front: 스캔 645, 평균 가린 칸 239.3
+[scan_body_mask-18] [INFO] [1794797939.073093765] [scan_body_mask]: /scan_rear: 스캔 648, 평균 가린 칸 113.1
+[nav2_composed-27] [INFO] [1794797939.512918868] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[demo_start] 시도 25: 
+[nav2_composed-27] [INFO] [1794797940.012931456] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797940.032849903] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[nav2_composed-27] [INFO] [1794797940.512925058] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_monitor-23] [INFO] [1794797940.637327921] [loc_monitor]: {"t": 1794797940.637, "event": "report", "state": "RECOVERING", "n_check": 0, "n_skip": 99, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[nav2_composed-27] [INFO] [1794797941.012946820] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797941.414808956] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797940.996 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797941.512933437] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797942.012926806] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797942.512927366] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797943.012933270] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797943.512891099] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797944.012939011] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797944.015915772] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797943.593 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797944.512906080] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797945.012933407] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[component_container_mt-8] [WARN] [1794797945.033995599] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797945.408459934] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[nav2_composed-27] [INFO] [1794797945.512924436] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[loc_monitor-23] [INFO] [1794797945.952049662] [loc_monitor]: {"t": 1794797945.952, "event": "state", "state": "FAILED", "old": "RECOVERING", "new": "FAILED", "recover_s": 60.11}
+[component_container_mt-8] [INFO] [1794797945.965340008] [mission_node]: [준비 확인] NOT READY 7/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-8]     [ OK ] /mission_planner/plan (계획기): 있음
+[component_container_mt-8]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [실패] /localization/status: FAILED
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: 응답 기다림
+[nav2_composed-27] [INFO] [1794797946.012943305] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[demo_start] 시도 26: 
+[nav2_composed-27] [INFO] [1794797946.512931285] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[amcl-22] [INFO] [1794797946.617269828] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797946.192 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[nav2_composed-27] [INFO] [1794797947.012923520] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797947.512936228] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797948.012925478] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [INFO] [1794797948.512938081] [local_costmap.local_costmap]: Timed out waiting for transform from base_link to odom to become available, tf error: Invalid frame ID "odom" passed to canTransform argument target_frame - frame does not exist
+[nav2_composed-27] [ERROR] [1794797948.513294252] [local_costmap.local_costmap]: Failed to activate local_costmap because transform from base_link to odom did not become available before timeout
+[nav2_composed-27] [ERROR] [1794797948.517049787] [lifecycle_manager_navigation]: Failed to change state for node: controller_server
+[nav2_composed-27] [ERROR] [1794797948.517291682] [lifecycle_manager_navigation]: Failed to bring up all requested nodes. Aborting bringup.
+[component_container_mt-8] [INFO] [1794797948.960061216] [mission_node]: [준비 확인] NOT READY 7/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-8]     [ OK ] /mission_planner/plan (계획기): 있음
+[component_container_mt-8]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [실패] /localization/status: FAILED
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [실패] lifecycle_manager_navigation: 활성 아님 (lifecycle 미완, #276)
+[scan_body_mask-18] [INFO] [1794797949.072867621] [scan_body_mask]: /scan_front: 스캔 745, 평균 가린 칸 239.1
+[scan_body_mask-18] [INFO] [1794797949.073163214] [scan_body_mask]: /scan_rear: 스캔 748, 평균 가린 칸 113.1
+[amcl-22] [INFO] [1794797949.215173713] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797948.791 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[component_container_mt-8] [WARN] [1794797950.035058667] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[loc_monitor-23] [INFO] [1794797950.637153433] [loc_monitor]: {"t": 1794797950.637, "event": "report", "state": "FAILED", "n_check": 0, "n_skip": 102, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[amcl-22] [INFO] [1794797951.718773448] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797951.292 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[amcl-22] [INFO] [1794797954.319633570] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797953.887 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[demo_start] 시도 27: 
+[component_container_mt-8] [WARN] [1794797955.036625342] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797955.458244600] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[amcl-22] [INFO] [1794797956.915038664] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797956.486 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[scan_body_mask-18] [INFO] [1794797959.072829957] [scan_body_mask]: /scan_front: 스캔 845, 평균 가린 칸 239.0
+[scan_body_mask-18] [INFO] [1794797959.073124558] [scan_body_mask]: /scan_rear: 스캔 848, 평균 가린 칸 113.1
+[amcl-22] [INFO] [1794797959.416389102] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797958.985 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[component_container_mt-8] [WARN] [1794797960.038447497] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[demo_start] 시도 28: 
+[loc_monitor-23] [INFO] [1794797960.637187598] [loc_monitor]: {"t": 1794797960.637, "event": "report", "state": "FAILED", "n_check": 0, "n_skip": 99, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[amcl-22] [INFO] [1794797962.015333692] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797961.584 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[loc_scan_merge-21] [INFO] [1794797964.594300875] [scan_merge]: 합친 스캔 900 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 900)
+[amcl-22] [INFO] [1794797964.594636917] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797964.182 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[component_container_mt-8] [WARN] [1794797965.041434031] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[component_container_mt-8] [WARN] [1794797965.508242957] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[amcl-22] [INFO] [1794797967.095265062] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797966.682 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[demo_start] 시도 29: 
+[scan_body_mask-18] [INFO] [1794797969.072876390] [scan_body_mask]: /scan_front: 스캔 945, 평균 가린 칸 238.9
+[scan_body_mask-18] [INFO] [1794797969.073141006] [scan_body_mask]: /scan_rear: 스캔 949, 평균 가린 칸 113.2
+[amcl-22] [INFO] [1794797969.595436257] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797969.181 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[component_container_mt-8] [WARN] [1794797970.044211408] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도
+[loc_monitor-23] [INFO] [1794797970.637216458] [loc_monitor]: {"t": 1794797970.637, "event": "report", "state": "FAILED", "n_check": 0, "n_skip": 100, "res_p50": null, "res_p95": null, "res_max": null, "traj": 1}
+[amcl-22] [INFO] [1794797972.194868646] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797971.779 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[ros2_control_node-1] [WARN] [1794797972.265605492] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.217102 ms (missed cycles : 2).
+[demo_start] 시도 30: 
+[amcl-22] [INFO] [1794797974.694907791] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794797974.278 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[component_container_mt-8] [WARN] [1794797975.048403619] [tfmini_node]: /dev/tfmini 열기 실패 — 1 s 뒤 다시 시도

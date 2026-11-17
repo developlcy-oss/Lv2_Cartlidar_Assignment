@@ -1,0 +1,32 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>L2",
+  "points": [
+   0,
+   1
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": ""
+   }
+  ]
+ },
+ {
+  "seg": "S1",
+  "name": "L2>L1",
+  "points": [
+   1,
+   2
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": ""
+   }
+  ]
+ }
+]

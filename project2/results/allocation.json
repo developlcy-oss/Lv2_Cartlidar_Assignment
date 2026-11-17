@@ -1,0 +1,178 @@
+{
+ "source": "실물 경기 2026-11-16",
+ "status": "미계산 (실물)",
+ "reason": "실물 미션이 observe 단계에서 FAILED 해 신호 · 바코드가 확정되지 않았으므로 계획기가 실물 입력으로 그룹 · 할당을 만들지 않음. 실물 planner/allocation.json 없음.",
+ "evidence": [
+  "project2/results/real_20261116/mission_log/261116_1236/mission_log.jsonl",
+  "project2/results/real_20261116/mission_log/261116_1236_2/mission_log.jsonl",
+  "project2/results/real_20261116/launch_logs/demo_261116_123545.log"
+ ],
+ "sim_reference": "results/sim_plan_q1/allocation.json",
+ "sim_reference_note": "모의 (mock) 결과: mission_planner 의 mission_plan 에 config/problem_q1_example.yaml (발제 05 쪽 공개 연습 문제 Q1, 신호 RGRRGRGGYGYG · 바코드 P2-01 오름차순) 을 넣어 만든 것. 퍽 색 · 모양 · 자리는 project2/problem/placement.csv 의 설명용 값.",
+ "sim_reference_content": {
+  "groups": {
+   "L1": {
+    "group": "Y",
+    "count": 2
+   },
+   "L2": {
+    "group": "R",
+    "count": 4
+   },
+   "L3": {
+    "group": "G",
+    "count": 6
+   }
+  },
+  "allocation": {
+   "L1": {
+    "group": "Y",
+    "ids": [
+     4,
+     8
+    ],
+    "y_shape": "cylinder",
+    "colors": [
+     "red",
+     "red"
+    ],
+    "shapes": [
+     "cylinder",
+     "cylinder"
+    ]
+   },
+   "L2": {
+    "group": "R",
+    "ids": [
+     0,
+     2,
+     6,
+     10
+    ],
+    "y_shape": null,
+    "colors": [
+     "red",
+     "red",
+     "red",
+     "red"
+    ],
+    "shapes": [
+     "cylinder",
+     "box",
+     "box",
+     "box"
+    ]
+   },
+   "L3": {
+    "group": "G",
+    "ids": [
+     1,
+     3,
+     5,
+     7,
+     9,
+     11
+    ],
+    "y_shape": null,
+    "colors": [
+     "green",
+     "green",
+     "green",
+     "green",
+     "green",
+     "green"
+    ],
+    "shapes": [
+     "box",
+     "cylinder",
+     "cylinder",
+     "box",
+     "cylinder",
+     "box"
+    ]
+   }
+  }
+ },
+ "sim_reference_check": {
+  "checked_against": "project2/problem/placement.csv",
+  "ids_expected": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11
+  ],
+  "ids_assigned": [
+   0,
+   1,
+   2,
+   3,
+   4,
+   5,
+   6,
+   7,
+   8,
+   9,
+   10,
+   11
+  ],
+  "duplicates": [],
+  "missing": [],
+  "unknown_ids": [],
+  "each_id_exactly_once": true,
+  "per_place": [
+   {
+    "place": "L1",
+    "group": "Y",
+    "ids": [
+     4,
+     8
+    ],
+    "count_ok": true,
+    "rule": "Y = 모양 하나",
+    "rule_ok": true,
+    "colors_shapes_match_placement_csv": true
+   },
+   {
+    "place": "L2",
+    "group": "R",
+    "ids": [
+     0,
+     2,
+     6,
+     10
+    ],
+    "count_ok": true,
+    "rule": "R = 빨강만",
+    "rule_ok": true,
+    "colors_shapes_match_placement_csv": true
+   },
+   {
+    "place": "L3",
+    "group": "G",
+    "ids": [
+     1,
+     3,
+     5,
+     7,
+     9,
+     11
+    ],
+    "count_ok": true,
+    "rule": "G = 초록만",
+    "rule_ok": true,
+    "colors_shapes_match_placement_csv": true
+   }
+  ],
+  "all_rules_ok": true,
+  "verdict": "통과 (모의)"
+ },
+ "official_rounds_note": "공식 1 · 2 회차 (11-16 12:15 · 12:25, 시간 순서 팀장 결정) 는 drive_demo 주행만 돌려 신호 · 바코드 관측과 할당 계산이 없었다 (official_scoring.md). 이 reason 은 그 뒤 12:36 전체 미션 시도 기록이다."
+}

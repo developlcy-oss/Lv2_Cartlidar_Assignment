@@ -1,0 +1,32 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>L2",
+  "points": [
+   0,
+   1
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": ""
+   }
+  ]
+ },
+ {
+  "seg": "S1",
+  "name": "L2>L1",
+  "points": [
+   1,
+   2
+  ],
+  "ok": false,
+  "tries": [
+   {
+    "status": "skip",
+    "msg": "다시 계획 1: 규칙 v2 로 길 없음 (띠 0.7: 못 찾음, 띠 None: 못 찾음, 펼침 상한 100000) · 256.8 s"
+   }
+  ]
+ }
+]

@@ -1,0 +1,228 @@
+규칙 v2 시연 (real · slow: 전진 0.20 · 후진 0.10 m/s · 제자리 0.4 rad/s) · 기록 /home/cart11/demo_v2/runs/1115_2113_실물_slow
+[INFO] [1794744824.421403953] [behavior_server]: 
+	behavior_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794744824.694946229] [lifecycle_manager_demo]: Creating
+[INFO] [1794744824.696550078] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[INFO] [1794744824.699611627] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[INFO] [1794744824.785820537] [controller_server]: 
+	controller_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794744824.822013552] [controller_server]: Creating controller server
+[INFO] [1794744825.103945480] [v2_filter]: 규칙 v2 필터: cmd_vel_raw → cmd_vel_nav · 전진 ≤ 0.2 · 후진 ≤ 0.1 m/s · 제자리 ≤ 0.4 rad/s · 벨트 1.5 · 꺾는 중 모터 ≤ 3.0 · 제자리 예산 = 실제 /odometry/filtered · 이어진 후진 ≤ 0.5 m
+[INFO] [1794744825.104108172] [local_costmap.local_costmap]: 
+	local_costmap lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794744825.107287805] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [1794744825.430914455] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[INFO] [1794744825.499185853] [lifecycle_manager_demo]: [34m[1mStarting managed nodes bringup...[0m[0m
+[INFO] [1794744825.499329856] [lifecycle_manager_demo]: [34m[1mConfiguring controller_server[0m[0m
+[INFO] [1794744825.503018110] [controller_server]: Configuring controller interface
+[INFO] [1794744825.503155266] [local_costmap.local_costmap]: Configuring
+[INFO] [1794744825.531363342] [local_costmap.local_costmap]: Using plugin "static_layer"
+[INFO] [1794744825.542361477] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[INFO] [1794744825.547800591] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[INFO] [1794744825.547909362] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[INFO] [1794744825.548263803] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[WARN] [1794744825.619559790] [local_costmap.local_costmap]: The configured inflation radius (0.100) is smaller than the computed/custom inscribed radius (0.168) of your footprint, it is highly recommended to set inflation radius to be at least as big as the inscribed radius to avoid collisions
+[INFO] [1794744825.649591080] [controller_server]: Controller frequency set to 20.0000Hz
+[INFO] [1794744825.649841711] [controller_server]: getting progress checker plugins..
+[INFO] [1794744825.650580225] [controller_server]: getting goal checker plugins..
+[INFO] [1794744825.650668356] [controller_server]: getting controller plugins..
+[INFO] [1794744825.650731589] [controller_server]: getting path handler plugins..
+[INFO] [1794744825.652168458] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[INFO] [1794744825.652229771] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[INFO] [1794744825.653707121] [controller_server]: Created goal checker : piece_checker of type nav2_controller::SimpleGoalChecker
+[INFO] [1794744825.653791059] [controller_server]: Controller Server has piece_checker  goal checkers available.
+[INFO] [1794744825.654943344] [controller_server]: Created path handler : PathHandler of type nav2_controller::FeasiblePathHandler
+[INFO] [1794744825.654988913] [controller_server]: Controller Server has PathHandler  path handlers available.
+[INFO] [1794744825.656695453] [controller_server]: Created controller : Forward of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794744825.656945219] [controller_server]: Parameter 'Forward.desired_linear_vel' is deprecated. Use 'Forward.max_linear_vel' instead.
+[INFO] [1794744825.667522928] [controller_server]: Created controller : Reverse of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794744825.667753973] [controller_server]: Parameter 'Reverse.desired_linear_vel' is deprecated. Use 'Reverse.max_linear_vel' instead.
+[INFO] [1794744825.676821052] [controller_server]: Controller Server has Forward Reverse  controllers available.
+[INFO] [1794744825.720307148] [lifecycle_manager_demo]: [34m[1mConfiguring behavior_server[0m[0m
+[INFO] [1794744825.723649825] [behavior_server]: Configuring
+[INFO] [1794744825.759099877] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[INFO] [1794744825.826226958] [behavior_server]: Configuring spin
+[INFO] [1794744825.878454300] [lifecycle_manager_demo]: [34m[1mActivating controller_server[0m[0m
+[INFO] [1794744825.881714863] [controller_server]: Activating
+[INFO] [1794744825.882659303] [local_costmap.local_costmap]: Activating
+[INFO] [1794744825.882720552] [local_costmap.local_costmap]: Checking transform
+[INFO] [1794744825.884911488] [local_costmap.local_costmap]: start
+[INFO] [1794744825.985201491] [controller_server]: Activating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794744825.985332278] [controller_server]: Activating controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794744825.986523476] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[INFO] [1794744825.997113953] [lifecycle_manager_demo]: [34m[1mActivating behavior_server[0m[0m
+[INFO] [1794744825.997741553] [behavior_server]: Activating
+[INFO] [1794744825.997831155] [behavior_server]: Activating spin
+[INFO] [1794744825.997861876] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[INFO] [1794744826.007627852] [lifecycle_manager_demo]: [34m[1mManaged nodes are active[0m[0m
+[INFO] [1794744826.430610240] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[ERROR] [1794744826.789018508] [local_costmap.local_costmap]: StaticLayer: "map" passed to lookupTransform argument target_frame does not exist. 
+[ERROR] [1794744827.094167119] [local_costmap.local_costmap]: StaticLayer: "map" passed to lookupTransform argument target_frame does not exist. 
+[ERROR] [1794744827.400353068] [local_costmap.local_costmap]: StaticLayer: "map" passed to lookupTransform argument target_frame does not exist. 
+[ERROR] [1794744827.707568803] [local_costmap.local_costmap]: StaticLayer: "map" passed to lookupTransform argument target_frame does not exist. 
+[ERROR] [1794744828.017534912] [local_costmap.local_costmap]: StaticLayer: "map" passed to lookupTransform argument target_frame does not exist. 
+[ERROR] [1794744828.319905882] [local_costmap.local_costmap]: StaticLayer: "map" passed to lookupTransform argument target_frame does not exist. 
+  ✓ map_server active
+  ✓ controller_server active
+  ✓ behavior_server active
+[INFO] [1794744848.579582195] [controller_server]: Received a goal, begin computing control effort.
+[WARN] [1794744848.579758103] [controller_server]: No path handler was specified in parameter 'current_path_handler'. Server will use only plugin loaded PathHandler . This warning will appear once.
+[INFO] [1794744880.130042022] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744880.130222059] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744880.145303367] [behavior_server]: Running spin
+[INFO] [1794744880.145727602] [behavior_server]: Turning 0.46 for spin behavior.
+[INFO] [1794744881.746233197] [behavior_server]: spin completed successfully
+[INFO] [1794744881.757748815] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794744882.158087537] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744882.158236181] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744882.180327074] [behavior_server]: Running spin
+[INFO] [1794744882.180536743] [behavior_server]: Turning -0.08 for spin behavior.
+[INFO] [1794744882.581034765] [behavior_server]: spin completed successfully
+[INFO] [1794744886.119147685] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794744889.769450263] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744889.769600027] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744889.780318697] [behavior_server]: Running spin
+[INFO] [1794744889.780532046] [behavior_server]: Turning -1.05 for spin behavior.
+[INFO] [1794744893.230975889] [behavior_server]: spin completed successfully
+[INFO] [1794744893.239724557] [behavior_server]: Running spin
+[INFO] [1794744893.239877713] [behavior_server]: Turning -0.25 for spin behavior.
+[INFO] [1794744894.140308515] [behavior_server]: spin completed successfully
+[INFO] [1794744894.161243537] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794744922.461802376] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744922.461984236] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744922.479379744] [behavior_server]: Running spin
+[INFO] [1794744922.479599462] [behavior_server]: Turning -0.10 for spin behavior.
+[INFO] [1794744923.030068418] [behavior_server]: spin completed successfully
+[INFO] [1794744928.286957679] [behavior_server]: Running spin
+[INFO] [1794744928.287150004] [behavior_server]: Turning 0.52 for spin behavior.
+[INFO] [1794744930.187580095] [behavior_server]: spin completed successfully
+[INFO] [1794744930.200221500] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794744934.450627548] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744934.450811681] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744934.463887624] [behavior_server]: Running spin
+[INFO] [1794744934.464301906] [behavior_server]: Turning 0.16 for spin behavior.
+[INFO] [1794744935.064774588] [behavior_server]: spin completed successfully
+[INFO] [1794744935.085062392] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794744985.185440119] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744985.185617851] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744985.208411666] [behavior_server]: Running spin
+[INFO] [1794744985.208585494] [behavior_server]: Turning -0.24 for spin behavior.
+[INFO] [1794744986.109015717] [behavior_server]: spin completed successfully
+[INFO] [1794744986.120816522] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794744986.171461365] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744986.171607576] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744986.183543361] [behavior_server]: Running spin
+[INFO] [1794744986.183741030] [behavior_server]: Turning 0.10 for spin behavior.
+[INFO] [1794744986.784224755] [behavior_server]: spin completed successfully
+[INFO] [1794744989.872307671] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794744994.522576908] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794744994.522729679] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794744994.550595075] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745006.450948443] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745006.451114975] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745006.458598201] [behavior_server]: Running spin
+[INFO] [1794745006.458774173] [behavior_server]: Turning 0.20 for spin behavior.
+[INFO] [1794745007.309195711] [behavior_server]: spin completed successfully
+[INFO] [1794745007.329319314] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745008.079597470] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745008.079741665] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745008.099249573] [behavior_server]: Running spin
+[INFO] [1794745008.099436458] [behavior_server]: Turning -0.14 for spin behavior.
+[INFO] [1794745008.850237953] [behavior_server]: spin completed successfully
+[INFO] [1794745012.597966148] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745017.248260823] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745017.248407898] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745017.268289287] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745041.018567918] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745041.018769715] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745041.024835177] [behavior_server]: Running spin
+[INFO] [1794745041.025026189] [behavior_server]: Turning -0.19 for spin behavior.
+[INFO] [1794745041.875450529] [behavior_server]: spin completed successfully
+[INFO] [1794745047.459028981] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745051.159341355] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745051.159488783] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745051.170650370] [behavior_server]: Running spin
+[INFO] [1794745051.170902760] [behavior_server]: Turning -0.26 for spin behavior.
+[INFO] [1794745052.121393644] [behavior_server]: spin completed successfully
+[INFO] [1794745052.136403262] [behavior_server]: Running spin
+[INFO] [1794745052.136614947] [behavior_server]: Turning -0.15 for spin behavior.
+[INFO] [1794745052.687074292] [behavior_server]: spin completed successfully
+[INFO] [1794745052.706049608] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745070.756383015] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745070.756569004] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745070.777017571] [behavior_server]: Running spin
+[INFO] [1794745070.777205928] [behavior_server]: Turning -0.23 for spin behavior.
+[INFO] [1794745071.627632765] [behavior_server]: spin completed successfully
+[INFO] [1794745071.639294748] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745071.739580002] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745071.739735238] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745071.759297000] [behavior_server]: Running spin
+[INFO] [1794745071.759550414] [behavior_server]: Turning -0.08 for spin behavior.
+[INFO] [1794745072.160039863] [behavior_server]: spin completed successfully
+[INFO] [1794745075.863873603] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745079.714170051] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745079.714331847] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745079.736295780] [behavior_server]: Running spin
+[INFO] [1794745079.736473704] [behavior_server]: Turning -0.18 for spin behavior.
+[INFO] [1794745080.387062196] [behavior_server]: spin completed successfully
+[INFO] [1794745080.408370465] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794745103.608676664] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794745103.608889853] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794745109.119230227] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794745109.119274612] [rclcpp]: signal_handler(signum=2)
+[ros2run]: Received signal:  Interrupt
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794745109.119419543] [behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[INFO] [1794745109.119419799] [controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794745109.119560795] [controller_server]: Deactivating
+[INFO] [1794745109.119532922] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794745109.119574971] [behavior_server]: Deactivating
+[INFO] [1794745109.119608156] [controller_server]: Deactivating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794745109.119637629] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794745109.119655005] [controller_server]: Deactivating controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794745109.119706270] [local_costmap.local_costmap]: Deactivating
+[INFO] [1794745109.119730559] [lifecycle_manager_demo]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_demo)
+[INFO] [1794745109.120945085] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794745109.130389573] [behavior_server]: Cleaning up
+[INFO] [1794745109.132559546] [controller_server]: Cleaning up
+[INFO] [1794745109.132662716] [controller_server]: Cleaning up controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794745109.132715742] [controller_server]: Cleaning up controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794745109.132909283] [local_costmap.local_costmap]: Cleaning up
+[INFO] [1794745109.142438732] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794745109.145285586] [lifecycle_manager_demo]: Destroying lifecycle_manager_demo
+[INFO] [1794745109.168317064] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794745109.175841440] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794745109.204072821] [behavior_server]: Destroying
+[WARN] [1794745109.204264538] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794745109.308277299] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794745109.324028949] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794745109.333028114] [local_costmap.local_costmap]: Destroying
+[WARN] [1794745109.333122293] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794745109.354330717] [controller_server]: Destroying
+[WARN] [1794745109.354413663] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+Traceback (most recent call last):
+  File "/home/cart11/demo_v2/v2_filter.py", line 136, in <module>
+    main()
+  File "/home/cart11/demo_v2/v2_filter.py", line 129, in main
+    rclpy.spin(n)
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/__init__.py", line 324, in spin
+    executor.spin_once()
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 1020, in spin_once
+    self._spin_once_impl(timeout_sec)
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 1000, in _spin_once_impl
+    handler, entity, node = self.wait_for_ready_callbacks(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 970, in wait_for_ready_callbacks
+    return next(self._cb_iter)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 848, in _wait_for_ready_callbacks
+    wait_set = _rclpy.WaitSet(
+               ^^^^^^^^^^^^^^^
+rclpy._rclpy_pybind11.RCLError: failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:110

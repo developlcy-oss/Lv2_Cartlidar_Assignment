@@ -1,0 +1,119 @@
+규칙 v2 시연 (real · max: 전진 0.45 · 후진 0.15 m/s · 제자리 0.5 rad/s) · 기록 /home/cart11/demo_v2/runs/1116_1204_실물_max_벨트2.0_모터3.0
+[INFO] [1794798273.808720236] [controller_server]: 
+	controller_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794798273.837000276] [controller_server]: Creating controller server
+[INFO] [1794798273.890178219] [local_costmap.local_costmap]: 
+	local_costmap lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794798273.891478509] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [1794798274.090720805] [lifecycle_manager_demo]: Creating
+[INFO] [1794798274.097598906] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[INFO] [1794798274.101626916] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[INFO] [1794798274.191377340] [behavior_server]: 
+	behavior_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794798274.541250413] [v2_filter]: 규칙 v2 필터: cmd_vel_raw → cmd_vel_nav · 전진 ≤ 0.45 · 후진 ≤ 0.15 m/s · 제자리 ≤ 0.5 rad/s · 벨트 2.0 · 꺾는 중 모터 ≤ 3.0 · 제자리 예산 = 실제 /odometry/filtered · 이어진 후진 ≤ 0.5 m
+[INFO] [1794798274.905425718] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[INFO] [1794798274.945916479] [lifecycle_manager_demo]: [34m[1mStarting managed nodes bringup...[0m[0m
+[INFO] [1794798274.946144997] [lifecycle_manager_demo]: [34m[1mConfiguring controller_server[0m[0m
+[INFO] [1794798274.949343993] [controller_server]: Configuring controller interface
+[INFO] [1794798274.949574623] [local_costmap.local_costmap]: Configuring
+[INFO] [1794798274.975035965] [local_costmap.local_costmap]: Using plugin "static_layer"
+[INFO] [1794798274.989891299] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[INFO] [1794798274.996909948] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[INFO] [1794798274.997080864] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[INFO] [1794798274.997567885] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[WARN] [1794798275.185108240] [local_costmap.local_costmap]: The configured inflation radius (0.100) is smaller than the computed/custom inscribed radius (0.168) of your footprint, it is highly recommended to set inflation radius to be at least as big as the inscribed radius to avoid collisions
+[INFO] [1794798275.268492033] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[INFO] [1794798275.273515685] [controller_server]: Controller frequency set to 20.0000Hz
+[INFO] [1794798275.279417344] [controller_server]: getting progress checker plugins..
+[INFO] [1794798275.279767465] [controller_server]: getting goal checker plugins..
+[INFO] [1794798275.279900781] [controller_server]: getting controller plugins..
+[INFO] [1794798275.279990543] [controller_server]: getting path handler plugins..
+[INFO] [1794798275.286216563] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[INFO] [1794798275.286854851] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[INFO] [1794798275.291191445] [controller_server]: Created goal checker : piece_checker of type nav2_controller::SimpleGoalChecker
+[INFO] [1794798275.292930595] [controller_server]: Controller Server has piece_checker  goal checkers available.
+[INFO] [1794798275.298188109] [controller_server]: Created path handler : PathHandler of type nav2_controller::FeasiblePathHandler
+[INFO] [1794798275.298371538] [controller_server]: Controller Server has PathHandler  path handlers available.
+[INFO] [1794798275.308452443] [controller_server]: Created controller : Forward of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794798275.310568755] [controller_server]: Parameter 'Forward.desired_linear_vel' is deprecated. Use 'Forward.max_linear_vel' instead.
+[INFO] [1794798275.360292366] [controller_server]: Created controller : Reverse of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794798275.365501271] [controller_server]: Parameter 'Reverse.desired_linear_vel' is deprecated. Use 'Reverse.max_linear_vel' instead.
+[INFO] [1794798275.409709666] [controller_server]: Controller Server has Forward Reverse  controllers available.
+[INFO] [1794798275.574216743] [lifecycle_manager_demo]: [34m[1mConfiguring behavior_server[0m[0m
+[INFO] [1794798275.575998934] [behavior_server]: Configuring
+[INFO] [1794798275.599098933] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[WARN] [1794798275.626499398] [nav2::interfaces]: [10] Message was dropped on topic [/odometry/filtered] due to queue size or network constraints.
+[INFO] [1794798275.635563796] [behavior_server]: Configuring spin
+[INFO] [1794798275.764908253] [lifecycle_manager_demo]: [34m[1mActivating controller_server[0m[0m
+[INFO] [1794798275.767281563] [controller_server]: Activating
+[INFO] [1794798275.768623679] [local_costmap.local_costmap]: Activating
+[INFO] [1794798275.768858661] [local_costmap.local_costmap]: Checking transform
+[INFO] [1794798275.769190701] [local_costmap.local_costmap]: start
+[INFO] [1794798275.919658402] [controller_server]: Activating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798275.920010123] [controller_server]: Activating controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798275.921113704] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[INFO] [1794798275.936377881] [lifecycle_manager_demo]: [34m[1mActivating behavior_server[0m[0m
+[INFO] [1794798275.936928680] [behavior_server]: Activating
+[INFO] [1794798275.937074892] [behavior_server]: Activating spin
+[INFO] [1794798275.937156206] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[INFO] [1794798275.956081727] [lifecycle_manager_demo]: [34m[1mManaged nodes are active[0m[0m
+  ✓ map_server active
+  ✓ controller_server active
+  ✓ behavior_server active
+[INFO] [1794798430.353447304] [rclcpp]: signal_handler(signum=2)
+[ros2run]: Received signal:  Interrupt
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794798430.353699887] [controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[INFO] [1794798430.353765553] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794798430.353910708] [behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[INFO] [1794798430.353966198] [controller_server]: Deactivating
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794798430.354042040] [controller_server]: Deactivating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798430.354100313] [behavior_server]: Deactivating
+[INFO] [1794798430.354133754] [controller_server]: Deactivating controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798430.354167611] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794798430.354219644] [local_costmap.local_costmap]: Deactivating
+[INFO] [1794798430.354372832] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794798430.354497891] [lifecycle_manager_demo]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_demo)
+[INFO] [1794798430.366984453] [behavior_server]: Cleaning up
+[INFO] [1794798430.373373001] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794798430.386267509] [controller_server]: Cleaning up
+[INFO] [1794798430.393002466] [controller_server]: Cleaning up controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798430.399929364] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794798430.400270493] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794798430.400665479] [lifecycle_manager_demo]: Destroying lifecycle_manager_demo
+[INFO] [1794798430.422171600] [controller_server]: Cleaning up controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798430.427169681] [local_costmap.local_costmap]: Cleaning up
+[INFO] [1794798430.449488943] [behavior_server]: Destroying
+[WARN] [1794798430.449586513] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794798430.613054494] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794798430.636281875] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794798430.644800654] [local_costmap.local_costmap]: Destroying
+[WARN] [1794798430.644896721] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+Traceback (most recent call last):
+  File "/home/cart11/demo_v2/v2_filter.py", line 138, in <module>
+    main()
+  File "/home/cart11/demo_v2/v2_filter.py", line 131, in main
+    rclpy.spin(n)
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/__init__.py", line 324, in spin
+    executor.spin_once()
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 1020, in spin_once
+    self._spin_once_impl(timeout_sec)
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 1000, in _spin_once_impl
+    handler, entity, node = self.wait_for_ready_callbacks(
+                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 970, in wait_for_ready_callbacks
+    return next(self._cb_iter)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/opt/ros/lyrical/lib/python3.12/site-packages/rclpy/executors.py", line 848, in _wait_for_ready_callbacks
+    wait_set = _rclpy.WaitSet(
+               ^^^^^^^^^^^^^^^
+rclpy._rclpy_pybind11.RCLError: failed to initialize wait set: the given context is not valid, either rcl_init() was not called or rcl_shutdown() was called., at ./src/rcl/wait.c:110
+[INFO] [1794798430.714092965] [controller_server]: Destroying
+[WARN] [1794798430.714179527] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor

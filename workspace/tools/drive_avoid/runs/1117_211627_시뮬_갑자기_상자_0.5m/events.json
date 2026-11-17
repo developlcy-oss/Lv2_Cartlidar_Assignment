@@ -1,0 +1,44 @@
+[
+ {
+  "t": 57.97,
+  "leg": "HOME>L2",
+  "why": "장애물 (띠 안 점 5 개)",
+  "pose": [
+   1.889,
+   3.594,
+   0.318
+  ],
+  "front_pts": [
+   [
+    2.029,
+    3.681
+   ]
+  ],
+  "guard_why": "TFmini 0.15 m",
+  "amcl_sigma_cm": 0.7,
+  "verdict": "cleared",
+  "judge_s": 0.59,
+  "stop_s": 3.23
+ },
+ {
+  "t": 73.22,
+  "leg": "L2>L1",
+  "why": "장애물 (띠 안 점 5 개)",
+  "pose": [
+   2.068,
+   2.416,
+   -1.458
+  ],
+  "front_pts": [
+   [
+    2.143,
+    1.966
+   ]
+  ],
+  "guard_why": "TFmini 0.34 m",
+  "amcl_sigma_cm": 0.7,
+  "verdict": "cleared",
+  "judge_s": 0.65,
+  "stop_s": 3.31
+ }
+]

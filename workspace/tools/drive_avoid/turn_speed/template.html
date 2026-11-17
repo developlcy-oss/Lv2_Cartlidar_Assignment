@@ -1,0 +1,321 @@
+<title>회전 속도 상한 비교</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap">
+<style>
+/* 배치: 위 = 결론 · 반경별 상한 두 그림 (속도 · 모터) · 아래 = 한 바퀴 지도 + 시간축 속도. 차분한 공학 노트 */
+:root {
+  --bg: #f4f6f5; --panel: #ffffff; --ink: #141c18; --ink-2: #4f5b55; --ink-3: #87938d; --rule: #d5ddd8; --grid: #e8eeea;
+  --wall: #3f4944; --floor: #fafbfa; --limit: #b42318; --hover: #eef2f0;
+  --s-now: #6b7570; --s-b: #2a78d6; --s-c: #eb6834; --s-a: #1baf7a;
+  --sans: "IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111614; --panel: #19201d; --ink: #e4ebe7; --ink-2: #a6b2ac; --ink-3: #6c7973; --rule: #2c3631; --grid: #232c28;
+  --wall: #a9b5af; --floor: #1c2320; --limit: #ff7b6e; --hover: #222b27;
+  --s-now: #9aa59f; --s-b: #3987e5; --s-c: #d95926; --s-a: #199e70; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #111614; --panel: #19201d; --ink: #e4ebe7; --ink-2: #a6b2ac; --ink-3: #6c7973; --rule: #2c3631; --grid: #232c28;
+  --wall: #a9b5af; --floor: #1c2320; --limit: #ff7b6e; --hover: #222b27;
+  --s-now: #9aa59f; --s-b: #3987e5; --s-c: #d95926; --s-a: #199e70; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14.5px; line-height: 1.55; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 22px 40px; display: flex; flex-direction: column; gap: 18px; }
+h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font-size: 16px; margin: 0 0 4px; text-wrap: balance; }
+.sub { color: var(--ink-2); margin: 4px 0 0; max-width: 72ch; }
+.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.pane { background: var(--panel); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; min-width: 0; }
+.cap { color: var(--ink-2); font-size: 13px; margin: 0 0 8px; max-width: 80ch; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+@media (max-width: 860px) { .grid2 { grid-template-columns: minmax(0, 1fr); } }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 13px; color: var(--ink-2); margin: 2px 0 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 18px; height: 0; border-top: 2.5px solid; display: inline-block; }
+.legend i.dash { border-top-style: dashed; }
+svg.chart { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--sans); fill: var(--ink-2); font-size: 11.5px; }
+svg .tick { fill: var(--ink-3); font-size: 11px; font-family: var(--mono); }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--rule); text-align: right; white-space: nowrap; }
+th { color: var(--ink-2); font-weight: 600; font-size: 12px; }
+th:first-child, td:first-child { text-align: left; white-space: normal; }
+td { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+td small { color: var(--ink-3); }
+td.over { color: var(--limit); font-weight: 600; }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.opt-name { font-family: var(--sans); font-weight: 600; }
+.opt-desc { display: block; font-family: var(--sans); color: var(--ink-3); font-size: 12px; font-weight: 400; }
+.finding { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 860px) { .finding { grid-template-columns: minmax(0, 1fr); } }
+.finding div { border-left: 3px solid var(--rule); padding: 2px 0 2px 12px; }
+.finding b { display: block; font-size: 13px; color: var(--ink-2); font-weight: 600; }
+.finding p { margin: 2px 0 0; }
+.btns { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.btns button { border: 0; background: var(--panel); color: var(--ink-2); padding: 5px 12px; cursor: pointer; font: inherit; font-size: 13px; }
+.btns button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+.btns button:focus-visible { outline: 2px solid var(--s-b); outline-offset: -2px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; }
+.mapgrid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.4fr); gap: 18px; align-items: start; }
+@media (max-width: 860px) { .mapgrid { grid-template-columns: minmax(0, 1fr); } }
+.ramp { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink-2); }
+.ramp i { width: 110px; height: 8px; border-radius: 4px; display: inline-block; }
+.tip { position: fixed; pointer-events: none; background: var(--panel); color: var(--ink); border: 1px solid var(--rule); border-radius: 6px; padding: 6px 9px; font-size: 12.5px; box-shadow: 0 4px 14px rgba(0,0,0,.12); z-index: 20; }
+.tip .num { font-size: 12px; }
+.notes { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 13px; display: flex; flex-direction: column; gap: 3px; max-width: 90ch; }
+.dist { display: flex; flex-direction: column; gap: 6px; }
+.dist .br { display: grid; grid-template-columns: 9.5em minmax(0, 1fr) 4.5em; gap: 8px; align-items: center; font-size: 13px; }
+.dist .bar { height: 12px; border-radius: 0 4px 4px 0; background: var(--ink-3); }
+.dist .v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>회전 속도 상한 비교</h1>
+    <p class="sub">직진은 모터 7 rad/s (0.47 m/s) 로 두고, 꺾을 때 가장 빠른 모터 상한을 반경에 따라 어떻게 줄일지 네 가지를 비교합니다.
+      아래 "한 바퀴" 는 어제 경기 순서 (출발 → 상자 6 → L3 → L2 → L1 → 출발) 의 길 모음 경로에 각 상한을 입혀 계산한 값입니다.</p>
+  </header>
+
+  <section class="pane">
+    <h2>요약</h2>
+    <div class="finding" id="finding"></div>
+  </section>
+
+  <section class="grid2">
+    <div class="pane">
+      <h2>반경별 최고 속도</h2>
+      <p class="cap">가로 = 꺾는 반경 (오른쪽 끝 = 직선), 세로 = 낼 수 있는 가장 빠른 전진 속도. 선 위에 마우스를 올리면 그 반경의 값을 봅니다.</p>
+      <div class="legend" id="lg1"></div>
+      <svg class="chart" id="c-speed" viewBox="0 0 560 300" role="img" aria-label="반경별 최고 속도 비교"></svg>
+    </div>
+    <div class="pane">
+      <h2>반경별 가장 빠른 모터</h2>
+      <p class="cap">같은 속도로 꺾을 때 바깥쪽 모터 rad/s. 빨간 점선 = 지금 잠정 상한 3.0 (11-11 바닥 시험에서 7.0 회전 때 벨트 빠짐), 위 점선 = 직진 7.0.</p>
+      <div class="legend" id="lg2"></div>
+      <svg class="chart" id="c-motor" viewBox="0 0 560 300" role="img" aria-label="반경별 가장 빠른 모터 속도"></svg>
+    </div>
+  </section>
+
+  <section class="pane">
+    <h2>반경별 값 · 한 바퀴 결과</h2>
+    <p class="cap">칸 = 속도 m/s <small>(모터 rad/s)</small>. 한 바퀴 시간은 주행만 (정지점 서기 2 s × 10 곳은 따로). "3.0 넘는 꺾기" = 곡선에서 모터가 3.0 을 넘는 시간 (벨트 위험에 드러나는 시간).</p>
+    <div class="tbl"><table id="tbl"></table></div>
+  </section>
+
+  <section class="pane">
+    <h2>지금 경로는 어떤 꺾기로 되어 있나</h2>
+    <p class="cap">한 바퀴 전진 거리를 반경별로 나눈 것. 미로 통로가 좁아 꺾을 때 대부분 반경 0.5 m 보다 급하게 꺾습니다. 상한 곡선이 달라지는 반경 0.5 ~ 2 m 구간은 짧아서, 경로를 그대로 두면 차이가 작습니다.</p>
+    <div class="dist" id="dist"></div>
+  </section>
+
+  <section class="pane">
+    <div class="row">
+      <h2>한 바퀴 속도</h2>
+      <div class="btns" role="group" aria-label="시나리오" id="sel"></div>
+    </div>
+    <div class="mapgrid">
+      <div>
+        <p class="cap">경로 색 = 그 자리 속도. 원 = 정지점.</p>
+        <div class="ramp"><span>0</span><i id="rampbar"></i><span class="num" id="rampmax"></span></div>
+        <svg class="chart" id="map" role="img" aria-label="한 바퀴 경로와 속도"></svg>
+      </div>
+      <div>
+        <p class="cap">시간에 따른 전진 속도 (음수 = 후진, 0 에 붙은 구간 = 제자리 회전 · 방향 바꿈). 고른 시나리오는 진하게, 나머지는 옅게.</p>
+        <div class="legend" id="lg3"></div>
+        <svg class="chart" id="c-time" viewBox="0 0 700 300" role="img" aria-label="시간에 따른 속도"></svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane">
+    <h2>계산 조건 · 읽을 때 주의</h2>
+    <ul class="notes" id="notes"></ul>
+  </section>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+const D = /*__DATA__*/null;
+const C = D.consts;
+const COL = { now: "var(--s-now)", B: "var(--s-b)", C: "var(--s-c)", A: "var(--s-a)" };
+const DASH = { now: "6 4" };
+const opt = (id) => D.opts.find((o) => o.id === id);
+const lap = (id) => D.laps.find((o) => o.id === id);
+const NS = "http://www.w3.org/2000/svg";
+function el(tag, attrs, parent) { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+const f = (v, d = 2) => (v == null ? "–" : Number(v).toFixed(d));
+const tip = document.getElementById("tip");
+function showTip(ev, html) { tip.innerHTML = html; tip.hidden = false; const x = Math.min(ev.clientX + 14, innerWidth - tip.offsetWidth - 8); tip.style.left = x + "px"; tip.style.top = (ev.clientY + 14) + "px"; }
+function hideTip() { tip.hidden = true; }
+
+// 범례
+for (const id of ["lg1", "lg2", "lg3"]) document.getElementById(id).innerHTML = D.opts.map((o) =>
+  `<span><i class="${DASH[o.id] ? "dash" : ""}" style="border-color:${COL[o.id]}"></i>${o.short}${o.id === "now" ? " (규칙 v2)" : ""}</span>`).join("");
+
+// 요약
+(() => {
+  const n = lap("now"), a = lap("A"), b = lap("B"), c = lap("C");
+  const tight = D.dist.find((x) => x.name.startsWith("반경 < 0.5")).m, straight = D.dist[0].m;
+  document.getElementById("finding").innerHTML = `
+    <div><b>시간</b><p>한 바퀴 주행이 지금 <span class="num">${f(n.time, 1)} s</span> → B <span class="num">${f(b.time, 1)}</span> · C <span class="num">${f(c.time, 1)}</span> · A <span class="num">${f(a.time, 1)} s</span>. 가장 공격적인 A 도 <span class="num">${f(n.time - a.time, 1)} s</span> (${f(100 * (n.time - a.time) / n.time, 0)} %) 줄어듭니다.</p></div>
+    <div><b>벨트 위험</b><p>모터 3.0 을 넘겨 꺾는 시간이 지금 <span class="num">${f(n.over_s, 1)} s</span> → C <span class="num">${f(c.over_s, 1)} s</span> · A <span class="num">${f(a.over_s, 1)} s</span>. 꺾는 중 가장 빠른 모터는 A 에서 <span class="num">${f(a.turn_motor_max, 1)}</span> 입니다.</p></div>
+    <div><b>왜 차이가 작나</b><p>지금 경로는 직선 <span class="num">${f(straight, 1)} m</span> + 반경 0.5 m 보다 급한 꺾기 <span class="num">${f(tight, 1)} m</span> 가 대부분입니다. 상한을 높여도 좁은 통로의 급한 꺾기는 모터 3.0 근처에 머뭅니다.</p></div>`;
+})();
+
+// 반경 그림 (가로 = 반경, 로그 눈금 + 오른쪽 '직선')
+function radiusChart(svgId, key, yMax, yTicks, yLabel, refs) {
+  const svg = document.getElementById(svgId);
+  const W = 560, H = 300, L = 46, R = 70, T = 14, B = 40;
+  const lx0 = Math.log(0.2), lx1 = Math.log(6.0);
+  const X = (r) => r == null ? W - R + 40 : L + (Math.log(r) - lx0) / (lx1 - lx0) * (W - R - L);
+  const Y = (v) => T + (1 - v / yMax) * (H - T - B);
+  for (const v of yTicks) {
+    el("line", { x1: L, x2: W - R + 40, y1: Y(v), y2: Y(v), stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    el("text", { x: L - 6, y: Y(v) + 4, "text-anchor": "end", class: "tick" }, svg).textContent = v;
+  }
+  for (const r of [0.2, 0.25, 0.5, 1, 2, 4]) {
+    el("line", { x1: X(r), x2: X(r), y1: T, y2: H - B, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    el("text", { x: X(r), y: H - B + 16, "text-anchor": "middle", class: "tick" }, svg).textContent = r;
+  }
+  el("text", { x: X(null), y: H - B + 16, "text-anchor": "middle", class: "tick" }, svg).textContent = "직선";
+  el("text", { x: (L + W - R) / 2, y: H - 6, "text-anchor": "middle" }, svg).textContent = "꺾는 반경 [m]";
+  el("text", { x: 12, y: T + (H - T - B) / 2, "text-anchor": "middle", transform: `rotate(-90 12 ${T + (H - T - B) / 2})` }, svg).textContent = yLabel;
+  for (const [v, txt, dash] of refs) {
+    el("line", { x1: L, x2: W - R + 40, y1: Y(v), y2: Y(v), stroke: "var(--limit)", "stroke-width": 1.4, "stroke-dasharray": dash }, svg);
+    el("text", { x: W - R + 46, y: Y(v) + 4, fill: "var(--limit)", style: "fill:var(--limit)" }, svg).textContent = txt;
+  }
+  for (const c of D.curve) {
+    const pts = c.pts.filter((p) => p.R != null);
+    el("path", { d: pts.map((p, i) => `${i ? "L" : "M"}${X(p.R).toFixed(1)},${Y(p[key]).toFixed(1)}`).join(""), fill: "none", stroke: COL[c.id], "stroke-width": 2, "stroke-dasharray": DASH[c.id] || "none", "stroke-linejoin": "round" }, svg);
+    const st = c.pts.find((p) => p.R == null);
+    el("circle", { cx: X(null), cy: Y(st[key]), r: 4.5, fill: COL[c.id], stroke: "var(--panel)", "stroke-width": 2 }, svg);
+  }
+  // 커서
+  const cur = el("line", { x1: 0, x2: 0, y1: T, y2: H - B, stroke: "var(--ink-3)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const hit = el("rect", { x: L, y: T, width: W - R - L + 46, height: H - T - B, fill: "transparent" }, svg);
+  hit.addEventListener("mousemove", (ev) => {
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const straight = p.x > W - R + 15;
+    const r = straight ? null : Math.exp(lx0 + Math.min(1, Math.max(0, (p.x - L) / (W - R - L))) * (lx1 - lx0));
+    cur.setAttribute("x1", X(r)); cur.setAttribute("x2", X(r)); cur.setAttribute("visibility", "visible");
+    const rows = D.curve.map((c) => {
+      const q = straight ? c.pts.find((z) => z.R == null) : c.pts.filter((z) => z.R != null).reduce((a, b) => Math.abs(Math.log(b.R / r)) < Math.abs(Math.log(a.R / r)) ? b : a);
+      return `<div><span class="sw" style="background:${COL[c.id]}"></span>${opt(c.id).short} <span class="num">${f(q.v, 3)} m/s · 모터 ${f(q.m, 2)}</span></div>`;
+    }).join("");
+    showTip(ev, `<div><b>${straight ? "직선" : "반경 " + f(r, 2) + " m"}</b></div>${rows}`);
+  });
+  hit.addEventListener("mouseleave", () => { cur.setAttribute("visibility", "hidden"); hideTip(); });
+}
+radiusChart("c-speed", "v", 0.5, [0, 0.1, 0.2, 0.3, 0.4, 0.5], "속도 [m/s]", []);
+radiusChart("c-motor", "m", 8, [0, 2, 4, 6, 8], "모터 [rad/s]", [[3.0, "3.0 잠정", "5 4"], [7.0, "직진 7", "2 4"]]);
+
+// 표
+(() => {
+  const cols = [["inf", "직선"], ["2.0", "2 m"], ["1.0", "1 m"], ["0.75", "0.75 m"], ["0.5", "0.5 m"], ["0.35", "0.35 m"], ["0.25", "0.25 m"]];
+  let h = `<thead><tr><th>시나리오</th>${cols.map(([, n]) => `<th>${n}</th>`).join("")}<th>한 바퀴 주행</th><th>+ 정지점 서기</th><th>3.0 넘는 꺾기</th><th>꺾는 중 최고 모터</th></tr></thead><tbody>`;
+  for (const o of D.opts) {
+    const r = D.table.find((x) => x.id === o.id), l = lap(o.id);
+    h += `<tr><td><span class="opt-name"><span class="sw" style="background:${COL[o.id]}"></span>${o.name}</span><span class="opt-desc">${o.desc}</span></td>`;
+    h += cols.map(([k]) => `<td class="${r[k][1] > C.turn + 0.05 && k !== "inf" ? "over" : ""}">${f(r[k][0], 3)} <small>(${f(r[k][1], 1)})</small></td>`).join("");
+    h += `<td>${f(l.time, 1)} s</td><td>${f(l.time_dwell, 1)} s</td><td class="${l.over_s > 3 ? "over" : ""}">${f(l.over_s, 1)} s</td><td>${f(l.turn_motor_max, 2)}</td></tr>`;
+  }
+  document.getElementById("tbl").innerHTML = h + "</tbody>";
+})();
+
+// 반경 분포
+(() => {
+  const mx = Math.max(...D.dist.map((d) => d.m));
+  document.getElementById("dist").innerHTML = D.dist.map((d) => `<div class="br"><span>${d.name}</span><div><div class="bar" style="width:${(100 * d.m / mx).toFixed(1)}%"></div></div><span class="v">${f(d.m, 2)} m</span></div>`).join("")
+    + `<div class="br"><span class="muted">전진 합</span><span></span><span class="v">${f(D.fwd_m, 1)} m</span></div>`;
+})();
+
+// 지도 + 시간축
+let SEL = "A";
+const VMAX = 0.5;
+const speedColor = (v) => { // 한 색상 (청록) 밝음 → 진함 = 느림 → 빠름. 후진은 회색
+  if (v < -0.005) return "var(--ink-3)";
+  const t = Math.min(1, Math.abs(v) / VMAX);
+  const l = 86 - t * 56, ch = 0.04 + t * 0.12;
+  return `oklch(${l}% ${ch} 200)`;
+};
+document.getElementById("rampbar").style.background = `linear-gradient(90deg, ${speedColor(0)}, ${speedColor(VMAX / 2)}, ${speedColor(VMAX)})`;
+document.getElementById("rampmax").textContent = VMAX + " m/s";
+function drawMap() {
+  const svg = document.getElementById("map"); svg.replaceChildren();
+  const M = D.map, pad = 0.12, s = 100;
+  svg.setAttribute("viewBox", `${-pad * s} ${-pad * s} ${(M.W + 2 * pad) * s} ${(M.H + 2 * pad) * s}`);
+  const X = (x) => x * s, Y = (y) => (M.H - y) * s;
+  el("rect", { x: 0, y: 0, width: M.W * s, height: M.H * s, fill: "var(--floor)" }, svg);
+  for (const sh of M.shapes) if (sh.k === "wall") el("polygon", { points: sh.p.map(([x, y]) => `${X(x).toFixed(1)},${Y(y).toFixed(1)}`).join(" "), fill: "var(--wall)" }, svg);
+  const l = lap(SEL);
+  for (const pc of l.prof) {
+    if (pc.spin) { el("circle", { cx: X(pc.x), cy: Y(pc.y), r: 7, fill: "none", stroke: "var(--ink-2)", "stroke-width": 2 }, svg); continue; }
+    for (let i = 1; i < pc.x.length; i++) el("line", { x1: X(pc.x[i - 1]), y1: Y(pc.y[i - 1]), x2: X(pc.x[i]), y2: Y(pc.y[i]), stroke: speedColor(pc.v[i]), "stroke-width": 6, "stroke-linecap": "round" }, svg);
+  }
+  for (const st of D.stops) {
+    el("circle", { cx: X(st.x), cy: Y(st.y), r: 10, fill: "var(--panel)", stroke: "var(--ink)", "stroke-width": 2.5 }, svg);
+    el("text", { x: X(st.x) + 14, y: Y(st.y) + 5, style: "font-size:22px;fill:var(--ink)" }, svg).textContent = st.n === "HOME" ? "출발" : st.n;
+  }
+}
+function drawTime() {
+  const svg = document.getElementById("c-time"); svg.replaceChildren();
+  const W = 700, H = 300, L = 46, R = 14, T = 12, B = 36;
+  const tMax = Math.max(...D.laps.map((l) => l.time));
+  const X = (t) => L + t / tMax * (W - L - R), Y = (v) => T + (0.5 - v) / 0.7 * (H - T - B);
+  for (const v of [-0.2, -0.1, 0, 0.1, 0.2, 0.3, 0.4, 0.5]) {
+    el("line", { x1: L, x2: W - R, y1: Y(v), y2: Y(v), stroke: v === 0 ? "var(--ink-3)" : "var(--grid)", "stroke-width": 1 }, svg);
+    el("text", { x: L - 6, y: Y(v) + 4, "text-anchor": "end", class: "tick" }, svg).textContent = f(v, 1);
+  }
+  for (let t = 0; t <= tMax; t += 20) el("text", { x: X(t), y: H - B + 16, "text-anchor": "middle", class: "tick" }, svg).textContent = t;
+  el("text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle" }, svg).textContent = "시각 [s]";
+  el("text", { x: 12, y: T + (H - T - B) / 2, "text-anchor": "middle", transform: `rotate(-90 12 ${T + (H - T - B) / 2})` }, svg).textContent = "속도 [m/s]";
+  const order = D.opts.map((o) => o.id).filter((id) => id !== SEL).concat([SEL]);
+  for (const id of order) {
+    const l = lap(id), on = id === SEL;
+    let d = "";
+    let last = 0;
+    for (const pc of l.prof) {
+      if (pc.spin) { d += `M${X(pc.t0).toFixed(1)},${Y(0).toFixed(1)}L${X(pc.t1).toFixed(1)},${Y(0).toFixed(1)}`; continue; }
+      d += pc.t.map((t, i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(pc.v[i]).toFixed(1)}`).join("");
+    }
+    el("path", { d, fill: "none", stroke: COL[id], "stroke-width": on ? 2 : 1.2, opacity: on ? 1 : 0.35, "stroke-dasharray": DASH[id] || "none", "stroke-linejoin": "round" }, svg);
+    el("circle", { cx: X(l.time), cy: Y(0), r: on ? 5 : 3.5, fill: COL[id], stroke: "var(--panel)", "stroke-width": 2, opacity: on ? 1 : 0.6 }, svg);
+  }
+  const cur = el("line", { x1: 0, x2: 0, y1: T, y2: H - B, stroke: "var(--ink-3)", "stroke-width": 1, visibility: "hidden" }, svg);
+  const hit = el("rect", { x: L, y: T, width: W - L - R, height: H - T - B, fill: "transparent" }, svg);
+  hit.addEventListener("mousemove", (ev) => {
+    const pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+    const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+    const t = Math.max(0, (p.x - L) / (W - L - R) * tMax);
+    cur.setAttribute("x1", X(t)); cur.setAttribute("x2", X(t)); cur.setAttribute("visibility", "visible");
+    const rows = D.opts.map((o) => {
+      const l = lap(o.id); let v = null;
+      if (t > l.time) v = "끝"; else for (const pc of l.prof) {
+        if (pc.spin) { if (t >= pc.t0 && t <= pc.t1) { v = "제자리"; break; } continue; }
+        if (t >= pc.t[0] && t <= pc.t[pc.t.length - 1]) { let i = pc.t.findIndex((x) => x >= t); v = f(pc.v[Math.max(0, i)], 3) + " m/s"; break; }
+      }
+      return `<div><span class="sw" style="background:${COL[o.id]}"></span>${o.short} <span class="num">${v ?? "방향 바꿈"}</span></div>`;
+    }).join("");
+    showTip(ev, `<div><b class="num">${f(t, 1)} s</b></div>${rows}`);
+  });
+  hit.addEventListener("mouseleave", () => { cur.setAttribute("visibility", "hidden"); hideTip(); });
+}
+const sel = document.getElementById("sel");
+sel.innerHTML = D.opts.map((o) => `<button type="button" id="b-${o.id}" data-id="${o.id}" aria-pressed="${o.id === SEL}">${o.short} · ${f(lap(o.id).time, 1)} s</button>`).join("");
+sel.addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; SEL = b.dataset.id; for (const x of sel.children) x.setAttribute("aria-pressed", String(x.dataset.id === SEL)); drawMap(); drawTime(); });
+drawMap(); drawTime();
+
+document.getElementById("notes").innerHTML = [
+  `벨트 1 : ${C.belt} (v7) · 바퀴 반지름 ${C.r} m · 좌우 간격 ${C.sep} m → 모터 1 rad/s = 바퀴 둘레 ${f(C.r * C.belt, 3)} m/s. 직진 모터 ${C.m_straight} = ${f(C.v_straight, 3)} m/s (지금 판은 0.45 m/s).`,
+  `가장 빠른 모터 = 바깥 바퀴 = 속도 × (1 + 곡률 × 좌우 간격 / 2) ÷ 0.067. 네 바퀴를 같은 비율로 줄이므로 반경은 그대로입니다.`,
+  `한 바퀴: 길 모음 (legs.json, 규칙 v2 · 지금 상한으로 계획한 길) 을 그대로 쓰고 속도만 바꿨습니다. 가감속 ${C.ax} m/s², 후진 ${C.vrev} m/s, 제자리 ${C.spin_w} rad/s, 조각 (전진 · 후진 · 제자리) 끝마다 멈춤.`,
+  `곡률은 5 cm 창의 방향 변화로 셌습니다. 그래서 지금 판에도 꺾기 시작 · 끝에서 모터가 잠깐 3.0 을 넘는 값 (1.8 s) 이 나옵니다.`,
+  `A · C 로 정하면 계획기가 완만한 꺾기를 더 고를 수 있어 실제 이득은 이 표보다 클 수 있지만, 통로 폭 (약 0.53 m) 때문에 꺾기 반경은 대부분 0.25 ~ 0.5 m 에 머뭅니다.`,
+  `3.0 은 11-11 바닥 시험에서 제자리 회전 7.0 때 벨트가 빠진 뒤 정한 잠정값입니다. A · C 의 꺾는 중 모터 4 ~ 6 은 실물로 확인하지 않았습니다.`,
+].map((x) => `<li>${x}</li>`).join("");
+</script>

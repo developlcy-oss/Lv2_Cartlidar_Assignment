@@ -1,0 +1,37 @@
+{
+ "sequence": [
+  "R",
+  "G",
+  "R",
+  "R",
+  "G",
+  "R",
+  "G",
+  "G",
+  "Y",
+  "G",
+  "Y",
+  "G"
+ ],
+ "barcode": "P2-01",
+ "counts": {
+  "R": 4,
+  "Y": 2,
+  "G": 6
+ },
+ "order": "asc",
+ "locations": {
+  "L1": {
+   "group": "Y",
+   "count": 2
+  },
+  "L2": {
+   "group": "R",
+   "count": 4
+  },
+  "L3": {
+   "group": "G",
+   "count": 6
+  }
+ }
+}

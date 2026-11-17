@@ -1,0 +1,236 @@
+[INFO] [launch]: All log files can be found below /home/cart11/.ros/log/2026-11-16-12-31-41-867651-cart11-21057
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ros2_control_node-1]: process started with pid [21083]
+[INFO] [spawner-2]: process started with pid [21084]
+[INFO] [robot_state_publisher-3]: process started with pid [21085]
+[INFO] [twist_mux-4]: process started with pid [21086]
+[INFO] [joy_node-5]: process started with pid [21087]
+[INFO] [joy_teleop-6]: process started with pid [21088]
+[INFO] [teleop_node-7]: process started with pid [21089]
+[INFO] [component_container_mt-8]: process started with pid [21090]
+[INFO] [wait_joint_states-9]: process started with pid [21091]
+[INFO] [odom_icr-10]: process started with pid [21094]
+[INFO] [ekf_node-11]: process started with pid [21096]
+[component_container_mt-8] [WARN] [1794799903.080639388] [component_container_mt]: This executable is deprecated and will be removed in M-turtle.
+[component_container_mt-8] Use 'component_container --executor-type multi-threaded' instead.
+[robot_state_publisher-3] [INFO] [1794799904.072888667] [robot_state_publisher]: Robot initialized
+[component_container_mt-8] [INFO] [1794799904.228446356] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission/lib/libmission_component.so
+[twist_mux-4] [INFO] [1794799904.281129257] [twist_mux]: Topic handler 'topics.drive' subscribed to topic 'cmd_vel_drive': timeout = 0.250000s , priority = 50.
+[twist_mux-4] [INFO] [1794799904.288532635] [twist_mux]: Topic handler 'topics.nav' subscribed to topic 'cmd_vel_nav': timeout = 0.500000s , priority = 10.
+[component_container_mt-8] [INFO] [1794799904.292325127] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[component_container_mt-8] [INFO] [1794799904.292529101] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[twist_mux-4] [INFO] [1794799904.295305691] [twist_mux]: Topic handler 'topics.teleop' subscribed to topic 'cmd_vel_teleop': timeout = 0.500000s , priority = 100.
+[odom_icr-10] [INFO] [1794799904.296557151] [odom_icr]: /odom + /imu/data -> /odom_icr, icr_x -0.0658 m
+[twist_mux-4] [INFO] [1794799904.297326965] [twist_mux]: Topic handler 'locks.e_stop' subscribed to topic 'e_stop': timeout = 0.500000s , priority = 255.
+[twist_mux-4] [INFO] [1794799904.304133013] [twist_mux]: Topic handler 'locks.localization' subscribed to topic '/localization/lock': timeout = 0.500000s , priority = 20.
+[twist_mux-4] [INFO] [1794799904.308642325] [twist_mux]: Topic handler 'locks.obstacle' subscribed to topic '/perception/obstacle_stop': timeout = 0.500000s , priority = 60.
+[teleop_node-7] [INFO] [1794799904.351515316] [TeleopTwistJoy]: Teleop enable button 4.
+[teleop_node-7] [INFO] [1794799904.351630008] [TeleopTwistJoy]: Linear axis x on 1 at scale 0.200000.
+[teleop_node-7] [INFO] [1794799904.351650776] [TeleopTwistJoy]: Angular axis yaw on 0 at scale 1.000000.
+[component_container_mt-8] [INFO] [1794799904.414561455] [mission_node]: survey: 6 pose(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/config/approach_poses.yaml
+[component_container_mt-8] [INFO] [1794799904.423327496] [mission_node]: place_box: 켬 (장소 3 곳)
+[ros2_control_node-1] [INFO] [1794799904.783312259] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-1] [INFO] [1794799904.882785767] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-1] [INFO] [1794799904.883107216] [controller_manager]: update rate is 100 Hz
+[ros2_control_node-1] [INFO] [1794799904.883184818] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-1] [INFO] [1794799904.883232467] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-1] [WARN] [1794799904.884054443] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.
+[ros2_control_node-1] [INFO] [1794799904.893588249] [controller_manager]: Received robot description from topic.
+[ros2_control_node-1] [INFO] [1794799904.893771774] [controller_manager]: Enforcing command limits is enabled...
+[ros2_control_node-1] [INFO] [1794799904.904030529] [controller_manager]: Using JointLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem' : '  has position limits: true [-0.7946, 0.9541]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799904.904914362] [controller_manager]: Creating JointSaturationLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.905025437] [controller_manager]: Using JointLimiter for joint 'joint5' in hardware 'OpenCRSystem' : '  has position limits: true [-2.8, 2.8]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799904.905708689] [controller_manager]: Creating JointSaturationLimiter for joint 'joint5' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.905813236] [controller_manager]: Using JointLimiter for joint 'joint2' in hardware 'OpenCRSystem' : '  has position limits: true [-2.14, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799904.905887350] [controller_manager]: Creating JointSaturationLimiter for joint 'joint2' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.905946071] [controller_manager]: Using JointLimiter for joint 'joint4' in hardware 'OpenCRSystem' : '  has position limits: true [-1.92, 2]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799904.905989849] [controller_manager]: Creating JointSaturationLimiter for joint 'joint4' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.906039546] [controller_manager]: Using JointLimiter for joint 'joint1' in hardware 'OpenCRSystem' : '  has position limits: true [-3.14159, 3.14159]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799904.906082427] [controller_manager]: Creating JointSaturationLimiter for joint 'joint1' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.906122908] [controller_manager]: Joint limits are disabled for joint 'wheel_right_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.906752142] [controller_manager]: Joint limits are disabled for joint 'wheel_right_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.906819696] [controller_manager]: Using JointLimiter for joint 'joint3' in hardware 'OpenCRSystem' : '  has position limits: true [-1.6, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799904.906986933] [controller_manager]: Creating JointSaturationLimiter for joint 'joint3' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.907059575] [controller_manager]: Joint limits are disabled for joint 'wheel_left_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.907104152] [controller_manager]: Joint limits are disabled for joint 'wheel_left_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799904.916172089] [controller_manager]: Loading hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794799904.926588640] [controller_manager]: Loaded hardware 'OpenCRSystem' from plugin 'opencr_hardware/OpenCRHardware'
+[ros2_control_node-1] [INFO] [1794799904.929211179] [controller_manager]: Initialize hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794799905.058682176] [controller_manager.hardware_component.system.OpenCRSystem]: 바퀴 기어비 2.00 (바퀴 / 모터)
+[ros2_control_node-1] [INFO] [1794799905.061780632] [controller_manager.hardware_component.system.OpenCRSystem]: 팔 대기 자세 검사 켬 (처음 켤 때 범위 밖이면 시작 거부): 0,0,0,0,0,0 ~ 4095,4095,4095,4095,4095,4095
+[ros2_control_node-1] [INFO] [1794799905.063262210] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCRHardware: 관절 10개, IMU 'imu', 후보 포트 /dev/ttyACM2,/dev/ttyACM3
+[ros2_control_node-1] [INFO] [1794799905.066911498] [controller_manager]: Successful initialization of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799905.067908262] [controller_manager]: Activating component 'OpenCRSystem'.
+[ros2_control_node-1] [INFO] [1794799905.072792880] [resource_manager]: 'configure' hardware 'OpenCRSystem' 
+[ros2_control_node-1] [ERROR] [1794799905.072913364] [controller_manager.hardware_component.system.OpenCRSystem]: 후보 포트 열기 실패: /dev/ttyACM2: No such file or directory
+[ros2_control_node-1] [ERROR] [1794799905.073104089] [resource_manager]: Failed to 'configure' hardware 'OpenCRSystem'
+[ros2_control_node-1] [ERROR] [1794799905.073341280] [controller_manager]: Failed to set the initial state of the component : 'OpenCRSystem' to 'active'
+[ros2_control_node-1] [INFO] [1794799905.073428770] [controller_manager]: Registering statistics for : OpenCRSystem
+[ros2_control_node-1] [INFO] [1794799905.073658761] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[ros2_control_node-1] [WARN] [1794799905.251911493] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 13.945365 ms (missed cycles : 2).
+[component_container_mt-8] [INFO] [1794799905.374617018] [mission_node]: mission_node ready (source: plan, missions: 0, auto_start: false)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/mission_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794799905.403108418] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/lib/libdrive_node.so
+[component_container_mt-8] [INFO] [1794799905.442457245] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<control::DriveNode>
+[component_container_mt-8] [INFO] [1794799905.442845928] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<control::DriveNode>
+[component_container_mt-8] [INFO] [1794799905.928778580] [drive_node]: drive_node 준비 (align 20 Hz, 정책 사용 안 함)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/drive_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794799905.946211490] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/lib/libmanipulator_node.so
+[component_container_mt-8] [INFO] [1794799905.962268361] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<control::ManipulatorNode>
+[component_container_mt-8] [INFO] [1794799905.963151042] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<control::ManipulatorNode>
+[component_container_mt-8] [0;93m2026-11-16 12:31:46.299494174 [W:onnxruntime:robot_policy, device_discovery.cc:283 GetGpuDevices] Failed to detect devices under "/sys/class/drm/card1": device_discovery.cc:93 ReadFileContents Failed to open file: "/sys/class/drm/card1/device/vendor"[m
+[component_container_mt-8] [0;93m2026-11-16 12:31:46.300850532 [W:onnxruntime:robot_policy, device_discovery.cc:283 GetGpuDevices] Failed to detect devices under "/sys/class/drm/card0": device_discovery.cc:93 ReadFileContents Failed to open file: "/sys/class/drm/card0/device/vendor"[m
+[component_container_mt-8] [INFO] [1794799906.320121094] [manipulator_node]: lie_upright: policy 'lie_upright' loaded (/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/robot_policy/share/robot_policy/config/models/lieupright_r2g2.onnx, 30 Hz)
+[component_container_mt-8] [INFO] [1794799906.378648001] [mission_node]: [준비 확인] NOT READY 2/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [대기] joint_state_broadcaster: controller_manager 응답 기다림
+[component_container_mt-8]     [대기] diff_drive_controller: controller_manager 응답 기다림
+[component_container_mt-8]     [대기] arm_controller: controller_manager 응답 기다림
+[component_container_mt-8]     [대기] imu_sensor_broadcaster: controller_manager 응답 기다림
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [대기] /manipulator/pose: 서버 없음
+[component_container_mt-8]     [대기] /manipulator/pick: 서버 없음
+[component_container_mt-8]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[component_container_mt-8] [INFO] [1794799906.443730517] [manipulator_node]: pallet: 10 slot(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/share/control/config/pallet_place_traj.json (joint offsets not applied)
+[component_container_mt-8] [INFO] [1794799906.465728901] [manipulator_node]: place: 27 cell(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/config/approach_poses.yaml
+[component_container_mt-8] [INFO] [1794799907.308292105] [manipulator_node]: manipulator_node ready (poses: 8, gripper mode: arm_joint, pallet slots: 10, place cells: 27)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/manipulator_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794799907.322308534] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_lidar.so
+[component_container_mt-8] [INFO] [1794799907.364142296] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-8] [INFO] [1794799907.364373502] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-8] [INFO] [1794799907.364424256] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanBodyMaskNode>
+[component_container_mt-8] [INFO] [1794799907.364598533] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanMergerNode>
+[component_container_mt-8] [INFO] [1794799907.364659654] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanToRangeNode>
+[component_container_mt-8] [INFO] [1794799907.364695111] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::TFminiNode>
+[component_container_mt-8] [INFO] [1794799907.364819019] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::TFminiNode>
+[component_container_mt-8] [INFO] [1794799907.393419893] [mission_node]: [준비 확인] NOT READY 4/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[spawner-2] [INFO] [1794799907.527648305] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for joint_state_broadcaster
+[component_container_mt-8] [INFO] [1794799907.531162324] [tfmini_node]: 출력 mm, 보정점 0개, 오프셋 0.000 m
+[spawner-2] [INFO] [1794799907.546425285] [spawner_joint_state_broadcaster]: Setting controller param "type" to "joint_state_broadcaster/JointStateBroadcaster" for joint_state_broadcaster
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/tfmini_node' in container '/control_container'
+[component_container_mt-8] [INFO] [1794799907.552148999] [tfmini_node]: /dev/tfmini 열림 (115200 bps)
+[component_container_mt-8] [INFO] [1794799907.553702547] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-8] [INFO] [1794799907.553835223] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-8] [INFO] [1794799907.553889688] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[ros2_control_node-1] [INFO] [1794799907.570579889] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-1] [INFO] [1794799907.570746806] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-1] [INFO] [1794799907.581460294] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml'
+[component_container_mt-8] [INFO] [1794799907.706190580] [obstacle_stop]: 정지 0.25 m 미만, 해제 0.35 m 이상 3회, 입력 끊김 0.20 s
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/obstacle_stop' in container '/control_container'
+[component_container_mt-8] [INFO] [1794799907.722873869] [obstacle_stop]: 비상 정지 켬 (stale)
+[component_container_mt-8] [INFO] [1794799907.767419163] [obstacle_stop]: 비상 정지 끔 (clear)
+[spawner-2] [INFO] [1794799907.819974156] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-1] [INFO] [1794799907.841764437] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-1] [INFO] [1794799907.845049235] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. Will try to publish all available state interfaces of the URDF joints.
+[ros2_control_node-1] [INFO] [1794799907.985371675] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-1] [INFO] [1794799907.989383788] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [ERROR] [1794799907.991961685] [joint_state_broadcaster]: No state interfaces found to publish.
+[ros2_control_node-1] [ERROR] [1794799907.992218461] [joint_state_broadcaster]: Error initializing joint data. JointStateBroadcaster will not run.
+[ros2_control_node-1] [WARN] [1794799907.992643305] [joint_state_broadcaster]: Callback returned ERROR during the transition: activate
+[ros2_control_node-1] [ERROR] [1794799907.992918097] [controller_manager]: After activation, controller 'joint_state_broadcaster' is in state 'unconfigured' (1), expected 'active' (3). Releasing interfaces!
+[ros2_control_node-1] [ERROR] [1794799907.994037872] [controller_manager]: At least one controller failed to be activated. Releasing all interfaces and stopping all activated controllers because the switch strictness is set to STRICT.
+[ros2_control_node-1] [ERROR] [1794799907.994964139] [controller_manager]: Could not activate controller : 'joint_state_broadcaster'
+[ros2_control_node-1] [ERROR] [1794799907.996630330] [controller_manager]: Failed switching controllers.... 
+[ros2_control_node-1] [ERROR] [1794799907.997062502] [controller_manager]: Unable to activate controllers: [ joint_state_broadcaster  ]
+[spawner-2] [ERROR] [1794799908.014516853] [spawner_joint_state_broadcaster]: Failed to activate controller : joint_state_broadcaster
+[ERROR] [spawner-2]: process has died [pid 21084, exit code 1, cmd '/opt/ros/lyrical/lib/controller_manager/spawner --controller-manager /controller_manager --controller-manager-timeout 120 --service-call-timeout 15 --switch-timeout 30 --controller joint_state_broadcaster --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --controller imu_sensor_broadcaster --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --controller-ros-args -r imu_sensor_broadcaster/imu:=/imu/data --controller diff_drive_controller --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/drive_belt.yaml --controller-ros-args -r diff_drive_controller/cmd_vel:=/cmd_vel -r diff_drive_controller/odom:=/odom --controller arm_controller --param-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --ros-args'].
+[demo_start] /mission/start 서비스 보임 → 시작 요청
+[component_container_mt-8] [INFO] [1794799909.376464528] [mission_node]: [준비 확인] NOT READY 4/14
+[component_container_mt-8]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-8]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-8]   2 컨트롤러 (ros2_control)
+[component_container_mt-8]     [실패] joint_state_broadcaster: unconfigured
+[component_container_mt-8]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-8]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-8]   3 노드 서버
+[component_container_mt-8]     [ OK ] /drive/navigate: 있음
+[component_container_mt-8]     [ OK ] /drive/align: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-8]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-8]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-8]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-8]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-8]   4 위치 추정
+[component_container_mt-8]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-8]   5 Nav2
+[component_container_mt-8]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[ros2_control_node-1] [WARN] [1794799911.139098781] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.130285 ms (missed cycles : 2).
+[demo_start] 시도 1: 
+[demo_start] 시도 2: 
+[component_container_mt-8] [WARN] [1794799922.409597514] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 3: 
+[demo_start] 시도 4: 
+[component_container_mt-8] [WARN] [1794799932.458882322] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 5: 
+[demo_start] 시도 6: 
+[component_container_mt-8] [WARN] [1794799942.508663015] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 7: 
+[component_container_mt-8] [WARN] [1794799952.508691268] [manipulator_node]: startup: waiting for arm_controller · /joint_states — if arm_controller stays unconfigured/inactive, a joint may be outside its limits or OpenCR failed to activate (opencr_arm_tool.py monitor)
+[demo_start] 시도 8: 
+[demo_start] 시도 9: 

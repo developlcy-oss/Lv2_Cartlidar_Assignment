@@ -1,0 +1,13 @@
+id,color,shape,box,side,x_mm,y_mm,z_mm
+0,red,cylinder,1,-1,1428,950,70
+1,green,box,1,1,1508,950,70
+2,red,box,2,-1,3630,3152,70
+3,green,cylinder,2,1,3710,3152,70
+4,red,cylinder,3,-1,2896,5354,70
+5,green,cylinder,3,1,2976,5354,70
+6,red,box,4,-1,694,5354,70
+7,green,box,4,1,774,5354,70
+8,red,cylinder,5,-1,2162,5354,70
+9,green,cylinder,5,1,2242,5354,70
+10,red,box,6,-1,3630,3886,70
+11,green,box,6,1,3710,3886,70

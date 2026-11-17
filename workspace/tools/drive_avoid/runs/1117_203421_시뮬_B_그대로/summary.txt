@@ -1,0 +1,4 @@
+장애물 주행 (Gazebo): 구간 2/2 성공 · 86.2 s · 간 곳 HOME → box3 → box5 · 장애물 멈춤 1 번
+HOME>box3: ok · 39.3 s · 정지점 어긋남 2.3 cm
+box3>box5: ok · 44.0 s · 정지점 어긋남 5.2 cm · 다시 계획 1: 합류 +0.45 m: 전진 2.10 m (3.7 s)
+  장애물 box3>box5 t 79.33 · blocked · 멈춤 5.68 s · AMCL σ 0.8 cm

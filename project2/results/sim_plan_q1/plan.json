@@ -1,0 +1,1220 @@
+{
+ "mode": "hybrid",
+ "stop_after": "none",
+ "signal": {
+  "sequence": [
+   "R",
+   "G",
+   "R",
+   "R",
+   "G",
+   "R",
+   "G",
+   "G",
+   "Y",
+   "G",
+   "Y",
+   "G"
+  ],
+  "counts": {
+   "R": 4,
+   "Y": 2,
+   "G": 6
+  }
+ },
+ "barcode": {
+  "code": "P2-01",
+  "order": "asc"
+ },
+ "groups": {
+  "L1": {
+   "group": "Y",
+   "count": 2
+  },
+  "L2": {
+   "group": "R",
+   "count": 4
+  },
+  "L3": {
+   "group": "G",
+   "count": 6
+  }
+ },
+ "allocation": {
+  "L1": {
+   "group": "Y",
+   "ids": [
+    4,
+    8
+   ],
+   "y_shape": "cylinder",
+   "colors": [
+    "red",
+    "red"
+   ],
+   "shapes": [
+    "cylinder",
+    "cylinder"
+   ]
+  },
+  "L2": {
+   "group": "R",
+   "ids": [
+    0,
+    2,
+    6,
+    10
+   ],
+   "y_shape": null,
+   "colors": [
+    "red",
+    "red",
+    "red",
+    "red"
+   ],
+   "shapes": [
+    "cylinder",
+    "box",
+    "box",
+    "box"
+   ]
+  },
+  "L3": {
+   "group": "G",
+   "ids": [
+    1,
+    3,
+    5,
+    7,
+    9,
+    11
+   ],
+   "y_shape": null,
+   "colors": [
+    "green",
+    "green",
+    "green",
+    "green",
+    "green",
+    "green"
+   ],
+   "shapes": [
+    "box",
+    "cylinder",
+    "cylinder",
+    "box",
+    "cylinder",
+    "box"
+   ]
+  }
+ },
+ "cost_m": 55.836,
+ "allocations_checked": 6,
+ "hybrid": {
+  "perm": [
+   "L2",
+   "L1",
+   "L3"
+  ],
+  "path_m": 55.836,
+  "row3": 0,
+  "peak": 6,
+  "shape_over": 0,
+  "objective": 55.836,
+  "objective_true": 55.836
+ },
+ "pallet": {
+  "mismatch": 0,
+  "shape_pen_m": 0,
+  "blocked": 0,
+  "blocked_ids": [],
+  "row3": 0,
+  "nodes": 93,
+  "complete": true,
+  "row_rule": "free",
+  "shape_slots": true
+ },
+ "steps": [
+  {
+   "type": "observe",
+   "at": "HOME",
+   "note": "바코드 -> 12 회 점멸 -> 3 초 소등 확인 뒤 출발"
+  },
+  {
+   "type": "navigate",
+   "to": "B1:S",
+   "stage": [
+    1.468,
+    0.3147,
+    1.5708
+   ],
+   "final": [
+    1.468,
+    0.5875,
+    1.5708
+   ],
+   "standoff": 0.4,
+   "length_m": 1.158,
+   "waypoints": [
+    [
+     0.694,
+     0.95
+    ],
+    [
+     0.862,
+     0.488
+    ],
+    [
+     0.888,
+     0.438
+    ],
+    [
+     0.938,
+     0.387
+    ],
+    [
+     0.987,
+     0.363
+    ],
+    [
+     1.468,
+     0.315
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B1:S",
+   "puck": 1,
+   "color": "green",
+   "shape": "box",
+   "pose": "standing",
+   "box": 1,
+   "side": 1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": -17.06,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    2,
+    0
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B1:S",
+   "puck": 0,
+   "color": "red",
+   "shape": "cylinder",
+   "pose": "standing",
+   "box": 1,
+   "side": -1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    2,
+    3
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "B2:S",
+   "stage": [
+    3.67,
+    2.4667,
+    1.5708
+   ],
+   "final": [
+    3.67,
+    2.7895,
+    1.5708
+   ],
+   "standoff": 0.45,
+   "length_m": 3.31,
+   "waypoints": [
+    [
+     1.468,
+     0.315
+    ],
+    [
+     2.513,
+     1.613
+    ],
+    [
+     3.413,
+     1.813
+    ],
+    [
+     3.538,
+     1.938
+    ],
+    [
+     3.67,
+     2.467
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B2:S",
+   "puck": 2,
+   "color": "red",
+   "shape": "box",
+   "pose": "standing",
+   "box": 2,
+   "side": -1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 17.06,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    2,
+    2
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "B6:W",
+   "stage": [
+    2.9847,
+    3.886,
+    -0.0
+   ],
+   "final": [
+    3.3075,
+    3.886,
+    -0.0
+   ],
+   "standoff": 0.45,
+   "length_m": 3.943,
+   "waypoints": [
+    [
+     3.67,
+     2.467
+    ],
+    [
+     3.538,
+     1.913
+    ],
+    [
+     3.413,
+     1.813
+    ],
+    [
+     2.463,
+     1.813
+    ],
+    [
+     2.413,
+     1.838
+    ],
+    [
+     2.363,
+     1.888
+    ],
+    [
+     2.338,
+     1.938
+    ],
+    [
+     2.338,
+     2.363
+    ],
+    [
+     2.985,
+     3.886
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B6:W",
+   "puck": 10,
+   "color": "red",
+   "shape": "box",
+   "pose": "standing",
+   "box": 6,
+   "side": -1,
+   "j1_dist": 0.2265,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    1,
+    1
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "B4:S",
+   "stage": [
+    0.734,
+    4.6687,
+    1.5708
+   ],
+   "final": [
+    0.734,
+    4.9915,
+    1.5708
+   ],
+   "standoff": 0.45,
+   "length_m": 2.383,
+   "waypoints": [
+    [
+     2.985,
+     3.886
+    ],
+    [
+     0.734,
+     4.669
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B4:S",
+   "puck": 6,
+   "color": "red",
+   "shape": "box",
+   "pose": "standing",
+   "box": 4,
+   "side": -1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 17.06,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    1,
+    3
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "L2",
+   "stage": [
+    2.202,
+    4.3853,
+    -1.5708
+   ],
+   "final": [
+    2.202,
+    4.0625,
+    -1.5708
+   ],
+   "standoff": 0.45,
+   "length_m": 1.495,
+   "waypoints": [
+    [
+     0.734,
+     4.669
+    ],
+    [
+     2.202,
+     4.385
+    ]
+   ]
+  },
+  {
+   "type": "place",
+   "at": "L2",
+   "puck": 6,
+   "from_slot": [
+    1,
+    3
+   ],
+   "cell": "-1,-1",
+   "x": 2.142,
+   "y": 3.64,
+   "j1_dist": 0.332,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L2",
+   "puck": 10,
+   "from_slot": [
+    1,
+    1
+   ],
+   "cell": "1,-1",
+   "x": 2.262,
+   "y": 3.64,
+   "j1_dist": 0.332,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L2",
+   "puck": 2,
+   "from_slot": [
+    2,
+    2
+   ],
+   "cell": "-1,1",
+   "x": 2.142,
+   "y": 3.76,
+   "j1_dist": 0.215,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L2",
+   "puck": 0,
+   "from_slot": [
+    2,
+    3
+   ],
+   "cell": "1,1",
+   "x": 2.262,
+   "y": 3.76,
+   "j1_dist": 0.215,
+   "mode": "tilt"
+  },
+  {
+   "type": "navigate",
+   "to": "B4:S",
+   "stage": [
+    0.734,
+    4.6687,
+    1.5708
+   ],
+   "final": [
+    0.734,
+    4.9915,
+    1.5708
+   ],
+   "standoff": 0.45,
+   "length_m": 1.495,
+   "waypoints": [
+    [
+     2.202,
+     4.385
+    ],
+    [
+     0.734,
+     4.669
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B4:S",
+   "puck": 7,
+   "color": "green",
+   "shape": "box",
+   "pose": "standing",
+   "box": 4,
+   "side": 1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": -17.06,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    2,
+    2
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "B5:N",
+   "stage": [
+    2.202,
+    5.9893,
+    -1.5708
+   ],
+   "final": [
+    2.202,
+    5.7165,
+    -1.5708
+   ],
+   "standoff": 0.4,
+   "length_m": 2.079,
+   "waypoints": [
+    [
+     0.734,
+     4.669
+    ],
+    [
+     1.213,
+     4.763
+    ],
+    [
+     1.888,
+     5.487
+    ],
+    [
+     1.888,
+     5.537
+    ],
+    [
+     2.202,
+     5.989
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B5:N",
+   "puck": 9,
+   "color": "green",
+   "shape": "cylinder",
+   "pose": "standing",
+   "box": 5,
+   "side": 1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    2,
+    3
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "B3:N",
+   "stage": [
+    2.936,
+    5.9893,
+    -1.5708
+   ],
+   "final": [
+    2.936,
+    5.7165,
+    -1.5708
+   ],
+   "standoff": 0.4,
+   "length_m": 0.734,
+   "waypoints": [
+    [
+     2.202,
+     5.989
+    ],
+    [
+     2.936,
+     5.989
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B3:N",
+   "puck": 5,
+   "color": "green",
+   "shape": "cylinder",
+   "pose": "standing",
+   "box": 3,
+   "side": 1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    2,
+    1
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B3:N",
+   "puck": 4,
+   "color": "red",
+   "shape": "cylinder",
+   "pose": "standing",
+   "box": 3,
+   "side": -1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    1,
+    0
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "B5:N",
+   "stage": [
+    2.202,
+    5.9893,
+    -1.5708
+   ],
+   "final": [
+    2.202,
+    5.7165,
+    -1.5708
+   ],
+   "standoff": 0.4,
+   "length_m": 0.734,
+   "waypoints": [
+    [
+     2.936,
+     5.989
+    ],
+    [
+     2.202,
+     5.989
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B5:N",
+   "puck": 8,
+   "color": "red",
+   "shape": "cylinder",
+   "pose": "standing",
+   "box": 5,
+   "side": -1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    1,
+    2
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "L1",
+   "stage": [
+    2.9847,
+    0.95,
+    -0.0
+   ],
+   "final": [
+    3.3075,
+    0.95,
+    -0.0
+   ],
+   "standoff": 0.45,
+   "length_m": 5.75,
+   "waypoints": [
+    [
+     2.202,
+     5.989
+    ],
+    [
+     1.888,
+     5.537
+    ],
+    [
+     1.613,
+     5.088
+    ],
+    [
+     1.613,
+     4.688
+    ],
+    [
+     2.338,
+     1.213
+    ],
+    [
+     2.363,
+     1.163
+    ],
+    [
+     2.413,
+     1.113
+    ],
+    [
+     2.463,
+     1.088
+    ],
+    [
+     2.985,
+     0.95
+    ]
+   ]
+  },
+  {
+   "type": "place",
+   "at": "L1",
+   "puck": 4,
+   "from_slot": [
+    1,
+    0
+   ],
+   "cell": "1,-1",
+   "x": 3.73,
+   "y": 0.89,
+   "j1_dist": 0.332,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L1",
+   "puck": 8,
+   "from_slot": [
+    1,
+    2
+   ],
+   "cell": "-1,1",
+   "x": 3.61,
+   "y": 1.01,
+   "j1_dist": 0.215,
+   "mode": "tilt"
+  },
+  {
+   "type": "navigate",
+   "to": "B2:S",
+   "stage": [
+    3.67,
+    2.4667,
+    1.5708
+   ],
+   "final": [
+    3.67,
+    2.7895,
+    1.5708
+   ],
+   "standoff": 0.45,
+   "length_m": 2.878,
+   "waypoints": [
+    [
+     2.985,
+     0.95
+    ],
+    [
+     2.463,
+     1.088
+    ],
+    [
+     2.413,
+     1.113
+    ],
+    [
+     2.363,
+     1.163
+    ],
+    [
+     2.338,
+     1.213
+    ],
+    [
+     2.338,
+     1.413
+    ],
+    [
+     2.763,
+     1.813
+    ],
+    [
+     3.413,
+     1.813
+    ],
+    [
+     3.538,
+     1.938
+    ],
+    [
+     3.67,
+     2.467
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B2:S",
+   "puck": 3,
+   "color": "green",
+   "shape": "cylinder",
+   "pose": "standing",
+   "box": 2,
+   "side": 1,
+   "j1_dist": 0.2695,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    1,
+    0
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "B6:W",
+   "stage": [
+    2.9847,
+    3.886,
+    -0.0
+   ],
+   "final": [
+    3.3075,
+    3.886,
+    -0.0
+   ],
+   "standoff": 0.45,
+   "length_m": 3.943,
+   "waypoints": [
+    [
+     3.67,
+     2.467
+    ],
+    [
+     3.538,
+     1.913
+    ],
+    [
+     3.413,
+     1.813
+    ],
+    [
+     2.463,
+     1.813
+    ],
+    [
+     2.413,
+     1.838
+    ],
+    [
+     2.363,
+     1.888
+    ],
+    [
+     2.338,
+     1.938
+    ],
+    [
+     2.338,
+     2.363
+    ],
+    [
+     2.985,
+     3.886
+    ]
+   ]
+  },
+  {
+   "type": "pick",
+   "at": "B6:W",
+   "puck": 11,
+   "color": "green",
+   "shape": "box",
+   "pose": "standing",
+   "box": 6,
+   "side": 1,
+   "j1_dist": 0.3065,
+   "tilt": true,
+   "turn_deg": 0.0,
+   "turn_range_deg": [
+    -45.0,
+    45.0
+   ],
+   "slot": [
+    1,
+    3
+   ]
+  },
+  {
+   "type": "navigate",
+   "to": "L3",
+   "stage": [
+    3.67,
+    4.6687,
+    1.5708
+   ],
+   "final": [
+    3.67,
+    4.9915,
+    1.5708
+   ],
+   "standoff": 0.45,
+   "length_m": 1.175,
+   "waypoints": [
+    [
+     2.985,
+     3.886
+    ],
+    [
+     3.063,
+     4.362
+    ],
+    [
+     3.188,
+     4.487
+    ],
+    [
+     3.67,
+     4.669
+    ]
+   ]
+  },
+  {
+   "type": "place",
+   "at": "L3",
+   "puck": 11,
+   "from_slot": [
+    1,
+    3
+   ],
+   "cell": "-1,1",
+   "x": 3.61,
+   "y": 5.414,
+   "j1_dist": 0.332,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L3",
+   "puck": 3,
+   "from_slot": [
+    1,
+    0
+   ],
+   "cell": "1,1",
+   "x": 3.73,
+   "y": 5.414,
+   "j1_dist": 0.332,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L3",
+   "puck": 7,
+   "from_slot": [
+    2,
+    2
+   ],
+   "cell": "-1,0",
+   "x": 3.61,
+   "y": 5.354,
+   "j1_dist": 0.2732,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L3",
+   "puck": 1,
+   "from_slot": [
+    2,
+    0
+   ],
+   "cell": "1,0",
+   "x": 3.73,
+   "y": 5.354,
+   "j1_dist": 0.2732,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L3",
+   "puck": 9,
+   "from_slot": [
+    2,
+    3
+   ],
+   "cell": "-1,-1",
+   "x": 3.61,
+   "y": 5.294,
+   "j1_dist": 0.215,
+   "mode": "tilt"
+  },
+  {
+   "type": "place",
+   "at": "L3",
+   "puck": 5,
+   "from_slot": [
+    2,
+    1
+   ],
+   "cell": "1,-1",
+   "x": 3.73,
+   "y": 5.294,
+   "j1_dist": 0.215,
+   "mode": "tilt"
+  },
+  {
+   "type": "verify",
+   "at": "L3",
+   "note": "새 카메라 관측으로 칸별 퍽 ID · 위치 기록 (목표 복사 금지)"
+  },
+  {
+   "type": "navigate",
+   "to": "L2",
+   "stage": [
+    2.202,
+    4.3853,
+    -1.5708
+   ],
+   "final": [
+    2.202,
+    4.0625,
+    -1.5708
+   ],
+   "standoff": 0.45,
+   "length_m": 1.495,
+   "waypoints": [
+    [
+     3.67,
+     4.669
+    ],
+    [
+     2.202,
+     4.385
+    ]
+   ]
+  },
+  {
+   "type": "verify",
+   "at": "L2",
+   "note": "새 카메라 관측으로 칸별 퍽 ID · 위치 기록 (목표 복사 금지)"
+  },
+  {
+   "type": "navigate",
+   "to": "L1",
+   "stage": [
+    2.9847,
+    0.95,
+    -0.0
+   ],
+   "final": [
+    3.3075,
+    0.95,
+    -0.0
+   ],
+   "standoff": 0.45,
+   "length_m": 4.05,
+   "waypoints": [
+    [
+     2.202,
+     4.385
+    ],
+    [
+     2.488,
+     3.938
+    ],
+    [
+     2.513,
+     3.888
+    ],
+    [
+     2.513,
+     2.363
+    ],
+    [
+     2.338,
+     2.163
+    ],
+    [
+     2.338,
+     1.213
+    ],
+    [
+     2.363,
+     1.163
+    ],
+    [
+     2.413,
+     1.113
+    ],
+    [
+     2.463,
+     1.088
+    ],
+    [
+     2.985,
+     0.95
+    ]
+   ]
+  },
+  {
+   "type": "verify",
+   "at": "L1",
+   "note": "새 카메라 관측으로 칸별 퍽 ID · 위치 기록 (목표 복사 금지)"
+  },
+  {
+   "type": "navigate",
+   "to": "HOME",
+   "stage": [
+    0.6936,
+    0.95,
+    3.1416
+   ],
+   "final": [
+    0.6936,
+    0.95,
+    3.1416
+   ],
+   "standoff": 0.0,
+   "length_m": 2.767,
+   "waypoints": [
+    [
+     2.985,
+     0.95
+    ],
+    [
+     1.188,
+     0.363
+    ],
+    [
+     0.987,
+     0.363
+    ],
+    [
+     0.938,
+     0.387
+    ],
+    [
+     0.888,
+     0.438
+    ],
+    [
+     0.713,
+     0.862
+    ],
+    [
+     0.694,
+     0.95
+    ]
+   ]
+  },
+  {
+   "type": "return",
+   "at": "HOME",
+   "note": "차체 전체가 출발 구역 안에서 3 초 정지"
+  }
+ ],
+ "warnings": [
+  "퍽 10: 박스 6 는 ±Y 면이 막혀 W 면 (두 퍽 앞뒤) 에서 집음, J1 거리 0.227",
+  "퍽 11: 박스 6 는 ±Y 면이 막혀 W 면 (두 퍽 앞뒤) 에서 집음, J1 거리 0.306"
+ ]
+}

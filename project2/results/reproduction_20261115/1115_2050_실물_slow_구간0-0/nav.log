@@ -1,0 +1,76 @@
+규칙 v2 시연 (real · slow: 전진 0.20 · 후진 0.10 m/s · 제자리 0.4 rad/s) · 기록 /home/cart11/demo_v2/runs/1115_2050_실물_slow_구간0-0
+[INFO] [1794743458.977989564] [lifecycle_manager_demo]: Creating
+[INFO] [1794743458.978859791] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[INFO] [1794743458.980266733] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[INFO] [1794743459.574991847] [behavior_server]: 
+	behavior_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794743459.738798737] [v2_filter]: 규칙 v2 필터: cmd_vel_raw → cmd_vel_nav · 전진 ≤ 0.2 · 후진 ≤ 0.1 m/s · 제자리 ≤ 0.4 rad/s · 벨트 1.5 · 꺾는 중 모터 ≤ 3.0
+[INFO] [1794743459.773866814] [controller_server]: 
+	controller_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794743459.789056642] [controller_server]: Creating controller server
+[INFO] [1794743459.820178747] [local_costmap.local_costmap]: 
+	local_costmap lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794743459.822976502] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [1794743460.466383806] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[INFO] [1794743460.492213925] [lifecycle_manager_demo]: [34m[1mStarting managed nodes bringup...[0m[0m
+[INFO] [1794743460.492369737] [lifecycle_manager_demo]: [34m[1mConfiguring controller_server[0m[0m
+[INFO] [1794743460.493346942] [controller_server]: Configuring controller interface
+[INFO] [1794743460.493461152] [local_costmap.local_costmap]: Configuring
+[INFO] [1794743460.513864436] [local_costmap.local_costmap]: Using plugin "static_layer"
+[INFO] [1794743460.529770087] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[INFO] [1794743460.537085123] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[INFO] [1794743460.537200326] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[INFO] [1794743460.538017847] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[WARN] [1794743460.678955224] [local_costmap.local_costmap]: The configured inflation radius (0.100) is smaller than the computed/custom inscribed radius (0.168) of your footprint, it is highly recommended to set inflation radius to be at least as big as the inscribed radius to avoid collisions
+[INFO] [1794743460.757854156] [controller_server]: Controller frequency set to 20.0000Hz
+[INFO] [1794743460.757974414] [controller_server]: getting progress checker plugins..
+[INFO] [1794743460.758095377] [controller_server]: getting goal checker plugins..
+[INFO] [1794743460.758159026] [controller_server]: getting controller plugins..
+[INFO] [1794743460.758207475] [controller_server]: getting path handler plugins..
+[INFO] [1794743460.763524165] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[INFO] [1794743460.763673928] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[INFO] [1794743460.769440803] [controller_server]: Created goal checker : piece_checker of type nav2_controller::SimpleGoalChecker
+[INFO] [1794743460.770848257] [controller_server]: Controller Server has piece_checker  goal checkers available.
+[INFO] [1794743460.777820918] [controller_server]: Created path handler : PathHandler of type nav2_controller::FeasiblePathHandler
+[INFO] [1794743460.777963193] [controller_server]: Controller Server has PathHandler  path handlers available.
+[INFO] [1794743460.783659987] [controller_server]: Created controller : Forward of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794743460.784032091] [controller_server]: Parameter 'Forward.desired_linear_vel' is deprecated. Use 'Forward.max_linear_vel' instead.
+[INFO] [1794743460.830906819] [controller_server]: Created controller : Reverse of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794743460.832167454] [controller_server]: Parameter 'Reverse.desired_linear_vel' is deprecated. Use 'Reverse.max_linear_vel' instead.
+[INFO] [1794743460.863667711] [controller_server]: Controller Server has Forward Reverse  controllers available.
+[INFO] [1794743461.008000200] [lifecycle_manager_demo]: [34m[1mConfiguring behavior_server[0m[0m
+[INFO] [1794743461.010048435] [behavior_server]: Configuring
+[INFO] [1794743461.146165900] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[INFO] [1794743461.385592034] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[INFO] [1794743461.468368841] [behavior_server]: Configuring spin
+[WARN] [1794743461.623190737] [behavior_server.rclcpp]: failed to send response to /behavior_server/change_state (timeout): client will not receive response, at ./src/rmw_response.cpp:164, at ./src/rcl/service.c:392
+[ros2run]: Received signal:  Interrupt
+[ros2run]: Received signal:  Interrupt
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794743521.376105280] [rclcpp]: signal_handler(signum=2)
+v2_filter 잘림 횟수 (50 Hz 틱): {'speed': 0, 'curv': 0, 'spin': 0, 'rev': 0, 'motor': 0}
+[INFO] [1794743521.376395054] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794743521.376554454] [controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[INFO] [1794743521.376670203] [lifecycle_manager_demo]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_demo)
+[INFO] [1794743521.376713597] [controller_server]: Cleaning up
+[INFO] [1794743521.376763136] [controller_server]: Cleaning up controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794743521.376824771] [controller_server]: Cleaning up controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794743521.377576840] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794743521.377746992] [local_costmap.local_costmap]: Cleaning up
+[INFO] [1794743521.377801363] [behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[INFO] [1794743521.377942713] [behavior_server]: Cleaning up
+[INFO] [1794743521.387887616] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794743521.460517601] [behavior_server]: Destroying
+[WARN] [1794743521.460612134] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794743521.526891217] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794743521.539594334] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794743521.547748397] [local_costmap.local_costmap]: Destroying
+[WARN] [1794743521.547845586] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794743521.600331002] [controller_server]: Destroying
+[WARN] [1794743521.600525955] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
