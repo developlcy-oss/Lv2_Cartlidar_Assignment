@@ -180,19 +180,19 @@ ros2 launch bringup bringup.launch.py        # 하드웨어 · 센서 · 인식 
 
 ## 10. 제출물 지도
 
-상태는 이 문서를 쓴 2026-11-17 기준이다 ("없음" = 아직 저장소에 없음, 채워야 함).
+상태는 최종 제출 (2026-11-17, 태그 `project2-submit`) 기준이다.
 
 | 경로 | 내용 | 상태 |
 |---|---|---|
 | [problem/](problem/) | 문제 패키지: [problem.md](problem/problem.md) · [signals.json](problem/signals.json) · [placement.csv](problem/placement.csv) · [allocation_answers.md](problem/allocation_answers.md) / [.json](problem/allocation_answers.json) · [verification.md](problem/verification.md) · [dice_targets.csv](problem/dice_targets.csv) (+ [rules.md](problem/rules.md) · [review.md](problem/review.md)) | 있음 — 팀 실물 퍽 등록표 + 공개 연습 Q1 신호 · 바코드. `review.md` 다른 팀 검토 기록 비어 있음 |
 | [docs/architecture.md](docs/architecture.md) | ROS 2 노드 · 토픽 · 메시지, TF, 단계 · 완료 조건, 안전 · 오류 상태도 | 있음 |
 | [docs/issues.md](docs/issues.md) | GitHub 이슈 목록 (발견자 · 수정 담당 · 검토자 · 처리 현황) | 있음 |
-| [docs/contributions.md](docs/contributions.md) | 팀원별 기여 · 근거 | 있음 (작성 중) |
-| [results/test-results.csv](results/test-results.csv) | 시험 결과 표 | 없음 |
+| [docs/contributions.md](docs/contributions.md) | 팀원별 기여 · 근거 (0 절 저장소 기록 요약, 1 ~ 4 절 사람별 구현 · 검증 · 리뷰 · 설명) + [contributions_log.md](docs/contributions_log.md) | 있음 |
+| [results/test-results.csv](results/test-results.csv) | 시험 결과 표 (실물 · 모의 · 단위 구분, 성공 · 실패 · 미확인 · 미수행) | 있음 |
 | [results/signal.json](results/signal.json) · [results/allocation.json](results/allocation.json) | 실물 경기 신호 · 할당 기록 | 있음 — 실물은 observe FAILED 로 **미관측 · 미계산** 이라고 적혀 있음. 시뮬 Q1 계획기 출력은 [results/sim_plan_q1/](results/sim_plan_q1/) |
 | [results/real_20261116/](results/real_20261116/) | 경기일 실물 기록: `mission_log/` (전체 미션 2 회, observe FAILED) · `launch_logs/` · `drive_runs/` (drive_demo 3 회, 최고 4/10 구간) | 있음 |
-| [results/official_scoring.md](results/official_scoring.md) | 공식 채점 결과 · 근거 | 없음 |
-| [results/reproduction.md](results/reproduction.md) | 재현 절차 · 결과 | 없음 |
+| [results/official_scoring.md](results/official_scoring.md) | 공식 1 · 2 회차 100 점 판정표 · 근거 | 있음 |
+| [results/reproduction.md](results/reproduction.md) | 재현 시험 기록 (실행자 · 날짜 · 장비 · 커밋 · 결과) + [reproduction_20261115/](results/reproduction_20261115/) | 있음 |
 | [challenge/B/](challenge/B/) | 도전 B: 퍽 할당 알고리즘 비교 (순차 vs 탐색, `report.md` · `cases.json` · `expected.json` · `results.csv`) | 있음 |
 
 ## 10. 경기 영상 · 발표 자료
@@ -204,9 +204,9 @@ ros2 launch bringup bringup.launch.py        # 하드웨어 · 센서 · 인식 
 | 모의 시험 영상 (온창범, 20 개) | [results/sim_videos/](results/sim_videos/) — 주행 방식 V1 ~ V9 · MuJoCo M 시험 · 무게추 비교 |
 | 개인 보고서 (온창범) | [docs/contributions/온창범_보고서.md](docs/contributions/온창범_보고서.md) |
 
-### 남은 제출 항목
+### 제출 태그
 
-| 항목 | 내용 |
+| 태그 | 가리키는 것 |
 |---|---|
-| 태그 `project2-submit` | 최종 제출 커밋에 (아직 없음) |
-| 태그 `project2-problem-submit` | 문제 패키지 (`problem/`) 제출 커밋에 (아직 없음, 공식 문제로 교체 뒤) |
+| `project2-submit` | 최종 제출 (`main`) |
+| `project2-problem-submit` | 문제 패키지 (`problem/`) 고정 버전 (`main`) |
