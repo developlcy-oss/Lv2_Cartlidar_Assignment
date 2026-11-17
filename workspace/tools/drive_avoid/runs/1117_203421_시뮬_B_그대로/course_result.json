@@ -1,0 +1,32 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>box3",
+  "points": [
+   0,
+   1
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": ""
+   }
+  ]
+ },
+ {
+  "seg": "S1",
+  "name": "box3>box5",
+  "points": [
+   1,
+   2
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": "다시 계획 1: 합류 +0.45 m: 전진 2.10 m (3.7 s)"
+   }
+  ]
+ }
+]

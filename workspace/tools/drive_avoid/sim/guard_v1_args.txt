@@ -1,0 +1,1 @@
+-p scan_topics:=[/scan_merged] -p body_box:=[-0.175,0.285,0.19] -p learn_window:=[0.0,0.0] -p close_range:=0.0 -p tfmini_topic:=none

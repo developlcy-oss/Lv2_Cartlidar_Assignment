@@ -1,0 +1,28 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>box3",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 39.1,
+  "end_err_cm": 2.6,
+  "end_err_deg": 0.8,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": []
+ },
+ {
+  "seg": "S1",
+  "name": "box3>box5",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 29.9,
+  "end_err_cm": 4.7,
+  "end_err_deg": 0.8,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": [
+   4.4
+  ]
+ }
+]

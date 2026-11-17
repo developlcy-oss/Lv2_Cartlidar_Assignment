@@ -1,0 +1,7 @@
+# 장애물 주행 (avoid_runner, 2026-11-17 20:40): 경로 box1 box2 box6 · 실제 간 곳 HOME → box1 → box6
+route:
+  - {stop: signal, x: 0.6936, y: 0.9500, face: 180.0}
+  - {stop: box1, x: 1.8053, y: 1.0855, face: 180.0}
+  - {stop: box2, x: 3.6545, y: 2.8847, face: 90.0}
+  - {stop: box6, x: 3.2897, y: 3.9215, face: 0.0}   # 다시 감 (건너뛴 뒤)
+  - {stop: box2, x: 3.6545, y: 2.8847, face: 90.0}
