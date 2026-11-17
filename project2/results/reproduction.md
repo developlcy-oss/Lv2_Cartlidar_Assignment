@@ -49,7 +49,16 @@
 - 21:13 회차는 Ctrl+C 로 끝나 결과 파일이 없고 `follow.log` 로만 판정했다. 벽 접촉은 PR 본문 진술뿐 (로그 · 영상 근거 없음).
 - 정지점 합격선 5 cm 는 drive_demo 기준이며 발제 채점 기준이 아니다.
 
-### 2. 그 밖
+### 2. bringup 컨트롤러 활성화 — 실물 (2026-11-15)
+
+bringup 은 kanichong 이 만들었고, 아래는 만든 사람이 아닌 팀원 (Onbeom) 이 같은 절차로 돌린 기록이다.
+
+| 날짜 | 실행자 | 구분 | 장비 | 설정 | SW 버전 | 커밋 | 실행 결과 | 원본 로그 · 영상 | 비고 |
+|---|---|---|---|---|---|---|---|---|---|
+| 2026-11-15 16:03 ~ 19:40 | Onbeom (인지 · 위치 추정 담당) | 실물 | Jetson cart11 · 실물 로봇 (정지 상태) | `use_teleop:=true rc100:=true use_perception:=false use_localization:=true use_amcl_node:=true use_nav2:=false use_planner:=false use_loc_lock:=false use_loc_gate:=false` (11-14 실패 때와 같은 인자) | ROS 2 Lyrical | 설치본 c453996 (dev 1767e0f + STOW J1 −1.287) | **성공**: 3 판 모두 컨트롤러 4/4 · spawner 실패 0 · `/joy` 20 Hz · `/tf` 71 ~ 78 Hz (19:36 설치본 fd6bcbf 한 판 더, 같은 결과) | [#275 댓글](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/275#issuecomment-6893200035) | 인지 · Nav2 끈 구성. 처음 두 번은 남은 노드 때문에 판정에서 뺌 |
+| 2026-11-15 22:48 ~ 23:45 | Onbeom | 실물 | Jetson cart11 · 실물 로봇 (정지 상태) | `use_teleop:=false use_localization:=true use_nav2:=true use_planner:=false` + 인지 모드 7, 판마다 bringup 을 새로 띄움 | ROS 2 Lyrical | 설치본 1b9266c | **성공**: 8 판 모두 첫 bringup 에서 컨트롤러 4/4 (11-14 오전 같은 구성 30 번 중 25 번 실패) | [#275 댓글](https://github.com/developlcy-oss/Lv2_Cartlidar_Assignment/issues/275#issuecomment-6896389227) | 원본 로그는 Jetson 에만 있음 |
+
+### 3. 그 밖
 
 | 항목 | 상태 |
 |---|---|
