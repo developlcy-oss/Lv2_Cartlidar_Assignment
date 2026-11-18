@@ -45,10 +45,10 @@ manipulator_node:
     pose:
       start_tolerance: 0.2
       front_j1_max: 0.6        # rad. 관절 1 이 이 안 (앞쪽, 상자 보기 · 집기 뒤) 이면 이름 자세 이동 허용, 밖 (뒤 팔레트 · 옆) 이면 알려진 자세 근처만
-      blocked: [STOW, READY]   # STOW 는 정리의 역순 (opencr_arm_tool) 으로만, READY 는 11-08 상단 카메라 충돌
+      blocked: [STOW, READY]   # STOW 는 DRIVE · FOLD_VIA 에서 접기 (startup.unfold_via → stages 역순) 로만, READY 는 11-08 상단 카메라 충돌
     # 이름 자세 [joint1~5, 6 번째] (rad). gripper.mode=arm_joint 면 6 번째는 쓰지 않고 지금 그리퍼 명령을 유지
     poses:
-      names: [STOW, DRIVE, ALIGN, READY, PLACE, TAG_VIEW, BOX_VIEW, TRANSIT_TILT]
+      names: [STOW, DRIVE, FOLD_VIA, ALIGN, READY, PLACE, TAG_VIEW, BOX_VIEW, TRANSIT_TILT]
       # STOW = 실물 대기 자세 (#166 · #144): J1 +126° 쪽 (#277, 11-16 관절 1 π 보정 펌웨어 뒤 모델 각도). 값 = opencr.ros2_control.xacro
       #   arm_standby_min_tick · max_tick 의 가운데 = (tick − 2048) × 2π/4096 (관절 1 ~ 5, 그리퍼는 아무 값이나 허용 · 0.923 = 닫힘). 전원을 끄기 전 이 자세로 접어 둠 (켤 때 범위 밖이면 하드웨어가 거부)
       #   2026-11-14 #277: J1 1.554 -> 2.200. 팔레트 v5 (11-13) 1 열 끝 칸 (R_4) 칸 벽이 예전 STOW 자리를 차지 — link3 ↔ 칸 벽 −3.5 mm
@@ -68,7 +68,15 @@ manipulator_node:
       STOW: [2.200, -2.088, 1.549, -1.868, 0.0, 0.923]
       # 주행 자세 (#114 → #144 → #219): 주행 중 팔. 2026-11-13 = ALIGN E2 + 집게 닫음. 이전 [-0.0245, -1.6122, 1.2901, 1.1888] 은
       #   관절 3 모터가 팔레트 v5 퍽과 겹침 (계산 2_1 −9 · 1_1 −1 mm, 실물 1열 퍽 충돌) → E2 는 퍽 15 mm · 차체 23 mm (관절 2 영점 −5° 틀어지면 8 mm, #266 다시 맞출 것)
-      DRIVE: [0.0, -1.37, -0.01, 1.85, 0.0, 0.923]
+      #   2026-11-18: E2 는 손목 (link5 z 0.36 m) 이 앞 RealSense 바로 앞에 서서 화면 22.6 % (아래 가운데) 를 가림 (실물 · 계산)
+      #   → 팔을 앞 · 아래로: 손목 z 0.33 · 집게 끝 (x 0.149, z 0.176), 가림 8.2 % (아래 가운데만), 뒤 RealSense 0 %.
+      #   틈 (팀 URDF, tools/arm_bench/fold_clearance.py 모델): 자세 23.5 mm (관절 1 받침), DRIVE ↔ ALIGN · FOLD_VIA 퍽 15.1 mm,
+      #   ↔ BOX_VIEW · TRANSIT_TILT · TAG_VIEW 23.5 mm. 팔 앞 끝 x 0.227 (차체 앞 0.15 보다 77 mm 앞) · 가장 낮은 점 0.15 m (상자 윗면 0.063 + 퍽 위)
+      #   STOW 에서 바로 펴면 퍽 R_1 과 −3.3 mm (계산) → 펴기 · 접기는 FOLD_VIA (예전 DRIVE) 를 거침 (startup.unfold_via)
+      #   ★ 실물 첫 확인은 느리게 (startup.max_joint_velocity 0.2), 관절 2 · 3 처짐으로 집게 끝이 더 내려갈 수 있음
+      DRIVE: [0.0, -1.25, 0.60, 1.80, 0.0, 0.923]
+      # 접기 · 펴기 경유 자세 = 11-13 ~ 11-17 DRIVE (E2, STOW ↔ 이 자세 묶음 순서 실물 확인 #165 · #219). 미션에서 직접 쓰지 않음
+      FOLD_VIA: [0.0, -1.37, -0.01, 1.85, 0.0, 0.923]
       # 정밀 정렬 (approach FINE) 자세 (#188 · #218): FINE 시작 · 끝에서 팔 카메라에 퍽 2 개 (계산 · Isaac). 관절 1 · 5 = 0 (FINE 정렬 흐름 없음).
       #   잡는 점 base_link (0.149, 0, 0.285). 관절 4 한계 여유 0.133 rad ★ 실물 확인 전 (관절 영점 보정 뒤)
       ALIGN: [0.0, -1.37, -0.01, 1.85, 0.0, 0.0]   # 2026-11-12 #218 E2 (차체 23 mm · 실은 퍽 17.8 mm · 시야 82 px, 회전 반지름 2 ~ 4 mm 넘음). 이전 ALIGN_A [0, -1.854, 0.540, 1.645, 0] 은 차체 · G 줄 퍽에 닿음
@@ -83,17 +91,23 @@ manipulator_node:
       #   2026-11-14 높이 이동 판 (pallet_traj_direct.py): 쥔 퍽 바닥 0.230 m (모든 칸 퍽 위 + 38 mm) · J1 축 0.10 m. 예전 [0.0, -1.32032, 0.67766, 1.42805, 0.0, 0.0] (퍽 바닥 0.156 = 1 열 퍽 윗면 아래)
       TRANSIT_TILT: [0.0, -0.89796, -0.10821, 1.79157, 0.0, 0.0]
 
-    # 켜질 때 정리 자세 (include/control/startup_stow.hpp, #144). 켤 때는 늘 대기 자세 (STOW) 에서 시작하므로 (#166) 한 번 주행 자세로 편다.
+    # 켜질 때 정리 자세 (include/control/startup_stow.hpp, #144). 2026-11-18: 켜진 뒤 STOW 에 머묾 (DRIVE 가 앞 RealSense 를 가려
+    #   대기 중 인식 · 위치 추정 시야를 막음). 호스트만 다시 켜 팔이 DRIVE · FOLD_VIA 에 남아 있으면 STOW 로 접음.
+    #   미션은 시작할 때 pose DRIVE 를 먼저 보냄 (mission arm.unfold_on_start) → STOW 에서 아래 stages 순서로 FOLD_VIA 까지 편 뒤 DRIVE.
+    #   pose STOW 는 DRIVE · FOLD_VIA 에서만 (FOLD_VIA → stages 역순). 마치면 /manipulator/startup_done (latched) true = 미션 준비 표 항목
     #   arm_controller 준비 · 팔 HOLD 해제 (리셋 버튼 = REARM, /diagnostics opencr/motors arm_hold 0) 뒤에 시작.
     #   HOLD 중에 보낸 명령은 펌웨어가 무시하다가 REARM 순간 그 자리로 한 번에 튀므로 HOLD 가 풀리기 전에는 보내지 않는다.
     #   그 전에 pose · pick · skill goal 을 받으면 하지 않음. 정리 중에 오는 goal 은 거절 (mission 은 재시도)
     #   ★ 충돌로 관절이 반 바퀴 돌아간 경우는 자동으로 풀지 않음 (회전 방향을 몰라 케이블이 감길 수 있음) — 손으로 되돌림
     startup:
-      pose: DRIVE                # poses.names 중 하나. 빈 문자열 = 끔
-      stages: ["3", "2", "4", "1", "5,6"]   # 관절 번호 묶음 순서 (6 = 그리퍼). 대기 → 주행 = J3 → J2 → J4 → J1 (2026-11-13 새 DRIVE, 계산 퍽 15 · 차체 23 mm ★ 실물 0.1 rad/s 로 첫 확인).
+      pose: STOW                 # 켜진 뒤 모으는 자세 (poses.names 중 하나). 빈 문자열 = 끔. 예전 동작 (켜지면 펴기) = DRIVE
+      unfold_pose: DRIVE         # STOW 에서 묶음 순서로 펴는 자세 (pose 이 이름 goal). 빈 문자열 = 끔 (STOW 에서 pose 거절)
+      unfold_via: FOLD_VIA       # 펴기 끝 · 접기 처음에 거치는 자세 (그 사이는 관절 1 ~ 5 를 한 번에). 빈 문자열 = 거치지 않음
+      stages: ["3", "2", "4", "1", "5,6"]   # 펴기 (STOW → FOLD_VIA) 관절 번호 묶음 순서 (6 = 그리퍼), 접기는 역순. J3 → J2 → J4 → J1 (2026-11-13 E2, 계산 퍽 15 · 차체 23 mm ★ 실물 0.1 rad/s 로 첫 확인).
                                           #   이전 J3 → J2 → J1 → J4 (#165 실물 확인) 는 새 DRIVE 에서 J4 단계 집게가 위 카메라 기둥 상자와 −20 mm (계산)
       max_joint_velocity: 0.0    # rad/s, 0 = arm.max_joint_velocity (2026-11-14). 예전 0.1 (#165) → 0.3 (11-13). 따로 느리게 하려면 양수
-      # 정리를 마치기 전 (REARM 전 · 이동 중) pose · pick · execute_skill goal 을 거절 → 모든 명령이 정리 자세 (DRIVE) 에서 시작.
+      # 정리를 마치기 전 (REARM 전 · 이동 중) pose · pick · execute_skill goal 을 거절 → 모든 명령이 정리 자세 (STOW) 에서 시작.
+      #   STOW 에서 pick · execute_skill 은 늘 거절 (먼저 pose DRIVE).
       #   2026-11-14 실물: 죽은 브링업에 걸어 둔 명령이 노드가 뜨자마자 들어와 정리가 취소됨 → 엉뚱한 자세에서 팔레트 궤적 시작
       block_goals: true
       skip_tolerance: 0.05       # rad, 묶음 관절이 모두 이 안이면 그 묶음은 건너뜀

@@ -84,3 +84,46 @@ TEST(StartupStow, DurationFromLargestMoveIncludingGripper)
   EXPECT_DOUBLE_EQ(startupStageDuration(from, to, 0.2, 1.0), 8.0);   // 그리퍼 1.6 rad / 0.2
   EXPECT_DOUBLE_EQ(startupStageDuration(from, from, 0.2, 1.0), 1.0);   // 최소 시간
 }
+
+// 접기 = 펴기 (STOW → DRIVE, J3 → J2 → J4 → J1 → J5 · 그리퍼) 의 역순 (2026-11-18 STOW 대기)
+TEST(StartupStow, FoldIsReverseOfUnfold)
+{
+  const auto unfold = parseStartupStages({"3", "2", "4", "1", "5,6"}, 6);
+  const auto fold = control::foldStages(unfold);
+  ASSERT_EQ(fold.size(), unfold.size());
+  EXPECT_EQ(fold.front(), (std::vector<size_t>{4, 5}));
+  EXPECT_EQ(fold.back(), (std::vector<size_t>{2}));
+  for (size_t i = 0; i < fold.size(); ++i) {EXPECT_EQ(fold[i], unfold[unfold.size() - 1 - i]) << i;}
+}
+
+// 펴기: STOW → (묶음 순서) FOLD_VIA → 팔 관절 한 번에 DRIVE. 접기: DRIVE → 팔 관절 한 번에 FOLD_VIA → 묶음 역순 STOW
+TEST(StartupStow, UnfoldAndFoldPlansGoThroughVia)
+{
+  const auto stages = parseStartupStages({"3", "2", "4", "1", "5,6"}, 6);
+  const std::vector<double> via{0.0, -1.37, -0.01, 1.85, 0.0, 0.923};
+  const std::vector<double> drive{0.0, -1.25, 0.60, 1.80, 0.0, 0.923};
+  const std::vector<size_t> arm{0, 1, 2, 3, 4};
+
+  const auto up = control::unfoldPlan(stages, via, drive);
+  ASSERT_EQ(up.size(), stages.size() + 1);
+  for (size_t i = 0; i < stages.size(); ++i) {
+    EXPECT_EQ(up[i].joints, stages[i]) << i;
+    EXPECT_EQ(up[i].target, via) << i;
+  }
+  EXPECT_EQ(up.back().joints, arm);   // 그리퍼 (5) 는 움직이지 않음
+  EXPECT_EQ(up.back().target, drive);
+
+  const auto down = control::foldPlan(stages, via, kStow, true);
+  ASSERT_EQ(down.size(), stages.size() + 1);
+  EXPECT_EQ(down.front().joints, arm);
+  EXPECT_EQ(down.front().target, via);
+  EXPECT_EQ(down[1].joints, (std::vector<size_t>{4, 5}));
+  EXPECT_EQ(down.back().joints, (std::vector<size_t>{2}));
+  EXPECT_EQ(down.back().target, kStow);
+
+  // 이미 FOLD_VIA · STOW 근처면 via 로 가는 첫 묶음 없음. via 가 비면 펴기는 묶음 순서로 바로 목표
+  EXPECT_EQ(control::foldPlan(stages, via, kStow, false).size(), stages.size());
+  const auto direct = control::unfoldPlan(stages, {}, drive);
+  ASSERT_EQ(direct.size(), stages.size());
+  EXPECT_EQ(direct.back().target, drive);
+}

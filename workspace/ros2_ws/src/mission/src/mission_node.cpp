@@ -28,6 +28,7 @@
 //   pick                          SEARCH_FRONT | ARM_ALIGN | READ_TAG 유지, /manipulator/pick (grasped 확인)
 //                                 READ_TAG: perception 이 Arducam 태그로 /arm_range (팔 끝 → 퍽) 를 정밀하게 낸다
 //   pose <name>                   /manipulator/pose
+//   unfold <name>                 /manipulator/pose (새 시작 맨 앞, arm.unfold_on_start): 켜진 뒤 STOW 에 접힌 팔을 묶음 순서로 폄 (timeout.unfold)
 //   skill <drive|manipulator> <policy> [timeout] [mode=이름+이름] [fallback=<단계>]
 //                                 예: mode=SEARCH_FRONT+ARM_ALIGN, fallback=navigate:home (':' = 공백)
 //
@@ -231,6 +232,12 @@ public:
           loc_status_ = msg->data;
         }, sub_opt);
     }
+    // 켜질 때 팔 정리 (manipulator startup.*): latched. 정리 전 (REARM 전 · 이동 중) 에는 팔 goal 이 거절되므로 시작 전에 확인
+    if (ready_arm_startup_) {
+      arm_startup_sub_ = create_subscription<std_msgs::msg::Bool>(
+        "/manipulator/startup_done", rclcpp::QoS(1).reliable().transient_local(),
+        [this](std_msgs::msg::Bool::ConstSharedPtr msg) {arm_startup_ = msg->data ? 1 : 0;}, sub_opt);
+    }
     if (plan_mode_) {
       // plan 모드: 신호 · 바코드 (계약: Reliable, depth 1)
       signal_sub_ = create_subscription<SignalSequence>(
@@ -402,6 +409,9 @@ private:
     base_frame_ = declare_parameter<std::string>("base_frame", "base_link");
     // 주행 · 탐색 · 접근 시작 때 팔 자세 (manipulator poses 이름). 주행 중 팔 = 주행 자세 (#114 → #144). STOW 는 전원 끄기 전 대기 자세
     travel_pose_ = declare_parameter<std::string>("arm.travel_pose", "DRIVE");
+    // 새 시작 맨 앞에 unfold <travel_pose> (2026-11-18): manipulator 는 켜진 뒤 STOW 에 머물고 (startup.pose), STOW 에서는
+    //   pose <startup.unfold_pose> 만 받음 (묶음 순서로 폄) — 첫 단계 (observe 의 barcode_look · TAG_VIEW) 가 STOW 에서 거절되지 않게
+    unfold_on_start_ = declare_parameter<bool>("arm.unfold_on_start", true);
     behavior_tree_ = declare_parameter<std::string>("behavior_tree", "");
 
     // 위치표: locations.names = [home, L1, ...], locations.<name> = [x, y, yaw(rad)] (map = 발제 좌표, base_link 자세)
@@ -432,6 +442,7 @@ private:
 
     // 단계별 타임아웃 (s) · 재시도
     timeout_["pose"] = declare_parameter<double>("timeout.pose", 20.0);
+    timeout_["unfold"] = declare_parameter<double>("timeout.unfold", 60.0);   // STOW → DRIVE 묶음 6 개 (0.8 rad/s 면 약 13 s)
     timeout_["read_tag"] = declare_parameter<double>("timeout.read_tag", 90.0);  // 회전 탐색 포함
     timeout_["navigate"] = declare_parameter<double>("timeout.navigate", 120.0);
     timeout_["search"] = declare_parameter<double>("timeout.search", 60.0);      // 회전 탐색 포함
@@ -448,6 +459,8 @@ private:
     ready_controllers_ = declare_parameter<std::vector<std::string>>("ready.controllers", std::vector<std::string>{});
     ready_managers_ = declare_parameter<std::vector<std::string>>("ready.lifecycle_managers", std::vector<std::string>{});
     ready_loc_ = declare_parameter<bool>("ready.localization", false);
+    // /manipulator/startup_done == true (켜질 때 팔 정리를 마침). 끄면 보지 않음 (mock · 예전 manipulator)
+    ready_arm_startup_ = declare_parameter<bool>("ready.arm_startup", false);
     ready_reply_timeout_ = declare_parameter<double>("ready.reply_timeout", 3.0);
     retry_delay_ = declare_parameter<double>("retry_delay", 1.0);
 
@@ -896,7 +909,7 @@ private:
     }
     if (s.type == "navigate") {
       if (s.args.size() != 1 || locations_.count(s.args[0]) == 0) {bad("needs a name from locations.names");}
-    } else if (s.type == "pose") {
+    } else if (s.type == "pose" || s.type == "unfold") {
       if (s.args.size() != 1) {bad("needs a pose name");}
     } else if (s.type == "approach" || s.type == "approach_box") {
       // FINE 정렬 거리는 미션표에서 준다 (TFmini 렌즈 → 박스 앞면). drive align.min_target_distance 와 같게
@@ -1305,6 +1318,13 @@ private:
     srv("/drive/align", align_client_->action_server_is_ready());
     srv("/manipulator/pose", pose_client_->action_server_is_ready());
     srv("/manipulator/pick", pick_client_->action_server_is_ready());
+    srv("/manipulator/execute_skill", arm_skill_client_->action_server_is_ready());   // observe barcode_look · 집기 · 놓기
+    if (ready_arm_startup_) {
+      const int a = arm_startup_.load();
+      add(S3, "팔 정리 (/manipulator/startup_done)", a == 1 ? ReadyState::OK : ReadyState::WAIT,
+        a == 1 ? "STOW 정리 끝" : a == 0 ? "정리 전 — 리셋 버튼 (REARM) 뒤 'startup: arm at STOW' 기다림 · 팔이 STOW 근처인지" :
+        "못 받음 (manipulator_node?)");
+    }
     srv("/perception/set_mode", mode_client_->service_is_ready());
     if (plan_mode_) {
       srv(plan_service_ + " (계획기)", plan_client_->service_is_ready());
@@ -1397,6 +1417,9 @@ private:
   {
     openEpisode();   // 맨 앞: 아래 logEvent("start") 부터 이 폴더에
     steps_.clear();
+    if (unfold_on_start_ && !travel_pose_.empty()) {
+      steps_.push_back(parseStep("unfold " + travel_pose_));   // STOW → DRIVE (manipulator 가 묶음 순서로), 이미 펴져 있으면 바로 끝
+    }
     if (plan_mode_) {
       // 출발 구역에서 신호 · 바코드 관측 → 계획기에 단계 요청 (뒤에 붙음)
       steps_.push_back(parseStep("observe"));
@@ -1484,7 +1507,7 @@ private:
     RCLCPP_INFO(get_logger(), "-> [%zu] %s", idx, s.text.c_str());
     publishStatus();
 
-    if (s.type == "pose") {
+    if (s.type == "pose" || s.type == "unfold") {
       drive_done_ = true;
       sendArmPose(s.args[0]);
     } else if (s.type == "read_tag") {
@@ -3517,6 +3540,10 @@ private:
   rclcpp::Time marker_rx_{0, 0, RCL_ROS_TIME};
   std::atomic<bool> estop_active_{false};
   std::string loc_status_;                  // /localization/status 마지막 값 (빈 문자열 = 못 받음)
+  std::atomic<int> arm_startup_{-1};        // /manipulator/startup_done: -1 못 받음 · 0 정리 전 · 1 끝
+  bool ready_arm_startup_{false};
+  bool unfold_on_start_{true};
+  rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr arm_startup_sub_;
 
   // 상태 (mission_cb_group_ 전용)
   std::atomic<bool> start_requested_{false};
