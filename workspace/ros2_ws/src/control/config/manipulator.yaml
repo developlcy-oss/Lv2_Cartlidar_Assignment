@@ -167,6 +167,8 @@ manipulator_node:
     tf_cache_time: 10.0          # s (측정값은 300ms 안의 것만 쓴다)
     tf_idle_off: 30.0            # s. TF 는 작업 (pose · pick · skill) 중과 끝난 뒤 이만큼만 받음 — 쉬는 동안 /tf CPU 줄임 (#265). 0 = 늘 받음
     tf_warmup: 1.0               # s. TF 를 다시 켤 때 fixed_frame → base_frame 이 들어올 때까지 기다리는 최대 시간
+    controller_state_idle_off: 30.0   # s. /arm_controller/controller_state (100 Hz) 도 작업 중과 끝난 뒤 이만큼만 받음 (#265, 11-15 manipulator CPU 22.2). 0 = 늘 받음
+    controller_state_warmup: 0.3      # s. 다시 켤 때 첫 값 (궤적 출발점) 을 기다리는 최대 시간
 
     pick:
       # 목표 우선순위: ① 정밀 정렬 결과 → ② perception object_pose (300ms 안, object_found)
