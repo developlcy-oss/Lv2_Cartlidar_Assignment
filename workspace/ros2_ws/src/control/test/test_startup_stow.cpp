@@ -101,7 +101,7 @@ TEST(StartupStow, UnfoldAndFoldPlansGoThroughVia)
 {
   const auto stages = parseStartupStages({"3", "2", "4", "1", "5,6"}, 6);
   const std::vector<double> via{0.0, -1.37, -0.01, 1.85, 0.0, 0.923};
-  const std::vector<double> drive{0.0, -1.25, 0.60, 1.80, 0.0, 0.923};
+  const std::vector<double> drive{0.0, -1.30, 0.60, 1.85, 0.0, 0.923};
   const std::vector<size_t> arm{0, 1, 2, 3, 4};
 
   const auto up = control::unfoldPlan(stages, via, drive);
