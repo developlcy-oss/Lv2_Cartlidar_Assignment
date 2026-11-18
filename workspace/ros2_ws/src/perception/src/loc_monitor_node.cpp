@@ -10,6 +10,10 @@
 // 대응: OK · SUSPECT 가 아니면 명령 게이트(gate_in → gate_out, none 이면 끔)가 속도 0. LOST → RECOVERING(작업 스레드):
 //       마지막 정상 자세 둘레 탐색 → 안 되면 지도 전체 탐색 → 받아들이면 /initialpose → CONFIRM → 잔차가 ok_confirm_s 동안 좋으면 OK.
 //       max_recover_s 넘으면 FAILED. 사건은 event_log(jsonl)에도 씀(Python 판과 같은 이름 · 같은 키).
+// FAILED 에서 나오기 (2026-11-17, 11-16 실물: FAILED 뒤 bringup 을 다시 띄우는 수밖에 없었음):
+//   ① failed_retry_s > 0 이면 FAILED 뒤에도 그 간격으로 탐색을 이어 가고, 받아들이면 CONFIRM (OK 는 예전처럼 잔차로만)
+//   ② 운용자가 RViz '2D Pose Estimate' 등으로 /initialpose 를 내면 (이 노드가 낸 것 말고) 어느 상태든 CONFIRM 에서 다시 확인
+//   failed_retry_s ≤ 0 · manual_initialpose false 면 예전과 같음.
 #include <atomic>
 #include <charconv>
 #include <chrono>
@@ -122,6 +126,8 @@ public:
     max_recover_s_ = declare_parameter("max_recover_s", 60.0);
     ok_confirm_s_ = declare_parameter("ok_confirm_s", 1.0);
     confirm_timeout_s_ = declare_parameter("confirm_timeout_s", 10.0);
+    failed_retry_s_ = declare_parameter("failed_retry_s", 5.0);
+    const bool manual_init = declare_parameter("manual_initialpose", true);
     const auto event_log = declare_parameter("event_log", std::string(""));
     if (backend_ != "amcl") {
       throw std::invalid_argument("C++ loc_monitor 는 backend amcl 만 — carto 는 localization 패키지 Python 판(loc_cpp:=false)");
@@ -149,6 +155,9 @@ public:
     if (pose_topic.empty()) {pose_topic = "/amcl_pose";}
     sub_pose_ = create_subscription<PoseCov>(pose_topic, 10, [this](PoseCov::ConstSharedPtr m) {on_tracked(*m);});
     pub_init_ = create_publisher<PoseCov>("/initialpose", 10);
+    if (manual_init) {
+      sub_init_ = create_subscription<PoseCov>("/initialpose", 10, [this](PoseCov::ConstSharedPtr m) {on_initialpose(*m);});
+    }
     timers_.push_back(rclcpp::create_timer(this, get_clock(), std::chrono::milliseconds(100), [this] {tick();}));
     timers_.push_back(rclcpp::create_timer(this, get_clock(), std::chrono::seconds(10), [this] {report();}));
     event("start", {{"backend", str(backend_)}, {"gate", gate_ ? "true" : "false"}, {"traj", std::to_string(traj_)},
@@ -533,9 +542,12 @@ private:
         rs = recover_since_.value_or(now_s());
         lg = last_good_;
       }
-      if (now_s() - rs > max_recover_s_) {
+      const std::string cur = state();
+      if (cur == "CONFIRM" || ok_state(cur)) {return;}   // 운용자 /initialpose 로 이미 다시 확인 중
+      if (now_s() - rs > max_recover_s_ && cur != "FAILED") {
         set_state("FAILED", {{"recover_s", num(rnd(now_s() - rs, 2))}});
-        return;
+        if (failed_retry_s_ <= 0) {return;}   // 예전 동작: 멈춤
+        event("failed_retry", {{"every_s", num(failed_retry_s_)}});
       }
       rclcpp::Time st;
       L::Pose odom{};
@@ -562,6 +574,8 @@ private:
       }
       L::Pose now_pose{};
       builtin_interfaces::msg::Time stamp;
+      const std::string cur2 = state();
+      if (cur2 == "CONFIRM" || ok_state(cur2)) {return;}   // 탐색하는 동안 운용자가 자세를 넣음 — 덮어쓰지 않음
       if (cand && to_now(cand->best, odom, now_pose, stamp) && restart_amcl(now_pose, stamp)) {
         {
           std::lock_guard<std::mutex> g(mu_);
@@ -572,7 +586,8 @@ private:
         return;
       }
       std::unique_lock<std::mutex> lk(stop_mu_);   // 벽시계 — 모의 시계가 멈춰도 다시 시도
-      stop_cv_.wait_for(lk, std::chrono::duration<double>(retry_s_), [this] {return stop_;});
+      const double wait_s = state() == "FAILED" ? failed_retry_s_ : retry_s_;
+      stop_cv_.wait_for(lk, std::chrono::duration<double>(wait_s), [this] {return stop_;});
     }
   }
 
@@ -589,11 +604,33 @@ private:
     const double syaw = yaw_sd_deg_ * M_PI / 180.0;
     m.pose.covariance[0] = m.pose.covariance[7] = xy_sd_ * xy_sd_;
     m.pose.covariance[35] = syaw * syaw;
+    {
+      std::lock_guard<std::mutex> g(mu_);
+      own_init_stamp_ = m.header.stamp;
+    }
     pub_init_->publish(m);
     event("initialpose", {{"mission_pose", arr(p, 4)}});
     std::lock_guard<std::mutex> g(mu_);
     last_tracked_.reset();
     return true;
+  }
+
+  // 운용자가 낸 /initialpose (이 노드가 낸 것은 stamp 로 거름). AMCL 이 그 자세로 다시 뿌리므로 여기서는 다시 확인만 시작
+  void on_initialpose(const PoseCov & m)
+  {
+    {
+      std::lock_guard<std::mutex> g(mu_);
+      if (own_init_stamp_ && own_init_stamp_->sec == m.header.stamp.sec && own_init_stamp_->nanosec == m.header.stamp.nanosec) {return;}
+      last_tracked_.reset();   // 자세가 크게 바뀌므로 다음 /amcl_pose 를 튐으로 보지 않게
+      confirm_since_ = now_s();
+      confirm_ok_since_.reset();
+      recover_since_ = now_s();   // 다시 찾기 시간을 새로 셈
+    }
+    bad_since_.reset();
+    const auto & q = m.pose.pose.orientation;
+    const double yaw = std::atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z));
+    set_state("CONFIRM", {{"why", str("manual_initialpose")},
+      {"pose", "[" + num(rnd(m.pose.pose.position.x, 3)) + ", " + num(rnd(m.pose.pose.position.y, 3)) + ", " + num(rnd(yaw, 3)) + "]"}});
   }
 
   struct LastGood {double t; L::Pose pose, odom;};
@@ -603,6 +640,8 @@ private:
   std::vector<std::string> topics_;
   double r_min_, r_max_, res_r_max_, grace_, tf_wait_, res_thr_, suspect_s_, lost_s_, jump_xy_, jump_yaw_deg_, gap_s_;
   double xy_sd_, yaw_sd_deg_, accept_score_, amb_margin_, local_lin_, local_ang_deg_, retry_s_, max_recover_s_, ok_confirm_s_, confirm_timeout_s_;
+  double failed_retry_s_ = 5.0;
+  std::optional<builtin_interfaces::msg::Time> own_init_stamp_;   // 이 노드가 마지막으로 낸 /initialpose stamp (mu_)
   int n_points_;
   int64_t traj_;
   bool gate_ = false;
@@ -644,7 +683,7 @@ private:
   rclcpp::Publisher<TwistStamped>::SharedPtr pub_cmd_;
   rclcpp::Publisher<PoseCov>::SharedPtr pub_init_;
   rclcpp::Subscription<TwistStamped>::SharedPtr sub_cmd_;
-  rclcpp::Subscription<PoseCov>::SharedPtr sub_pose_;
+  rclcpp::Subscription<PoseCov>::SharedPtr sub_pose_, sub_init_;
   std::vector<rclcpp::Subscription<LaserScan>::SharedPtr> scan_subs_;
   std::vector<rclcpp::TimerBase::SharedPtr> timers_;
 };
