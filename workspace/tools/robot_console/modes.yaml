@@ -2,6 +2,7 @@
 #   launch : 모드의 바탕 (bringup). {ports} = 지금 꽂힌 OpenCR 두 대 (/dev/ttyACM*), {repo} = 저장소, {here} = 이 폴더
 #   wait_nodes : launch 뒤 이 노드들이 보일 때까지 기다림 (최대 wait_timeout_s), 그 뒤 wait_extra_s 더 기다림
 #   action : 준비가 끝나면 실행 (없으면 launch 만). 표준 입력은 TUI 의 Enter · y · q · s 키로 넘어감 (시연 확인 질문)
+#   use_nav2:=false 인 모드는 use_amcl_node:=true 를 꼭 줌 (bringup 은 AMCL 을 Nav2 와 같이 띄움 — 빼면 map → odom 이 없음, 11-18 실물).
 #   모드를 바꾸면 앞 모드 (action → launch) 를 모두 끄고 새로 띄움. 하드웨어도 다시 켜지므로 팔은 다시 STOW 로 접힘
 common_launch: >-
   ros2 launch bringup bringup.launch.py ports:={ports}
@@ -10,7 +11,7 @@ modes:
   0:
     name: 대기 · 수동 조작
     about: 하드웨어 · 라이다 · 위치 추정만. 팔은 STOW 로 접고 멈춤. TUI 로 앞뒤 · 회전 · 비상정지
-    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false
+    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_amcl_node:=true
     wait_nodes: [/controller_manager, /amcl]
     wait_timeout_s: 120
     wait_extra_s: 3
@@ -18,7 +19,7 @@ modes:
   1:
     name: 주행 시연
     about: 팔 STOW 그대로, 출발 → 상자 6 곳 → L3 · L2 · L1 → 출발 구역 10 구간 (drive_demo 시연 A, slow). 로봇을 출발 자리 (0.694, 0.950) · 신호등 쪽에 놓고 시작
-    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_tfmini:=false use_loc_monitor:=false
+    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_tfmini:=false use_loc_monitor:=false use_amcl_node:=true
     wait_nodes: [/controller_manager, /amcl, /map_server]
     wait_timeout_s: 150
     wait_extra_s: 8
@@ -34,7 +35,7 @@ modes:
   3:
     name: 인지 시연
     about: 팔 STOW, 앞 · 뒤 D435 로 퍽 찾기 · 장소 태그 · 신호등 점멸 세기를 켬 (결과는 로그 창). 바코드는 팔 카메라가 라벨을 봐야 해서 빠짐
-    launch_args: use_nav2:=false use_planner:=false arm_startup_pose:=none use_tfmini:=false use_loc_lock:=false
+    launch_args: use_nav2:=false use_planner:=false arm_startup_pose:=none use_tfmini:=false use_loc_lock:=false use_amcl_node:=true
     wait_nodes: [/controller_manager, /perception_node]
     wait_timeout_s: 150
     wait_extra_s: 5
@@ -50,7 +51,7 @@ modes:
   5:
     name: SLAM 녹화 주행
     about: 주행 시연 경로를 따라가며 라이다 · odom · IMU · TF 를 bag 으로 녹화 (지도는 PC Cartographer 로, Jetson 에는 Cartographer 없음)
-    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_tfmini:=false use_loc_monitor:=false
+    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_tfmini:=false use_loc_monitor:=false use_amcl_node:=true
     wait_nodes: [/controller_manager, /amcl, /map_server]
     wait_timeout_s: 150
     wait_extra_s: 8

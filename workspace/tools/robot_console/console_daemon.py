@@ -88,6 +88,8 @@ class Console(Node):
         self.estop = False          # 콘솔이 건 비상정지 (하드웨어 /e_stop 과 별개로 표시)
         self.hw_estop = None
         self.busy = False           # 모드 바꾸는 중 (명령 겹침 막기)
+        self.pending = 'none'       # 바꾸는 중에 온 다음 모드 요청 ('none' = 없음, None = 모두 끔)
+        self.cancel = False         # 준비 기다림을 그만두라는 표시
         latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.pub_status = self.create_publisher(String, '/console/status', latched)
         self.pub_joy = self.create_publisher(Joy, '/joy', 10)
@@ -219,6 +221,8 @@ class Console(Node):
     def wait_nodes(self, names, timeout):
         end = time.time() + timeout
         while time.time() < end:
+            if self.cancel:
+                return False, '다음 모드 요청으로 그만둠'
             if not (self.launch and self.launch.alive()):
                 return False, 'bringup 이 꺼짐'
             have = {('/' + n if ns == '/' else f'{ns}/{n}') for n, ns in self.get_node_names_and_namespaces()}
@@ -231,10 +235,12 @@ class Console(Node):
         return False, f'{timeout} s 안에 안 뜬 노드: {" ".join(miss)}'
 
     def switch(self, n):
-        if self.busy:
-            self.event('앞 모드를 바꾸는 중 — 끝난 뒤 다시')
+        if self.busy:   # 띄우는 중이면 기다림을 그만두고 이 요청으로 (마지막 요청만 남김)
+            self.pending, self.cancel = n, True
+            self.event(f'모드 {"끔" if n is None else n} 요청 — 지금 띄우는 것을 그만두고 바꿈')
             return
         self.busy = True
+        self.cancel = False
         try:
             if self.launch or self.action:
                 self.set('stopping', '앞 모드 끔')
@@ -279,6 +285,9 @@ class Console(Node):
             self.set('failed', f'{type(e).__name__}: {e}')
         finally:
             self.busy = False
+            nxt, self.pending = self.pending, 'none'
+            if nxt != 'none':
+                threading.Thread(target=self.switch, args=(nxt,), daemon=True).start()
 
 
 def main():
