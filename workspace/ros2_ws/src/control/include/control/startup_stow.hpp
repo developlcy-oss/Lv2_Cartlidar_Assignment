@@ -1,4 +1,5 @@
-// StartupStow — 전원을 켠 뒤 팔을 정리 자세 (startup.pose, 기본 DRIVE = 주행 자세) 로 천천히 옮기는 계산 (manipulator_node startup.*, #144)
+// StartupStow — 전원을 켠 뒤 팔을 정리 자세 (startup.pose, 기본 STOW) 로 모으고, STOW ↔ 주행 자세 (startup.unfold_pose)
+//     를 묶음 순서로 접고 펴는 계산 (manipulator_node startup.* · pose, #144)
 //
 // 왜: 켜진 팔은 대기 자세 (STOW, 차체 위에 접힘 — opencr_hardware 가 켤 때 이 범위를 확인, #166) 에 있다. 바로 미션 자세로
 //     관절 공간 직선 이동을 하면 팔끼리 · 카메라에 닿을 수 있어 (2026-11-08 실물 READY 충돌), 켜질 때 한 번 주행 자세로 편다.
@@ -53,6 +54,50 @@ inline std::vector<std::vector<size_t>> parseStartupStages(const std::vector<std
     }
     out.push_back(stage);
   }
+  return out;
+}
+
+// 접기 순서 = 펴기 순서 (startup.stages, STOW → 펴진 자세) 의 역순. 펼 때 지난 길을 거꾸로 돌아 접힌 자리로
+inline std::vector<std::vector<size_t>> foldStages(const std::vector<std::vector<size_t>> & unfold)
+{
+  return {unfold.rbegin(), unfold.rend()};
+}
+
+// 묶음 이동 하나: target 에서 joints (0 부터 센 칸) 만 가져오고 나머지는 지금 자리
+struct StagedMove
+{
+  std::vector<double> target;
+  std::vector<size_t> joints;
+};
+
+// 펴기 (STOW → unfold): stages 순서로 via 까지 (via 가 비면 unfold 까지), via 가 있으면 마지막에 팔 관절 (0 ~ n_arm-1) 을 한 번에 unfold 로.
+//   via = 실물로 확인한 예전 주행 자세 (2026-11-18 DRIVE 를 앞 · 아래로 옮김: STOW 에서 새 DRIVE 로 바로 펴면 퍽에 닿음, 계산)
+inline std::vector<StagedMove> unfoldPlan(
+  const std::vector<std::vector<size_t>> & stages, const std::vector<double> & via, const std::vector<double> & unfold,
+  size_t n_arm = 5)
+{
+  std::vector<StagedMove> out;
+  for (const auto & st : stages) {out.push_back({via.empty() ? unfold : via, st});}
+  if (!via.empty()) {
+    std::vector<size_t> arm(n_arm);
+    for (size_t i = 0; i < n_arm; ++i) {arm[i] = i;}
+    out.push_back({unfold, arm});
+  }
+  return out;
+}
+
+// 접기 (→ STOW): 펴진 자세에서 시작하면 (from_unfold) 먼저 팔 관절을 한 번에 via 로, 그다음 stages 역순으로 stow 까지
+inline std::vector<StagedMove> foldPlan(
+  const std::vector<std::vector<size_t>> & stages, const std::vector<double> & via, const std::vector<double> & stow,
+  bool from_unfold, size_t n_arm = 5)
+{
+  std::vector<StagedMove> out;
+  if (from_unfold && !via.empty()) {
+    std::vector<size_t> arm(n_arm);
+    for (size_t i = 0; i < n_arm; ++i) {arm[i] = i;}
+    out.push_back({via, arm});
+  }
+  for (const auto & st : foldStages(stages)) {out.push_back({stow, st});}
   return out;
 }
 

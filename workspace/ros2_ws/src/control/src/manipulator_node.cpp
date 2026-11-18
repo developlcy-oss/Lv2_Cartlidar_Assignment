@@ -58,6 +58,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <thread>
 #include <cstdio>
 #include <functional>
 #include <iomanip>
@@ -156,17 +157,13 @@ public:
     // --- 구독 ---
     rclcpp::SubscriptionOptions sub_opt;
     sub_opt.callback_group = sensor_cb_group_;
-    result_sub_ = create_subscription<PerceptionResult>(
-      "/perception/result",
-      rclcpp::QoS(1).reliable(),  // 계약: Reliable, depth 1
+    result_sub_ = create_subscription<PerceptionResult>("/perception/result", rclcpp::QoS(1).reliable(),  // 계약: Reliable, depth 1
       [this](PerceptionResult::ConstSharedPtr msg) {onPerceptionResult(msg);}, sub_opt);
 
-    range_sub_ = create_subscription<sensor_msgs::msg::Range>(
-      "/arm_range", rclcpp::SensorDataQoS(),
+    range_sub_ = create_subscription<sensor_msgs::msg::Range>("/arm_range", rclcpp::SensorDataQoS(),
       [this](sensor_msgs::msg::Range::ConstSharedPtr msg) {onRange(msg);}, sub_opt);
 
-    joint_sub_ = create_subscription<sensor_msgs::msg::JointState>(
-      "/joint_states", rclcpp::QoS(10),
+    joint_sub_ = create_subscription<sensor_msgs::msg::JointState>( "/joint_states", rclcpp::QoS(10),
       [this](sensor_msgs::msg::JointState::ConstSharedPtr msg) {onJointStates(msg);}, sub_opt);
 
     pucks_sub_ = create_subscription<PuckArray>(   // target_look (#82)
@@ -183,14 +180,7 @@ public:
     estop_sub_ = create_subscription<std_msgs::msg::Bool>(
       "/e_stop", rclcpp::QoS(1).reliable().transient_local(),
       [this](std_msgs::msg::Bool::ConstSharedPtr msg) {onEstop(msg);}, sub_opt);
-    jtc_state_sub_ = create_subscription<control_msgs::msg::JointTrajectoryControllerState>(
-      "/arm_controller/controller_state", rclcpp::QoS(10),
-      [this](control_msgs::msg::JointTrajectoryControllerState::ConstSharedPtr msg) {
-        std::lock_guard<std::mutex> lock(sensor_mutex_);
-        const size_t n = std::min(msg->joint_names.size(), msg->reference.positions.size());
-        for (size_t i = 0; i < n; ++i) {jtc_ref_[msg->joint_names[i]] = msg->reference.positions[i];}
-        jtc_ref_rx_ = now();
-      }, sub_opt);
+    if (jtc_idle_off_ <= 0.0) {jtcSubscribe();}   // 0 = 늘 받음 (예전과 같음). 아니면 작업 중에만 (jtcUse · jtcIdleTick, #265)
 
     // --- Action 클라이언트 ---
     if (lie_enabled_) {   // 누운 직육면체: 집는 상자 윗면 측정 (perception place_box, 사전값 토픽)
@@ -526,6 +516,10 @@ private:
     //   마지막 작업이 끝나고 tf_idle_off 초 뒤 끔 (0 = 늘 받음), 다시 켤 때 base_frame ↔ fixed_frame 이 보일 때까지 tf_warmup 초까지 기다림
     tf_idle_off_ = declare_parameter<double>("tf_idle_off", 30.0);
     tf_warmup_ = declare_parameter<double>("tf_warmup", 1.0);
+    // /arm_controller/controller_state (100 Hz) 도 작업 중에만 받음 (#265, 11-15 실측 manipulator 22.2 = control 프로세스 중 가장 큼).
+    //   쓰는 곳 = 작업 중 E-stop 때 붙잡힌 목표 추정 (onEstop) · 새 궤적 출발점 (trajectoryStart) 뿐이라 쉬는 동안은 필요 없음
+    jtc_idle_off_ = declare_parameter<double>("controller_state_idle_off", 30.0);   // s, 0 = 늘 받음
+    jtc_warmup_ = declare_parameter<double>("controller_state_warmup", 0.3);        // s, 다시 켤 때 첫 값을 기다리는 최대 시간
 
     // 접근 위치 = 파지점(물체 중심) 앞 approach_distance
     approach_distance_ = declare_parameter<double>("pick.approach_distance", 0.15);
@@ -1186,6 +1180,7 @@ private:
     std::function<void(double)> on_progress = nullptr)
   {
     std::vector<trajectory_msgs::msg::JointTrajectoryPoint> points;
+    jtcUse();   // 출발점 = arm_controller 원하는 위치 (처진 측정 위치에서 출발하면 관절 2 · 3 이 덜컹, #165)
     const auto from = min_jerk_dt_ > 0.0 ? trajectoryStart(q) : std::nullopt;
     for (const auto & s : control::minJerkSamples(from ? *from : q, q, from ? duration : 0.0, min_jerk_dt_)) {
       trajectory_msgs::msg::JointTrajectoryPoint point;
@@ -1518,6 +1513,7 @@ private:
     }
     startupTick();
     tfIdleTick();
+    jtcIdleTick();
   }
 
   // ------------------------------------------------------------------ TF 는 작업 중에만 (#265, tf_idle_off)
@@ -1539,6 +1535,56 @@ private:
       RCLCPP_WARN(get_logger(), "TF on: %s -> %s not available after %.2f s: %s", fixed_frame_.c_str(), base_frame_.c_str(),
         waited, err.c_str());
     }
+  }
+
+  // ------------------------------------------------------------------ controller_state 는 작업 중에만 (#265, controller_state_idle_off)
+  void jtcSubscribe()
+  {
+    rclcpp::SubscriptionOptions opt;
+    opt.callback_group = sensor_cb_group_;
+    jtc_state_sub_ = create_subscription<control_msgs::msg::JointTrajectoryControllerState>(
+      "/arm_controller/controller_state", rclcpp::QoS(10),
+      [this](control_msgs::msg::JointTrajectoryControllerState::ConstSharedPtr msg) {
+        std::lock_guard<std::mutex> lock(sensor_mutex_);
+        const size_t n = std::min(msg->joint_names.size(), msg->reference.positions.size());
+        for (size_t i = 0; i < n; ++i) {jtc_ref_[msg->joint_names[i]] = msg->reference.positions[i];}
+        jtc_ref_rx_ = now();
+      }, opt);
+  }
+
+  // 작업에서 팔을 움직이기 전에 부름: 꺼져 있으면 구독을 다시 만들고 첫 값을 controller_state_warmup 초까지 기다림
+  //   (100 Hz 라 보통 10 ~ 20 ms). 못 받으면 경고만 — trajectoryStart 가 측정 위치로 출발 (예전 동작)
+  void jtcUse()
+  {
+    jtc_used_ = now();
+    if (jtc_state_sub_) {return;}
+    jtcSubscribe();
+    const auto t0 = std::chrono::steady_clock::now();
+    auto fresh = [this]() {
+        std::lock_guard<std::mutex> lock(sensor_mutex_);
+        return jtc_ref_rx_.nanoseconds() != 0 && (now() - jtc_ref_rx_).seconds() < 0.1;
+      };
+    while (!fresh() && std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() < jtc_warmup_) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    const double waited = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    if (fresh()) {
+      RCLCPP_INFO(get_logger(), "controller_state on (%.2f s)", waited);
+    } else {
+      RCLCPP_WARN(get_logger(), "controller_state on: no message after %.2f s -> trajectory starts from measured joints", waited);
+    }
+  }
+
+  void jtcIdleTick()
+  {
+    if (job_ != Job::NONE) {
+      if (!jtc_state_sub_) {jtcUse();}   // 스트리밍 작업 (팔레트 처짐 보정 · 정책) 중 E-stop 추정용
+      jtc_used_ = now();
+      return;
+    }
+    if (!jtc_state_sub_ || jtc_idle_off_ <= 0.0 || (now() - jtc_used_).seconds() < jtc_idle_off_) {return;}
+    jtc_state_sub_.reset();
+    RCLCPP_INFO(get_logger(), "controller_state off (idle %.0f s)", jtc_idle_off_);
   }
 
   // 쉬는 동안 tf_idle_off 초가 지나면 리스너를 지우고 버퍼를 비움 — 남겨 두면 다시 켤 때 TimePointZero 조회가 옛 TF 를 돌려줌
@@ -4207,6 +4253,8 @@ private:
   std::optional<std::vector<double>> estop_hold_;    // E-stop 순간 펌웨어가 붙잡은 목표 추정 (onEstop)
   std::map<std::string, double> jtc_ref_;            // arm_controller 원하는 위치 (controller_state reference)
   rclcpp::Time jtc_ref_rx_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time jtc_used_{0, 0, RCL_ROS_TIME};          // 마지막으로 controller_state 를 쓴 때 (jtcUse · jtcIdleTick)
+  double jtc_idle_off_{30.0}, jtc_warmup_{0.3};
   rclcpp::Time diag_rx_{0, 0, RCL_ROS_TIME};        // 마지막 opencr/motors 수신 (0 = 아직 없음)
 
   // 작업 상태 (job_cb_group_ 전용)

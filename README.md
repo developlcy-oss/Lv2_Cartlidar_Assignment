@@ -55,13 +55,14 @@ Gazebo 모의에서 TFmini 를 쓰려면 `ros2 run perception scan_to_range` (`/
 2. 로봇을 출발 자세 (0.694, 0.950, yaw π) 에 놓는다 — AMCL 초기 자세 = `localization.launch.py` start_x · start_y · start_yaw.
 3. `ros2 launch bringup bringup.launch.py`
 4. **준비 확인** — mission_node 가 바뀔 때마다 터미널에 표를 찍는다 (`[ OK ]` · `[실패]` 답이 나쁨 · `[대기]` 아직 답 없음):
-   `1 안전 (E-stop · 진단)` → `2 컨트롤러` (joint_state · diff_drive · arm · imu 가 active) → `3 노드 서버` (drive · manipulator · perception · 계획기)
+   `1 안전 (E-stop · 진단)` → `2 컨트롤러` (joint_state · diff_drive · arm · imu 가 active) → `3 노드 서버` (drive · manipulator · perception · 계획기 · 팔 정리 `/manipulator/startup_done`)
    → `4 위치 추정` (/localization/status OK) → `5 Nav2` (lifecycle_manager_navigation 모든 노드 active).
    한 번에 보기: `ros2 topic echo /mission/ready --once` = `READY` (아니면 `NOT_READY: <빠진 것>`).
    E-stop 은 켤 때 잠긴 상태라 5 단계에서 리셋 전까지 1 안전만 `[실패]` 로 남는다.
-5. 조이스틱을 켠다 (0.5 s 끊기면 E-stop 잠김) → 리셋 버튼 → 팔이 STOW → DRIVE 로 펴지는지 본다. 표가 `READY` 가 되는지 확인.
+5. 조이스틱을 켠다 (0.5 s 끊기면 E-stop 잠김) → 리셋 버튼 → 팔은 STOW 에 머문다 (호스트만 다시 켜 DRIVE 에 남았으면 STOW 로 접음, 2026-11-18).
+   터미널에 `startup: arm at 'STOW'` 가 나오고 표가 `READY` 가 되는지 확인.
 6. 시작 버튼 (`/mission/start`) — 준비가 안 됐으면 거절하고 빠진 항목을 알려 준다 (`not ready: …`).
-   신호 · 바코드 읽기 (observe) → 퍽 조사 (survey) → 계획 (`/mission_planner/plan`) → 계획 단계 실행 (`mission_planner/README.md`).
+   팔을 STOW → DRIVE 로 폄 (`unfold DRIVE`, FOLD_VIA 경유) → 신호 · 바코드 읽기 (observe) → 퍽 조사 (survey) → 계획 (`/mission_planner/plan`) → 계획 단계 실행 (`mission_planner/README.md`).
 7. 진행 상황: `ros2 topic echo /mission/status`. 집기를 재시도까지 실패한 퍽은 건너뛰고 (`skipped: pick <칸>`),
    주행 · 놓기 등 그 밖의 재시도 소진은 HOME 으로 돌아온 뒤 FAILED (`mission.yaml` `on_fail`).
 8. 끝: 정지 버튼 (`/mission/stop`). 팔을 STOW 로 접을 때 팔레트 첫 줄 왼쪽 칸에 닿는 문제 주의 (#277).

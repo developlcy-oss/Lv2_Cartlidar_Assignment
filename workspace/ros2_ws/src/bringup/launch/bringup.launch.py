@@ -108,7 +108,8 @@ def generate_launch_description():
             mission_params.append(PathJoinSubstitution([mis, 'config', 'mission_table.yaml']))
         # 시작 전 준비 확인 (R3): 띄운 것만 확인 목록에 넣음 (빈 목록은 넘기지 않음 — 빈 배열은 타입을 몰라 파라미터 오류)
         on = lambda name: LaunchConfiguration(name).perform(context).lower() == 'true'
-        ready = {'ready.localization': on('use_localization')}
+        # 팔 정리 (manipulator 가 켜진 뒤 STOW 로 모음, /manipulator/startup_done): manipulator_node 는 bringup 이 늘 띄움
+        ready = {'ready.localization': on('use_localization'), 'ready.arm_startup': True}
         if on('use_hardware'):   # base_bringup.launch.py spawner 와 같은 목록 (IMU 는 실물만, gripper_controller 는 bringup 에서 안 씀)
             ready['ready.controllers'] = ['joint_state_broadcaster', 'diff_drive_controller', 'arm_controller'] + \
                 ([] if on('sim') else ['imu_sensor_broadcaster'])
