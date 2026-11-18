@@ -267,7 +267,7 @@ class Console(Node):
             d.mkdir(parents=True, exist_ok=True)
             with self.lock:
                 self.run_dir = str(d)
-            fmt = dict(ports=','.join(ports), repo=str(REPO), here=str(HERE))
+            fmt = dict(ports=','.join(ports), repo=str(REPO), here=str(HERE), run_dir=str(d))
             launch_cmd = f'{self.common} {m.get("launch_args", "")}'.format(**fmt)
             (d / 'commands.txt').write_text(launch_cmd + '\n' + (m.get('action') or '').format(**fmt) + '\n', encoding='utf-8')
             self.set('starting', f'bringup ({",".join(ports)})')

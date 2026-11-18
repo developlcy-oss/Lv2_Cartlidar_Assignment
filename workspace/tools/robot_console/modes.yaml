@@ -24,13 +24,13 @@ modes:
     wait_extra_s: 3
     action: ""
   1:
-    name: 주행 시연
-    about: 팔 STOW 그대로, 출발 → 상자 6 곳 → L3 · L2 · L1 → 출발 구역 10 구간 (drive_demo 시연 A, slow). 로봇을 출발 자리 (0.694, 0.950) · 신호등 쪽에 놓고 시작
-    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_tfmini:=false use_loc_monitor:=false use_amcl_node:=true
-    wait_nodes: [/controller_manager, /amcl, /map_server]
-    wait_timeout_s: 150
-    wait_extra_s: 8
-    action: bash {repo}/workspace/tools/drive_demo/run_demo.sh real slow init
+    name: 자율주행 시연 (AMCL + Nav2)
+    about: 팔 STOW, AMCL 이 발제 SDF 지도 위 위치를 잡고 Nav2 가 길을 스스로 짜서 상자 6 곳 → L3 · L2 · L1 → 출발 로 감. 라이다로 장애물을 피하고, TFmini 정면 정지 · 위치 잃음 잠금은 켬. 목표마다 TUI Enter. 출발 자리 (0.694, 0.950) · 신호등 쪽에 놓고 시작
+    launch_args: use_perception:=false use_planner:=false arm_startup_pose:=none
+    wait_nodes: [/controller_manager, /amcl, /bt_navigator]
+    wait_timeout_s: 180
+    wait_extra_s: 5
+    action: python3 {here}/actions/nav_goals.py --step --out {run_dir}
   2:
     name: 팔 시연
     about: 바퀴는 멈춘 채 팔 이름 자세를 차례로 (DRIVE → ALIGN → TAG_VIEW → BOX_VIEW → DRIVE), 자세마다 Enter. ⚠ 팔 영점 · 링크 길이 실측 전 (#292 · #295)
@@ -55,12 +55,3 @@ modes:
     wait_timeout_s: 180
     wait_extra_s: 5
     action: python3 {here}/actions/mission_start.py
-  5:
-    name: SLAM 녹화 주행
-    about: 주행 시연 경로를 따라가며 라이다 · odom · IMU · TF 를 bag 으로 녹화 (지도는 PC Cartographer 로, Jetson 에는 Cartographer 없음)
-    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_tfmini:=false use_loc_monitor:=false use_amcl_node:=true
-    wait_nodes: [/controller_manager, /amcl, /map_server]
-    wait_timeout_s: 150
-    wait_extra_s: 8
-    action: bash {here}/actions/slam_run.sh
-    record: false   # slam_run.sh 가 따로 녹화
