@@ -76,6 +76,7 @@ class Console(Node):
         super().__init__('robot_console')
         cfg = yaml.safe_load(open(modes_file, encoding='utf-8'))
         self.common = cfg['common_launch'].strip()
+        self.record_topics = ' '.join(str(cfg.get('record_topics', '')).split())
         self.modes = {int(k): v for k, v in cfg['modes'].items()}
         self.lock = threading.Lock()
         self.mode = None            # 지금 모드 번호 (None = 아무것도 안 띄움)
@@ -84,6 +85,7 @@ class Console(Node):
         self.run_dir = ''
         self.launch = None
         self.action = None
+        self.bag = None
         self.events = []
         self.estop = False          # 콘솔이 건 비상정지 (하드웨어 /e_stop 과 별개로 표시)
         self.hw_estop = None
@@ -122,7 +124,8 @@ class Console(Node):
             st = {'mode': self.mode, 'name': self.modes[self.mode]['name'] if self.mode is not None else '',
                   'phase': self.phase, 'msg': self.msg, 'run_dir': self.run_dir, 'estop': self.estop,
                   'hw_estop': self.hw_estop, 'launch_alive': bool(self.launch and self.launch.alive()),
-                  'action_alive': bool(self.action and self.action.alive()), 'events': self.events[-12:],
+                  'action_alive': bool(self.action and self.action.alive()),
+                  'bag_alive': bool(self.bag and self.bag.alive()), 'events': self.events[-12:],
                   'modes': {k: v['name'] for k, v in self.modes.items()}, 't': time.time()}
         try:
             self.pub_status.publish(String(data=json.dumps(st, ensure_ascii=False)))
@@ -191,7 +194,7 @@ class Console(Node):
 
     # ---------------- 모드 ----------------
     def stop_all(self):
-        for name in ('action', 'launch'):
+        for name in ('action', 'bag', 'launch'):
             p = getattr(self, name)
             if p and p.alive():
                 self.event(f'{name} 끄는 중 …')
@@ -275,6 +278,9 @@ class Console(Node):
                 self.set('failed', why + f' — {d}/launch.log')
                 return
             time.sleep(m.get('wait_extra_s', 0))
+            if m.get('record', True) and self.record_topics:
+                self.bag = Proc(f'exec ros2 bag record -o {d}/bag --topics {self.record_topics}', d / 'bag.log')
+                self.event(f'rosbag 녹화 시작 → {d}/bag')
             act = (m.get('action') or '').format(**fmt).strip()
             if act:
                 self.action = Proc(act, d / 'action.log', stdin=True)

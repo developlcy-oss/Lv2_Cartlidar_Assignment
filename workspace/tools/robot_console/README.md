@@ -13,7 +13,7 @@
 
 - 시작 전 (사람): 배터리 먼저 · USB 나중, 두 OpenCR 이 보이는지 (`ls /dev/ttyACM*` 두 개). 팔은 **어느 자세여도 됨** — 켜진 뒤 비상정지를 풀면 (`r`) 정해진 순서로 STOW 로 접힘.
 - 다른 사람이 bringup · 하드웨어를 띄워 둔 상태면 콘솔이 모드를 띄우지 않고 알리기만 한다 (남의 프로세스는 끄지 않음).
-- 로그 파일: `~/robot_logs/<날짜_시각>_mode<번호>/` (`launch.log` · `action.log` · `commands.txt`).
+- 로그 파일: `~/robot_logs/<날짜_시각>_mode<번호>/` (`launch.log` · `action.log` · `commands.txt`), **rosbag `bag/`** (모드가 준비되면 자동 녹화, 모드를 바꾸거나 끄면 멈춤. 라이다 · odom · IMU · TF · AMCL · 명령 · 인지 결과 · 미션 상태 — 영상은 빼서 분당 수십 MB 수준, 토픽은 `modes.yaml` `record_topics`, 모드마다 `record: false` 로 끔).
 
 ## TUI 키
 

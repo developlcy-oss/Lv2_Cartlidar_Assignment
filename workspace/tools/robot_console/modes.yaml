@@ -4,6 +4,13 @@
 #   action : 준비가 끝나면 실행 (없으면 launch 만). 표준 입력은 TUI 의 Enter · y · q · s 키로 넘어감 (시연 확인 질문)
 #   use_nav2:=false 인 모드는 use_amcl_node:=true 를 꼭 줌 (bringup 은 AMCL 을 Nav2 와 같이 띄움 — 빼면 map → odom 이 없음, 11-18 실물).
 #   모드를 바꾸면 앞 모드 (action → launch) 를 모두 끄고 새로 띄움. 하드웨어도 다시 켜지므로 팔은 다시 STOW 로 접힘
+# 모드가 준비되면 rosbag 을 ~/robot_logs/<날짜_시각>_mode<번호>/bag 에 녹화 (모드를 바꾸거나 끄면 멈춤). 모드마다 record: false 로 끔.
+#   영상은 너무 커서 (카메라 한 대 약 25 MB/s) 넣지 않음 — 인지 결과 토픽만
+record_topics: >-
+  /scan_front /scan_rear /scan_front_filtered /scan_rear_filtered /scan_merged /odom /odom_icr /odometry/filtered /imu/data
+  /tf /tf_static /amcl_pose /localization/status /localization/lock /cmd_vel /cmd_vel_nav /cmd_vel_teleop /e_stop /joy
+  /joint_states /diagnostics /rosout /perception/signal /perception/barcode /perception/pucks /perception/task_marker
+  /mission/status /console/status /tfmini/range /perception/obstacle_stop
 common_launch: >-
   ros2 launch bringup bringup.launch.py ports:={ports}
 
@@ -56,3 +63,4 @@ modes:
     wait_timeout_s: 150
     wait_extra_s: 8
     action: bash {here}/actions/slam_run.sh
+    record: false   # slam_run.sh 가 따로 녹화
