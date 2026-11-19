@@ -96,6 +96,8 @@ private:
   bool auto_rearm_ = false;    // true: 잠금이 풀리면 리셋 버튼 없이 REARM (조이스틱 없는 벤치 전용, 실기 운용 금지)
   // 팔 대기 자세 tick 범위 (URDF arm_standby_min_tick · arm_standby_max_tick, 칸 0~5). 비어 있으면 검사 안 함
   std::vector<int> standby_min_tick_, standby_max_tick_;
+  // 범위 밖이어도 이 tick 안이면 시작 (토크 켜고 지금 자리 유지 -> manipulator_node 켜질 때 정리가 STOW 로 모음). 0 = 예전처럼 거부
+  int standby_margin_tick_{0};
 
   struct BoardLink
   {

@@ -115,6 +115,12 @@ manipulator_node:
       skip_tolerance: 0.05       # rad, 묶음 관절이 모두 이 안이면 그 묶음은 건너뜀
       diag_wait: 5.0             # s, opencr 진단이 이 동안 한 번도 안 오면 (시뮬레이션 · mock) HOLD 확인 없이 진행
       warn_after: 15.0           # s, 이만큼 기다려도 arm_controller · /joint_states 가 없으면 경고 (관절 한계 밖 · OpenCR 활성화 실패)
+      # 2026-11-18 STOW 근처면 맞추고 시작: STOW 와 관절 (1 ~ 5) 최대 차이가 auto_stow_max 안이면 접기 순서 (묶음 역순) 로
+      #   auto_stow_velocity 로 천천히 STOW 에 맞춘 뒤 정리 끝. 예전엔 손으로 STOW 범위 (±5°) 에 정확히 놓아야 켜졌음.
+      #   하드웨어 (opencr.ros2_control.xacro arm_standby_margin_tick 340) 가 범위 밖 30° 안이면 토크를 켜 주는 것과 짝. 0 = 끔
+      #   더 벗어난 자세 (칸 안 · 펴진 자세) 는 예전처럼 움직이지 않음 (관절 직선 이동이 주변을 모름, 11-14 프로파일 충돌)
+      auto_stow_max: 0.65        # rad (37°)
+      auto_stow_velocity: 0.1    # rad/s
 
     # 그리퍼: 실물은 6 번째 칸 gripper_roll 이 개폐 모터 (ID 15) → arm_joint (arm_controller 궤적의 6 번째 값)
     gripper:
