@@ -5,7 +5,8 @@
     python3 ~/meas_session.py                          브링업 모드 (arm_controller 액션)
     python3 ~/meas_session.py --direct /dev/ttyACM1    직접 모드 (브링업 끄고 팔 OpenCR 에 바로, 팀 arm_bench)
 
-- bringup 은 떠 있고 미션은 시작하지 않은 상태. 시작 정리 (STOW -> DRIVE) 가 끝난 뒤 실행.
+- bringup 은 떠 있고 미션은 시작하지 않은 상태. 2026-11-18 부터 브링업 뒤 팔은 STOW 에 머묾 → 여기서 노드에
+  pose DRIVE 를 보내 단계 순서로 폄 (manipulator startup.unfold_pose · unfold_via, 노드 켜질 때 정리가 끝난 뒤).
 - 이동마다 계획을 보여 주고 Enter 를 눌러야 보냄. 이동 중 Ctrl+C = 목표 취소 + 그 자리 정지.
 - 관절 속도 0.2 rad/s 이하. 관절 1 을 0.3 rad 넘게 돌릴 때는 자동으로 높은 자세를 거쳐 돌림.
 - 결과: ~/실측/*.csv, 화면 출력 전체는 ~/실측/log.txt. 기록 줄은 [기록] 으로 시작.
@@ -796,15 +797,52 @@ def m8_manual(a):
     a.move([math.radians(x) for x in v[:5]], v[5] if len(v) > 5 else None, label="수동")
 
 
+NEAR_RAD = 0.35   # 메뉴 9 시작 자세 허용 (관절 1 ~ 5 최대 차이, rad ≈ 20°)
+
+
+def near(q, pose, tol=NEAR_RAD):
+    return max(abs(q[j] - pose[j]) for j in range(5)) <= tol
+
+
 def m9_fold(a):
+    # 2026-11-19 실물: 0 자세 (팔을 위 · 앞으로 뻗음) 에서 '1 펴기' -> 관절 2 만 −78° 돌아 팔 끝이 위 카메라 판에 박음.
+    #   묶음 순서는 STOW (펴기) · DRIVE (접기) 에서 출발할 때만 안전 (fold_clearance.py 계산) -> 그 밖이면 움직이지 않음
+    q = list(a.cmd)
+    stow_like = q[1] < -1.9 or near(q, STOW)
     if ask("1 = STOW -> DRIVE 펴기 / 2 = DRIVE -> STOW 접기 (전원 끄기 전)") == "1":
+        if not (stow_like or near(q, DRIVE, 0.05)):
+            P("  !! 지금 STOW 가 아님 -> 펴기 안 함 (다른 자세에서 묶음 순서로 펴면 카메라 · 차체에 닿음). 지금 관절 (도) " + deg(q))
+            P("     0 자세 근처면: 8 -> '0 0 0 106 0' (손목 먼저) -> 8 -> '0 -78.5 -0.6 106 0' (DRIVE) 순서로 옮긴 뒤 9 -> 2")
+            return
         fold(a, True)
     else:
+        if not (near(q, DRIVE) or stow_like):
+            P("  !! 지금 DRIVE 근처가 아님 -> 접기 안 함. 지금 관절 (도) " + deg(q))
+            P("     0 자세 근처면: 8 -> '0 0 0 106 0' (손목 먼저) -> 8 -> '0 -78.5 -0.6 106 0' (DRIVE) 뒤 다시 9 -> 2")
+            return
         if abs(a.cmd[0]) > J1_TURN:
             a.move([a.cmd[0]] + HIGH, label="높은 자세")
             a.move([0] + HIGH, label="정면으로")
         a.move(DRIVE[:5], DRIVE[5], label="DRIVE")
         fold(a, False)
+
+
+def node_unfold(timeout=120):
+    """브링업 모드: manipulator 노드에 pose DRIVE (STOW 면 노드가 FOLD_VIA 를 거쳐 단계 순서로 폄). 성공이면 True.
+    2026-11-18 부터 브링업 뒤 팔이 STOW 에 머물고, STOW 에서는 pick · execute_skill 이 거절됨 (먼저 이것)."""
+    cmd = ["ros2", "action", "send_goal", "/manipulator/pose", "robot_interfaces/action/ArmPose", "{name: DRIVE}"]
+    P("  $ " + " ".join(cmd[:4]) + " '{name: DRIVE}'  (STOW -> DRIVE, 노드 단계 펴기)")
+    try:
+        out = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout
+    except subprocess.TimeoutExpired:
+        P(f"  !! pose DRIVE {timeout} s 안에 안 끝남")
+        return False
+    ok = "success: true" in out
+    if not ok:
+        P("  !! pose DRIVE 실패: " + (" | ".join(l.strip() for l in out.splitlines() if l.strip().startswith(("message", "Goal")))
+                                     or out[-300:].replace("\n", " ")))
+        P("     노드가 켜질 때 정리 중이면 ('startup: arm at STOW' 전) 잠시 뒤 다시, 리셋 (kbd_joy r) 했는지 확인")
+    return ok
 
 
 def main():
@@ -817,8 +855,10 @@ def main():
         return
     if q[1] < -1.9:
         if not direct:
-            P("  !! STOW 자세로 보임. bringup 시작 정리 (DRIVE) 가 끝난 뒤 다시 실행")
-            return
+            P("  STOW 자세: 노드에 pose DRIVE 를 보내 폄")
+            if not node_unfold():
+                return
+            q, g = a.show()
         P(f"  STOW 자세: 팀 순서 (관절 3 -> 2 -> 4 -> 1 -> 5) 로 DRIVE 까지 폄 ({FOLD_VEL:g} rad/s)")
         try:
             fold(a, True)
