@@ -5,7 +5,7 @@
 #   ~/arm_only.sh            보드 확인 (읽기만) -> 괜찮으면 브링업
 #   ~/arm_only.sh --check    보드 확인만
 #   ~/arm_only.sh --force    보드 확인 결과와 관계없이 브링업
-# 띄운 뒤 다른 터미널에서 python3 ~/kbd_joy.py -> r (팔 STOW -> DRIVE), 그다음 ~/dice.sh real - <눈> --bench
+# 띄운 뒤 다른 터미널에서 python3 ~/kbd_joy.py -> r (팔은 STOW 에 머묾, 2026-11-18), 그다음 ~/dice.sh real - <눈> --bench (STOW 면 먼저 pose DRIVE)
 set -u
 MODE="${1:-}"
 ROS_WS="${ROS_WS:-$HOME/Lv2_Cartlidar_Assignment/workspace/ros2_ws}"
