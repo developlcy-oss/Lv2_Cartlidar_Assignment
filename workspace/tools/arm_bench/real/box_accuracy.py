@@ -14,10 +14,13 @@
 
 기록: ~/실측/box_acc/box_acc_<날짜>.jsonl (한 시도 = 한 줄, 덮어쓰지 않음). 손 맞춤 (jog) 을 하면 q_meas 도 남아 fit 에 씀.
 
-실행 (젯슨, 브링업 + 리셋 뒤. 팔이 STOW 면 노드에 pose DRIVE 를 먼저 보냄)
+실행 (젯슨). 두 가지 중 하나:
+  브링업 모드: 브링업 + 리셋 뒤 ('startup: arm at STOW'). 팔이 STOW 면 노드에 pose DRIVE 를 먼저 보냄
+  직접 모드 (--direct /dev/ttyACMx, 브링업 끈 채 팔 보드에 바로): 팔이 STOW 면 meas_session 과 같은 단계 순서로 DRIVE (FOLD_VIA) 까지 펴고,
+    끝날 때 STOW 로 접을지 물음. 팔 보드 포트는 ls /dev/ttyACM* (아니면 도구가 다른 포트를 알려 줌). 측정 결과는 두 모드가 같음 (같은 관절 목표)
   python3 box_accuracy.py run  [--reps 3] [--approach top|left|right|far|near|all] [--cells 0,0 1,1 ...] [--load puck|empty]
-                               [--no_jog] [--offsets a,b,c,d,e] [--cx 0.2853] [--tool "자 ±1 mm"]
-  python3 box_accuracy.py sag  [--cell 0,0] [--reps 3]        같은 칸 · 같은 노드 값에서 빈 집게 ↔ 퍽 쥔 손가락 끝 비교
+                               [--no_jog] [--offsets a,b,c,d,e] [--cx 0.2853] [--tool "자 ±1 mm"] [--direct /dev/ttyACM1]
+  python3 box_accuracy.py sag  [--cell 0,0] [--reps 3] [--direct /dev/ttyACM1]        같은 칸 · 같은 노드 값에서 빈 집게 ↔ 퍽 쥔 손가락 끝 비교
   python3 box_accuracy.py report [파일 ...]                  칸별 평균 편차 · 반복 σ · 접근 방향 · 맞춤용/확인용 RMS · 처짐 비교
   python3 box_accuracy.py fit    [파일 ...]                  손 맞춤 (q_meas) 으로 영점 맞춤 (맞춤용 칸만) → 모델 잔차 · 확인용 칸 예측 (적용 안 함)
 기본 칸: 맞춤용 0,0 · -1,1 · 1,1 · -1,-1 · 1,-1 · 0,1, 확인용 -1,0 · 1,0 · 0,-1 (--cells 로 바꾸면 그 칸은 BOX_ROLE 대로)
@@ -71,6 +74,42 @@ def save(row):
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def open_arm(m, direct):
+    """브링업 모드 = arm_controller 액션, 직접 모드 = 팔 보드에 바로 (meas_session DirectArm, 브링업 끈 채)."""
+    return m.DirectArm(direct) if direct else m.Arm()
+
+
+def unfold(m, a, direct):
+    """팔이 STOW 면 DRIVE 로: 브링업 = 노드 pose DRIVE, 직접 = meas_session fold (STOW 에서 단계 순서, 실물 확인된 길)."""
+    if not direct:
+        unfold_if_stow(m, a)
+        return
+    q, _ = a.read()
+    if q[1] > -1.9:   # STOW 가 아님: DRIVE (FOLD_VIA) 근처일 때만 그대로 시작 (다른 자세에서 바로 움직이면 부딪힐 수 있음, 11-19 카메라 충돌)
+        if not m.near(q, m.DRIVE):
+            sys.exit("팔이 STOW 도 DRIVE 근처도 아님 -> meas_session --direct 메뉴 7 로 자세를 보고 STOW 로 접은 뒤 다시")
+        return
+    m.P("  팔이 STOW -> 단계 순서로 DRIVE (FOLD_VIA) 까지 폄 (직접 모드)")
+    m.fold(a, True)
+
+
+def fold_back(m, a, direct):
+    """직접 모드 끝: STOW 로 접을지 (브링업 모드는 노드에 pose STOW)."""
+    if not direct:
+        m.P("  끝나면: ros2 action send_goal /manipulator/pose robot_interfaces/action/ArmPose \"{name: STOW}\"")
+        return
+    try:
+        if m.ask("STOW 로 접을까? (y = 접기 / n = 그대로 HOLD)") != "y":
+            return
+        if abs(a.cmd[0]) > m.J1_TURN:
+            a.move([a.cmd[0]] + m.HIGH, label="높은 자세")
+            a.move([0] + m.HIGH, label="정면으로")
+        a.move(m.DRIVE[:5], m.DRIVE[5], label="DRIVE (FOLD_VIA)")
+        m.fold(a, False)
+    except m.Back:
+        m.P("  (접기 중단 — meas_session 메뉴 9 -> 2 로)")
+
+
 def unfold_if_stow(m, a):
     """2026-11-18 부터 브링업 뒤 팔이 STOW 에 머묾 -> 노드에 pose DRIVE (노드가 FOLD_VIA 를 거쳐 단계 순서로 폄)."""
     q, _ = a.read()
@@ -111,6 +150,7 @@ def run(args):
     no_jog = flag(args, "--no_jog")
     cx = opt(args, "--cx", None)
     off_s = opt(args, "--offsets", None)
+    direct = opt(args, "--direct", None)
     cells = []
     if "--cells" in args:
         i = args.index("--cells")
@@ -128,8 +168,8 @@ def run(args):
         f"| 하중 {load} | offsets {[round(v, 4) for v in offs]}{' (시험값, yaml 아님)' if off_s else ''} | 상자 가운데 x {ST.BOX_CELL0[0]:.4f} =====")
     tool = tool or m.ask("측정 도구 · 대략 오차 (예: '자 ±1 mm', Enter = 자 ±1 mm)", empty_ok=True) or "자 ±1 mm"
     point = "쥔 퍽 바닥 가운데" if load == "puck" else "두 손가락 끝 가운데"
-    a = m.Arm()
-    unfold_if_stow(m, a)
+    a = open_arm(m, direct)
+    unfold(m, a, direct)
     if load == "puck":
         a.hold_puck()
     else:
@@ -157,7 +197,7 @@ def run(args):
                     if not no_jog and load == "puck" and m.ask("손으로 맞춰 기록할까? (y / n)") == "y":
                         q_meas = m.jog(a, q[:5], f"{c} 놓는 자리")
                     save({"t": f"{datetime.datetime.now():%Y-%m-%d %H:%M:%S}", "cell": c, "role": role, "rep": rep,
-                          "approach": ap, "load": load, "point": point, "tool": tool,
+                          "approach": ap, "load": load, "point": point, "tool": tool, "mode": "direct" if direct else "bringup",
                           "target_mm": [round(v * 1000, 2) for v in p], "offsets": offs, "offsets_trial": bool(off_s),
                           "q_node": q[:5], "q_read": q_read, "grip_read": g_read, "q_meas": q_meas,
                           "ruler_mm": {"dx": dx, "dy": dy, "dz": None if h is None else h - 2.0, "h_above_top": h}})
@@ -167,12 +207,14 @@ def run(args):
     except m.Back:
         m.P("  (끝냄)")
     m.P(f"기록 {n} 개 -> {out_file()}. 다음: python3 box_accuracy.py report")
+    fold_back(m, a, direct)
 
 
 def sag(args):
     import meas_session as m
     cell = opt(args, "--cell", "0,0")
     reps = int(opt(args, "--reps", "3"))
+    direct = opt(args, "--direct", None)
     PT, arm = ST._pt()
     offs = ST.offsets(force=True)
     p = ST.box_target(cell)
@@ -182,8 +224,8 @@ def sag(args):
     m.P(f"\n===== 처짐 비교 (빈 집게 ↔ 퍽) {datetime.datetime.now():%Y-%m-%d %H:%M} | 칸 {cell} | 반복 {reps} =====")
     m.P("  두 조건 모두 **두 손가락 끝 가운데**를 같은 칸 표시 기준으로 잼 (같은 노드 값 자세)")
     tool = m.ask("측정 도구 · 대략 오차 (Enter = 자 ±1 mm)", empty_ok=True) or "자 ±1 mm"
-    a = m.Arm()
-    unfold_if_stow(m, a)
+    a = open_arm(m, direct)
+    unfold(m, a, direct)
     try:
         for rep in range(1, reps + 1):
             for load in ("empty", "puck"):
@@ -208,6 +250,7 @@ def sag(args):
     except m.Back:
         m.P("  (끝냄)")
     m.P(f"기록 -> {out_file()}. 다음: python3 box_accuracy.py report")
+    fold_back(m, a, direct)
 
 
 def load_rows(files):
