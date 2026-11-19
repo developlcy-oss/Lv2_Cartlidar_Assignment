@@ -127,6 +127,20 @@ hi::CallbackReturn OpenCRHardware::on_init(const hi::HardwareComponentInterfaceP
     }
     RCLCPP_INFO(get_logger(), "팔 대기 자세 검사 켬 (처음 켤 때 범위 밖이면 시작 거부): %s ~ %s",
       standby_min.c_str(), standby_max.c_str());
+    // 2026-11-18: 범위에서 이 tick 안으로 벗어난 건 시작 (켜질 때 정리가 STOW 로 모음). 더 벗어나면 (칸 안 · 펴진 자세 등) 그대로 거부
+    try {
+      standby_margin_tick_ = std::stoi(param_or(hw, "arm_standby_margin_tick", "0"));
+    } catch (const std::exception &) {
+      standby_margin_tick_ = -1;
+    }
+    if (standby_margin_tick_ < 0 || standby_margin_tick_ > 1024) {
+      RCLCPP_FATAL(get_logger(), "arm_standby_margin_tick 은 0 ~ 1024 tick (0 = 범위 밖이면 거부)");
+      return CallbackReturn::ERROR;
+    }
+    if (standby_margin_tick_ > 0) {
+      RCLCPP_INFO(get_logger(), "  범위에서 %d tick (%.1f°) 안으로 벗어나면 시작 -> 켜진 뒤 STOW 로 모음 (manipulator_node startup)",
+        standby_margin_tick_, standby_margin_tick_ * 360.0 / 4096.0);
+    }
   }
   if (listen_only_) {RCLCPP_WARN(get_logger(), "listen_only: CMD 를 보내지 않음 (STATE 수신만 확인)");}
   if (auto_rearm_) {RCLCPP_WARN(get_logger(), "auto_rearm: 리셋 버튼 없이 REARM — 벤치 시험 전용");}
@@ -519,6 +533,7 @@ bool OpenCRHardware::check_arm_standby() const
     return true;
   }
   std::ostringstream bad;
+  bool beyond = false;   // 여유 (arm_standby_margin_tick) 도 넘음 · 한 바퀴 넘게 쌓임
   for (int k = 0; k < opencr_proto::ARM_JOINTS; ++k) {
     const long t = arm_tick(latest_.pos[opencr_proto::MAX_WHEELS + k]);
     const long lo = standby_min_tick_[k], hi = standby_max_tick_[k];
@@ -533,13 +548,19 @@ bool OpenCRHardware::check_arm_standby() const
       off * 360.0 / 4096.0);
     bad << line;
     if (t < 0 || t > 4095) {bad << " — 한 바퀴 넘게 돌아 값이 쌓임: 12 V 를 껐다 켠 뒤 다시";}
+    beyond = beyond || t < 0 || t > 4095 || std::labs(off) > standby_margin_tick_;
   }
   if (bad.str().empty()) {
     RCLCPP_INFO(get_logger(), "팔 대기 자세 확인 — 여섯 칸 모두 범위 안");
     return true;
   }
-  RCLCPP_ERROR(get_logger(), "팔이 대기 자세가 아님 — 토크를 켜지 않고 시작을 거부합니다:%s\n"
-    "  지금은 토크가 꺼져 있습니다. 팔을 손으로 대기 자세에 놓은 뒤 다시 시작하세요", bad.str().c_str());
+  if (!beyond) {
+    RCLCPP_WARN(get_logger(), "팔이 대기 자세 범위를 조금 벗어남 (여유 %d tick 안) — 토크를 켜고 시작, 켜질 때 정리가 STOW 로 천천히 모음:%s",
+      standby_margin_tick_, bad.str().c_str());
+    return true;
+  }
+  RCLCPP_ERROR(get_logger(), "팔이 대기 자세가 아님 (여유 %d tick 도 넘음) — 토크를 켜지 않고 시작을 거부합니다:%s\n"
+    "  지금은 토크가 꺼져 있습니다. 팔을 손으로 대기 자세 근처에 놓은 뒤 다시 시작하세요", standby_margin_tick_, bad.str().c_str());
   return false;
 }
 

@@ -855,6 +855,10 @@ private:
     startup_skip_tol_ = declare_parameter<double>("startup.skip_tolerance", 0.05);
     startup_diag_wait_ = declare_parameter<double>("startup.diag_wait", 5.0);
     startup_warn_after_ = declare_parameter<double>("startup.warn_after", 15.0);
+    // 2026-11-18 STOW 근처 (STOW 와 관절 최대 차이가 이 안, rad) 면 STOW 로 천천히 모은 뒤 시작 (예전: 손으로 정확히 놓아야 했음).
+    //   하드웨어 arm_standby_margin_tick 과 맞춤. 0 = 끔 (예전처럼 STOW · 정리 자세 근처 pose.start_tolerance 안에서만)
+    startup_auto_stow_max_ = declare_parameter<double>("startup.auto_stow_max", 0.65);
+    startup_auto_stow_vel_ = declare_parameter<double>("startup.auto_stow_velocity", 0.1);   // rad/s, 그때 속도
     if (!startup_pose_.empty()) {
       if (poses_.count(startup_pose_) == 0) {
         throw std::invalid_argument("startup.pose '" + startup_pose_ + "' is not in poses.names (빈 문자열 = 끔)");
@@ -884,6 +888,8 @@ private:
     requirePositive("startup.skip_tolerance", startup_skip_tol_);
     requireNonNegative("startup.diag_wait", startup_diag_wait_);
     requirePositive("startup.warn_after", startup_warn_after_);
+    requireNonNegative("startup.auto_stow_max", startup_auto_stow_max_);
+    requirePositive("startup.auto_stow_velocity", startup_auto_stow_vel_);
 
     requirePositive("arm.max_joint_velocity", max_joint_vel_);
     requirePositive("arm.min_duration", min_duration_);
@@ -1725,12 +1731,19 @@ private:
       const double d_goal = armDistance(*current, poses_.at(startup_pose_));
       const double d_unfold = unfold_pose_.empty() ? 1e9 : armDistance(*current, poses_.at(unfold_pose_));
       const double d_via = unfold_via_.empty() ? 1e9 : armDistance(*current, poses_.at(unfold_via_));
-      if (d_stow > pose_start_tol_ && d_goal > pose_start_tol_ && d_unfold > pose_start_tol_ && d_via > pose_start_tol_) {
+      // STOW 로 모을 때 STOW 근처 (startup.auto_stow_max 안) 면 정리 순서 (접기 = 묶음 역순) 로 천천히 STOW 에 맞춤
+      const bool near_stow = startup_pose_ == "STOW" && d_stow <= startup_auto_stow_max_;
+      if (d_stow > pose_start_tol_ && d_goal > pose_start_tol_ && d_unfold > pose_start_tol_ && d_via > pose_start_tol_ && !near_stow) {
         RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 10000,
-          "startup: arm is not at STOW (%.2f rad) nor '%s' (%.2f rad) nor '%s' (%.2f rad) -> not moving. Put the arm in STOW by hand "
-          "(support it, 12 V off), then power on / restart bringup", d_stow, startup_pose_.c_str(), d_goal,
+          "startup: arm is not near STOW (%.2f rad > auto_stow_max %.2f) nor '%s' (%.2f rad) -> not moving. Put the arm near STOW by hand "
+          "(support it, 12 V off), then power on / restart bringup", d_stow, startup_auto_stow_max_,
           unfold_pose_.c_str(), d_unfold);
         return;
+      }
+      startup_slow_ = near_stow && d_stow > pose_start_tol_;
+      if (startup_slow_) {
+        RCLCPP_WARN(get_logger(), "startup: arm %.2f rad off STOW (within auto_stow_max %.2f) -> moving to STOW at %.2f rad/s",
+          d_stow, startup_auto_stow_max_, startup_auto_stow_vel_);
       }
     }
     job_ = Job::STARTUP;
@@ -1790,7 +1803,8 @@ private:
     if (gripper_mode_ == GripperMode::ARM_JOINT && std::count(mv.joints.begin(), mv.joints.end(), size_t{5})) {
       gripper_cmd_ = target[5];   // 이후 팔 궤적이 이 그리퍼 값을 이어 감
     }
-    const double duration = startupStageDuration(*current, target, startup_vel_, min_duration_);
+    const double vel = (job_ == Job::STARTUP && startup_slow_) ? std::min(startup_vel_, startup_auto_stow_vel_) : startup_vel_;
+    const double duration = startupStageDuration(*current, target, vel, min_duration_);
     const double n = static_cast<double>(staged_plan_.size()), k = static_cast<double>(staged_idx_);
     RCLCPP_INFO(get_logger(), "%s: stage %zu/%zu (%.1f s)", label.c_str(), staged_idx_ + 1, staged_plan_.size(), duration);
     sendArm(target, duration, [this, label, done, on_progress](bool ok, const std::string & msg) {
@@ -4319,6 +4333,8 @@ private:
   double max_step_{0.02}, correction_min_duration_{0.3}, settle_time_{0.2}, wait_timeout_{1.0};
   std::string startup_pose_{"DRIVE"};                 // 빈 문자열 = 켜질 때 정리 끔
   double startup_vel_{0.1}, startup_skip_tol_{0.05}, startup_diag_wait_{5.0}, startup_warn_after_{15.0};
+  double startup_auto_stow_max_{0.65}, startup_auto_stow_vel_{0.1};
+  bool startup_slow_{false};   // 이번 켜질 때 정리가 STOW 근처에서 모으는 중 (startup.auto_stow_velocity)
 
   // ROS 인터페이스
   rclcpp::CallbackGroup::SharedPtr job_cb_group_, sensor_cb_group_;
