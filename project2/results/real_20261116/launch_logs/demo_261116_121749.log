@@ -1,0 +1,23 @@
+[INFO] [launch]: All log files can be found below /home/cart11/.ros/log/2026-11-16-12-17-50-488978-cart11-16622
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ros2_control_node-1]: process started with pid [16645]
+[INFO] [spawner-2]: process started with pid [16646]
+[INFO] [robot_state_publisher-3]: process started with pid [16647]
+[INFO] [twist_mux-4]: process started with pid [16648]
+[INFO] [rc100_joy.py-5]: process started with pid [16649]
+[INFO] [joy_teleop-6]: process started with pid [16650]
+[INFO] [teleop_node-7]: process started with pid [16651]
+[INFO] [component_container_mt-8]: process started with pid [16652]
+[INFO] [wait_joint_states-9]: process started with pid [16653]
+[INFO] [odom_icr-10]: process started with pid [16655]
+[INFO] [ekf_node-11]: process started with pid [16656]
+[component_container_mt-8] [WARN] [1794799072.005547268] [component_container_mt]: This executable is deprecated and will be removed in M-turtle.
+[component_container_mt-8] Use 'component_container --executor-type multi-threaded' instead.
+[ros2_control_node-1] [INFO] [1794799072.521385459] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-1] [INFO] [1794799072.941940094] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-1] [INFO] [1794799072.942165158] [controller_manager]: update rate is 100 Hz
+[ros2_control_node-1] [INFO] [1794799072.942191591] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-1] [INFO] [1794799072.942207367] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-1] [WARN] [1794799072.946278130] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.
+[ros2_control_node-1] [WARN] [1794799073.523766727] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.912787 ms (missed cycles : 2).
+[demo_start] /mission/start 서비스 보임 → 시작 요청

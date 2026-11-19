@@ -1,0 +1,5 @@
+# 장애물 주행 (avoid_runner, 2026-11-17 21:10): 경로 L2 L1 · 실제 간 곳 HOME → L2 → L1
+route:
+  - {stop: signal, x: 0.6936, y: 0.9500, face: 180.0}
+  - {stop: L2, x: 1.9532, y: 3.6755, face: 0.0}
+  - {stop: L1, x: 3.3697, y: 0.9675, face: 0.0}

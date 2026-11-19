@@ -1,0 +1,114 @@
+[INFO] [launch]: All log files can be found below /home/cart11/.ros/log/2026-11-16-12-22-01-191455-cart11-18717
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ros2_control_node-1]: process started with pid [18744]
+[INFO] [spawner-2]: process started with pid [18745]
+[INFO] [robot_state_publisher-3]: process started with pid [18746]
+[INFO] [twist_mux-4]: process started with pid [18747]
+[INFO] [joy_node-5]: process started with pid [18748]
+[INFO] [joy_teleop-6]: process started with pid [18749]
+[INFO] [teleop_node-7]: process started with pid [18750]
+[INFO] [component_container_mt-8]: process started with pid [18751]
+[INFO] [wait_joint_states-9]: process started with pid [18754]
+[INFO] [odom_icr-10]: process started with pid [18755]
+[INFO] [ekf_node-11]: process started with pid [18756]
+[component_container_mt-8] [WARN] [1794799322.583538777] [component_container_mt]: This executable is deprecated and will be removed in M-turtle.
+[component_container_mt-8] Use 'component_container --executor-type multi-threaded' instead.
+[teleop_node-7] [INFO] [1794799322.765491152] [TeleopTwistJoy]: Teleop enable button 4.
+[teleop_node-7] [INFO] [1794799322.765609364] [TeleopTwistJoy]: Linear axis x on 1 at scale 0.200000.
+[teleop_node-7] [INFO] [1794799322.765631797] [TeleopTwistJoy]: Angular axis yaw on 0 at scale 1.000000.
+[ros2_control_node-1] [INFO] [1794799322.803654009] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[robot_state_publisher-3] [INFO] [1794799323.257622118] [robot_state_publisher]: Robot initialized
+[ros2_control_node-1] [INFO] [1794799323.264221108] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-1] [INFO] [1794799323.264457979] [controller_manager]: update rate is 100 Hz
+[ros2_control_node-1] [INFO] [1794799323.264490588] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-1] [INFO] [1794799323.264508893] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-1] [WARN] [1794799323.264755333] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.
+[ros2_control_node-1] [WARN] [1794799323.680073751] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.189856 ms (missed cycles : 2).
+[odom_icr-10] [INFO] [1794799323.915188331] [odom_icr]: /odom + /imu/data -> /odom_icr, icr_x -0.0658 m
+[ros2_control_node-1] [WARN] [1794799324.275131257] [controller_manager]: Waiting for data on 'robot_description' topic to finish initialization
+[twist_mux-4] [INFO] [1794799324.342717144] [twist_mux]: Topic handler 'topics.drive' subscribed to topic 'cmd_vel_drive': timeout = 0.250000s , priority = 50.
+[twist_mux-4] [INFO] [1794799324.394975577] [twist_mux]: Topic handler 'topics.nav' subscribed to topic 'cmd_vel_nav': timeout = 0.500000s , priority = 10.
+[twist_mux-4] [INFO] [1794799324.452350874] [twist_mux]: Topic handler 'topics.teleop' subscribed to topic 'cmd_vel_teleop': timeout = 0.500000s , priority = 100.
+[twist_mux-4] [INFO] [1794799324.480054619] [twist_mux]: Topic handler 'locks.e_stop' subscribed to topic 'e_stop': timeout = 0.500000s , priority = 255.
+[twist_mux-4] [INFO] [1794799324.481666445] [twist_mux]: Topic handler 'locks.localization' subscribed to topic '/localization/lock': timeout = 0.500000s , priority = 20.
+[twist_mux-4] [INFO] [1794799324.482615467] [twist_mux]: Topic handler 'locks.obstacle' subscribed to topic '/perception/obstacle_stop': timeout = 0.500000s , priority = 60.
+[ros2_control_node-1] [INFO] [1794799324.718544758] [controller_manager]: Received robot description from topic.
+[ros2_control_node-1] [INFO] [1794799324.718698779] [controller_manager]: Enforcing command limits is enabled...
+[ros2_control_node-1] [INFO] [1794799324.768131939] [controller_manager]: Using JointLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem' : '  has position limits: true [-0.7946, 0.9541]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.770191908] [controller_manager]: Creating JointSaturationLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.782325983] [controller_manager]: Using JointLimiter for joint 'joint5' in hardware 'OpenCRSystem' : '  has position limits: true [-2.8, 2.8]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.782564998] [controller_manager]: Creating JointSaturationLimiter for joint 'joint5' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.782624840] [controller_manager]: Using JointLimiter for joint 'joint2' in hardware 'OpenCRSystem' : '  has position limits: true [-2.14, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.782657449] [controller_manager]: Creating JointSaturationLimiter for joint 'joint2' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.782697866] [controller_manager]: Using JointLimiter for joint 'joint4' in hardware 'OpenCRSystem' : '  has position limits: true [-1.92, 2]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.782722699] [controller_manager]: Creating JointSaturationLimiter for joint 'joint4' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.782759564] [controller_manager]: Using JointLimiter for joint 'joint1' in hardware 'OpenCRSystem' : '  has position limits: true [-3.14159, 3.14159]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.782784525] [controller_manager]: Creating JointSaturationLimiter for joint 'joint1' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.782808910] [controller_manager]: Joint limits are disabled for joint 'wheel_right_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.782830478] [controller_manager]: Joint limits are disabled for joint 'wheel_right_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.782863439] [controller_manager]: Using JointLimiter for joint 'joint3' in hardware 'OpenCRSystem' : '  has position limits: true [-1.6, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.788890572] [controller_manager]: Creating JointSaturationLimiter for joint 'joint3' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.789086738] [controller_manager]: Joint limits are disabled for joint 'wheel_left_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.789114835] [controller_manager]: Joint limits are disabled for joint 'wheel_left_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.830850699] [controller_manager]: Loading hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794799324.953764171] [controller_manager]: Loaded hardware 'OpenCRSystem' from plugin 'opencr_hardware/OpenCRHardware'
+[ros2_control_node-1] [INFO] [1794799324.956164534] [controller_manager]: Initialize hardware 'OpenCRSystem' 
+[ros2_control_node-1] [WARN] [1794799325.029207008] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.323944 ms (missed cycles : 2).
+[ros2_control_node-1] [INFO] [1794799325.460965709] [controller_manager.hardware_component.system.OpenCRSystem]: 바퀴 기어비 2.00 (바퀴 / 모터)
+[ros2_control_node-1] [INFO] [1794799325.464447290] [controller_manager.hardware_component.system.OpenCRSystem]: 팔 대기 자세 검사 켬 (처음 켤 때 범위 밖이면 시작 거부): 0,0,0,0,0,0 ~ 4095,4095,4095,4095,4095,4095
+[ros2_control_node-1] [INFO] [1794799325.464589438] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCRHardware: 관절 10개, IMU 'imu', 후보 포트 /dev/ttyACM2,/dev/ttyACM3
+[ros2_control_node-1] [INFO] [1794799325.464696225] [controller_manager]: Successful initialization of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799325.470915620] [controller_manager]: Activating component 'OpenCRSystem'.
+[ros2_control_node-1] [INFO] [1794799325.471042792] [resource_manager]: 'configure' hardware 'OpenCRSystem' 
+[ros2_control_node-1] [ERROR] [1794799325.471142027] [controller_manager.hardware_component.system.OpenCRSystem]: 후보 포트 열기 실패: /dev/ttyACM2: Device or resource busy
+[ros2_control_node-1] [ERROR] [1794799325.471264367] [resource_manager]: Failed to 'configure' hardware 'OpenCRSystem'
+[ros2_control_node-1] [ERROR] [1794799325.471464597] [controller_manager]: Failed to set the initial state of the component : 'OpenCRSystem' to 'active'
+[ros2_control_node-1] [INFO] [1794799325.471515254] [controller_manager]: Registering statistics for : OpenCRSystem
+[ros2_control_node-1] [INFO] [1794799325.471708028] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[ros2_control_node-1] [WARN] [1794799325.871403648] [controller_manager]: Overrun might occur, Total time : 11184.254 us (Expected < 10000.000 us) --> Read time : 17.313 us, Update time : 86.403 us, Write time : 11080.538 us
+[ros2_control_node-1] [INFO] [1794799325.950414596] [controller_manager]: Received robot description from topic.
+[ros2_control_node-1] [WARN] [1794799325.950520520] [controller_manager]: ResourceManager has already loaded a urdf and is initialized. Ignoring attempt to reload a robot description.
+[component_container_mt-8] [INFO] [1794799326.141271756] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission/lib/libmission_component.so
+[component_container_mt-8] [INFO] [1794799326.291550273] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[component_container_mt-8] [INFO] [1794799326.293860937] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[component_container_mt-8] [INFO] [1794799326.522389993] [mission_node]: survey: 6 pose(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/config/approach_poses.yaml
+[component_container_mt-8] [INFO] [1794799326.542680674] [mission_node]: place_box: 켬 (장소 3 곳)
+[ros2_control_node-1] [WARN] [1794799327.679177212] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 31.292901 ms (missed cycles : 4).
+[demo_start] /mission/start 서비스 보임 → 시작 요청
+[demo_start] 시도 1: 

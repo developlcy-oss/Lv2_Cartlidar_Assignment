@@ -1,0 +1,220 @@
+[loc_noarm] 팔 노드 없이: 지도 /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.yaml · odom_icr · ekf_filter_node · AMCL (loc_monitor 끔)
+[37;1m2026-11-16 12:22:33.270 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[37;1m2026-11-16 12:22:33.286 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[INFO] [launch]: All log files can be found below /home/cart11/.ros/log/2026-11-16-12-22-33-427940-cart11-19187
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [scan_body_mask-1]: process started with pid [19233]
+[INFO] [map_server-2]: process started with pid [19234]
+[INFO] [map_server-3]: process started with pid [19235]
+[INFO] [loc_scan_merge-4]: process started with pid [19236]
+[INFO] [amcl-5]: process started with pid [19237]
+[INFO] [1794799353.703761859] [odom_icr]: /odom + /imu/data -> /odom_icr, icr_x -0.0658 m
+[loc_scan_merge-4] [37;1m2026-11-16 12:22:33.736 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[map_server-3] [37;1m2026-11-16 12:22:33.799 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[amcl-5] [37;1m2026-11-16 12:22:33.809 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[map_server-2] [37;1m2026-11-16 12:22:34.060 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[scan_body_mask-1] [37;1m2026-11-16 12:22:34.063 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[map_server-3] [INFO] [1794799354.516636372] [map_objects_server]: 
+[map_server-3] 	map_objects_server lifecycle node launched. 
+[map_server-3] 	Waiting on external lifecycle transitions to activate
+[map_server-3] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[map_server-3] [INFO] [1794799354.516890044] [map_objects_server]: Creating
+[amcl-5] [INFO] [1794799354.526967092] [amcl]: 
+[amcl-5] 	amcl lifecycle node launched. 
+[amcl-5] 	Waiting on external lifecycle transitions to activate
+[amcl-5] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[amcl-5] [INFO] [1794799354.532473855] [amcl]: Creating
+[map_server-2] [INFO] [1794799354.627754088] [map_server]: 
+[map_server-2] 	map_server lifecycle node launched. 
+[map_server-2] 	Waiting on external lifecycle transitions to activate
+[map_server-2] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[map_server-2] [INFO] [1794799354.631995852] [map_server]: Creating
+[INFO] [lifecycle_manager-6]: process started with pid [19330]
+[INFO] [lifecycle_manager-7]: process started with pid [19331]
+[lifecycle_manager-7] [37;1m2026-11-16 12:22:36.741 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[lifecycle_manager-6] [37;1m2026-11-16 12:22:36.745 [31;1m[[37;1mRTPS_TRANSPORT_SHM[31;1m Error] [37mFailed init_port fastdds_port7000: open_and_lock_file failed[34;1m -> Function [36mopen_port_internal[m
+[lifecycle_manager-7] [INFO] [1794799356.798350089] [lifecycle_manager_amcl]: Creating
+[lifecycle_manager-7] [INFO] [1794799356.799277222] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[lifecycle_manager-7] [INFO] [1794799356.800654353] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[scan_body_mask-1] [INFO] [1794799356.994500263] [scan_body_mask]: /scan_front: 고정 칸 121칸 학습(108.9°)
+[scan_body_mask-1] [INFO] [1794799357.001452446] [scan_body_mask]: /scan_rear: 고정 칸 218칸 학습(195.7°)
+[lifecycle_manager-6] [INFO] [1794799357.010680572] [lifecycle_manager_maps]: Creating
+[lifecycle_manager-6] [INFO] [1794799357.011846144] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[lifecycle_manager-6] [INFO] [1794799357.014991745] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[lifecycle_manager-7] [INFO] [1794799357.365651183] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[lifecycle_manager-7] [INFO] [1794799357.411428953] [lifecycle_manager_amcl]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-7] [INFO] [1794799357.411516700] [lifecycle_manager_amcl]: [34m[1mConfiguring amcl[0m[0m
+[amcl-5] [INFO] [1794799357.770119967] [amcl]: Configuring
+[amcl-5] [INFO] [1794799357.771952760] [amcl]: initTransforms
+[amcl-5] [INFO] [1794799357.795947743] [amcl]: initPubSub
+[amcl-5] [INFO] [1794799357.819757857] [amcl]: Subscribed to map topic.
+[lifecycle_manager-7] [INFO] [1794799357.839082872] [lifecycle_manager_amcl]: [34m[1mActivating amcl[0m[0m
+[amcl-5] [INFO] [1794799357.840214939] [amcl]: Activating
+[amcl-5] [INFO] [1794799357.840296989] [amcl]: initialPoseReceived
+[amcl-5] [INFO] [1794799357.840558693] [amcl]: Setting pose (1794799357.840556): 0.694 0.950 3.142
+[amcl-5] [INFO] [1794799357.842058196] [amcl]: Creating bond (amcl) to lifecycle manager.
+[lifecycle_manager-6] [INFO] [1794799357.934622567] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[lifecycle_manager-6] [INFO] [1794799357.962278432] [lifecycle_manager_maps]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-6] [INFO] [1794799357.962375843] [lifecycle_manager_maps]: [34m[1mConfiguring map_server[0m[0m
+[map_server-2] [INFO] [1794799357.963451748] [map_server]: Configuring
+[map_server-2] [INFO] [1794799357.963839312] [map_io]: Loading yaml file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.yaml
+[map_server-2] [INFO] [1794799357.964391073] [map_io]: resolution: 0.025
+[map_server-2] [INFO] [1794799357.964414338] [map_io]: origin[0]: -0.15
+[map_server-2] [INFO] [1794799357.964424226] [map_io]: origin[1]: -0.15
+[map_server-2] [INFO] [1794799357.964431458] [map_io]: origin[2]: 0
+[map_server-2] [INFO] [1794799357.964437666] [map_io]: free_thresh: 0.25
+[map_server-2] [INFO] [1794799357.964443491] [map_io]: occupied_thresh: 0.65
+[map_server-2] [INFO] [1794799357.964453731] [map_io]: mode: trinary
+[map_server-2] [INFO] [1794799357.964462115] [map_io]: negate: 0
+[map_server-2] [INFO] [1794799357.964816494] [map_io]: Loading image_file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.pgm
+[map_server-2] [INFO] [1794799357.966886478] [map_io]: Read map /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.pgm: 191 X 267 map @ 0.025 m/cell
+[lifecycle_manager-6] [INFO] [1794799358.041380881] [lifecycle_manager_maps]: [34m[1mConfiguring map_objects_server[0m[0m
+[map_server-3] [INFO] [1794799358.046366092] [map_objects_server]: Configuring
+[map_server-3] [INFO] [1794799358.047015200] [map_io]: Loading yaml file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.yaml
+[map_server-3] [INFO] [1794799358.047550064] [map_io]: resolution: 0.025
+[map_server-3] [INFO] [1794799358.047574577] [map_io]: origin[0]: -0.15
+[map_server-3] [INFO] [1794799358.047582609] [map_io]: origin[1]: -0.15
+[map_server-3] [INFO] [1794799358.047588786] [map_io]: origin[2]: 0
+[map_server-3] [INFO] [1794799358.047595314] [map_io]: free_thresh: 0.25
+[map_server-3] [INFO] [1794799358.047601906] [map_io]: occupied_thresh: 0.65
+[map_server-3] [INFO] [1794799358.047611058] [map_io]: mode: trinary
+[map_server-3] [INFO] [1794799358.047619731] [map_io]: negate: 0
+[map_server-3] [INFO] [1794799358.049485548] [map_io]: Loading image_file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.pgm
+[map_server-3] [INFO] [1794799358.054118012] [map_io]: Read map /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.pgm: 191 X 267 map @ 0.025 m/cell
+[lifecycle_manager-6] [INFO] [1794799358.095892425] [lifecycle_manager_maps]: [34m[1mActivating map_server[0m[0m
+[map_server-2] [INFO] [1794799358.097772676] [map_server]: Activating
+[map_server-2] [INFO] [1794799358.099379221] [map_server]: Creating bond (map_server) to lifecycle manager.
+[amcl-5] [INFO] [1794799358.099857124] [amcl]: Received a 191 X 267 map @ 0.025 m/pix
+[lifecycle_manager-7] [INFO] [1794799358.118799919] [lifecycle_manager_amcl]: Server amcl connected with bond.
+[lifecycle_manager-7] [INFO] [1794799358.118881137] [lifecycle_manager_amcl]: [34m[1mManaged nodes are active[0m[0m
+[lifecycle_manager-7] [INFO] [1794799358.118931731] [lifecycle_manager_amcl]: [34m[1mCreating bond timer...[0m[0m
+[amcl-5] [INFO] [1794799358.160172112] [amcl]: createLaserObject
+[lifecycle_manager-6] [INFO] [1794799358.371278553] [lifecycle_manager_maps]: Server map_server connected with bond.
+[lifecycle_manager-6] [INFO] [1794799358.371388029] [lifecycle_manager_maps]: [34m[1mActivating map_objects_server[0m[0m
+[map_server-3] [INFO] [1794799358.372496415] [map_objects_server]: Activating
+[map_server-3] [INFO] [1794799358.373016047] [map_objects_server]: Creating bond (map_objects_server) to lifecycle manager.
+[lifecycle_manager-6] [INFO] [1794799358.644251679] [lifecycle_manager_maps]: Server map_objects_server connected with bond.
+[lifecycle_manager-6] [INFO] [1794799358.644377667] [lifecycle_manager_maps]: [34m[1mManaged nodes are active[0m[0m
+[lifecycle_manager-6] [INFO] [1794799358.644456709] [lifecycle_manager_maps]: [34m[1mCreating bond timer...[0m[0m
+[scan_body_mask-1] [INFO] [1794799364.522317757] [scan_body_mask]: /scan_front: 스캔 96, 평균 가린 칸 118.4
+[scan_body_mask-1] [INFO] [1794799364.522458081] [scan_body_mask]: /scan_rear: 스캔 96, 평균 가린 칸 216.4
+[scan_body_mask-1] [INFO] [1794799374.522271120] [scan_body_mask]: /scan_front: 스캔 197, 평균 가린 칸 119.4
+[scan_body_mask-1] [INFO] [1794799374.522389460] [scan_body_mask]: /scan_rear: 스캔 196, 평균 가린 칸 217.3
+[scan_body_mask-1] [INFO] [1794799384.522255246] [scan_body_mask]: /scan_front: 스캔 297, 평균 가린 칸 119.8
+[scan_body_mask-1] [INFO] [1794799384.522364626] [scan_body_mask]: /scan_rear: 스캔 297, 평균 가린 칸 217.5
+[loc_scan_merge-4] [INFO] [1794799385.060055794] [scan_merge]: 합친 스캔 300 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799394.522304936] [scan_body_mask]: /scan_front: 스캔 397, 평균 가린 칸 119.9
+[scan_body_mask-1] [INFO] [1794799394.522451757] [scan_body_mask]: /scan_rear: 스캔 397, 평균 가린 칸 217.6
+[scan_body_mask-1] [INFO] [1794799404.522470285] [scan_body_mask]: /scan_front: 스캔 498, 평균 가린 칸 120.1
+[scan_body_mask-1] [INFO] [1794799404.522635634] [scan_body_mask]: /scan_rear: 스캔 497, 평균 가린 칸 217.7
+[scan_body_mask-1] [INFO] [1794799414.522341790] [scan_body_mask]: /scan_front: 스캔 598, 평균 가린 칸 120.2
+[scan_body_mask-1] [INFO] [1794799414.522526436] [scan_body_mask]: /scan_rear: 스캔 597, 평균 가린 칸 217.8
+[loc_scan_merge-4] [INFO] [1794799414.960766353] [scan_merge]: 합친 스캔 600 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799424.523230834] [scan_body_mask]: /scan_front: 스캔 698, 평균 가린 칸 120.2
+[scan_body_mask-1] [INFO] [1794799424.523411576] [scan_body_mask]: /scan_rear: 스캔 698, 평균 가린 칸 217.9
+[scan_body_mask-1] [INFO] [1794799434.522284351] [scan_body_mask]: /scan_front: 스캔 799, 평균 가린 칸 120.3
+[scan_body_mask-1] [INFO] [1794799434.522479237] [scan_body_mask]: /scan_rear: 스캔 798, 평균 가린 칸 217.9
+[scan_body_mask-1] [INFO] [1794799444.522774198] [scan_body_mask]: /scan_front: 스캔 899, 평균 가린 칸 120.4
+[scan_body_mask-1] [INFO] [1794799444.523223332] [scan_body_mask]: /scan_rear: 스캔 898, 평균 가린 칸 218.0
+[loc_scan_merge-4] [INFO] [1794799444.860057650] [scan_merge]: 합친 스캔 900 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799454.522294555] [scan_body_mask]: /scan_front: 스캔 999, 평균 가린 칸 120.4
+[scan_body_mask-1] [INFO] [1794799454.522452640] [scan_body_mask]: /scan_rear: 스캔 999, 평균 가린 칸 217.9
+[scan_body_mask-1] [INFO] [1794799464.522267590] [scan_body_mask]: /scan_front: 스캔 1099, 평균 가린 칸 120.5
+[scan_body_mask-1] [INFO] [1794799464.522418251] [scan_body_mask]: /scan_rear: 스캔 1099, 평균 가린 칸 218.0
+[scan_body_mask-1] [INFO] [1794799474.522341816] [scan_body_mask]: /scan_front: 스캔 1200, 평균 가린 칸 120.5
+[scan_body_mask-1] [INFO] [1794799474.522514654] [scan_body_mask]: /scan_rear: 스캔 1199, 평균 가린 칸 218.0
+[loc_scan_merge-4] [INFO] [1794799474.779966161] [scan_merge]: 합친 스캔 1200 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799484.523229684] [scan_body_mask]: /scan_front: 스캔 1300, 평균 가린 칸 120.5
+[scan_body_mask-1] [INFO] [1794799484.523376345] [scan_body_mask]: /scan_rear: 스캔 1300, 평균 가린 칸 218.0
+[scan_body_mask-1] [INFO] [1794799494.522298070] [scan_body_mask]: /scan_front: 스캔 1400, 평균 가린 칸 120.5
+[scan_body_mask-1] [INFO] [1794799494.522484604] [scan_body_mask]: /scan_rear: 스캔 1400, 평균 가린 칸 218.0
+[scan_body_mask-1] [INFO] [1794799504.523934927] [scan_body_mask]: /scan_front: 스캔 1500, 평균 가린 칸 120.5
+[scan_body_mask-1] [INFO] [1794799504.524089875] [scan_body_mask]: /scan_rear: 스캔 1501, 평균 가린 칸 218.0
+[loc_scan_merge-4] [INFO] [1794799504.700043853] [scan_merge]: 합친 스캔 1500 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799514.522271000] [scan_body_mask]: /scan_front: 스캔 1601, 평균 가린 칸 120.6
+[scan_body_mask-1] [INFO] [1794799514.522439677] [scan_body_mask]: /scan_rear: 스캔 1601, 평균 가린 칸 218.0
+[scan_body_mask-1] [INFO] [1794799524.522250131] [scan_body_mask]: /scan_front: 스캔 1701, 평균 가린 칸 120.6
+[scan_body_mask-1] [INFO] [1794799524.522429144] [scan_body_mask]: /scan_rear: 스캔 1701, 평균 가린 칸 218.0
+[scan_body_mask-1] [INFO] [1794799534.522736328] [scan_body_mask]: /scan_front: 스캔 1801, 평균 가린 칸 120.6
+[scan_body_mask-1] [INFO] [1794799534.522877516] [scan_body_mask]: /scan_rear: 스캔 1802, 평균 가린 칸 218.0
+[loc_scan_merge-4] [INFO] [1794799534.641325558] [scan_merge]: 합친 스캔 1800 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[amcl-5] [INFO] [1794799541.825496258] [amcl]: initialPoseReceived
+[amcl-5] [WARN] [1794799541.825776619] [amcl]: Failed to transform initial pose in time (Lookup would require extrapolation into the future.  Requested time 1794799541.825680 but the latest data is at time 1794799541.801507, when looking up transform from frame [base_link] to frame [odom])
+[amcl-5] [INFO] [1794799541.825860109] [amcl]: Setting pose (1794799541.825858): 0.694 0.950 3.142
+[scan_body_mask-1] [INFO] [1794799544.522256758] [scan_body_mask]: /scan_front: 스캔 1902, 평균 가린 칸 120.6
+[scan_body_mask-1] [INFO] [1794799544.522424635] [scan_body_mask]: /scan_rear: 스캔 1902, 평균 가린 칸 218.0
+[scan_body_mask-1] [INFO] [1794799554.522499130] [scan_body_mask]: /scan_front: 스캔 2002, 평균 가린 칸 120.6
+[scan_body_mask-1] [INFO] [1794799554.522645118] [scan_body_mask]: /scan_rear: 스캔 2002, 평균 가린 칸 218.0
+[loc_scan_merge-4] [INFO] [1794799564.500117611] [scan_merge]: 합친 스캔 2100 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799564.524707140] [scan_body_mask]: /scan_front: 스캔 2102, 평균 가린 칸 120.6
+[scan_body_mask-1] [INFO] [1794799564.524885353] [scan_body_mask]: /scan_rear: 스캔 2103, 평균 가린 칸 218.1
+[scan_body_mask-1] [INFO] [1794799574.522270297] [scan_body_mask]: /scan_front: 스캔 2203, 평균 가린 칸 120.6
+[scan_body_mask-1] [INFO] [1794799574.522460639] [scan_body_mask]: /scan_rear: 스캔 2203, 평균 가린 칸 218.2
+[scan_body_mask-1] [INFO] [1794799584.522290967] [scan_body_mask]: /scan_front: 스캔 2303, 평균 가린 칸 120.8
+[scan_body_mask-1] [INFO] [1794799584.522495998] [scan_body_mask]: /scan_rear: 스캔 2303, 평균 가린 칸 218.2
+[loc_scan_merge-4] [INFO] [1794799594.400007592] [scan_merge]: 합친 스캔 2400 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799594.522274110] [scan_body_mask]: /scan_front: 스캔 2403, 평균 가린 칸 122.3
+[scan_body_mask-1] [INFO] [1794799594.522443811] [scan_body_mask]: /scan_rear: 스캔 2403, 평균 가린 칸 218.4
+[scan_body_mask-1] [INFO] [1794799604.522268568] [scan_body_mask]: /scan_front: 스캔 2504, 평균 가린 칸 122.7
+[scan_body_mask-1] [INFO] [1794799604.522427164] [scan_body_mask]: /scan_rear: 스캔 2503, 평균 가린 칸 218.6
+[scan_body_mask-1] [INFO] [1794799614.522276719] [scan_body_mask]: /scan_front: 스캔 2604, 평균 가린 칸 124.1
+[scan_body_mask-1] [INFO] [1794799614.522445972] [scan_body_mask]: /scan_rear: 스캔 2603, 평균 가린 칸 218.7
+[loc_scan_merge-4] [INFO] [1794799624.300146901] [scan_merge]: 합친 스캔 2700 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799624.522263564] [scan_body_mask]: /scan_front: 스캔 2704, 평균 가린 칸 124.2
+[scan_body_mask-1] [INFO] [1794799624.522444657] [scan_body_mask]: /scan_rear: 스캔 2704, 평균 가린 칸 218.7
+[scan_body_mask-1] [INFO] [1794799634.522282168] [scan_body_mask]: /scan_front: 스캔 2805, 평균 가린 칸 124.1
+[scan_body_mask-1] [INFO] [1794799634.522753766] [scan_body_mask]: /scan_rear: 스캔 2804, 평균 가린 칸 218.7
+[scan_body_mask-1] [INFO] [1794799644.522245852] [scan_body_mask]: /scan_front: 스캔 2905, 평균 가린 칸 124.2
+[scan_body_mask-1] [INFO] [1794799644.522412929] [scan_body_mask]: /scan_rear: 스캔 2904, 평균 가린 칸 218.8
+[loc_scan_merge-4] [INFO] [1794799654.200428681] [scan_merge]: 합친 스캔 3000 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799654.522279107] [scan_body_mask]: /scan_front: 스캔 3005, 평균 가린 칸 124.9
+[scan_body_mask-1] [INFO] [1794799654.522438408] [scan_body_mask]: /scan_rear: 스캔 3004, 평균 가린 칸 218.9
+[scan_body_mask-1] [INFO] [1794799664.522333492] [scan_body_mask]: /scan_front: 스캔 3106, 평균 가린 칸 125.1
+[scan_body_mask-1] [INFO] [1794799664.522522874] [scan_body_mask]: /scan_rear: 스캔 3105, 평균 가린 칸 219.0
+[scan_body_mask-1] [INFO] [1794799674.522270804] [scan_body_mask]: /scan_front: 스캔 3206, 평균 가린 칸 125.6
+[scan_body_mask-1] [INFO] [1794799674.522438329] [scan_body_mask]: /scan_rear: 스캔 3205, 평균 가린 칸 219.1
+[amcl-5] [INFO] [1794799681.630000780] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799681.960176050] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799682.284954427] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799682.617065048] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799682.941350354] [amcl]: Requesting no-motion update
+[loc_scan_merge-4] [INFO] [1794799684.140001347] [scan_merge]: 합친 스캔 3300 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799684.522259760] [scan_body_mask]: /scan_front: 스캔 3306, 평균 가린 칸 125.6
+[scan_body_mask-1] [INFO] [1794799684.522632635] [scan_body_mask]: /scan_rear: 스캔 3305, 평균 가린 칸 219.2
+[amcl-5] [INFO] [1794799688.310633108] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799688.639783603] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799688.966519308] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799689.289084491] [amcl]: Requesting no-motion update
+[amcl-5] [INFO] [1794799689.620050205] [amcl]: Requesting no-motion update
+[scan_body_mask-1] [INFO] [1794799694.522259376] [scan_body_mask]: /scan_front: 스캔 3406, 평균 가린 칸 125.6
+[scan_body_mask-1] [INFO] [1794799694.522429013] [scan_body_mask]: /scan_rear: 스캔 3406, 평균 가린 칸 219.3
+[scan_body_mask-1] [INFO] [1794799704.522570531] [scan_body_mask]: /scan_front: 스캔 3506, 평균 가린 칸 125.9
+[scan_body_mask-1] [INFO] [1794799704.522739336] [scan_body_mask]: /scan_rear: 스캔 3506, 평균 가린 칸 219.4
+[loc_scan_merge-4] [INFO] [1794799714.119951955] [scan_merge]: 합친 스캔 3600 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799714.522657570] [scan_body_mask]: /scan_front: 스캔 3606, 평균 가린 칸 126.0
+[scan_body_mask-1] [INFO] [1794799714.522844552] [scan_body_mask]: /scan_rear: 스캔 3606, 평균 가린 칸 219.4
+[scan_body_mask-1] [INFO] [1794799724.522266286] [scan_body_mask]: /scan_front: 스캔 3706, 평균 가린 칸 126.4
+[scan_body_mask-1] [INFO] [1794799724.522432691] [scan_body_mask]: /scan_rear: 스캔 3706, 평균 가린 칸 219.5
+[scan_body_mask-1] [INFO] [1794799734.522281063] [scan_body_mask]: /scan_front: 스캔 3806, 평균 가린 칸 126.4
+[scan_body_mask-1] [INFO] [1794799734.522482189] [scan_body_mask]: /scan_rear: 스캔 3806, 평균 가린 칸 219.5
+[loc_scan_merge-4] [INFO] [1794799744.120007508] [scan_merge]: 합친 스캔 3900 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799744.522266569] [scan_body_mask]: /scan_front: 스캔 3906, 평균 가린 칸 126.4
+[scan_body_mask-1] [INFO] [1794799744.522359532] [scan_body_mask]: /scan_rear: 스캔 3907, 평균 가린 칸 219.6
+[scan_body_mask-1] [INFO] [1794799754.522267227] [scan_body_mask]: /scan_front: 스캔 4006, 평균 가린 칸 126.4
+[scan_body_mask-1] [INFO] [1794799754.522361406] [scan_body_mask]: /scan_rear: 스캔 4007, 평균 가린 칸 219.6
+[scan_body_mask-1] [INFO] [1794799764.522264870] [scan_body_mask]: /scan_front: 스캔 4106, 평균 가린 칸 126.8
+[scan_body_mask-1] [INFO] [1794799764.522346664] [scan_body_mask]: /scan_rear: 스캔 4107, 평균 가린 칸 219.7
+[loc_scan_merge-4] [INFO] [1794799774.080054664] [scan_merge]: 합친 스캔 4200 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799774.522216237] [scan_body_mask]: /scan_front: 스캔 4207, 평균 가린 칸 127.6
+[scan_body_mask-1] [INFO] [1794799774.522304879] [scan_body_mask]: /scan_rear: 스캔 4207, 평균 가린 칸 219.8
+[scan_body_mask-1] [INFO] [1794799784.522280285] [scan_body_mask]: /scan_front: 스캔 4307, 평균 가린 칸 127.8
+[scan_body_mask-1] [INFO] [1794799784.522544548] [scan_body_mask]: /scan_rear: 스캔 4307, 평균 가린 칸 219.8
+[scan_body_mask-1] [INFO] [1794799794.522255607] [scan_body_mask]: /scan_front: 스캔 4407, 평균 가린 칸 128.8
+[scan_body_mask-1] [INFO] [1794799794.522344761] [scan_body_mask]: /scan_rear: 스캔 4408, 평균 가린 칸 219.9
+[loc_scan_merge-4] [INFO] [1794799804.020082901] [scan_merge]: 합친 스캔 4500 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 0)
+[scan_body_mask-1] [INFO] [1794799804.522268868] [scan_body_mask]: /scan_front: 스캔 4507, 평균 가린 칸 128.7
+[scan_body_mask-1] [INFO] [1794799804.522371975] [scan_body_mask]: /scan_rear: 스캔 4508, 평균 가린 칸 219.9
+[scan_body_mask-1] [INFO] [1794799814.522411246] [scan_body_mask]: /scan_front: 스캔 4607, 평균 가린 칸 128.6
+[scan_body_mask-1] [INFO] [1794799814.522555570] [scan_body_mask]: /scan_rear: 스캔 4608, 평균 가린 칸 219.9
+[scan_body_mask-1] [INFO] [1794799824.522893282] [scan_body_mask]: /scan_front: 스캔 4707, 평균 가린 칸 128.5
+[scan_body_mask-1] [INFO] [1794799824.523609302] [scan_body_mask]: /scan_rear: 스캔 4709, 평균 가린 칸 220.0

@@ -1,0 +1,32 @@
+[
+ {
+  "seg": "S0",
+  "name": "S0 signal→box1",
+  "points": [
+   0,
+   1
+  ],
+  "ok": false,
+  "tries": [
+   {
+    "status": "recover",
+    "msg": "조각 1 (전진): 상태 6 · 오류 105 Failed to make progress",
+    "t": 20.0
+   },
+   {
+    "status": "fail",
+    "msg": "조각 1 (전진): Ctrl+C 로 멈춤",
+    "t": 38.2
+   }
+  ],
+  "sim_s": 38.2,
+  "end_err_cm": 112.1,
+  "end_err_deg": 3.5,
+  "head_fix_deg": [],
+  "head_skip_deg": [],
+  "recover": [
+   1
+  ],
+  "detour": false
+ }
+]

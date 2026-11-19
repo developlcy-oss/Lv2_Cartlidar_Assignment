@@ -49,7 +49,10 @@
 //   성공 = 손가락이 쥔 범위 + 잡는 점이 처음 퍽 잡는 높이보다 toppick_rl.success_lift 위로 success_hold 동안 (학습 성공과 같은 뜻)
 // - 결과를 콜백 안에서 기다리지 않는다. 각 단계는 이전 단계의 result 콜백에서 이어진다
 // - 켜질 때 정리 (startup.*, startup_stow.hpp): arm_controller 가 준비되고 팔 HOLD 가 풀리면 (/diagnostics opencr/motors
-//   arm_hold 0 = 리셋 버튼 REARM 뒤) 한 번, 대기 자세 (STOW) 에서 startup.stages 순서 (J3 → J2 → J4 → J1) 로 startup.pose (DRIVE) 까지 천천히. 그 전에 goal 을 받으면 하지 않음
+//   arm_hold 0 = 리셋 버튼 REARM 뒤) 한 번, 팔을 startup.pose (기본 STOW) 로 모은다. 호스트만 다시 켜 팔이 펴진 자세
+//   (startup.unfold_pose = DRIVE) 에 남아 있으면 startup.stages 역순으로 접음. 마치면 /manipulator/startup_done (latched) true
+// - 접기 · 펴기: pose <startup.unfold_pose> 를 STOW 에서 받으면 startup.stages 순서 (J3 → J2 → J4 → J1 → J5) 로 펴고,
+//   pose STOW 를 펴진 자세에서 받으면 역순으로 접는다 (관절 공간 직선 이동 대신). STOW 에서 pick · execute_skill 은 거절
 //
 // callback group
 // - job_cb_group_: Action 서버 · 클라이언트 · tick 타이머. 작업 상태는 이 그룹에서만 바뀐다 (락 불필요)
@@ -58,6 +61,7 @@
 #include <algorithm>
 #include <cmath>
 #include <chrono>
+#include <thread>
 #include <cstdio>
 #include <functional>
 #include <iomanip>
@@ -158,17 +162,13 @@ public:
     // --- 구독 ---
     rclcpp::SubscriptionOptions sub_opt;
     sub_opt.callback_group = sensor_cb_group_;
-    result_sub_ = create_subscription<PerceptionResult>(
-      "/perception/result",
-      rclcpp::QoS(1).reliable(),  // 계약: Reliable, depth 1
+    result_sub_ = create_subscription<PerceptionResult>("/perception/result", rclcpp::QoS(1).reliable(),  // 계약: Reliable, depth 1
       [this](PerceptionResult::ConstSharedPtr msg) {onPerceptionResult(msg);}, sub_opt);
 
-    range_sub_ = create_subscription<sensor_msgs::msg::Range>(
-      "/arm_range", rclcpp::SensorDataQoS(),
+    range_sub_ = create_subscription<sensor_msgs::msg::Range>("/arm_range", rclcpp::SensorDataQoS(),
       [this](sensor_msgs::msg::Range::ConstSharedPtr msg) {onRange(msg);}, sub_opt);
 
-    joint_sub_ = create_subscription<sensor_msgs::msg::JointState>(
-      "/joint_states", rclcpp::QoS(10),
+    joint_sub_ = create_subscription<sensor_msgs::msg::JointState>( "/joint_states", rclcpp::QoS(10),
       [this](sensor_msgs::msg::JointState::ConstSharedPtr msg) {onJointStates(msg);}, sub_opt);
 
     pucks_sub_ = create_subscription<PuckArray>(   // target_look (#82)
@@ -185,14 +185,7 @@ public:
     estop_sub_ = create_subscription<std_msgs::msg::Bool>(
       "/e_stop", rclcpp::QoS(1).reliable().transient_local(),
       [this](std_msgs::msg::Bool::ConstSharedPtr msg) {onEstop(msg);}, sub_opt);
-    jtc_state_sub_ = create_subscription<control_msgs::msg::JointTrajectoryControllerState>(
-      "/arm_controller/controller_state", rclcpp::QoS(10),
-      [this](control_msgs::msg::JointTrajectoryControllerState::ConstSharedPtr msg) {
-        std::lock_guard<std::mutex> lock(sensor_mutex_);
-        const size_t n = std::min(msg->joint_names.size(), msg->reference.positions.size());
-        for (size_t i = 0; i < n; ++i) {jtc_ref_[msg->joint_names[i]] = msg->reference.positions[i];}
-        jtc_ref_rx_ = now();
-      }, sub_opt);
+    if (jtc_idle_off_ <= 0.0) {jtcSubscribe();}   // 0 = 늘 받음 (예전과 같음). 아니면 작업 중에만 (jtcUse · jtcIdleTick, #265)
 
     // --- Action 클라이언트 ---
     if (lie_enabled_) {   // 누운 직육면체: 집는 상자 윗면 측정 (perception place_box, 사전값 토픽)
@@ -233,7 +226,7 @@ public:
     pick_server_ = rclcpp_action::create_server<Pick>(
       this, "/manipulator/pick",
       [this](const rclcpp_action::GoalUUID &, std::shared_ptr<const Pick::Goal>) {
-        if (startupMoving("pick") || startupPending("pick")) {return rclcpp_action::GoalResponse::REJECT;}
+        if (startupMoving("pick") || startupPending("pick") || armAtStow("pick")) {return rclcpp_action::GoalResponse::REJECT;}
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<PickGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -249,7 +242,9 @@ public:
             "policies.yaml · ONNX Runtime) -> reject", goal->policy.c_str());
           return rclcpp_action::GoalResponse::REJECT;
         }
-        if (startupMoving("execute_skill") || startupPending("execute_skill")) {return rclcpp_action::GoalResponse::REJECT;}
+        if (startupMoving("execute_skill") || startupPending("execute_skill") || armAtStow("execute_skill")) {
+          return rclcpp_action::GoalResponse::REJECT;
+        }
         return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
       },
       [](std::shared_ptr<SkillGoalHandle>) {return rclcpp_action::CancelResponse::ACCEPT;},
@@ -257,6 +252,10 @@ public:
       rcl_action_server_get_default_options(), job_cb_group_);
     jt_pub_ = create_publisher<trajectory_msgs::msg::JointTrajectory>(
       "/arm_controller/joint_trajectory", rclcpp::QoS(10));
+    // 켜질 때 정리를 마침 (mission 준비 표 ready.arm_startup). latched: 늦게 뜬 mission 도 받음
+    startup_done_pub_ = create_publisher<std_msgs::msg::Bool>(
+      "/manipulator/startup_done", rclcpp::QoS(1).reliable().transient_local());
+    publishStartupDone(startup_pose_.empty());
 
     // 연속 쥠 신호 (#201, arm_joint 만): 정책 · 진단용. latched 아님 (매 주기 발행)
     if (gripper_mode_ == GripperMode::ARM_JOINT) {
@@ -303,13 +302,10 @@ private:
   void loadParameters()
   {
     // 팔 관절: controllers.yaml의 arm_controller joints와 같아야 한다 (joint1~5 + gripper_roll)
-    joint_names_ = declare_parameter<std::vector<std::string>>("arm.joint_names",
-      {"joint1", "joint2", "joint3", "joint4", "joint5", "gripper_roll"});
+    joint_names_ = declare_parameter<std::vector<std::string>>("arm.joint_names", {"joint1", "joint2", "joint3", "joint4", "joint5", "gripper_roll"});
     // 관절 한계 = URDF (opencr_hardware/urdf/robot.urdf.xacro) = 펌웨어 config.h ARM_MIN/MAX_RAD (#83). 6 번째 = 그리퍼 개폐
-    lower_ = declare_parameter<std::vector<double>>("arm.lower_limits",
-      {-3.14159, -2.14, -1.6, -1.92, -2.8, -0.7946});
-    upper_ = declare_parameter<std::vector<double>>("arm.upper_limits",
-      {3.14159, 1.6, 1.6, 2.0, 2.8, 0.9541});
+    lower_ = declare_parameter<std::vector<double>>("arm.lower_limits",{-3.14159, -2.14, -1.6, -1.92, -2.8, -0.7946});
+    upper_ = declare_parameter<std::vector<double>>("arm.upper_limits",{3.14159, 1.6, 1.6, 2.0, 2.8, 0.9541});
     // 팔 관절 속도 기준 [rad/s] (2026-11-14): 이름 자세 · IK 이동 · 놓기 접근 · 팔레트 칸 궤적 · 팔레트 진입 · 켜질 때 정리가 모두 이 값.
     //   시험 도구 (tools/arm_bench/real: meas_session · slot_teach · arm_free · arm_stow) 도 manipulator.yaml 의 이 값을 읽음
     max_joint_vel_ = declare_parameter<double>("arm.max_joint_velocity", 0.8);
@@ -533,6 +529,10 @@ private:
     //   마지막 작업이 끝나고 tf_idle_off 초 뒤 끔 (0 = 늘 받음), 다시 켤 때 base_frame ↔ fixed_frame 이 보일 때까지 tf_warmup 초까지 기다림
     tf_idle_off_ = declare_parameter<double>("tf_idle_off", 30.0);
     tf_warmup_ = declare_parameter<double>("tf_warmup", 1.0);
+    // /arm_controller/controller_state (100 Hz) 도 작업 중에만 받음 (#265, 11-15 실측 manipulator 22.2 = control 프로세스 중 가장 큼).
+    //   쓰는 곳 = 작업 중 E-stop 때 붙잡힌 목표 추정 (onEstop) · 새 궤적 출발점 (trajectoryStart) 뿐이라 쉬는 동안은 필요 없음
+    jtc_idle_off_ = declare_parameter<double>("controller_state_idle_off", 30.0);   // s, 0 = 늘 받음
+    jtc_warmup_ = declare_parameter<double>("controller_state_warmup", 0.3);        // s, 다시 켤 때 첫 값을 기다리는 최대 시간
 
     // 접근 위치 = 파지점(물체 중심) 앞 approach_distance
     approach_distance_ = declare_parameter<double>("pick.approach_distance", 0.15);
@@ -918,7 +918,11 @@ private:
     }
 
     // 켜질 때 정리 자세 (startup_stow.hpp). 팔 HOLD 가 풀린 뒤 (/diagnostics opencr/motors arm_hold 0) 한 번, 묶음 순서로 천천히
-    startup_pose_ = declare_parameter<std::string>("startup.pose", "DRIVE");
+    // 2026-11-18: 켜진 뒤 STOW 에 머묾 (DRIVE 가 앞 RealSense 를 가림) → 미션이 첫 단계로 pose DRIVE 를 보내 폄
+    startup_pose_ = declare_parameter<std::string>("startup.pose", "STOW");
+    unfold_pose_ = declare_parameter<std::string>("startup.unfold_pose", "DRIVE");   // STOW 에서 단계 순서로 펴는 자세. 빈 문자열 = 끔
+    unfold_via_ = declare_parameter<std::string>("startup.unfold_via", "");   // 펴기 · 접기에서 거치는 자세 (빈 문자열 = 거치지 않음)
+    // 펴기 순서 (STOW → unfold_pose). 접기 (→ STOW) 는 역순
     const auto stages = declare_parameter<std::vector<std::string>>("startup.stages", {"3", "2", "4", "1", "5,6"});
     startup_vel_ = declare_parameter<double>("startup.max_joint_velocity", 0.0);   // 0 = arm.max_joint_velocity
     if (startup_vel_ <= 0.0) {startup_vel_ = max_joint_vel_;}
@@ -929,6 +933,10 @@ private:
     startup_skip_tol_ = declare_parameter<double>("startup.skip_tolerance", 0.05);
     startup_diag_wait_ = declare_parameter<double>("startup.diag_wait", 5.0);
     startup_warn_after_ = declare_parameter<double>("startup.warn_after", 15.0);
+    // 2026-11-18 STOW 근처 (STOW 와 관절 최대 차이가 이 안, rad) 면 STOW 로 천천히 모은 뒤 시작 (예전: 손으로 정확히 놓아야 했음).
+    //   하드웨어 arm_standby_margin_tick 과 맞춤. 0 = 끔 (예전처럼 STOW · 정리 자세 근처 pose.start_tolerance 안에서만)
+    startup_auto_stow_max_ = declare_parameter<double>("startup.auto_stow_max", 0.65);
+    startup_auto_stow_vel_ = declare_parameter<double>("startup.auto_stow_velocity", 0.1);   // rad/s, 그때 속도
     if (!startup_pose_.empty()) {
       if (poses_.count(startup_pose_) == 0) {
         throw std::invalid_argument("startup.pose '" + startup_pose_ + "' is not in poses.names (빈 문자열 = 끔)");
@@ -936,7 +944,18 @@ private:
       if (!withinLimits(poses_.at(startup_pose_))) {
         throw std::invalid_argument("startup.pose '" + startup_pose_ + "' exceeds joint limits");
       }
-      startup_stages_ = parseStartupStages(stages, joint_names_.size());
+    }
+    unfold_stages_ = parseStartupStages(stages, joint_names_.size());
+    if (!unfold_pose_.empty()) {
+      if (poses_.count(unfold_pose_) == 0 || poses_.count("STOW") == 0) {
+        throw std::invalid_argument("startup.unfold_pose '" + unfold_pose_ + "' and STOW must be in poses.names (빈 문자열 = 끔)");
+      }
+      if (!withinLimits(poses_.at(unfold_pose_)) || !withinLimits(poses_.at("STOW"))) {
+        throw std::invalid_argument("startup.unfold_pose '" + unfold_pose_ + "' or STOW exceeds joint limits");
+      }
+    }
+    if (!unfold_via_.empty() && (poses_.count(unfold_via_) == 0 || !withinLimits(poses_.at(unfold_via_)))) {
+      throw std::invalid_argument("startup.unfold_via '" + unfold_via_ + "' is not in poses.names or exceeds joint limits");
     }
     requirePositive("startup.max_joint_velocity", startup_vel_);
     requirePositive("pallet.start_tolerance", pallet_start_tol_);
@@ -947,6 +966,8 @@ private:
     requirePositive("startup.skip_tolerance", startup_skip_tol_);
     requireNonNegative("startup.diag_wait", startup_diag_wait_);
     requirePositive("startup.warn_after", startup_warn_after_);
+    requireNonNegative("startup.auto_stow_max", startup_auto_stow_max_);
+    requirePositive("startup.auto_stow_velocity", startup_auto_stow_vel_);
 
     requirePositive("arm.max_joint_velocity", max_joint_vel_);
     requirePositive("arm.min_duration", min_duration_);
@@ -1264,6 +1285,7 @@ private:
     std::function<void(double)> on_progress = nullptr)
   {
     std::vector<trajectory_msgs::msg::JointTrajectoryPoint> points;
+    jtcUse();   // 출발점 = arm_controller 원하는 위치 (처진 측정 위치에서 출발하면 관절 2 · 3 이 덜컹, #165)
     const auto from = min_jerk_dt_ > 0.0 ? trajectoryStart(q) : std::nullopt;
     for (const auto & s : control::minJerkSamples(from ? *from : q, q, from ? duration : 0.0, min_jerk_dt_)) {
       trajectory_msgs::msg::JointTrajectoryPoint point;
@@ -1537,7 +1559,7 @@ private:
   // 새 goal이 오면 이전 작업은 abort (팔 명령 주체는 하나, 작업도 한 번에 하나)
   void preemptCurrent()
   {
-    startup_done_ = true;   // goal 을 받음 = 운용자가 팔을 쓰는 중 → 켜질 때 정리는 하지 않는다 (정리 중 goal 은 거절됨)
+    publishStartupDone(true);   // goal 을 받음 = 운용자가 팔을 쓰는 중 → 켜질 때 정리는 하지 않는다 (정리 중 goal 은 거절됨)
     if (job_ == Job::POSE && pose_gh_->is_active()) {
       RCLCPP_WARN(get_logger(), "pose '%s' preempted by new goal", pose_name_.c_str());
       auto result = std::make_shared<ArmPose::Result>();
@@ -1596,6 +1618,7 @@ private:
     }
     startupTick();
     tfIdleTick();
+    jtcIdleTick();
   }
 
   // ------------------------------------------------------------------ TF 는 작업 중에만 (#265, tf_idle_off)
@@ -1617,6 +1640,56 @@ private:
       RCLCPP_WARN(get_logger(), "TF on: %s -> %s not available after %.2f s: %s", fixed_frame_.c_str(), base_frame_.c_str(),
         waited, err.c_str());
     }
+  }
+
+  // ------------------------------------------------------------------ controller_state 는 작업 중에만 (#265, controller_state_idle_off)
+  void jtcSubscribe()
+  {
+    rclcpp::SubscriptionOptions opt;
+    opt.callback_group = sensor_cb_group_;
+    jtc_state_sub_ = create_subscription<control_msgs::msg::JointTrajectoryControllerState>(
+      "/arm_controller/controller_state", rclcpp::QoS(10),
+      [this](control_msgs::msg::JointTrajectoryControllerState::ConstSharedPtr msg) {
+        std::lock_guard<std::mutex> lock(sensor_mutex_);
+        const size_t n = std::min(msg->joint_names.size(), msg->reference.positions.size());
+        for (size_t i = 0; i < n; ++i) {jtc_ref_[msg->joint_names[i]] = msg->reference.positions[i];}
+        jtc_ref_rx_ = now();
+      }, opt);
+  }
+
+  // 작업에서 팔을 움직이기 전에 부름: 꺼져 있으면 구독을 다시 만들고 첫 값을 controller_state_warmup 초까지 기다림
+  //   (100 Hz 라 보통 10 ~ 20 ms). 못 받으면 경고만 — trajectoryStart 가 측정 위치로 출발 (예전 동작)
+  void jtcUse()
+  {
+    jtc_used_ = now();
+    if (jtc_state_sub_) {return;}
+    jtcSubscribe();
+    const auto t0 = std::chrono::steady_clock::now();
+    auto fresh = [this]() {
+        std::lock_guard<std::mutex> lock(sensor_mutex_);
+        return jtc_ref_rx_.nanoseconds() != 0 && (now() - jtc_ref_rx_).seconds() < 0.1;
+      };
+    while (!fresh() && std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() < jtc_warmup_) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
+    const double waited = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    if (fresh()) {
+      RCLCPP_INFO(get_logger(), "controller_state on (%.2f s)", waited);
+    } else {
+      RCLCPP_WARN(get_logger(), "controller_state on: no message after %.2f s -> trajectory starts from measured joints", waited);
+    }
+  }
+
+  void jtcIdleTick()
+  {
+    if (job_ != Job::NONE) {
+      if (!jtc_state_sub_) {jtcUse();}   // 스트리밍 작업 (팔레트 처짐 보정 · 정책) 중 E-stop 추정용
+      jtc_used_ = now();
+      return;
+    }
+    if (!jtc_state_sub_ || jtc_idle_off_ <= 0.0 || (now() - jtc_used_).seconds() < jtc_idle_off_) {return;}
+    jtc_state_sub_.reset();
+    RCLCPP_INFO(get_logger(), "controller_state off (idle %.0f s)", jtc_idle_off_);
   }
 
   // 쉬는 동안 tf_idle_off 초가 지나면 리스너를 지우고 버퍼를 비움 — 남겨 두면 다시 켤 때 TimePointZero 조회가 옛 TF 를 돌려줌
@@ -1643,6 +1716,27 @@ private:
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
       "%s: startup to '%s' not finished (REARM, wait for 'startup: arm at %s') -> reject", what,
       startup_pose_.c_str(), startup_pose_.c_str());
+    return true;
+  }
+
+  void publishStartupDone(bool done)
+  {
+    startup_done_ = done;
+    std_msgs::msg::Bool m;
+    m.data = done;
+    if (!startup_done_sent_ || *startup_done_sent_ != done) {
+      startup_done_pub_->publish(m);
+      startup_done_sent_ = done;
+    }
+  }
+
+  // 팔이 STOW 근처면 pick · execute_skill 거절: 접힌 자리에서 바로 움직이면 퍽 스토리지 · 차체에 닿음 → 먼저 pose unfold_pose
+  bool armAtStow(const char * what)
+  {
+    if (unfold_pose_.empty()) {return false;}
+    const auto q = currentJoints();
+    if (!q || armDistance(*q, poses_.at("STOW")) > pose_start_tol_) {return false;}
+    RCLCPP_WARN(get_logger(), "%s: arm is at STOW -> reject (send pose '%s' first)", what, unfold_pose_.c_str());
     return true;
   }
 
@@ -1708,58 +1802,98 @@ private:
     // 정리 순서 (startup.stages) 는 대기 자세 (STOW) 에서 출발하도록 실물로 정한 것. 팔이 HOLD 로 버티던 채 호스트만 다시 켜면
     //   하드웨어의 대기 자세 검사를 건너뛰므로 여기서 다시 본다: STOW 또는 이미 정리 자세 근처일 때만 움직임
     //   (2026-11-14 실물: 칸 안 자세에서 정리 시작 → J1 이 돌며 주변에 닿을 수 있음). 아니면 기다림 (goal 도 계속 거절)
+    //   STOW 로 모을 때는 펴진 자세 (startup.unfold_pose) 에서도 접음 (호스트만 다시 켜 팔이 DRIVE 에 남은 경우)
     {
       const auto stow = poses_.find("STOW");
       const double d_stow = stow != poses_.end() ? armDistance(*current, stow->second) : 1e9;
       const double d_goal = armDistance(*current, poses_.at(startup_pose_));
-      if (d_stow > pose_start_tol_ && d_goal > pose_start_tol_) {
+      const double d_unfold = unfold_pose_.empty() ? 1e9 : armDistance(*current, poses_.at(unfold_pose_));
+      const double d_via = unfold_via_.empty() ? 1e9 : armDistance(*current, poses_.at(unfold_via_));
+      // STOW 로 모을 때 STOW 근처 (startup.auto_stow_max 안) 면 정리 순서 (접기 = 묶음 역순) 로 천천히 STOW 에 맞춤
+      const bool near_stow = startup_pose_ == "STOW" && d_stow <= startup_auto_stow_max_;
+      if (d_stow > pose_start_tol_ && d_goal > pose_start_tol_ && d_unfold > pose_start_tol_ && d_via > pose_start_tol_ && !near_stow) {
         RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 10000,
-          "startup: arm is not at STOW (%.2f rad) nor '%s' (%.2f rad) -> not moving. Put the arm in STOW by hand "
-          "(support it, 12 V off), then power on / restart bringup", d_stow, startup_pose_.c_str(), d_goal);
+          "startup: arm is not near STOW (%.2f rad > auto_stow_max %.2f) nor '%s' (%.2f rad) -> not moving. Put the arm near STOW by hand "
+          "(support it, 12 V off), then power on / restart bringup", d_stow, startup_auto_stow_max_,
+          unfold_pose_.c_str(), d_unfold);
         return;
+      }
+      startup_slow_ = near_stow && d_stow > pose_start_tol_;
+      if (startup_slow_) {
+        RCLCPP_WARN(get_logger(), "startup: arm %.2f rad off STOW (within auto_stow_max %.2f) -> moving to STOW at %.2f rad/s",
+          d_stow, startup_auto_stow_max_, startup_auto_stow_vel_);
       }
     }
     job_ = Job::STARTUP;
-    startup_stage_ = 0;
+    staged_plan_ = startupPlan(*current);
+    staged_idx_ = 0;
     RCLCPP_INFO(get_logger(), "startup: moving arm to '%s' (%zu stages, %.2f rad/s)",
-      startup_pose_.c_str(), startup_stages_.size(), startup_vel_);
-    runStartupStage();
-  }
-
-  void runStartupStage()
-  {
-    const auto current = currentJoints();
-    if (!current) {
-      failStartup("no recent /joint_states for arm joints");
-      return;
-    }
-    const auto & pose = poses_.at(startup_pose_);
-    while (startup_stage_ < startup_stages_.size() &&
-      !startupStageNeeded(*current, pose, startup_stages_[startup_stage_], startup_skip_tol_))
-    {
-      ++startup_stage_;
-    }
-    if (startup_stage_ >= startup_stages_.size()) {
-      RCLCPP_INFO(get_logger(), "startup: arm at '%s'", startup_pose_.c_str());
-      startup_done_ = true;
-      endJob();
-      return;
-    }
-    const auto & stage = startup_stages_[startup_stage_];
-    const auto target = startupStageTarget(*current, pose, stage, lower_, upper_);
-    if (gripper_mode_ == GripperMode::ARM_JOINT && std::count(stage.begin(), stage.end(), size_t{5})) {
-      gripper_cmd_ = target[5];   // 이후 팔 궤적이 이 그리퍼 값을 이어 감
-    }
-    const double duration = startupStageDuration(*current, target, startup_vel_, min_duration_);
-    RCLCPP_INFO(get_logger(), "startup: stage %zu/%zu (%.1f s)", startup_stage_ + 1, startup_stages_.size(), duration);
-    sendArm(target, duration, [this](bool ok, const std::string & msg) {
+      startup_pose_.c_str(), staged_plan_.size(), startup_vel_);
+    runStaged("startup", [this](bool ok, const std::string & msg) {
         if (!ok) {
           failStartup(msg);
           return;
         }
-        ++startup_stage_;
-        runStartupStage();
+        RCLCPP_INFO(get_logger(), "startup: arm at '%s'", startup_pose_.c_str());
+        publishStartupDone(true);
+        endJob();
       });
+  }
+
+  // 켜질 때 정리 순서: STOW 로 모으면 접기 (펴진 자세에서 시작했으면 via 를 거침), 그 밖 (예전 설정 DRIVE 등) 은 펴기 순서
+  std::vector<StagedMove> startupPlan(const std::vector<double> & current) const
+  {
+    const auto & goal = poses_.at(startup_pose_);
+    const std::vector<double> via = unfold_via_.empty() ? std::vector<double>{} : withSixth(poses_.at(unfold_via_), goal[5]);
+    if (startup_pose_ == "STOW") {
+      const bool from_unfold = !unfold_pose_.empty() && armDistance(current, poses_.at(unfold_pose_)) <= pose_start_tol_;
+      return foldPlan(unfold_stages_, via, goal, from_unfold);
+    }
+    return unfoldPlan(unfold_stages_, startup_pose_ == unfold_pose_ ? via : std::vector<double>{}, goal);
+  }
+
+  static std::vector<double> withSixth(std::vector<double> q, double sixth)
+  {
+    if (q.size() > 5) {q[5] = sixth;}
+    return q;
+  }
+
+  // 묶음 이동 (staged_plan_) 을 하나씩: 이미 skip_tolerance 안인 묶음은 건너뜀. 다 끝나면 done(true), 실패면 done(false, 이유).
+  //   켜질 때 정리 (Job::STARTUP) · 접기 · 펴기 (Job::POSE) 가 같이 씀 (작업은 한 번에 하나, 늦은 콜백은 job_id_ 로 버림)
+  void runStaged(const std::string & label, Done done, std::function<void(double)> on_progress = nullptr)
+  {
+    const auto current = currentJoints();
+    if (!current) {
+      done(false, "no recent /joint_states for arm joints");
+      return;
+    }
+    while (staged_idx_ < staged_plan_.size() &&
+      !startupStageNeeded(*current, staged_plan_[staged_idx_].target, staged_plan_[staged_idx_].joints, startup_skip_tol_))
+    {
+      ++staged_idx_;
+    }
+    if (staged_idx_ >= staged_plan_.size()) {
+      done(true, "");
+      return;
+    }
+    const auto & mv = staged_plan_[staged_idx_];
+    const auto target = startupStageTarget(*current, mv.target, mv.joints, lower_, upper_);
+    if (gripper_mode_ == GripperMode::ARM_JOINT && std::count(mv.joints.begin(), mv.joints.end(), size_t{5})) {
+      gripper_cmd_ = target[5];   // 이후 팔 궤적이 이 그리퍼 값을 이어 감
+    }
+    const double vel = (job_ == Job::STARTUP && startup_slow_) ? std::min(startup_vel_, startup_auto_stow_vel_) : startup_vel_;
+    const double duration = startupStageDuration(*current, target, vel, min_duration_);
+    const double n = static_cast<double>(staged_plan_.size()), k = static_cast<double>(staged_idx_);
+    RCLCPP_INFO(get_logger(), "%s: stage %zu/%zu (%.1f s)", label.c_str(), staged_idx_ + 1, staged_plan_.size(), duration);
+    sendArm(target, duration, [this, label, done, on_progress](bool ok, const std::string & msg) {
+        if (!ok) {
+          done(false, msg);
+          return;
+        }
+        ++staged_idx_;
+        runStaged(label, done, on_progress);
+      },
+      on_progress ? std::function<void(double)>([on_progress, n, k](double p) {on_progress((k + p) / n);}) : nullptr);
   }
 
   void failStartup(const std::string & msg)
@@ -1795,6 +1929,36 @@ private:
       finishPose(false, "no recent /joint_states for arm joints");
       return;
     }
+    if (!unfold_pose_.empty()) {
+      // 접기 · 펴기 (STOW ↔ unfold_pose): 켜질 때 정리와 같은 묶음 순서 (펴기 = startup.stages, 접기 = 역순). 그리퍼는 그대로
+      const double d_stow = armDistance(*current, poses_.at("STOW"));
+      const double d_unfold = armDistance(*current, poses_.at(unfold_pose_));
+      const bool unfold = pose_name_ == unfold_pose_ && d_stow <= pose_start_tol_;
+      const double d_via = unfold_via_.empty() ? 1e9 : armDistance(*current, poses_.at(unfold_via_));
+      const bool fold = pose_name_ == "STOW" && (d_unfold <= pose_start_tol_ || d_via <= pose_start_tol_ || d_stow <= pose_start_tol_);
+      if (unfold || fold) {
+        // 그리퍼는 그대로 (쥔 퍽을 놓치지 않게)
+        const double g = gripper_mode_ == GripperMode::ARM_JOINT ? sixthValue(*current) : poses_.at(pose_name_)[5];
+        const std::vector<double> via = unfold_via_.empty() ? std::vector<double>{} : withSixth(poses_.at(unfold_via_), g);
+        staged_plan_ = unfold ? unfoldPlan(unfold_stages_, via, withSixth(poses_.at(unfold_pose_), g)) :
+          foldPlan(unfold_stages_, via, withSixth(poses_.at("STOW"), g), d_unfold <= pose_start_tol_);
+        staged_idx_ = 0;
+        RCLCPP_INFO(get_logger(), "pose '%s' start (%s, %zu stages, %.2f rad/s)", pose_name_.c_str(),
+          unfold ? "unfold from STOW" : "fold", staged_plan_.size(), startup_vel_);
+        runStaged("pose '" + pose_name_ + "'", [this](bool ok, const std::string & msg) {finishPose(ok, msg);},
+          [this](double progress) {
+            auto fb = std::make_shared<ArmPose::Feedback>();
+            fb->progress = static_cast<float>(progress);
+            pose_gh_->publish_feedback(fb);
+          });
+        return;
+      }
+      if (pose_name_ == "STOW") {
+        finishPose(false, "pose 'STOW' only from '" + unfold_pose_ + "' (staged fold): arm is " + std::to_string(d_unfold) +
+          " rad away. Recover by hand");
+        return;
+      }
+    }
     if (std::find(pose_blocked_.begin(), pose_blocked_.end(), pose_name_) != pose_blocked_.end()) {
       finishPose(false, "pose '" + pose_name_ + "' is blocked (pose.blocked): joint-space move is not collision-checked");
       return;
@@ -1805,7 +1969,7 @@ private:
       const auto known = nearestKnownPose(*current);
       const auto stow = poses_.find("STOW");
       if (stow != poses_.end() && armDistance(*current, stow->second) <= pose_start_tol_) {
-        finishPose(false, "arm is at STOW -> use the startup sequence (REARM), not a direct joint-space move");
+        finishPose(false, "arm is at STOW -> send pose '" + unfold_pose_ + "' first (staged unfold), not a direct joint-space move");
         return;
       }
       if (std::abs((*current)[0]) > pose_front_j1_max_ && known.second > pose_start_tol_) {
@@ -4274,8 +4438,9 @@ private:
   double offset_gain_{1.0}, lateral_tol_{0.005}, range_tol_{0.01}, target_range_{0.13};
   double max_step_{0.02}, correction_min_duration_{0.3}, settle_time_{0.2}, wait_timeout_{1.0};
   std::string startup_pose_{"DRIVE"};                 // 빈 문자열 = 켜질 때 정리 끔
-  std::vector<std::vector<size_t>> startup_stages_;   // 관절 칸 묶음 순서
   double startup_vel_{0.1}, startup_skip_tol_{0.05}, startup_diag_wait_{5.0}, startup_warn_after_{15.0};
+  double startup_auto_stow_max_{0.65}, startup_auto_stow_vel_{0.1};
+  bool startup_slow_{false};   // 이번 켜질 때 정리가 STOW 근처에서 모으는 중 (startup.auto_stow_velocity)
 
   // ROS 인터페이스
   rclcpp::CallbackGroup::SharedPtr job_cb_group_, sensor_cb_group_;
@@ -4313,6 +4478,8 @@ private:
   std::optional<std::vector<double>> estop_hold_;    // E-stop 순간 펌웨어가 붙잡은 목표 추정 (onEstop)
   std::map<std::string, double> jtc_ref_;            // arm_controller 원하는 위치 (controller_state reference)
   rclcpp::Time jtc_ref_rx_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time jtc_used_{0, 0, RCL_ROS_TIME};          // 마지막으로 controller_state 를 쓴 때 (jtcUse · jtcIdleTick)
+  double jtc_idle_off_{30.0}, jtc_warmup_{0.3};
   rclcpp::Time diag_rx_{0, 0, RCL_ROS_TIME};        // 마지막 opencr/motors 수신 (0 = 아직 없음)
 
   // 작업 상태 (job_cb_group_ 전용)
@@ -4346,7 +4513,13 @@ private:
   rclcpp::Time wait_since_{0, 0, RCL_ROS_TIME};
   bool stream_active_{false};                         // 토픽 스트리밍 중 (끊기면 endJob 이 측정 자세로 다시 잡음)
   bool startup_done_{false};                          // 켜질 때 정리를 마쳤거나 goal 을 받아 건너뜀
-  size_t startup_stage_{0};
+  std::optional<bool> startup_done_sent_;             // 마지막으로 /manipulator/startup_done 에 낸 값
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr startup_done_pub_;
+  std::string unfold_pose_;
+  std::string unfold_via_;
+  std::vector<std::vector<size_t>> unfold_stages_;    // 펴기 순서 (접기 = 역순)
+  std::vector<StagedMove> staged_plan_;               // 켜질 때 정리 · 접기 · 펴기 중인 묶음 이동
+  size_t staged_idx_{0};
   rclcpp::Time startup_wait_since_{0, 0, RCL_ROS_TIME}, startup_diag_since_{0, 0, RCL_ROS_TIME};
   rclcpp::Time startup_retry_at_{0, 0, RCL_ROS_TIME};
 };

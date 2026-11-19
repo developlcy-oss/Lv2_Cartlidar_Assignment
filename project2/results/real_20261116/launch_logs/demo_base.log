@@ -1,0 +1,418 @@
+[INFO] [launch]: All log files can be found below /home/cart11/.ros/log/2026-11-16-12-22-02-890653-cart11-18725
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ros2_control_node-1]: process started with pid [18908]
+[INFO] [spawner-2]: process started with pid [18909]
+[INFO] [robot_state_publisher-3]: process started with pid [18910]
+[INFO] [twist_mux-4]: process started with pid [18913]
+[INFO] [rc100_joy.py-5]: process started with pid [18914]
+[INFO] [joy_teleop-6]: process started with pid [18915]
+[INFO] [teleop_node-7]: process started with pid [18916]
+[twist_mux-4] [INFO] [1794799324.093177924] [twist_mux]: Topic handler 'topics.drive' subscribed to topic 'cmd_vel_drive': timeout = 0.250000s , priority = 50.
+[twist_mux-4] [INFO] [1794799324.118676161] [twist_mux]: Topic handler 'topics.nav' subscribed to topic 'cmd_vel_nav': timeout = 0.500000s , priority = 10.
+[twist_mux-4] [INFO] [1794799324.158886249] [twist_mux]: Topic handler 'topics.teleop' subscribed to topic 'cmd_vel_teleop': timeout = 0.500000s , priority = 100.
+[twist_mux-4] [INFO] [1794799324.173656567] [twist_mux]: Topic handler 'locks.e_stop' subscribed to topic 'e_stop': timeout = 0.500000s , priority = 255.
+[ros2_control_node-1] [INFO] [1794799324.609219166] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[ros2_control_node-1] [INFO] [1794799324.738725901] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-1] [INFO] [1794799324.739764909] [controller_manager]: update rate is 100 Hz
+[ros2_control_node-1] [INFO] [1794799324.739947283] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-1] [INFO] [1794799324.739975188] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-1] [WARN] [1794799324.740703018] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.
+[ros2_control_node-1] [INFO] [1794799324.772084511] [controller_manager]: Received robot description from topic.
+[ros2_control_node-1] [INFO] [1794799324.772313830] [controller_manager]: Enforcing command limits is enabled...
+[ros2_control_node-1] [INFO] [1794799324.782762924] [controller_manager]: Using JointLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem' : '  has position limits: true [-0.7946, 0.9541]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.784228474] [controller_manager]: Creating JointSaturationLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.784533892] [controller_manager]: Using JointLimiter for joint 'joint5' in hardware 'OpenCRSystem' : '  has position limits: true [-2.8, 2.8]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.784773707] [controller_manager]: Creating JointSaturationLimiter for joint 'joint5' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.785015155] [controller_manager]: Using JointLimiter for joint 'joint2' in hardware 'OpenCRSystem' : '  has position limits: true [-2.14, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.785249338] [controller_manager]: Creating JointSaturationLimiter for joint 'joint2' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.785309180] [controller_manager]: Using JointLimiter for joint 'joint4' in hardware 'OpenCRSystem' : '  has position limits: true [-1.92, 2]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.785539331] [controller_manager]: Creating JointSaturationLimiter for joint 'joint4' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.785782859] [controller_manager]: Using JointLimiter for joint 'joint1' in hardware 'OpenCRSystem' : '  has position limits: true [-3.14159, 3.14159]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.785823052] [controller_manager]: Creating JointSaturationLimiter for joint 'joint1' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.786056147] [controller_manager]: Joint limits are disabled for joint 'wheel_right_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.786087572] [controller_manager]: Joint limits are disabled for joint 'wheel_right_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.786324412] [controller_manager]: Using JointLimiter for joint 'joint3' in hardware 'OpenCRSystem' : '  has position limits: true [-1.6, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794799324.786809067] [controller_manager]: Creating JointSaturationLimiter for joint 'joint3' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.786853196] [controller_manager]: Joint limits are disabled for joint 'wheel_left_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.787118932] [controller_manager]: Joint limits are disabled for joint 'wheel_left_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.809071938] [controller_manager]: Loading hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794799324.833280823] [controller_manager]: Loaded hardware 'OpenCRSystem' from plugin 'opencr_hardware/OpenCRHardware'
+[ros2_control_node-1] [INFO] [1794799324.833918987] [controller_manager]: Initialize hardware 'OpenCRSystem' 
+[teleop_node-7] [INFO] [1794799324.940685714] [TeleopTwistJoy]: Teleop enable button 4.
+[teleop_node-7] [INFO] [1794799324.940822806] [TeleopTwistJoy]: Linear axis x on 1 at scale 0.200000.
+[teleop_node-7] [INFO] [1794799324.940845239] [TeleopTwistJoy]: Angular axis yaw on 0 at scale 1.000000.
+[ros2_control_node-1] [INFO] [1794799324.956928366] [controller_manager.hardware_component.system.OpenCRSystem]: 바퀴 기어비 2.00 (바퀴 / 모터)
+[ros2_control_node-1] [INFO] [1794799324.957068978] [controller_manager.hardware_component.system.OpenCRSystem]: 팔 대기 자세 검사 켬 (처음 켤 때 범위 밖이면 시작 거부): 0,0,0,0,0,0 ~ 4095,4095,4095,4095,4095,4095
+[ros2_control_node-1] [INFO] [1794799324.957139284] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCRHardware: 관절 10개, IMU 'imu', 후보 포트 /dev/ttyACM2,/dev/ttyACM3
+[ros2_control_node-1] [INFO] [1794799324.957209846] [controller_manager]: Successful initialization of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799324.957844938] [controller_manager]: Activating component 'OpenCRSystem'.
+[ros2_control_node-1] [INFO] [1794799324.957903884] [resource_manager]: 'configure' hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794799325.049883557] [resource_manager]: Successful 'configure' of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799325.052864258] [resource_manager]: 'activate' hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794799325.053276047] [controller_manager.hardware_component.system.OpenCRSystem]: 팔 대기 자세 확인 — 여섯 칸 모두 범위 안
+[ros2_control_node-1] [INFO] [1794799325.055578583] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCRHardware 활성화 (팔 명령 = 현재 위치)
+[ros2_control_node-1] [INFO] [1794799325.055653306] [resource_manager]: Successful 'activate' of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794799325.055892321] [controller_manager]: Registering statistics for : OpenCRSystem
+[ros2_control_node-1] [INFO] [1794799325.056192586] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[ros2_control_node-1] [WARN] [1794799325.061406093] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCR 오류 비트 0x02 (SyncRead 누락 0 · 명령 타임아웃 1 · 물리 E-stop 0 · 모터 HW 0 · 역할 불일치 0 · 팔 HOLD 0 · FAULT 0)
+[ros2_control_node-1] [WARN] [1794799325.081409886] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCR 오류 비트 0x40 (SyncRead 누락 0 · 명령 타임아웃 0 · 물리 E-stop 0 · 모터 HW 0 · 역할 불일치 0 · 팔 HOLD 1 · FAULT 0)
+[robot_state_publisher-3] [INFO] [1794799325.150761716] [robot_state_publisher]: Robot initialized
+[ros2_control_node-1] [INFO] [1794799325.493959059] [controller_manager]: Received robot description from topic.
+[ros2_control_node-1] [WARN] [1794799325.495706986] [controller_manager]: ResourceManager has already loaded a urdf and is initialized. Ignoring attempt to reload a robot description.
+[ros2_control_node-1] [WARN] [1794799325.876030577] [controller_manager]: Overrun might occur, Total time : 14209.628 us (Expected < 10000.000 us) --> Read time : 11039.449 us, Update time : 1642.643 us, Write time : 1527.536 us
+[ros2_control_node-1] [WARN] [1794799325.877752999] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 16.529244 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799328.447492137] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 16.268702 ms (missed cycles : 2).
+[rc100_joy.py-5] [INFO] [1794799328.673070729] [rc100_joy]: /rc100/raw → /joy · 앞뒤 0.5 × 0.2 m/s · 회전 0.5 × 1.0 rad/s · hold_timeout 0.5 s · link_timeout 0.3 s · 1 = E-stop · 2+3 = 풀기 (켤 때 한 번)
+[rc100_joy.py-5] [INFO] [1794799331.478131067] [rc100_joy]: 버튼 없음 → 앞뒤 +0.00 · 회전 +0.00 · E-stop 0 · 풀기 0
+[spawner-2] [INFO] [1794799333.502681928] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/set_parameters to become available...
+[spawner-2] [INFO] [1794799334.006780359] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for joint_state_broadcaster
+[spawner-2] [INFO] [1794799334.016868961] [spawner_joint_state_broadcaster]: Setting controller param "type" to "joint_state_broadcaster/JointStateBroadcaster" for joint_state_broadcaster
+[ros2_control_node-1] [INFO] [1794799334.028682802] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-1] [INFO] [1794799334.029626095] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-1] [INFO] [1794799334.034879827] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml'
+[spawner-2] [INFO] [1794799334.094825343] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-1] [INFO] [1794799334.099532625] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-1] [INFO] [1794799334.100519088] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. Will try to publish all available state interfaces of the URDF joints.
+[ros2_control_node-1] [INFO] [1794799334.118384253] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-1] [INFO] [1794799334.121490365] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794799334.122400378] [controller_manager]: Successfully switched controllers!
+[spawner-2] [INFO] [1794799334.147352675] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[spawner-2] [INFO] [1794799334.169393938] [spawner_joint_state_broadcaster]: Setting controller param "node_options_args" to "['-r', 'imu_sensor_broadcaster/imu:=/imu/data']" for imu_sensor_broadcaster
+[spawner-2] [INFO] [1794799334.202725345] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for imu_sensor_broadcaster
+[spawner-2] [INFO] [1794799334.227043094] [spawner_joint_state_broadcaster]: Setting controller param "type" to "imu_sensor_broadcaster/IMUSensorBroadcaster" for imu_sensor_broadcaster
+[ros2_control_node-1] [INFO] [1794799334.249435024] [controller_manager]: Loading controller : 'imu_sensor_broadcaster' of type 'imu_sensor_broadcaster/IMUSensorBroadcaster'
+[ros2_control_node-1] [INFO] [1794799334.252408141] [controller_manager]: Loading controller 'imu_sensor_broadcaster'
+[ros2_control_node-1] [WARN] [1794799334.263608234] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.386175 ms (missed cycles : 2).
+[ros2_control_node-1] [INFO] [1794799334.266221595] [controller_manager]: Controller 'imu_sensor_broadcaster' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --ros-args -r imu_sensor_broadcaster/imu:=/imu/data'
+[spawner-2] [INFO] [1794799334.438817533] [spawner_joint_state_broadcaster]: Loaded imu_sensor_broadcaster
+[ros2_control_node-1] [INFO] [1794799334.441103972] [controller_manager]: Configuring controller: 'imu_sensor_broadcaster'
+[ros2_control_node-1] [INFO] [1794799334.488557707] [controller_manager]: Activating controllers: [ imu_sensor_broadcaster ]
+[ros2_control_node-1] [INFO] [1794799334.501725893] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794799334.503243669] [controller_manager]: Successfully switched controllers!
+[spawner-2] [INFO] [1794799334.523788309] [spawner_joint_state_broadcaster]: Configured and activated imu_sensor_broadcaster
+[spawner-2] [INFO] [1794799334.538282392] [spawner_joint_state_broadcaster]: Setting controller param "node_options_args" to "['-r', 'diff_drive_controller/cmd_vel:=/cmd_vel', '-r', 'diff_drive_controller/odom:=/odom']" for diff_drive_controller
+[spawner-2] [INFO] [1794799334.562108703] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml', '/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/drive_belt.yaml']" for diff_drive_controller
+[spawner-2] [INFO] [1794799334.585710878] [spawner_joint_state_broadcaster]: Setting controller param "type" to "diff_drive_controller/DiffDriveController" for diff_drive_controller
+[ros2_control_node-1] [INFO] [1794799334.618176594] [controller_manager]: Loading controller : 'diff_drive_controller' of type 'diff_drive_controller/DiffDriveController'
+[ros2_control_node-1] [INFO] [1794799334.618805189] [controller_manager]: Loading controller 'diff_drive_controller'
+[ros2_control_node-1] [INFO] [1794799334.630471409] [controller_manager]: Controller 'diff_drive_controller' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/drive_belt.yaml --ros-args -r diff_drive_controller/cmd_vel:=/cmd_vel -r diff_drive_controller/odom:=/odom'
+[spawner-2] [INFO] [1794799334.774510713] [spawner_joint_state_broadcaster]: Loaded diff_drive_controller
+[ros2_control_node-1] [INFO] [1794799334.777674748] [controller_manager]: Configuring controller: 'diff_drive_controller'
+[ros2_control_node-1] [WARN] [1794799334.803066547] [diff_drive_controller]: Please use tilde ('~') character in 'tf_frame_prefix' as it replaced with node namespace
+[ros2_control_node-1] [INFO] [1794799334.873258590] [controller_manager]: Activating controllers: [ diff_drive_controller ]
+[ros2_control_node-1] [INFO] [1794799334.881492575] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794799334.882618722] [controller_manager]: Successfully switched controllers!
+[spawner-2] [INFO] [1794799334.894415281] [spawner_joint_state_broadcaster]: Configured and activated diff_drive_controller
+[spawner-2] [INFO] [1794799334.906526699] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for arm_controller
+[spawner-2] [INFO] [1794799334.916369533] [spawner_joint_state_broadcaster]: Setting controller param "type" to "joint_trajectory_controller/JointTrajectoryController" for arm_controller
+[ros2_control_node-1] [INFO] [1794799334.924175696] [controller_manager]: Loading controller : 'arm_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-1] [INFO] [1794799334.924804676] [controller_manager]: Loading controller 'arm_controller'
+[ros2_control_node-1] [INFO] [1794799334.931010725] [controller_manager]: Controller 'arm_controller' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml'
+[spawner-2] [INFO] [1794799335.014360202] [spawner_joint_state_broadcaster]: Loaded arm_controller
+[ros2_control_node-1] [INFO] [1794799335.015125474] [controller_manager]: Configuring controller: 'arm_controller'
+[ros2_control_node-1] [INFO] [1794799335.016145122] [arm_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-1] [INFO] [1794799335.016802487] [arm_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-1] [INFO] [1794799335.017612144] [arm_controller]: Using 'splines' interpolation method.
+[ros2_control_node-1] [INFO] [1794799335.034639970] [arm_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-1] [INFO] [1794799335.096932375] [arm_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-1] [INFO] [1794799335.098459910] [arm_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-1] [INFO] [1794799335.107657093] [controller_manager]: Activating controllers: [ arm_controller ]
+[ros2_control_node-1] [INFO] [1794799335.112659265] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794799335.113763427] [controller_manager]: Successfully switched controllers!
+[spawner-2] [INFO] [1794799335.125113829] [spawner_joint_state_broadcaster]: Configured and activated arm_controller
+[ros2_control_node-1] [WARN] [1794799335.281600367] [diff_drive_controller]: Velocity command timed out. Braking.
+[INFO] [spawner-2]: process has finished cleanly [pid 18909]
+[ros2_control_node-1] [WARN] [1794799336.291532529] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799337.291607352] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799338.301557834] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799339.301560095] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799340.311474591] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799341.311510852] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799342.311572738] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799343.321520587] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799344.331510925] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799345.331563858] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799346.341539236] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799347.351531437] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799348.361482766] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799349.361503857] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799350.361517773] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799351.361565698] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799352.371538435] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799353.381525532] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799354.385416720] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799355.393273495] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799356.401523650] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799357.402375681] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799358.411489143] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799359.411575821] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799360.421530254] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799361.421547347] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799362.431557285] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799363.431598523] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799364.441534139] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799365.441578370] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799366.451536851] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799367.461463643] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799368.461490730] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799369.461511921] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799370.461525744] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799371.471569693] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799372.481521823] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799373.481542728] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799374.491536700] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799375.491564245] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799376.501479864] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799377.501537187] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799378.501538244] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799379.511570836] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799380.521530393] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799381.521538948] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799382.531548380] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799383.531604058] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799384.541509663] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799385.541537645] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799386.541557203] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799387.551699529] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799388.561494605] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799389.561523997] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799390.571539289] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799391.581521100] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799392.591548025] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799393.591570924] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799394.601530856] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799395.601577965] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799396.602266238] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799397.611677907] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799398.621603601] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799399.631510886] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799400.632390144] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799401.641467054] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799402.641477150] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799403.641485608] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799404.651500348] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799405.661472744] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799406.661483740] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799407.671492187] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799408.672168021] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799409.681828506] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799410.693190989] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799411.701862534] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799412.711495701] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799413.711756223] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799414.721454306] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799415.721527287] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799416.721574757] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799417.721698095] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799418.731530138] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799419.731684246] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799420.732451966] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799421.741509468] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799422.751477551] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799423.761502812] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799424.761838588] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799425.771462767] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799426.771524184] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799427.772182604] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799428.775215938] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799429.781541269] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799430.791656597] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799431.801551431] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799432.802032468] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799433.803896580] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799434.811577342] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799435.811692299] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799436.811891572] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799437.821527702] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799438.821563500] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799439.821571579] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799440.821571812] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799441.831548948] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799442.841481373] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799443.842390445] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799444.852063680] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799445.861600424] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799446.861607656] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799447.864201073] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799448.871597828] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799449.872089376] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799450.881669224] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799451.882113749] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799452.891603661] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799453.892356182] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799454.901562649] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799455.911510123] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799456.912204223] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799457.914151506] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799458.922576483] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799459.931552702] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799460.941521008] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799461.941589073] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799462.951552214] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799463.961521749] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799464.971493197] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799465.971506194] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799466.971553970] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799467.981447733] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799468.983986003] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799469.993036624] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799471.001468276] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799472.001666264] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799473.011599932] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799474.021499705] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799475.021946738] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799476.031600155] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799476.434718770] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 13.496295 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799477.041550982] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799478.051496139] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799479.051528927] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799480.053162013] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799481.061469341] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799482.061479422] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799483.061498361] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799484.061852631] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799485.071507496] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799486.071516912] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799487.081485341] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799488.081577724] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799489.083240643] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799490.092421959] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799491.101537058] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799492.101591783] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799493.111525934] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799494.111837999] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799495.122010289] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799496.131921510] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799497.142008250] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799498.152288301] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799499.152421098] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799500.153153619] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799501.161577501] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799502.171561584] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799503.173530188] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799504.181574617] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799505.191568921] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799506.192009366] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799507.192092898] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799508.192837052] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799509.201546335] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799510.201672763] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799511.211569045] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799512.213451738] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799513.221487441] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799513.599659429] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 18.437050 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799514.221557076] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799515.221567951] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799516.231464397] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799516.481813355] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.591136 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799517.231744484] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799518.241445808] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799519.241925634] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799520.251543264] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799521.251728254] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799522.261547478] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799523.263231381] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799524.272515570] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799525.203988470] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.766667 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799525.273196776] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799526.241811547] [controller_manager]: Overrun might occur, Total time : 10051.436 us (Expected < 10000.000 us) --> Read time : 125.956 us, Update time : 9849.798 us, Write time : 75.682 us
+[ros2_control_node-1] [WARN] [1794799526.241971264] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.748917 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799526.281665633] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799527.292004140] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799528.261428716] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.205633 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799528.301773504] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799529.313397894] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799530.321564767] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799531.322924807] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799532.332020208] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799533.341613603] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799534.354297516] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799535.361546637] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799536.371534330] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799537.371742367] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799538.373637456] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799539.381535630] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799540.383433684] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799541.391524109] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799542.392206756] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799543.401509430] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799544.401515022] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799545.401526465] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799546.401587023] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799547.401597591] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799548.411829961] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799549.421475940] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799550.431562343] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799551.431580473] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799552.431614407] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799553.432255265] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799554.441454163] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799555.441494929] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799556.441537737] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799557.441540763] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799558.442163194] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799559.452070631] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799560.452207756] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799561.452932318] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799562.461513844] [diff_drive_controller]: Velocity command timed out. Braking.
+[rc100_joy.py-5] [INFO] [1794799562.584768699] [rc100_joy]: 버튼 2+3 → 앞뒤 +0.00 · 회전 +0.00 · E-stop 0 · 풀기 1
+[ros2_control_node-1] [WARN] [1794799562.591343934] [controller_manager.hardware_component.system.OpenCRSystem]: E-stop 해제 
+[rc100_joy.py-5] [INFO] [1794799563.082713800] [rc100_joy]: 버튼 없음 → 앞뒤 +0.00 · 회전 +0.00 · E-stop 0 · 풀기 0
+[ros2_control_node-1] [WARN] [1794799682.331483556] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799689.031484172] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799738.043346782] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.120787 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794799812.851548209] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799813.852492592] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799814.861519636] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799815.871528688] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799816.881486503] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799817.881530016] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799818.891543858] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799819.901558594] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799820.911659696] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799821.921556470] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799822.931524730] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799823.931540895] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799824.931552992] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799825.931565118] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799826.941508021] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799827.941514765] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799828.941545314] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799829.942189158] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794799830.951543711] [diff_drive_controller]: Velocity command timed out. Braking.

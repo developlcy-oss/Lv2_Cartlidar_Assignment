@@ -510,6 +510,28 @@ TEST(OpenCRHardware, ArmStandbyOutOfRangeRejected)
   }
 }
 
+TEST(OpenCRHardware, ArmStandbyMarginActivates)
+{
+  // 2026-11-18: 범위 밖이어도 arm_standby_margin_tick 안이면 시작 (토크 켜고 지금 자리 유지, 켜질 때 정리가 STOW 로 모음).
+  //   칸 1 0.4 -> 0.6 rad = tick 2439 (최대 2339 보다 100 tick 밖). 여유 150 이면 시작, 여유 50 이면 예전처럼 거부
+  for (const auto & [margin, expect_active] : std::map<int, bool>{{150, true}, {50, false}}) {
+    FakeOpenCR wheel(ROLE_WHEEL), arm(ROLE_ARM);
+    arm.set_arm_pos(1, 0.6f);
+    auto clock = std::make_shared<rclcpp::Clock>(RCL_STEADY_TIME);
+    const std::string p = standby_params() + "<param name=\"arm_standby_margin_tick\">" + std::to_string(margin) + "</param>";
+    hardware_interface::ResourceManager rm(make_urdf(wheel.path() + "," + arm.path(), p), clock, rclcpp::get_logger("rm"), true, 100);
+    EXPECT_EQ(component_state(rm) == "active", expect_active) << "여유 " << margin;
+    if (expect_active) {
+      rm.write(clock->now(), rclcpp::Duration::from_seconds(0.01));
+      std::this_thread::sleep_for(50ms);
+      EXPECT_NEAR(arm.last_cmd().arm_pos[1], 0.6, 1e-5) << "명령 초기값 = 지금 위치 (튀지 않음)";
+    } else {
+      std::this_thread::sleep_for(50ms);
+      EXPECT_EQ(wheel.cmd_count_torque_on() + arm.cmd_count_torque_on(), 0);
+    }
+  }
+}
+
 TEST(OpenCRHardware, ArmStandbyRejectsAccumulatedTurn)
 {
   // 토크 꺼진 채 손으로 한 바퀴 넘게 돌린 값 (같은 자리지만 tick 이 4096 만큼 쌓임) → 12 V 를 다시 넣을 때까지 거부
@@ -544,6 +566,8 @@ TEST(OpenCRHardware, ArmStandbyParamsRejectTypos)
     standby_params("2214,2279,abc,2409,2474,2540"),
     standby_params("2214,2279,2344,2409,2474,4096", "2274,2339,2404,2469,2534,4100"),
     standby_params(ok, "2274,2339,2404,2469,2534,2500"),
+    standby_params() + "<param name=\"arm_standby_margin_tick\">-5</param>",
+    standby_params() + "<param name=\"arm_standby_margin_tick\">abc</param>",
   };
   for (const auto & p : bad) {
     FakeOpenCR wheel(ROLE_WHEEL), arm(ROLE_ARM);

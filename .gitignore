@@ -96,3 +96,7 @@ codex/
 /waffle_4wd_usd_261027_1711.zip
 /verify_261027_1711.zip
 /COMMANDS_waffle_4wd_sim.md
+
+# 예외: 최종 제출물 (project2) 의 결과 · 실물 경기 로그는 올림
+!project2/results/
+!project2/results/**

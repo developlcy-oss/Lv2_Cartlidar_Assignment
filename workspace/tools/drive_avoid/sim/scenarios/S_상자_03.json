@@ -1,0 +1,1 @@
+{"obstacles": [{"id": "sud", "leg": "L2>L1", "after_m": 1.0, "gap_m": 0.3, "shape": "box", "remove_after_stop_s": 1.0, "remove_after_s": 5.0}]}

@@ -1,0 +1,111 @@
+규칙 v2 시연 (real · max: 전진 0.45 · 후진 0.15 m/s · 제자리 0.5 rad/s) · 기록 /home/cart11/demo_v2/runs/1116_1215_실물_max_벨트2.0_모터3.0
+[INFO] [1794798923.609525633] [lifecycle_manager_demo]: Creating
+[INFO] [1794798923.610466340] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[INFO] [1794798923.616049518] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[INFO] [1794798923.969845923] [behavior_server]: 
+	behavior_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794798924.003521770] [controller_server]: 
+	controller_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794798924.012846653] [v2_filter]: 규칙 v2 필터: cmd_vel_raw → cmd_vel_nav · 전진 ≤ 0.45 · 후진 ≤ 0.15 m/s · 제자리 ≤ 0.5 rad/s · 벨트 2.0 · 꺾는 중 모터 ≤ 3.0 · 제자리 예산 = 실제 /odometry/filtered · 이어진 후진 ≤ 0.5 m
+[INFO] [1794798924.044125964] [controller_server]: Creating controller server
+[INFO] [1794798924.068518594] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[INFO] [1794798924.253765928] [lifecycle_manager_demo]: [34m[1mStarting managed nodes bringup...[0m[0m
+[INFO] [1794798924.255389091] [lifecycle_manager_demo]: [34m[1mConfiguring controller_server[0m[0m
+[INFO] [1794798924.327846570] [local_costmap.local_costmap]: 
+	local_costmap lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794798924.331574385] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [1794798924.843078238] [controller_server]: Configuring controller interface
+[INFO] [1794798924.843249956] [local_costmap.local_costmap]: Configuring
+[INFO] [1794798924.871871219] [local_costmap.local_costmap]: Using plugin "static_layer"
+[INFO] [1794798924.882119975] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[INFO] [1794798924.886687629] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[INFO] [1794798924.886785905] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[INFO] [1794798924.887149662] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[WARN] [1794798924.993054115] [local_costmap.local_costmap]: The configured inflation radius (0.100) is smaller than the computed/custom inscribed radius (0.168) of your footprint, it is highly recommended to set inflation radius to be at least as big as the inscribed radius to avoid collisions
+[INFO] [1794798925.070226836] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[INFO] [1794798925.072566473] [controller_server]: Controller frequency set to 20.0000Hz
+[INFO] [1794798925.072659532] [controller_server]: getting progress checker plugins..
+[INFO] [1794798925.072757008] [controller_server]: getting goal checker plugins..
+[INFO] [1794798925.072810226] [controller_server]: getting controller plugins..
+[INFO] [1794798925.072861587] [controller_server]: getting path handler plugins..
+[INFO] [1794798925.074408780] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[INFO] [1794798925.074484014] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[INFO] [1794798925.079408449] [controller_server]: Created goal checker : piece_checker of type nav2_controller::SimpleGoalChecker
+[INFO] [1794798925.079517093] [controller_server]: Controller Server has piece_checker  goal checkers available.
+[INFO] [1794798925.085439964] [controller_server]: Created path handler : PathHandler of type nav2_controller::FeasiblePathHandler
+[INFO] [1794798925.085565633] [controller_server]: Controller Server has PathHandler  path handlers available.
+[INFO] [1794798925.090170728] [controller_server]: Created controller : Forward of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794798925.090402128] [controller_server]: Parameter 'Forward.desired_linear_vel' is deprecated. Use 'Forward.max_linear_vel' instead.
+[INFO] [1794798925.114506715] [controller_server]: Created controller : Reverse of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794798925.114673921] [controller_server]: Parameter 'Reverse.desired_linear_vel' is deprecated. Use 'Reverse.max_linear_vel' instead.
+[INFO] [1794798925.128203308] [controller_server]: Controller Server has Forward Reverse  controllers available.
+[WARN] [1794798925.255367923] [nav2::interfaces]: [1] Message was dropped on topic [/odometry/filtered] due to queue size or network constraints.
+[INFO] [1794798925.272829388] [lifecycle_manager_demo]: [34m[1mConfiguring behavior_server[0m[0m
+[INFO] [1794798925.276417071] [behavior_server]: Configuring
+[INFO] [1794798925.350957696] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[INFO] [1794798925.411279501] [behavior_server]: Configuring spin
+[INFO] [1794798925.562130735] [lifecycle_manager_demo]: [34m[1mActivating controller_server[0m[0m
+[INFO] [1794798925.563855790] [controller_server]: Activating
+[INFO] [1794798925.563976050] [local_costmap.local_costmap]: Activating
+[INFO] [1794798925.564011892] [local_costmap.local_costmap]: Checking transform
+[INFO] [1794798925.564302782] [local_costmap.local_costmap]: start
+[INFO] [1794798925.614793383] [controller_server]: Activating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798925.614998158] [controller_server]: Activating controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794798925.617443847] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[INFO] [1794798925.634100131] [lifecycle_manager_demo]: [34m[1mActivating behavior_server[0m[0m
+[INFO] [1794798925.637603458] [behavior_server]: Activating
+[INFO] [1794798925.637682661] [behavior_server]: Activating spin
+[INFO] [1794798925.637722279] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[INFO] [1794798925.656811675] [lifecycle_manager_demo]: [34m[1mManaged nodes are active[0m[0m
+  ✓ map_server active
+  ✓ controller_server active
+  ✓ behavior_server active
+[INFO] [1794799041.016156198] [controller_server]: Received a goal, begin computing control effort.
+[WARN] [1794799041.016315915] [controller_server]: No path handler was specified in parameter 'current_path_handler'. Server will use only plugin loaded PathHandler . This warning will appear once.
+[ERROR] [1794799061.016979915] [controller_server]: Failed to make progress
+[WARN] [1794799061.017293718] [controller_server]: [follow_path] [ActionServer] Aborting handle. error_code:105, error_msg:'Failed to make progress'.
+[INFO] [1794799063.190198450] [controller_server]: Received a goal, begin computing control effort.
+[WARN] [1794799073.442149365] [controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 19.8726 Hz.
+[WARN] [1794799073.793659666] [controller_server]: Control loop missed its desired rate of 20.0000 Hz. Current loop rate is 3.5168 Hz.
+[ERROR] [1794799074.095033768] [transformPoseInTargetFrame]: Extrapolation Error looking up target frame: Lookup would require extrapolation into the future.  Requested time 1794799073.758024 but the latest data is at time 1794799073.743399, when looking up transform from frame [map] to frame [odom]
+
+[ERROR] [1794799074.095178445] [controller_server]: Failed to transform end pose to global frame
+[WARN] [1794799074.095426677] [controller_server]: [follow_path] [ActionServer] Aborting handle. error_code:102, error_msg:'Failed to transform end pose to global frame'.
+[INFO] [1794799081.441392565] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794799081.441685599] [controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794799081.442070540] [controller_server]: Deactivating
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794799081.442146351] [controller_server]: Deactivating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794799081.442326293] [controller_server]: Deactivating controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794799081.442416088] [local_costmap.local_costmap]: Deactivating
+[ros2run]: Received signal:  Interrupt
+v2_filter 잘림 횟수 (50 Hz 틱): {'speed': 0, 'curv': 0, 'spin': 0, 'rev': 0, 'motor': 0} · 제자리 예산 최대 0° (실제)
+[INFO] [1794799081.445628229] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794799081.446026706] [behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[INFO] [1794799081.446308924] [behavior_server]: Deactivating
+[INFO] [1794799081.446501410] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794799081.447067829] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794799081.447267516] [lifecycle_manager_demo]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_demo)
+[INFO] [1794799081.457195916] [behavior_server]: Cleaning up
+[INFO] [1794799081.466299584] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794799081.476812164] [controller_server]: Cleaning up
+[INFO] [1794799081.477024939] [controller_server]: Cleaning up controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794799081.477339926] [controller_server]: Cleaning up controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794799081.477848295] [local_costmap.local_costmap]: Cleaning up
+[INFO] [1794799081.616123758] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794799081.726454212] [lifecycle_manager_demo]: Destroying lifecycle_manager_demo
+[INFO] [1794799081.893628413] [behavior_server]: Destroying
+[WARN] [1794799081.893715328] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794799082.589916448] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794799082.685029297] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794799082.736447132] [local_costmap.local_costmap]: Destroying
+[WARN] [1794799082.736536383] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794799082.963050958] [controller_server]: Destroying
+[WARN] [1794799082.963121392] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor

@@ -1,0 +1,119 @@
+{
+ "summary": {
+  "plan": "results/plan_q1/plan.json",
+  "n": 4,
+  "seed": 1,
+  "dock_sigma": "3,8,1.0",
+  "turn_sigma": 1.0,
+  "look_sigma": 2.0,
+  "grip_open": 0.0125,
+  "place_release": -0.0026,
+  "ki": 4.0,
+  "steps": "0-3",
+  "pucks": 12,
+  "final_ok15_mean": 0.0,
+  "final_ok30_mean": 0.0,
+  "mission_all15": 0,
+  "mission_all30": 0,
+  "per_puck": {
+   "0": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "1": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "2": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "3": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "4": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "5": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "6": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "7": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "8": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "9": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "10": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   },
+   "11": {
+    "ok15": 0,
+    "ok30": 0,
+    "exy_mm_median": null
+   }
+  },
+  "wall_s": 69.1,
+  "date": "2026-11-17 21:51"
+ },
+ "steps": [
+  {
+   "step": 2,
+   "kind": "pick",
+   "at": "B1:S",
+   "puck": 1,
+   "ok": 4,
+   "n": 4,
+   "rate": 1.0,
+   "있음": 4,
+   "쥠": 4,
+   "칸 3mm": 4,
+   "칸 1cm": 4,
+   "옆 퍽 쓰러짐": 0,
+   "손안 mm 중앙 (들기·앞)": "1.1·1.0",
+   "칸 mm 중앙": 0.3,
+   "s": 33.8
+  },
+  {
+   "step": 3,
+   "kind": "pick",
+   "at": "B1:S",
+   "puck": 0,
+   "ok": 4,
+   "n": 4,
+   "rate": 1.0,
+   "있음": 4,
+   "쥠": 4,
+   "칸 3mm": 4,
+   "칸 1cm": 4,
+   "옆 퍽 쓰러짐": 0,
+   "손안 mm 중앙 (들기·앞)": "1.2·1.5",
+   "칸 mm 중앙": 0.4,
+   "s": 35.3
+  }
+ ]
+}

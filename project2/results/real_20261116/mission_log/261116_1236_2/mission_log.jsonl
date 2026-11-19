@@ -1,0 +1,2 @@
+{"t": 1794800201.977, "kind": "start", "step": 0, "source": "plan", "episode": "/home/cart11/Lv2_Cartlidar_Assignment/mission_log/261116_1236_2"}
+{"t": 1794800204.173, "kind": "finish", "step": 0, "state": "FAILED", "reason": "observe failed after 2 retries: manipulator: /manipulator/execute_skill goal rejected"}

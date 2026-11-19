@@ -1,0 +1,58 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>box1",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 29.5,
+  "end_err_cm": 4.8,
+  "end_err_deg": 0.8,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": []
+ },
+ {
+  "seg": "S1",
+  "name": "box1>box2",
+  "result": "skip",
+  "ok": false,
+  "sim_s": 16.0,
+  "end_err_cm": 203.2,
+  "end_err_deg": 35.1,
+  "replans": 1,
+  "notes": [
+   "다시 계획 1: 2D 로도 길 없음 (막힌 통로) · 0.1 s"
+  ],
+  "head_fix_deg": [
+   -14.0
+  ]
+ },
+ {
+  "seg": "S2",
+  "name": "(여기)>box6",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 18.6,
+  "end_err_cm": 0.9,
+  "end_err_deg": 0.6,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": []
+ },
+ {
+  "seg": "S3",
+  "name": "box6>box2",
+  "result": "skip",
+  "ok": false,
+  "sim_s": 23.8,
+  "end_err_cm": 153.7,
+  "end_err_deg": 175.4,
+  "replans": 1,
+  "notes": [
+   "다시 계획 1: 2D 로도 길 없음 (막힌 통로) · 0.1 s"
+  ],
+  "head_fix_deg": [
+   -6.1
+  ]
+ }
+]

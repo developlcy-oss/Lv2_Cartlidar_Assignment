@@ -11,11 +11,13 @@ mission_node:
     base_frame: base_link
     arm:
       travel_pose: DRIVE         # 주행 · 탐색 · 접근 시작 때 팔 자세 (manipulator poses 이름, #144). STOW = 전원 끄기 전 대기 자세
+      unfold_on_start: true      # 새 시작 맨 앞에 unfold <travel_pose> (2026-11-18: manipulator 는 켜진 뒤 STOW 에 머묾, STOW 에서 DRIVE 만 받아 묶음 순서로 폄)
     behavior_tree: ""            # 빈 문자열 = nav2 기본 BT
 
     # 단계별 타임아웃 (s) · 재시도
     timeout:
       pose: 20.0
+      unfold: 60.0               # 새 시작 맨 앞 STOW → DRIVE (묶음 6 개, 0.8 rad/s 면 약 13 s · 실물 첫 확인 0.2 rad/s 면 약 45 s)
       read_tag: 90.0             # 회전 탐색 포함
       navigate: 120.0
       search: 60.0               # 주행 자세 + 회전 탐색 포함
@@ -40,6 +42,7 @@ mission_node:
     #   아래 목록은 비워 둠 (mock · 단독 실행) — bringup.launch.py 가 use_hardware · use_nav2 · use_localization 에 맞춰 채움
     ready:
       localization: false        # /localization/status == OK
+      arm_startup: false         # /manipulator/startup_done == true (켜질 때 팔 STOW 정리 끝). bringup 이 true 로 넘김
       reply_timeout: 3.0         # controller_manager · lifecycle 관리자 응답을 이만큼 기다린 뒤 버리고 다시 물음 (s)
       # controllers: [joint_state_broadcaster, diff_drive_controller, arm_controller]   # 모두 active
       # lifecycle_managers: [lifecycle_manager_navigation]                             # <이름>/is_active == true

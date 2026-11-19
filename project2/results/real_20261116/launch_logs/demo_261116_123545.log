@@ -1,0 +1,1141 @@
+[INFO] [launch]: All log files can be found below /home/cart11/.ros/log/2026-11-16-12-35-46-905619-cart11-22386
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [ros2_control_node-1]: process started with pid [22409]
+[INFO] [spawner-2]: process started with pid [22410]
+[INFO] [robot_state_publisher-3]: process started with pid [22411]
+[INFO] [twist_mux-4]: process started with pid [22412]
+[INFO] [component_container_mt-5]: process started with pid [22413]
+[INFO] [wait_joint_states-6]: process started with pid [22414]
+[INFO] [odom_icr-7]: process started with pid [22415]
+[INFO] [ekf_node-8]: process started with pid [22416]
+[component_container_mt-5] [WARN] [1794800148.049623906] [component_container_mt]: This executable is deprecated and will be removed in M-turtle.
+[component_container_mt-5] Use 'component_container --executor-type multi-threaded' instead.
+[twist_mux-4] [INFO] [1794800148.314287109] [twist_mux]: Topic handler 'topics.drive' subscribed to topic 'cmd_vel_drive': timeout = 0.250000s , priority = 50.
+[twist_mux-4] [INFO] [1794800148.339789067] [twist_mux]: Topic handler 'topics.nav' subscribed to topic 'cmd_vel_nav': timeout = 0.500000s , priority = 10.
+[twist_mux-4] [INFO] [1794800148.340717157] [twist_mux]: Topic handler 'topics.teleop' subscribed to topic 'cmd_vel_teleop': timeout = 0.500000s , priority = 100.
+[twist_mux-4] [INFO] [1794800148.341507099] [twist_mux]: Topic handler 'locks.e_stop' subscribed to topic 'e_stop': timeout = 0.500000s , priority = 255.
+[twist_mux-4] [INFO] [1794800148.342663163] [twist_mux]: Topic handler 'locks.localization' subscribed to topic '/localization/lock': timeout = 0.500000s , priority = 20.
+[odom_icr-7] [INFO] [1794800148.352101665] [odom_icr]: /odom + /imu/data -> /odom_icr, icr_x -0.0658 m
+[twist_mux-4] [INFO] [1794800148.372440695] [twist_mux]: Topic handler 'locks.obstacle' subscribed to topic '/perception/obstacle_stop': timeout = 0.500000s , priority = 60.
+[component_container_mt-5] [INFO] [1794800148.474962300] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission/lib/libmission_component.so
+[robot_state_publisher-3] [INFO] [1794800148.513183523] [robot_state_publisher]: Robot initialized
+[ros2_control_node-1] [INFO] [1794800148.569157624] [controller_manager]: Using Steady (Monotonic) clock for triggering controller manager cycles.
+[component_container_mt-5] [INFO] [1794800148.570326265] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[component_container_mt-5] [INFO] [1794800148.570413531] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<mission::MissionNode>
+[ros2_control_node-1] [INFO] [1794800148.666764532] [controller_manager]: Subscribing to '/robot_description' topic for robot description.
+[ros2_control_node-1] [INFO] [1794800148.667014907] [controller_manager]: update rate is 100 Hz
+[ros2_control_node-1] [INFO] [1794800148.667052156] [controller_manager]: Overruns handling is : enabled
+[ros2_control_node-1] [INFO] [1794800148.667075773] [controller_manager]: Spawning controller_manager RT thread with scheduler priority: 50
+[ros2_control_node-1] [WARN] [1794800148.669173431] [controller_manager]: Could not enable FIFO RT scheduling policy: with error number <1>(Operation not permitted). See [https://control.ros.org/master/doc/ros2_control/controller_manager/doc/userdoc.html] for details on how to enable realtime scheduling.
+[component_container_mt-5] [INFO] [1794800148.714821901] [mission_node]: survey: 6 pose(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/config/approach_poses.yaml
+[component_container_mt-5] [INFO] [1794800148.729959410] [mission_node]: place_box: 켬 (장소 3 곳)
+[component_container_mt-5] [INFO] [1794800149.164234597] [mission_node]: mission_node ready (source: plan, missions: 0, auto_start: false)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/mission_node' in container '/control_container'
+[component_container_mt-5] [INFO] [1794800149.189948912] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/lib/libdrive_node.so
+[component_container_mt-5] [INFO] [1794800149.215213967] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<control::DriveNode>
+[component_container_mt-5] [INFO] [1794800149.215440533] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<control::DriveNode>
+[ros2_control_node-1] [INFO] [1794800149.404375390] [controller_manager]: Received robot description from topic.
+[ros2_control_node-1] [INFO] [1794800149.405534558] [controller_manager]: Enforcing command limits is enabled...
+[ros2_control_node-1] [INFO] [1794800149.433471079] [controller_manager]: Using JointLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem' : '  has position limits: true [-0.7946, 0.9541]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794800149.434401793] [controller_manager]: Creating JointSaturationLimiter for joint 'gripper_roll' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.435219480] [controller_manager]: Using JointLimiter for joint 'joint5' in hardware 'OpenCRSystem' : '  has position limits: true [-2.8, 2.8]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794800149.435701381] [controller_manager]: Creating JointSaturationLimiter for joint 'joint5' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.435882762] [controller_manager]: Using JointLimiter for joint 'joint2' in hardware 'OpenCRSystem' : '  has position limits: true [-2.14, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794800149.436192499] [controller_manager]: Creating JointSaturationLimiter for joint 'joint2' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.436714113] [controller_manager]: Using JointLimiter for joint 'joint4' in hardware 'OpenCRSystem' : '  has position limits: true [-1.92, 2]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794800149.436825700] [controller_manager]: Creating JointSaturationLimiter for joint 'joint4' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.436941288] [controller_manager]: Using JointLimiter for joint 'joint1' in hardware 'OpenCRSystem' : '  has position limits: true [-3.14159, 3.14159]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794800149.437304466] [controller_manager]: Creating JointSaturationLimiter for joint 'joint1' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.437699645] [controller_manager]: Joint limits are disabled for joint 'wheel_right_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.437756702] [controller_manager]: Joint limits are disabled for joint 'wheel_right_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.437815392] [controller_manager]: Using JointLimiter for joint 'joint3' in hardware 'OpenCRSystem' : '  has position limits: true [-1.6, 1.6]
+[ros2_control_node-1]   has velocity limits: true [4.8]
+[ros2_control_node-1]   has acceleration limits: false [nan]
+[ros2_control_node-1]   has deceleration limits: false [nan]
+[ros2_control_node-1]   has jerk limits: false [nan]
+[ros2_control_node-1]   has effort limits: true [4.1]
+[ros2_control_node-1]   angle wraparound: false'
+[ros2_control_node-1] [INFO] [1794800149.438336334] [controller_manager]: Creating JointSaturationLimiter for joint 'joint3' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.438691480] [controller_manager]: Joint limits are disabled for joint 'wheel_left_rear_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.438852125] [controller_manager]: Joint limits are disabled for joint 'wheel_left_front_joint' in hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.448971350] [controller_manager]: Loading hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794800149.458799592] [controller_manager]: Loaded hardware 'OpenCRSystem' from plugin 'opencr_hardware/OpenCRHardware'
+[ros2_control_node-1] [INFO] [1794800149.462802231] [controller_manager]: Initialize hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794800149.597375959] [controller_manager.hardware_component.system.OpenCRSystem]: 바퀴 기어비 2.00 (바퀴 / 모터)
+[ros2_control_node-1] [INFO] [1794800149.597587421] [controller_manager.hardware_component.system.OpenCRSystem]: 팔 대기 자세 검사 켬 (처음 켤 때 범위 밖이면 시작 거부): 0,0,0,0,0,0 ~ 4095,4095,4095,4095,4095,4095
+[ros2_control_node-1] [INFO] [1794800149.597701664] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCRHardware: 관절 10개, IMU 'imu', 후보 포트 /dev/ttyACM0,/dev/ttyACM1
+[ros2_control_node-1] [INFO] [1794800149.597818083] [controller_manager]: Successful initialization of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.603049365] [controller_manager]: Activating component 'OpenCRSystem'.
+[ros2_control_node-1] [INFO] [1794800149.603226010] [resource_manager]: 'configure' hardware 'OpenCRSystem' 
+[ros2_control_node-1] [INFO] [1794800149.655306339] [resource_manager]: Successful 'configure' of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.656516772] [resource_manager]: 'activate' hardware 'OpenCRSystem' 
+[ros2_control_node-1] [WARN] [1794800149.656910735] [controller_manager.hardware_component.system.OpenCRSystem]: 팔 HOLD (토크가 켜진 채 호스트만 다시 시작) — 대기 자세 검사를 건너뜀
+[ros2_control_node-1] [INFO] [1794800149.657847209] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCRHardware 활성화 (팔 명령 = 현재 위치)
+[ros2_control_node-1] [INFO] [1794800149.659117933] [resource_manager]: Successful 'activate' of hardware 'OpenCRSystem'
+[ros2_control_node-1] [INFO] [1794800149.659511096] [controller_manager]: Registering statistics for : OpenCRSystem
+[ros2_control_node-1] [WARN] [1794800149.660515540] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCR 오류 비트 0x42 (SyncRead 누락 0 · 명령 타임아웃 1 · 물리 E-stop 0 · 모터 HW 0 · 역할 불일치 0 · 팔 HOLD 1 · FAULT 0)
+[ros2_control_node-1] [INFO] [1794800149.661307978] [controller_manager]: Resource Manager has been successfully initialized. Starting Controller Manager services...
+[ros2_control_node-1] [WARN] [1794800149.679124537] [controller_manager.hardware_component.system.OpenCRSystem]: E-stop 해제 
+[ros2_control_node-1] [WARN] [1794800149.680019026] [controller_manager.hardware_component.system.OpenCRSystem]: OpenCR 오류 비트 0x40 (SyncRead 누락 0 · 명령 타임아웃 0 · 물리 E-stop 0 · 모터 HW 0 · 역할 불일치 0 · 팔 HOLD 1 · FAULT 0)
+[ros2_control_node-1] [WARN] [1794800149.681439450] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.520386 ms (missed cycles : 2).
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/drive_node' in container '/control_container'
+[component_container_mt-5] [INFO] [1794800149.875914652] [drive_node]: drive_node 준비 (align 20 Hz, 정책 사용 안 함)
+[component_container_mt-5] [INFO] [1794800149.894685830] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/lib/libmanipulator_node.so
+[component_container_mt-5] [INFO] [1794800149.908626730] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<control::ManipulatorNode>
+[component_container_mt-5] [INFO] [1794800149.908725549] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<control::ManipulatorNode>
+[component_container_mt-5] [0;93m2026-11-16 12:35:50.116368574 [W:onnxruntime:robot_policy, device_discovery.cc:283 GetGpuDevices] Failed to detect devices under "/sys/class/drm/card1": device_discovery.cc:93 ReadFileContents Failed to open file: "/sys/class/drm/card1/device/vendor"[m
+[component_container_mt-5] [0;93m2026-11-16 12:35:50.116592196 [W:onnxruntime:robot_policy, device_discovery.cc:283 GetGpuDevices] Failed to detect devices under "/sys/class/drm/card0": device_discovery.cc:93 ReadFileContents Failed to open file: "/sys/class/drm/card0/device/vendor"[m
+[component_container_mt-5] [INFO] [1794800150.143920636] [manipulator_node]: lie_upright: policy 'lie_upright' loaded (/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/robot_policy/share/robot_policy/config/models/lieupright_r2g2.onnx, 30 Hz)
+[component_container_mt-5] [INFO] [1794800150.168999958] [mission_node]: [준비 확인] NOT READY 2/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [실패] E-stop · 진단: no opencr/* diagnostics for 3.000000s
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [대기] joint_state_broadcaster: controller_manager 응답 기다림
+[component_container_mt-5]     [대기] diff_drive_controller: controller_manager 응답 기다림
+[component_container_mt-5]     [대기] arm_controller: controller_manager 응답 기다림
+[component_container_mt-5]     [대기] imu_sensor_broadcaster: controller_manager 응답 기다림
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [대기] /manipulator/pose: 서버 없음
+[component_container_mt-5]     [대기] /manipulator/pick: 서버 없음
+[component_container_mt-5]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[component_container_mt-5] [INFO] [1794800150.381832503] [manipulator_node]: pallet: 10 slot(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/control/share/control/config/pallet_place_traj.json (joint offsets not applied)
+[component_container_mt-5] [INFO] [1794800150.431162163] [manipulator_node]: place: 27 cell(s) from /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/config/approach_poses.yaml
+[spawner-2] [INFO] [1794800150.787172355] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...
+[component_container_mt-5] [INFO] [1794800150.909468429] [manipulator_node]: manipulator_node ready (poses: 8, gripper mode: arm_joint, pallet slots: 10, place cells: 27)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/manipulator_node' in container '/control_container'
+[component_container_mt-5] [INFO] [1794800150.922182831] [control_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_lidar.so
+[component_container_mt-5] [INFO] [1794800150.928353914] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-5] [INFO] [1794800150.928507839] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-5] [INFO] [1794800150.928547136] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanBodyMaskNode>
+[component_container_mt-5] [INFO] [1794800150.928647650] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanMergerNode>
+[component_container_mt-5] [INFO] [1794800150.928678595] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanToRangeNode>
+[component_container_mt-5] [INFO] [1794800150.928702212] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::TFminiNode>
+[component_container_mt-5] [INFO] [1794800150.928725317] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::TFminiNode>
+[component_container_mt-5] [INFO] [1794800150.994017853] [tfmini_node]: 출력 mm, 보정점 0개, 오프셋 0.000 m
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/tfmini_node' in container '/control_container'
+[component_container_mt-5] [INFO] [1794800151.006853378] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-5] [INFO] [1794800151.007123850] [control_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-5] [INFO] [1794800151.007236237] [control_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-5] [INFO] [1794800151.021233714] [tfmini_node]: /dev/tfmini 열림 (115200 bps)
+[component_container_mt-5] [INFO] [1794800151.122102760] [obstacle_stop]: 정지 0.25 m 미만, 해제 0.35 m 이상 3회, 입력 끊김 0.20 s
+[component_container_mt-5] [INFO] [1794800151.123164806] [obstacle_stop]: 비상 정지 켬 (stale)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/obstacle_stop' in container '/control_container'
+[component_container_mt-5] [INFO] [1794800151.160294350] [obstacle_stop]: 비상 정지 끔 (clear)
+[component_container_mt-5] [INFO] [1794800151.167400148] [mission_node]: [준비 확인] NOT READY 5/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [실패] joint_state_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-5]     [실패] diff_drive_controller: 없음 (spawner 실패?)
+[component_container_mt-5]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-5]     [실패] imu_sensor_broadcaster: 없음 (spawner 실패?)
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[spawner-2] [INFO] [1794800152.321423066] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for joint_state_broadcaster
+[spawner-2] [INFO] [1794800152.333164448] [spawner_joint_state_broadcaster]: Setting controller param "type" to "joint_state_broadcaster/JointStateBroadcaster" for joint_state_broadcaster
+[ros2_control_node-1] [INFO] [1794800152.429547161] [controller_manager]: Loading controller : 'joint_state_broadcaster' of type 'joint_state_broadcaster/JointStateBroadcaster'
+[ros2_control_node-1] [INFO] [1794800152.429739134] [controller_manager]: Loading controller 'joint_state_broadcaster'
+[ros2_control_node-1] [INFO] [1794800152.434044950] [controller_manager]: Controller 'joint_state_broadcaster' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml'
+[spawner-2] [INFO] [1794800152.574982791] [spawner_joint_state_broadcaster]: Loaded joint_state_broadcaster
+[ros2_control_node-1] [INFO] [1794800152.583837373] [controller_manager]: Configuring controller: 'joint_state_broadcaster'
+[ros2_control_node-1] [INFO] [1794800152.584442478] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. Will try to publish all available state interfaces of the URDF joints.
+[ros2_control_node-1] [INFO] [1794800152.618224505] [controller_manager]: Activating controllers: [ joint_state_broadcaster ]
+[ros2_control_node-1] [INFO] [1794800152.623054720] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794800152.628184302] [controller_manager]: Successfully switched controllers!
+[spawner-2] [INFO] [1794800152.635080558] [spawner_joint_state_broadcaster]: Configured and activated joint_state_broadcaster
+[spawner-2] [INFO] [1794800152.654629646] [spawner_joint_state_broadcaster]: Setting controller param "node_options_args" to "['-r', 'imu_sensor_broadcaster/imu:=/imu/data']" for imu_sensor_broadcaster
+[spawner-2] [INFO] [1794800152.698296973] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for imu_sensor_broadcaster
+[demo_start] /mission/start 서비스 보임 → 시작 요청
+[spawner-2] [INFO] [1794800152.726619424] [spawner_joint_state_broadcaster]: Setting controller param "type" to "imu_sensor_broadcaster/IMUSensorBroadcaster" for imu_sensor_broadcaster
+[ros2_control_node-1] [INFO] [1794800152.752818233] [controller_manager]: Loading controller : 'imu_sensor_broadcaster' of type 'imu_sensor_broadcaster/IMUSensorBroadcaster'
+[ros2_control_node-1] [INFO] [1794800152.752987838] [controller_manager]: Loading controller 'imu_sensor_broadcaster'
+[ros2_control_node-1] [INFO] [1794800152.772067825] [controller_manager]: Controller 'imu_sensor_broadcaster' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --ros-args -r imu_sensor_broadcaster/imu:=/imu/data'
+[spawner-2] [INFO] [1794800152.923977970] [spawner_joint_state_broadcaster]: Loaded imu_sensor_broadcaster
+[ros2_control_node-1] [INFO] [1794800152.930552713] [controller_manager]: Configuring controller: 'imu_sensor_broadcaster'
+[ros2_control_node-1] [INFO] [1794800152.943428431] [controller_manager]: Activating controllers: [ imu_sensor_broadcaster ]
+[ros2_control_node-1] [INFO] [1794800152.951485551] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794800152.951804728] [controller_manager]: Successfully switched controllers!
+[spawner-2] [INFO] [1794800152.973559285] [spawner_joint_state_broadcaster]: Configured and activated imu_sensor_broadcaster
+[spawner-2] [INFO] [1794800152.990267814] [spawner_joint_state_broadcaster]: Setting controller param "node_options_args" to "['-r', 'diff_drive_controller/cmd_vel:=/cmd_vel', '-r', 'diff_drive_controller/odom:=/odom']" for diff_drive_controller
+[spawner-2] [INFO] [1794800153.013789396] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml', '/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/drive_belt.yaml']" for diff_drive_controller
+[spawner-2] [INFO] [1794800153.035181191] [spawner_joint_state_broadcaster]: Setting controller param "type" to "diff_drive_controller/DiffDriveController" for diff_drive_controller
+[ros2_control_node-1] [INFO] [1794800153.047310745] [controller_manager]: Loading controller : 'diff_drive_controller' of type 'diff_drive_controller/DiffDriveController'
+[ros2_control_node-1] [INFO] [1794800153.047852072] [controller_manager]: Loading controller 'diff_drive_controller'
+[ros2_control_node-1] [INFO] [1794800153.057609335] [controller_manager]: Controller 'diff_drive_controller' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/drive_belt.yaml --ros-args -r diff_drive_controller/cmd_vel:=/cmd_vel -r diff_drive_controller/odom:=/odom'
+[spawner-2] [INFO] [1794800153.223741636] [spawner_joint_state_broadcaster]: Loaded diff_drive_controller
+[ros2_control_node-1] [INFO] [1794800153.227342792] [controller_manager]: Configuring controller: 'diff_drive_controller'
+[ros2_control_node-1] [WARN] [1794800153.256208171] [diff_drive_controller]: Please use tilde ('~') character in 'tf_frame_prefix' as it replaced with node namespace
+[ros2_control_node-1] [INFO] [1794800153.300697216] [controller_manager]: Activating controllers: [ diff_drive_controller ]
+[ros2_control_node-1] [INFO] [1794800153.303609361] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794800153.303971803] [controller_manager]: Successfully switched controllers!
+[spawner-2] [INFO] [1794800153.320738126] [spawner_joint_state_broadcaster]: Configured and activated diff_drive_controller
+[spawner-2] [INFO] [1794800153.367119000] [spawner_joint_state_broadcaster]: Setting controller param "params_file" to "['/home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml']" for arm_controller
+[spawner-2] [INFO] [1794800153.384398456] [spawner_joint_state_broadcaster]: Setting controller param "type" to "joint_trajectory_controller/JointTrajectoryController" for arm_controller
+[ros2_control_node-1] [INFO] [1794800153.407535900] [controller_manager]: Loading controller : 'arm_controller' of type 'joint_trajectory_controller/JointTrajectoryController'
+[ros2_control_node-1] [INFO] [1794800153.407680000] [controller_manager]: Loading controller 'arm_controller'
+[ros2_control_node-1] [INFO] [1794800153.424654424] [controller_manager]: Controller 'arm_controller' node arguments: '--ros-args --params-file /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/opencr_hardware/share/opencr_hardware/config/controllers_4wd.yaml'
+[spawner-2] [INFO] [1794800153.544000688] [spawner_joint_state_broadcaster]: Loaded arm_controller
+[ros2_control_node-1] [INFO] [1794800153.551487136] [controller_manager]: Configuring controller: 'arm_controller'
+[ros2_control_node-1] [INFO] [1794800153.558135321] [arm_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.
+[ros2_control_node-1] [INFO] [1794800153.558338366] [arm_controller]: Command interfaces are [position] and state interfaces are [position velocity].
+[ros2_control_node-1] [INFO] [1794800153.558445697] [arm_controller]: Using 'splines' interpolation method.
+[ros2_control_node-1] [INFO] [1794800153.595331171] [arm_controller]: Action status changes will be monitored at 20.00 Hz.
+[ros2_control_node-1] [INFO] [1794800153.680810669] [arm_controller]: Setting initial scaling factor to 1.000000
+[ros2_control_node-1] [INFO] [1794800153.680976818] [arm_controller]: No scaling interface set. This controller will not read speed scaling from the hardware.
+[ros2_control_node-1] [INFO] [1794800153.697608576] [controller_manager]: Activating controllers: [ arm_controller ]
+[ros2_control_node-1] [INFO] [1794800153.704994382] [controller_manager]: Requested controller switch from non-realtime loop
+[ros2_control_node-1] [INFO] [1794800153.705770435] [controller_manager]: Successfully switched controllers!
+[component_container_mt-5] [INFO] [1794800153.710976500] [manipulator_node]: startup: waiting for arm HOLD / E-stop release (reset button = REARM) before moving to 'DRIVE'
+[spawner-2] [INFO] [1794800153.719444576] [spawner_joint_state_broadcaster]: Configured and activated arm_controller
+[ros2_control_node-1] [WARN] [1794800153.730619414] [diff_drive_controller]: Velocity command timed out. Braking.
+[wait_joint_states-6] [bringup] /joint_states 받음 -> 인지 · 위치 추정 · Nav2 시작
+[INFO] [wait_joint_states-6]: process has finished cleanly [pid 22414]
+[component_container_mt-5] [INFO] [1794800154.165321841] [mission_node]: [준비 확인] NOT READY 7/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [실패] diff_drive_controller: unconfigured
+[component_container_mt-5]     [실패] arm_controller: 없음 (spawner 실패?)
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[INFO] [spawner-2]: process has finished cleanly [pid 22410]
+[ros2_control_node-1] [WARN] [1794800154.360699883] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.781715 ms (missed cycles : 2).
+[INFO] [component_container_mt-9]: process started with pid [22604]
+[INFO] [puck_survey-10]: process started with pid [22605]
+[INFO] [realsense2_camera_node-11]: process started with pid [22606]
+[INFO] [realsense2_camera_node-12]: process started with pid [22607]
+[INFO] [arm_camera_node.py-13]: process started with pid [22608]
+[INFO] [multi_coin_d4_node-14]: process started with pid [22609]
+[INFO] [scan_body_mask-15]: process started with pid [22610]
+[INFO] [map_server-16]: process started with pid [22611]
+[INFO] [map_server-17]: process started with pid [22612]
+[INFO] [loc_scan_merge-18]: process started with pid [22613]
+[INFO] [amcl-19]: process started with pid [22614]
+[INFO] [loc_monitor-20]: process started with pid [22615]
+[INFO] [mission_planner_node-21]: process started with pid [22620]
+[component_container_mt-9] [WARN] [1794800154.465588208] [component_container_mt]: This executable is deprecated and will be removed in M-turtle.
+[component_container_mt-9] Use 'component_container --executor-type multi-threaded' instead.
+[ros2_control_node-1] [WARN] [1794800154.732538193] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800155.192358405] [controller_manager]: Overrun might occur, Total time : 12335.800 us (Expected < 10000.000 us) --> Read time : 1562.604 us, Update time : 329.481 us, Write time : 10443.715 us
+[component_container_mt-5] [INFO] [1794800155.192786993] [mission_node]: [준비 확인] NOT READY 9/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [대기] /localization/status: 상태 못 받음 (loc_monitor?)
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[multi_coin_d4_node-14] [INFO] [1794800155.524486170] [lidar_node]: version M1CT_TOF
+[multi_coin_d4_node-14] [INFO] [1794800155.524706368] [lidar_node]: lidar_front. lidar port: /dev/lidar_front
+[component_container_mt-9] [INFO] [1794800155.528120607] [perception_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_node.so
+[ros2_control_node-1] [WARN] [1794800155.663236589] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 13.318549 ms (missed cycles : 2).
+[ekf_node-8] [ERROR] [1794800155.731413461] [ekf_filter_node]: Failed to meet update rate! Took 0.035593790000000000151seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800155.738173521] [diff_drive_controller]: Velocity command timed out. Braking.
+[multi_coin_d4_node-14] [INFO] [1794800155.739031817] [lidar_node]: version M1CT_TOF
+[multi_coin_d4_node-14] [INFO] [1794800155.739109195] [lidar_node]: lidar_rear. lidar port: /dev/lidar_rear
+[multi_coin_d4_node-14] [INFO] [1794800155.862368495] [lidar_node]: Activated lidar grab thread for port /dev/lidar_rear
+[multi_coin_d4_node-14] [INFO] [1794800155.862540883] [lidar_node]: Activated lidar publish thread for port /dev/lidar_rear
+[multi_coin_d4_node-14] [INFO] [1794800155.862630486] [lidar_node]: Activated lidar grab thread for port /dev/lidar_front
+[multi_coin_d4_node-14] [INFO] [1794800155.862736249] [lidar_node]: Activated lidar publish thread for port /dev/lidar_front
+[multi_coin_d4_node-14] [INFO] [1794800155.863787606] [lidar_node]: Lidar status changed for /dev/lidar_rear : 0 -> 1
+[multi_coin_d4_node-14] [INFO] [1794800155.866592644] [lidar_node]: Lidar status changed for /dev/lidar_front : 0 -> 1
+[realsense2_camera_node-11] [INFO] [1794800156.362738506] [top_camera_front]: RealSense ROS v4.57.7
+[realsense2_camera_node-11] [INFO] [1794800156.368538315] [top_camera_front]: Built with LibRealSense v2.57.7
+[realsense2_camera_node-11] [INFO] [1794800156.368634318] [top_camera_front]: Running with LibRealSense v2.57.7
+[realsense2_camera_node-11]  16/11 12:35:56,379 ERROR [281472023914848] (context.cpp:41) No valid configuration file found at : /home/cart11/.realsense-config.json loading defaults
+[map_server-17] [INFO] [1794800156.496969471] [map_objects_server]: 
+[map_server-17] 	map_objects_server lifecycle node launched. 
+[map_server-17] 	Waiting on external lifecycle transitions to activate
+[map_server-17] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[map_server-17] [INFO] [1794800156.513382823] [map_objects_server]: Creating
+[ekf_node-8] [ERROR] [1794800156.526552437] [ekf_filter_node]: Failed to meet update rate! Took 0.022869980000000001558seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[amcl-19] [INFO] [1794800156.563523514] [amcl]: 
+[amcl-19] 	amcl lifecycle node launched. 
+[amcl-19] 	Waiting on external lifecycle transitions to activate
+[amcl-19] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[ekf_node-8] [ERROR] [1794800156.571624795] [ekf_filter_node]: Failed to meet update rate! Took 0.022494354000000001126seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[amcl-19] [INFO] [1794800156.586514617] [amcl]: Creating
+[ekf_node-8] [ERROR] [1794800156.713986770] [ekf_filter_node]: Failed to meet update rate! Took 0.025361280999999999408seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800156.741406604] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800156.742157601] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.240969 ms (missed cycles : 2).
+[multi_coin_d4_node-14] [INFO] [1794800157.005500253] [lidar_node]: TOF version lidar start for /dev/lidar_rear
+[multi_coin_d4_node-14] [INFO] [1794800157.006842658] [lidar_node]: TOF version lidar start for /dev/lidar_front
+[ekf_node-8] [ERROR] [1794800157.088282587] [ekf_filter_node]: Failed to meet update rate! Took 0.020390070999999999196seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[realsense2_camera_node-12] [INFO] [1794800157.101153280] [top_camera_rear]: RealSense ROS v4.57.7
+[realsense2_camera_node-12] [INFO] [1794800157.101384103] [top_camera_rear]: Built with LibRealSense v2.57.7
+[realsense2_camera_node-12] [INFO] [1794800157.101423784] [top_camera_rear]: Running with LibRealSense v2.57.7
+[realsense2_camera_node-12]  16/11 12:35:57,110 ERROR [281472722741600] (context.cpp:41) No valid configuration file found at : /home/cart11/.realsense-config.json loading defaults
+[map_server-16] [INFO] [1794800157.151614844] [map_server]: 
+[map_server-16] 	map_server lifecycle node launched. 
+[map_server-16] 	Waiting on external lifecycle transitions to activate
+[map_server-16] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[map_server-16] [INFO] [1794800157.168276395] [map_server]: Creating
+[ros2_control_node-1] [WARN] [1794800157.306793559] [controller_manager]: Overrun might occur, Total time : 14729.114 us (Expected < 10000.000 us) --> Read time : 5764.128 us, Update time : 4133.203 us, Write time : 4831.783 us
+[realsense2_camera_node-11] [INFO] [1794800157.480838943] [top_camera_front]: Device with serial number 261822072247 was found.
+[realsense2_camera_node-11] 
+[realsense2_camera_node-11] [INFO] [1794800157.481059525] [top_camera_front]: Device with physical ID /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.1/2-1.1:1.0/video4linux/video4 was found.
+[realsense2_camera_node-11] [INFO] [1794800157.481117990] [top_camera_front]: Device with name Intel RealSense D435 was found.
+[realsense2_camera_node-11] [INFO] [1794800157.484374753] [top_camera_front]: Device with port number 2-1.1 was found.
+[realsense2_camera_node-11] [INFO] [1794800157.486643360] [top_camera_front]: Device USB type: 3.2
+[realsense2_camera_node-11] [INFO] [1794800157.493278392] [top_camera_front]: getParameters...
+[realsense2_camera_node-11] [INFO] [1794800157.500736648] [top_camera_front]: JSON file is not provided
+[realsense2_camera_node-11] [INFO] [1794800157.500845323] [top_camera_front]: Device Name: Intel RealSense D435
+[realsense2_camera_node-11] [INFO] [1794800157.500883948] [top_camera_front]: Device Serial No: 261822072247
+[realsense2_camera_node-11] [INFO] [1794800157.500917613] [top_camera_front]: Device physical port: /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.1/2-1.1:1.0/video4linux/video4
+[realsense2_camera_node-11] [INFO] [1794800157.500949550] [top_camera_front]: Device FW version: 5.15.1.55
+[realsense2_camera_node-11] [INFO] [1794800157.500976335] [top_camera_front]: Device Product ID: 0x0B07
+[realsense2_camera_node-11] [INFO] [1794800157.501029872] [top_camera_front]: Sync Mode: Off
+[ekf_node-8] [ERROR] [1794800157.697185823] [ekf_filter_node]: Failed to meet update rate! Took 0.020378646999999999734seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[INFO] [lifecycle_manager-22]: process started with pid [22832]
+[ros2_control_node-1] [WARN] [1794800157.745257079] [diff_drive_controller]: Velocity command timed out. Braking.
+[INFO] [lifecycle_manager-23]: process started with pid [22834]
+[ros2_control_node-1] [WARN] [1794800157.772161988] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 32.246284 ms (missed cycles : 4).
+[realsense2_camera_node-12] [INFO] [1794800157.850101339] [top_camera_rear]: Device with serial number 261822072247 was found.
+[realsense2_camera_node-12] 
+[realsense2_camera_node-12] [INFO] [1794800157.850476293] [top_camera_rear]: Device with physical ID /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.1/2-1.1:1.0/video4linux/video4 was found.
+[realsense2_camera_node-12] [INFO] [1794800157.850521991] [top_camera_rear]: Device with name Intel RealSense D435 was found.
+[realsense2_camera_node-12] [INFO] [1794800157.851621669] [top_camera_rear]: Device with port number 2-1.1 was found.
+[realsense2_camera_node-12] [INFO] [1794800157.943391581] [top_camera_rear]: Device with serial number 261822079801 was found.
+[realsense2_camera_node-12] 
+[realsense2_camera_node-12] [INFO] [1794800157.943520929] [top_camera_rear]: Device with physical ID /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.2/2-1.2:1.0/video4linux/video10 was found.
+[realsense2_camera_node-12] [INFO] [1794800157.943554530] [top_camera_rear]: Device with name Intel RealSense D435 was found.
+[realsense2_camera_node-12] [INFO] [1794800157.944179027] [top_camera_rear]: Device with port number 2-1.2 was found.
+[realsense2_camera_node-12] [INFO] [1794800157.944252821] [top_camera_rear]: Device USB type: 3.2
+[realsense2_camera_node-12] [INFO] [1794800157.944449882] [top_camera_rear]: getParameters...
+[realsense2_camera_node-12] [INFO] [1794800157.971909430] [top_camera_rear]: JSON file is not provided
+[realsense2_camera_node-12] [INFO] [1794800157.972057978] [top_camera_rear]: Device Name: Intel RealSense D435
+[realsense2_camera_node-12] [INFO] [1794800157.972150589] [top_camera_rear]: Device Serial No: 261822079801
+[realsense2_camera_node-12] [INFO] [1794800157.972186590] [top_camera_rear]: Device physical port: /sys/devices/platform/bus@0/3610000.usb/usb2/2-1/2-1.2/2-1.2:1.0/video4linux/video10
+[realsense2_camera_node-12] [INFO] [1794800157.972214015] [top_camera_rear]: Device FW version: 5.15.1.55
+[realsense2_camera_node-12] [INFO] [1794800157.972236191] [top_camera_rear]: Device Product ID: 0x0B07
+[realsense2_camera_node-12] [INFO] [1794800157.972423076] [top_camera_rear]: Sync Mode: Off
+[realsense2_camera_node-11] [WARN] [1794800158.182628985] [top_camera_front]: re-enable the stream for the change to take effect.
+[ekf_node-8] [ERROR] [1794800158.212652444] [ekf_filter_node]: Failed to meet update rate! Took 0.024371302000000000937seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[loc_monitor-20] [INFO] [1794800158.293414242] [loc_monitor]: {"t": 1794800158.293, "event": "start", "state": "OK", "backend": "amcl", "gate": false, "traj": 1, "res_thr": 0.034, "res_mode": "interp_p75", "check_mode": "pair"}
+[ros2_control_node-1] [WARN] [1794800158.354301791] [controller_manager]: Overrun might occur, Total time : 15413.293 us (Expected < 10000.000 us) --> Read time : 195.557 us, Update time : 13332.691 us, Write time : 1885.045 us
+[component_container_mt-5] [INFO] [1794800158.535356745] [obstacle_stop]: 비상 정지 켬 (stale)
+[realsense2_camera_node-12] [WARN] [1794800158.569626818] [top_camera_rear]: re-enable the stream for the change to take effect.
+[realsense2_camera_node-11] [WARN] [1794800158.584507936] [top_camera_front]: re-enable the stream for the change to take effect.
+[component_container_mt-5] [INFO] [1794800158.650233028] [obstacle_stop]: 비상 정지 끔 (clear)
+[ekf_node-8] [ERROR] [1794800158.686277582] [ekf_filter_node]: Failed to meet update rate! Took 0.037645783000000002105seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800158.755902718] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800158.781122203] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 21.205699 ms (missed cycles : 3).
+[ekf_node-8] [ERROR] [1794800158.787244677] [ekf_filter_node]: Failed to meet update rate! Took 0.047460070999999999508seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[realsense2_camera_node-11] [INFO] [1794800158.800070314] [top_camera_front]: Stopping Sensor: Depth Module
+[realsense2_camera_node-11] [INFO] [1794800158.846628793] [top_camera_front]: Stopping Sensor: RGB Camera
+[realsense2_camera_node-12] [WARN] [1794800158.970394890] [top_camera_rear]: re-enable the stream for the change to take effect.
+[ekf_node-8] [ERROR] [1794800159.052625144] [ekf_filter_node]: Failed to meet update rate! Took 0.022132262999999999242seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800159.145081315] [ekf_filter_node]: Failed to meet update rate! Took 0.035664064000000002264seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[realsense2_camera_node-12] [INFO] [1794800159.160440590] [top_camera_rear]: Stopping Sensor: Depth Module
+[realsense2_camera_node-12] [INFO] [1794800159.160824825] [top_camera_rear]: Stopping Sensor: RGB Camera
+[realsense2_camera_node-11] [INFO] [1794800159.263231192] [top_camera_front]: Starting Sensor: Depth Module
+[realsense2_camera_node-11] [INFO] [1794800159.337999799] [top_camera_front]: Open profile: stream_type: Depth(0), Format: Z16, Width: 640, Height: 480, FPS: 30
+[ekf_node-8] [ERROR] [1794800159.399778381] [ekf_filter_node]: Failed to meet update rate! Took 0.023412043000000000437seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800159.515024145] [ekf_filter_node]: Failed to meet update rate! Took 0.023323943999999999233seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800159.731538741] [ekf_filter_node]: Failed to meet update rate! Took 0.043713150999999998703seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800159.795255073] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800159.795629771] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 45.713171 ms (missed cycles : 5).
+[ekf_node-8] [ERROR] [1794800159.871449607] [ekf_filter_node]: Failed to meet update rate! Took 0.033214971000000002854seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800159.971222301] [ekf_filter_node]: Failed to meet update rate! Took 0.031191043000000001628seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-5] [INFO] [1794800160.053821110] [obstacle_stop]: 비상 정지 켬 (stale)
+[ekf_node-8] [ERROR] [1794800160.125761606] [ekf_filter_node]: Failed to meet update rate! Took 0.022199209000000000996seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-5] [INFO] [1794800160.127923650] [obstacle_stop]: 비상 정지 끔 (clear)
+[ros2_control_node-1] [WARN] [1794800160.133188916] [controller_manager]: Overrun might occur, Total time : 20614.717 us (Expected < 10000.000 us) --> Read time : 2675.434 us, Update time : 15601.586 us, Write time : 2337.697 us
+[ekf_node-8] [ERROR] [1794800160.212495409] [ekf_filter_node]: Failed to meet update rate! Took 0.029427986999999999201seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800160.321625932] [ekf_filter_node]: Failed to meet update rate! Took 0.033864141999999999855seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-9] [INFO] [1794800160.360554118] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::PerceptionNode>
+[component_container_mt-9] [INFO] [1794800160.360729067] [perception_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::PerceptionNode>
+[component_container_mt-5] [INFO] [1794800160.367116124] [obstacle_stop]: 비상 정지 켬 (stale)
+[component_container_mt-5] [INFO] [1794800160.374272739] [obstacle_stop]: 비상 정지 끔 (clear)
+[component_container_mt-5] [INFO] [1794800160.380969533] [mission_node]: [준비 확인] NOT READY 10/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [대기] /perception/set_mode: 서버 없음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [대기] /perception/check_dice: 서버 없음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[ekf_node-8] [ERROR] [1794800160.384693381] [ekf_filter_node]: Failed to meet update rate! Took 0.034515520000000000922seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800160.491512575] [ekf_filter_node]: Failed to meet update rate! Took 0.031380264999999997466seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800160.603380965] [ekf_filter_node]: Failed to meet update rate! Took 0.023543181999999999304seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[realsense2_camera_node-11] [INFO] [1794800160.673624902] [top_camera_front]: Starting Sensor: RGB Camera
+[realsense2_camera_node-11] [INFO] [1794800160.700925117] [top_camera_front]: Open profile: stream_type: Color(0), Format: RGB8, Width: 640, Height: 480, FPS: 30
+[ros2_control_node-1] [WARN] [1794800160.803668966] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800160.803936813] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 14.020853 ms (missed cycles : 2).
+[realsense2_camera_node-12] [INFO] [1794800160.823369513] [top_camera_rear]: Starting Sensor: Depth Module
+[realsense2_camera_node-12] [INFO] [1794800160.911033967] [top_camera_rear]: Open profile: stream_type: Depth(0), Format: Z16, Width: 640, Height: 480, FPS: 30
+[component_container_mt-5] [INFO] [1794800160.932648648] [obstacle_stop]: 비상 정지 켬 (stale)
+[lifecycle_manager-23] [INFO] [1794800160.944372750] [lifecycle_manager_amcl]: Creating
+[lifecycle_manager-23] [INFO] [1794800160.945363209] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[lifecycle_manager-23] [INFO] [1794800160.989893983] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[component_container_mt-5] [INFO] [1794800160.992707789] [obstacle_stop]: 비상 정지 끔 (clear)
+[lifecycle_manager-22] [INFO] [1794800161.048275958] [lifecycle_manager_maps]: Creating
+[lifecycle_manager-22] [INFO] [1794800161.049333012] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[ros2_control_node-1] [WARN] [1794800161.199947247] [controller_manager]: Overrun might occur, Total time : 15318.571 us (Expected < 10000.000 us) --> Read time : 891.801 us, Update time : 14339.119 us, Write time : 87.651 us
+[realsense2_camera_node-11] [INFO] [1794800161.205735152] [top_camera_front]: RealSense Node Is Up!
+[ekf_node-8] [ERROR] [1794800161.232111085] [ekf_filter_node]: Failed to meet update rate! Took 0.024560906999999999878seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-5] [INFO] [1794800161.258277189] [obstacle_stop]: 비상 정지 켬 (stale)
+[ekf_node-8] [ERROR] [1794800161.398360091] [ekf_filter_node]: Failed to meet update rate! Took 0.022249097999999998404seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-5] [INFO] [1794800161.476065803] [obstacle_stop]: 비상 정지 끔 (clear)
+[lifecycle_manager-22] [INFO] [1794800161.501600273] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[ros2_control_node-1] [WARN] [1794800161.814452459] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800161.832233785] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.315457 ms (missed cycles : 2).
+[realsense2_camera_node-12] [WARN] [1794800161.834702974] [top_camera_rear]: XXX Hardware Notification:Right MIPI error,1.7948e+12,Error,Hardware Error
+[realsense2_camera_node-12] [WARN] [1794800161.834824353] [top_camera_rear]: Hardware Notification:Right MIPI error,1.7948e+12,Error,Hardware Error
+[realsense2_camera_node-12] [INFO] [1794800161.846342145] [top_camera_rear]: Starting Sensor: RGB Camera
+[lifecycle_manager-23] [INFO] [1794800161.856782084] [lifecycle_manager_amcl]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[realsense2_camera_node-12] [INFO] [1794800161.871674530] [top_camera_rear]: Open profile: stream_type: Color(0), Format: RGB8, Width: 640, Height: 480, FPS: 30
+[lifecycle_manager-23] [INFO] [1794800162.202496815] [lifecycle_manager_amcl]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-23] [INFO] [1794800162.202601617] [lifecycle_manager_amcl]: [34m[1mConfiguring amcl[0m[0m
+[component_container_mt-5] [INFO] [1794800162.356152894] [obstacle_stop]: 비상 정지 켬 (stale)
+[component_container_mt-5] [INFO] [1794800162.393624752] [obstacle_stop]: 비상 정지 끔 (clear)
+[amcl-19] [INFO] [1794800162.416232420] [amcl]: Configuring
+[amcl-19] [INFO] [1794800162.417671532] [amcl]: initTransforms
+[amcl-19] [INFO] [1794800162.459202607] [amcl]: initPubSub
+[realsense2_camera_node-12] [INFO] [1794800162.506627285] [top_camera_rear]: RealSense Node Is Up!
+[amcl-19] [INFO] [1794800162.512299347] [amcl]: Subscribed to map topic.
+[lifecycle_manager-23] [INFO] [1794800162.680358131] [lifecycle_manager_amcl]: [34m[1mActivating amcl[0m[0m
+[amcl-19] [INFO] [1794800162.681186730] [amcl]: Activating
+[amcl-19] [INFO] [1794800162.681289709] [amcl]: initialPoseReceived
+[amcl-19] [INFO] [1794800162.681523539] [amcl]: Setting pose (1794800162.681520): 0.694 0.950 3.142
+[amcl-19] [INFO] [1794800162.683268068] [amcl]: Creating bond (amcl) to lifecycle manager.
+[component_container_mt-5] [INFO] [1794800162.701471934] [obstacle_stop]: 비상 정지 켬 (stale)
+[ekf_node-8] [ERROR] [1794800162.708480961] [ekf_filter_node]: Failed to meet update rate! Took 0.020856515999999998556seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[scan_body_mask-15] [INFO] [1794800162.791721195] [scan_body_mask]: /scan_rear: 고정 칸 223칸 학습(200.7°)
+[scan_body_mask-15] [INFO] [1794800162.809617020] [scan_body_mask]: /scan_front: 고정 칸 122칸 학습(109.5°)
+[realsense2_camera_node-12] [WARN] [1794800162.837261373] [top_camera_rear]: XXX Hardware Notification:Right MIPI error,1.7948e+12,Error,Hardware Error
+[realsense2_camera_node-12] [WARN] [1794800162.837386624] [top_camera_rear]: Hardware Notification:Right MIPI error,1.7948e+12,Error,Hardware Error
+[ros2_control_node-1] [WARN] [1794800162.837482083] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800162.837767275] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 17.851155 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800162.891584643] [controller_manager]: Overrun might occur, Total time : 15188.615 us (Expected < 10000.000 us) --> Read time : 883.961 us, Update time : 10028.535 us, Write time : 4276.119 us
+[component_container_mt-5] [INFO] [1794800162.908657885] [obstacle_stop]: 비상 정지 끔 (clear)
+[amcl-19] [INFO] [1794800162.956104548] [amcl]: Message Filter dropping message: frame 'base_link' at time 1794800162.493 for reason 'the timestamp on the message is earlier than all the data in the transform cache'
+[lifecycle_manager-23] [INFO] [1794800163.268593203] [lifecycle_manager_amcl]: Server amcl connected with bond.
+[lifecycle_manager-23] [INFO] [1794800163.268693110] [lifecycle_manager_amcl]: [34m[1mManaged nodes are active[0m[0m
+[lifecycle_manager-23] [INFO] [1794800163.268746903] [lifecycle_manager_amcl]: [34m[1mCreating bond timer...[0m[0m
+[lifecycle_manager-22] [INFO] [1794800163.284339529] [lifecycle_manager_maps]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[lifecycle_manager-22] [INFO] [1794800163.593644447] [lifecycle_manager_maps]: [34m[1mStarting managed nodes bringup...[0m[0m
+[lifecycle_manager-22] [INFO] [1794800163.593804003] [lifecycle_manager_maps]: [34m[1mConfiguring map_server[0m[0m
+[map_server-16] [INFO] [1794800163.603675254] [map_server]: Configuring
+[map_server-16] [INFO] [1794800163.604106402] [map_io]: Loading yaml file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.yaml
+[map_server-16] [INFO] [1794800163.604667313] [map_io]: resolution: 0.025
+[map_server-16] [INFO] [1794800163.604694578] [map_io]: origin[0]: -0.15
+[map_server-16] [INFO] [1794800163.604702418] [map_io]: origin[1]: -0.15
+[map_server-16] [INFO] [1794800163.604709170] [map_io]: origin[2]: 0
+[map_server-16] [INFO] [1794800163.604715922] [map_io]: free_thresh: 0.25
+[map_server-16] [INFO] [1794800163.604722739] [map_io]: occupied_thresh: 0.65
+[map_server-16] [INFO] [1794800163.604733683] [map_io]: mode: trinary
+[map_server-16] [INFO] [1794800163.604743923] [map_io]: negate: 0
+[map_server-16] [INFO] [1794800163.605161823] [map_io]: Loading image_file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.pgm
+[map_server-16] [INFO] [1794800163.609770623] [map_io]: Read map /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_amcl.pgm: 191 X 267 map @ 0.025 m/cell
+[component_container_mt-5] [INFO] [1794800163.723789760] [manipulator_node]: startup: waiting for arm HOLD / E-stop release (reset button = REARM) before moving to 'DRIVE'
+[lifecycle_manager-22] [INFO] [1794800163.739335313] [lifecycle_manager_maps]: [34m[1mConfiguring map_objects_server[0m[0m
+[map_server-17] [INFO] [1794800163.747973761] [map_objects_server]: Configuring
+[map_server-17] [INFO] [1794800163.748381740] [map_io]: Loading yaml file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.yaml
+[map_server-17] [INFO] [1794800163.748953500] [map_io]: resolution: 0.025
+[map_server-17] [INFO] [1794800163.748978109] [map_io]: origin[0]: -0.15
+[map_server-17] [INFO] [1794800163.748986109] [map_io]: origin[1]: -0.15
+[map_server-17] [INFO] [1794800163.748992413] [map_io]: origin[2]: 0
+[map_server-17] [INFO] [1794800163.748998717] [map_io]: free_thresh: 0.25
+[map_server-17] [INFO] [1794800163.749004509] [map_io]: occupied_thresh: 0.65
+[map_server-17] [INFO] [1794800163.749013470] [map_io]: mode: trinary
+[map_server-17] [INFO] [1794800163.749022046] [map_io]: negate: 0
+[map_server-17] [INFO] [1794800163.749373192] [map_io]: Loading image_file: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.pgm
+[map_server-17] [INFO] [1794800163.758102394] [map_io]: Read map /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/mission_planner/share/mission_planner/maps/map_nav.pgm: 191 X 267 map @ 0.025 m/cell
+[ros2_control_node-1] [WARN] [1794800163.844760163] [diff_drive_controller]: Velocity command timed out. Braking.
+[lifecycle_manager-22] [INFO] [1794800163.874364922] [lifecycle_manager_maps]: [34m[1mActivating map_server[0m[0m
+[map_server-16] [INFO] [1794800163.883089965] [map_server]: Activating
+[map_server-16] [INFO] [1794800163.892640950] [map_server]: Creating bond (map_server) to lifecycle manager.
+[ros2_control_node-1] [WARN] [1794800163.896390174] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 16.472678 ms (missed cycles : 2).
+[amcl-19] [INFO] [1794800163.903538149] [amcl]: Received a 191 X 267 map @ 0.025 m/pix
+[component_container_mt-9] [TensorRT] Using an engine plan file across different models of devices is not supported and is likely to affect performance or even cause errors or deadlock.
+[demo_start] 시도 1: failed to check service availability: rcl node's context is invalid, at ./src/rcl/node.c:409
+[odom_icr-7] [WARN] [1794800164.352034232] [odom_icr]: IMU 없음 -> 바퀴 w 로 vy
+[amcl-19] [INFO] [1794800164.357014370] [amcl]: createLaserObject
+[component_container_mt-9] [TensorRT] WARNING The logger passed into createInferRuntime differs from one already registered for an existing builder, runtime, or refitter. So the current new logger is ignored, and TensorRT will use the existing one which is returned by nvinfer1::getLogger() instead.
+[component_container_mt-9] [TensorRT] Using an engine plan file across different models of devices is not supported and is likely to affect performance or even cause errors or deadlock.
+[component_container_mt-9] [INFO] [1794800164.761144099] [perception_node]: 검출기: tensorrt TensorRT /home/cart11/yolo_D/deploy/yolo11n_task4_E3_480_fp16.engine (입력 640×480, 클래스 4) · 해시 일치 d7cea24d68d94bd9 · 팔 tensorrt TensorRT /home/cart11/yolo_D/deploy/yolo11n_task4_E3_384_fp16.engine (입력 640×384, 클래스 4) · 해시 일치 5d09c3620eb9bc66 · 태그 사용 가능 · 마커 사용 가능
+[lifecycle_manager-22] [INFO] [1794800164.782514837] [lifecycle_manager_maps]: Server map_server connected with bond.
+[lifecycle_manager-22] [INFO] [1794800164.782622648] [lifecycle_manager_maps]: [34m[1mActivating map_objects_server[0m[0m
+[INFO] [nav2_composed-24]: process started with pid [22971]
+[map_server-17] [INFO] [1794800164.788065008] [map_objects_server]: Activating
+[map_server-17] [INFO] [1794800164.792567277] [map_objects_server]: Creating bond (map_objects_server) to lifecycle manager.
+[ros2_control_node-1] [WARN] [1794800164.856595361] [diff_drive_controller]: Velocity command timed out. Braking.
+[component_container_mt-5] [ERROR] [1794800164.870357823] [manipulator_node]: startup: arm is not at STOW (0.23 rad) nor 'DRIVE' (3.61 rad) -> not moving. Put the arm in STOW by hand (support it, 12 V off), then power on / restart bringup
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/perception_node' in container '/perception_container'
+[component_container_mt-9] [INFO] [1794800165.022220924] [perception_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_lidar.so
+[component_container_mt-9] [INFO] [1794800165.032171153] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::LocScanMergeNode>
+[component_container_mt-9] [INFO] [1794800165.032571644] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ObstacleStopNode>
+[component_container_mt-9] [INFO] [1794800165.032594237] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanBodyMaskNode>
+[component_container_mt-9] [INFO] [1794800165.032609117] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::ScanMergerNode>
+[component_container_mt-9] [INFO] [1794800165.032622877] [perception_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::ScanMergerNode>
+[ekf_node-8] [ERROR] [1794800165.182832108] [ekf_filter_node]: Failed to meet update rate! Took 0.032783152000000002901seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[loc_monitor-20] [INFO] [1794800165.209941566] [loc_monitor]: {"t": 1794800165.21, "event": "state", "state": "SUSPECT", "old": "OK", "new": "SUSPECT", "residual": 0.0498, "bad_s": 0.5}
+[ros2_control_node-1] [WARN] [1794800165.293527057] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 13.610169 ms (missed cycles : 2).
+[lifecycle_manager-22] [INFO] [1794800165.353771004] [lifecycle_manager_maps]: Server map_objects_server connected with bond.
+[lifecycle_manager-22] [INFO] [1794800165.353862718] [lifecycle_manager_maps]: [34m[1mManaged nodes are active[0m[0m
+[lifecycle_manager-22] [INFO] [1794800165.353925536] [lifecycle_manager_maps]: [34m[1mCreating bond timer...[0m[0m
+[ekf_node-8] [ERROR] [1794800165.370772916] [ekf_filter_node]: Failed to meet update rate! Took 0.022481616999999998879seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-9] [INFO] [1794800165.510029427] [scan_merger]: 라이다 2대 → /scan (base_link, 360칸)
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/scan_merger' in container '/perception_container'
+[component_container_mt-9] [INFO] [1794800165.554118300] [perception_container]: Load Library: /home/cart11/Lv2_Cartlidar_Assignment/workspace/ros2_ws/install/perception/lib/libperception_rear.so
+[component_container_mt-9] [WARN] [1794800165.591582317] [scan_merger]: 라이다 1/2대만 합침 (나머지는 없거나 0.15 s 넘게 차이)
+[component_container_mt-9] [INFO] [1794800165.688049223] [perception_container]: Found class: rclcpp_components::NodeFactoryTemplate<perception::RearObstacleNode>
+[component_container_mt-9] [INFO] [1794800165.688504915] [perception_container]: Instantiate class: rclcpp_components::NodeFactoryTemplate<perception::RearObstacleNode>
+[ekf_node-8] [ERROR] [1794800165.888737297] [ekf_filter_node]: Failed to meet update rate! Took 0.060249034999999999396seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800165.895644017] [diff_drive_controller]: Velocity command timed out. Braking.
+[ekf_node-8] [ERROR] [1794800166.078350055] [ekf_filter_node]: Failed to meet update rate! Took 0.021078473999999999822seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ekf_node-8] [ERROR] [1794800166.125639561] [ekf_filter_node]: Failed to meet update rate! Took 0.02928375800000000001seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800166.145679414] [controller_manager]: Overrun might occur, Total time : 13676.444 us (Expected < 10000.000 us) --> Read time : 288.008 us, Update time : 5150.095 us, Write time : 8238.341 us
+[component_container_mt-5] [INFO] [1794800166.203165652] [mission_node]: [준비 확인] NOT READY 11/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [실패] /localization/status: SUSPECT
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[ekf_node-8] [ERROR] [1794800166.414277951] [ekf_filter_node]: Failed to meet update rate! Took 0.020262931000000001386seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-9] [INFO] [1794800166.473444940] [rear_obstacle]: 통로 x < -0.229, |y| ≤ 0.218, 높이 0.02~0.45 m · 정지 0.40 m 미만, 해제 0.50 m 이상 3회, 입력 끊김 0.50 s
+[INFO] [launch_ros.actions.load_composable_nodes]: Loaded node '/rear_obstacle' in container '/perception_container'
+[loc_monitor-20] [INFO] [1794800166.508508378] [loc_monitor]: {"t": 1794800166.509, "event": "state", "state": "LOST", "old": "SUSPECT", "new": "LOST", "why": "residual", "residual": 0.0498, "bad_s": 2.01}
+[loc_monitor-20] [INFO] [1794800166.512195393] [loc_monitor]: {"t": 1794800166.512, "event": "state", "state": "RECOVERING", "old": "LOST", "new": "RECOVERING"}
+[component_container_mt-9] [INFO] [1794800166.575554946] [rear_obstacle]: 후방 장애물 있음 (stale)
+[ros2_control_node-1] [WARN] [1794800166.901571079] [diff_drive_controller]: Velocity command timed out. Braking.
+[arm_camera_node.py-13] [INFO] [1794800166.965723966] [arm_camera.arm_camera_driver]: 열림 /dev/arm_cam 1280x720 @ 30 fps (MJPG)
+[ros2_control_node-1] [WARN] [1794800167.085372027] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 15.455651 ms (missed cycles : 2).
+[scan_body_mask-15] [INFO] [1794800167.129279551] [scan_body_mask]: /scan_front: 스캔 64, 평균 가린 칸 120.3
+[scan_body_mask-15] [INFO] [1794800167.132272210] [scan_body_mask]: /scan_rear: 스캔 64, 평균 가린 칸 222.9
+[component_container_mt-5] [INFO] [1794800167.205739980] [mission_node]: [준비 확인] NOT READY 11/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [실패] /localization/status: RECOVERING
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[ekf_node-8] [ERROR] [1794800167.248409038] [ekf_filter_node]: Failed to meet update rate! Took 0.020523033999999999027seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[nav2_composed-24] [INFO] [1794800167.257294789] [controller_server]: 
+[nav2_composed-24] 	controller_server lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800167.562742734] [controller_server]: Creating controller server
+[ros2_control_node-1] [WARN] [1794800167.909180490] [diff_drive_controller]: Velocity command timed out. Braking.
+[ekf_node-8] [ERROR] [1794800168.080855309] [ekf_filter_node]: Failed to meet update rate! Took 0.024774961000000001593seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800168.092915932] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.999780 ms (missed cycles : 2).
+[nav2_composed-24] [INFO] [1794800168.137559988] [local_costmap.local_costmap]: 
+[nav2_composed-24] 	local_costmap lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800168.139088543] [local_costmap.local_costmap]: Creating Costmap
+[nav2_composed-24] [INFO] [1794800168.139616910] [nav2_composed]: 실음: controller_server (nav2_controller::ControllerServer)
+[loc_monitor-20] [INFO] [1794800168.297948030] [loc_monitor]: {"t": 1794800168.298, "event": "report", "state": "RECOVERING", "n_check": 38, "n_skip": 23, "res_p50": 0.0498, "res_p95": 0.0511, "res_max": 0.0517, "traj": 1}
+[nav2_composed-24] [INFO] [1794800168.761467343] [planner_server]: 
+[nav2_composed-24] 	planner_server lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800168.786983284] [planner_server]: Creating
+[ros2_control_node-1] [WARN] [1794800168.915199839] [controller_manager]: Overrun might occur, Total time : 12079.824 us (Expected < 10000.000 us) --> Read time : 146.884 us, Update time : 11849.289 us, Write time : 83.651 us
+[ros2_control_node-1] [WARN] [1794800168.920332333] [diff_drive_controller]: Velocity command timed out. Braking.
+[loc_monitor-20] [INFO] [1794800169.073885273] [loc_monitor]: {"t": 1794800169.074, "event": "search_global", "state": "RECOVERING", "best": [0.663, 1.023, 3.089], "score": 8e-04, "second": [3.7555000000000005, 5.2925, -0.046251225177853204], "second_score": 0.014388457871973515, "n_cand": 137448, "wall_s": 2.52}
+[loc_monitor-20] [INFO] [1794800169.074319045] [loc_monitor]: {"t": 1794800169.074, "event": "motion_comp", "state": "RECOVERING", "dxy": 0.0, "dyaw_deg": 0.0}
+[loc_monitor-20] [INFO] [1794800169.074997399] [loc_monitor]: {"t": 1794800169.075, "event": "initialpose", "state": "RECOVERING", "mission_pose": [0.6627, 1.0225, 3.0892]}
+[loc_monitor-20] [INFO] [1794800169.075264479] [loc_monitor]: {"t": 1794800169.075, "event": "state", "state": "CONFIRM", "old": "RECOVERING", "new": "CONFIRM", "pose": [0.663, 1.022, 3.089], "score": 8e-04}
+[amcl-19] [INFO] [1794800169.080605459] [amcl]: initialPoseReceived
+[amcl-19] [WARN] [1794800169.080825049] [amcl]: Failed to transform initial pose in time (Lookup would require extrapolation into the future.  Requested time 1794800169.080714 but the latest data is at time 1794800169.063029, when looking up transform from frame [base_link] to frame [odom])
+[amcl-19] [INFO] [1794800169.080870555] [amcl]: Setting pose (1794800169.080868): 0.663 1.022 3.089
+[component_container_mt-5] [INFO] [1794800169.199555357] [mission_node]: [준비 확인] NOT READY 11/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [실패] /localization/status: CONFIRM
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[ros2_control_node-1] [WARN] [1794800169.501135769] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.214689 ms (missed cycles : 2).
+[nav2_composed-24] [INFO] [1794800169.518518332] [global_costmap.global_costmap]: 
+[nav2_composed-24] 	global_costmap lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800169.520691928] [global_costmap.global_costmap]: Creating Costmap
+[nav2_composed-24] [INFO] [1794800169.526983239] [nav2_composed]: 실음: planner_server (nav2_planner::PlannerServer)
+[nav2_composed-24] [INFO] [1794800169.825460205] [behavior_server]: 
+[nav2_composed-24] 	behavior_server lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800169.835497284] [nav2_composed]: 실음: behavior_server (behavior_server::BehaviorServer)
+[nav2_composed-24] [INFO] [1794800169.901680595] [velocity_smoother]: 
+[nav2_composed-24] 	velocity_smoother lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800169.902085791] [nav2_composed]: 실음: velocity_smoother (nav2_velocity_smoother::VelocitySmoother)
+[ros2_control_node-1] [WARN] [1794800169.920400604] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800169.996963051] [controller_manager]: Overrun might occur, Total time : 15236.968 us (Expected < 10000.000 us) --> Read time : 493.870 us, Update time : 5974.182 us, Write time : 8768.916 us
+[nav2_composed-24] [INFO] [1794800170.200832652] [bt_navigator]: 
+[nav2_composed-24] 	bt_navigator lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800170.207163356] [bt_navigator]: Creating
+[nav2_composed-24] [INFO] [1794800170.207543174] [nav2_composed]: 실음: bt_navigator (nav2_bt_navigator::BtNavigator)
+[nav2_composed-24] [INFO] [1794800170.311931707] [collision_monitor]: 
+[nav2_composed-24] 	collision_monitor lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800170.312470314] [nav2_composed]: 실음: collision_monitor (nav2_collision_monitor::CollisionMonitor)
+[loc_monitor-20] [INFO] [1794800170.593049886] [loc_monitor]: {"t": 1794800170.593, "event": "state", "state": "OK", "old": "CONFIRM", "new": "OK", "residual": 0.0096, "recover_s": 4.08}
+[ros2_control_node-1] [WARN] [1794800170.920760848] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800171.041612750] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.696022 ms (missed cycles : 2).
+[component_container_mt-5] [INFO] [1794800171.174576957] [mission_node]: [준비 확인] NOT READY 12/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: is_active 서비스 없음
+[ros2_control_node-1] [WARN] [1794800171.933356215] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800172.644932337] [controller_manager]: Overrun might occur, Total time : 12457.786 us (Expected < 10000.000 us) --> Read time : 143.940 us, Update time : 264.647 us, Write time : 12049.199 us
+[ros2_control_node-1] [WARN] [1794800172.645076629] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 15.159709 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800172.940293344] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800173.492142179] [lifecycle_manager_navigation]: Creating
+[nav2_composed-24] [INFO] [1794800173.494180956] [nav2_composed]: 실음: lifecycle_manager_navigation (nav2_lifecycle_manager::LifecycleManager)
+[nav2_composed-24] [INFO] [1794800173.495797641] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[nav2_composed-24] [INFO] [1794800173.517860685] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[ros2_control_node-1] [WARN] [1794800173.653116795] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 13.201123 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800173.944872133] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800174.044857310] [lifecycle_manager_navigation]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[ros2_control_node-1] [WARN] [1794800174.079808713] [controller_manager]: Overrun might occur, Total time : 18657.639 us (Expected < 10000.000 us) --> Read time : 1359.174 us, Update time : 8369.289 us, Write time : 8929.176 us
+[ekf_node-8] [ERROR] [1794800174.084567149] [ekf_filter_node]: Failed to meet update rate! Took 0.027227380999999998418seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[nav2_composed-24] [INFO] [1794800174.152835478] [lifecycle_manager_navigation]: [34m[1mStarting managed nodes bringup...[0m[0m
+[nav2_composed-24] [INFO] [1794800174.152959769] [lifecycle_manager_navigation]: [34m[1mConfiguring controller_server[0m[0m
+[nav2_composed-24] [INFO] [1794800174.155308763] [controller_server]: Configuring controller interface
+[nav2_composed-24] [INFO] [1794800174.155934380] [local_costmap.local_costmap]: Configuring
+[component_container_mt-5] [INFO] [1794800174.166771065] [mission_node]: [준비 확인] NOT READY 12/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: 응답 기다림
+[nav2_composed-24] [INFO] [1794800174.273425068] [local_costmap.local_costmap]: Using plugin "static_layer"
+[component_container_mt-5] [INFO] [1794800174.288244232] [mission_node]: [준비 확인] NOT READY 12/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: 응답 기다림
+[component_container_mt-5] [ERROR] [1794800174.288376043] [mission_node]: 시작 거절 — not ready: /mission_planner/plan (계획기) (서버 없음), lifecycle_manager_navigation (응답 기다림)
+[nav2_composed-24] [INFO] [1794800174.315463964] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[nav2_composed-24] [INFO] [1794800174.347653754] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[nav2_composed-24] [INFO] [1794800174.348075366] [local_costmap.local_costmap]: Using plugin "objects_layer"
+[nav2_composed-24] [INFO] [1794800174.350659630] [local_costmap.local_costmap]: Subscribing to the map topic (/map_objects) with transient local durability
+[nav2_composed-24] [INFO] [1794800174.389894864] [local_costmap.local_costmap]: Initialized plugin "objects_layer"
+[nav2_composed-24] [INFO] [1794800174.389983186] [local_costmap.local_costmap]: Using plugin "obstacle_layer"
+[nav2_composed-24] [INFO] [1794800174.396051739] [local_costmap.local_costmap]: Subscribed to Topics: scan
+[nav2_composed-24] [INFO] [1794800174.429487419] [local_costmap.local_costmap]: Initialized plugin "obstacle_layer"
+[nav2_composed-24] [INFO] [1794800174.429614015] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[nav2_composed-24] [INFO] [1794800174.431219308] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[ekf_node-8] [ERROR] [1794800174.700519653] [ekf_filter_node]: Failed to meet update rate! Took 0.026086036999999999419seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[component_container_mt-5] [ERROR] [1794800174.915153391] [manipulator_node]: startup: arm is not at STOW (0.23 rad) nor 'DRIVE' (3.61 rad) -> not moving. Put the arm in STOW by hand (support it, 12 V off), then power on / restart bringup
+[ros2_control_node-1] [WARN] [1794800174.953718911] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800175.123373512] [controller_manager]: Overrun might occur, Total time : 13343.379 us (Expected < 10000.000 us) --> Read time : 2033.913 us, Update time : 11230.072 us, Write time : 79.394 us
+[ros2_control_node-1] [WARN] [1794800175.123495179] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 13.579283 ms (missed cycles : 2).
+[nav2_composed-24] [INFO] [1794800175.301177939] [controller_server]: Controller frequency set to 20.0000Hz
+[nav2_composed-24] [INFO] [1794800175.301274677] [controller_server]: getting progress checker plugins..
+[nav2_composed-24] [INFO] [1794800175.301402521] [controller_server]: getting goal checker plugins..
+[nav2_composed-24] [INFO] [1794800175.301499772] [controller_server]: getting controller plugins..
+[nav2_composed-24] [INFO] [1794800175.301590142] [controller_server]: getting path handler plugins..
+[nav2_composed-24] [INFO] [1794800175.303568725] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[nav2_composed-24] [INFO] [1794800175.303663448] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[nav2_composed-24] [INFO] [1794800175.304882490] [controller_server]: Created goal checker : general_goal_checker of type nav2_controller::SimpleGoalChecker
+[nav2_composed-24] [INFO] [1794800175.304949915] [controller_server]: Controller Server has general_goal_checker  goal checkers available.
+[nav2_composed-24] [INFO] [1794800175.306343810] [controller_server]: Created path handler : PathHandler of type nav2_controller::FeasiblePathHandler
+[nav2_composed-24] [INFO] [1794800175.306406628] [controller_server]: Controller Server has PathHandler  path handlers available.
+[nav2_composed-24] [INFO] [1794800175.316037743] [controller_server]: Created controller : FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[nav2_composed-24] [INFO] [1794800175.321397540] [controller_server]: Created internal controller for rotation shimming: FollowPath of type nav2_mppi_controller::MPPIController
+[nav2_composed-24] [INFO] [1794800175.322629095] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[nav2_composed-24] [INFO] [1794800175.323171638] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[nav2_composed-24] [INFO] [1794800175.325300433] [controller_server]: Loaded motion model plugin: mppi::DiffDriveMotionModel
+[nav2_composed-24] [INFO] [1794800175.325407988] [controller_server]: Controller period is equal to model dt. Control sequence shifting is ON
+[nav2_composed-24] [INFO] [1794800175.341444273] [controller_server]: ConstraintCritic instantiated with 1 power and 4.000000 weight.
+[nav2_composed-24] [INFO] [1794800175.343078495] [controller_server]: Critic loaded : mppi::critics::ConstraintCritic
+[nav2_composed-24] [WARN] [1794800175.343782706] [controller_server]: Near collision cost is set higher than INSCRIBED_INFLATED_OBSTACLE
+[nav2_composed-24] [INFO] [1794800175.343835700] [controller_server]: InflationCostCritic instantiated with 1 power and 300.000000 / 0.015000 weights. Critic will collision check based on footprint cost.
+[nav2_composed-24] [INFO] [1794800175.343895573] [controller_server]: Critic loaded : mppi::critics::CostCritic
+[nav2_composed-24] [INFO] [1794800175.344151644] [controller_server]: GoalCritic instantiated with 1 power and 5.000000 weight.
+[nav2_composed-24] [INFO] [1794800175.344183805] [controller_server]: Critic loaded : mppi::critics::GoalCritic
+[nav2_composed-24] [INFO] [1794800175.344458949] [controller_server]: GoalAngleCritic instantiated with 1 power, 3.000000 weight, 0.150000 angular threshold and symmetric_yaw_tolerance disabled
+[nav2_composed-24] [INFO] [1794800175.344494086] [controller_server]: Critic loaded : mppi::critics::GoalAngleCritic
+[nav2_composed-24] [INFO] [1794800175.344770222] [controller_server]: ReferenceTrajectoryCritic instantiated with 1 power and 28.000000 weight
+[nav2_composed-24] [INFO] [1794800175.344798958] [controller_server]: Critic loaded : mppi::critics::PathAlignCritic
+[nav2_composed-24] [INFO] [1794800175.345134360] [controller_server]: Critic loaded : mppi::critics::PathFollowCritic
+[nav2_composed-24] [INFO] [1794800175.345446016] [controller_server]: PathAngleCritic instantiated with 1 power and 2.000000 weight. Mode set to: Forward Preference
+[nav2_composed-24] [INFO] [1794800175.345481217] [controller_server]: Critic loaded : mppi::critics::PathAngleCritic
+[nav2_composed-24] [INFO] [1794800175.345669287] [controller_server]: PreferForwardCritic instantiated with 1 power and 5.000000 weight.
+[nav2_composed-24] [INFO] [1794800175.345699527] [controller_server]: Critic loaded : mppi::critics::PreferForwardCritic
+[nav2_composed-24] [INFO] [1794800175.357156806] [controller_server]: Loaded trajectory validator plugin: mppi::DefaultOptimalTrajectoryValidator
+[nav2_composed-24] [INFO] [1794800175.367170684] [controller_server]: Optimizer reset
+[nav2_composed-24] [INFO] [1794800175.379256236] [MPPIController]: Configured MPPI Controller: FollowPath.primary_controller
+[nav2_composed-24] [INFO] [1794800175.379329742] [controller_server]: Controller Server has FollowPath  controllers available.
+[nav2_composed-24] [WARN] [1794800175.475058865] [nav2::interfaces]: [1] Message was dropped on topic [/odometry/filtered] due to queue size or network constraints.
+[nav2_composed-24] [INFO] [1794800175.549829966] [lifecycle_manager_navigation]: [34m[1mConfiguring planner_server[0m[0m
+[nav2_composed-24] [INFO] [1794800175.558723461] [planner_server]: Configuring
+[nav2_composed-24] [INFO] [1794800175.558878441] [global_costmap.global_costmap]: Configuring
+[ekf_node-8] [ERROR] [1794800175.602058393] [ekf_filter_node]: Failed to meet update rate! Took 0.021649818000000001228seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[demo_start] 시도 2: 
+[ekf_node-8] [ERROR] [1794800175.736170246] [ekf_filter_node]: Failed to meet update rate! Took 0.026514880000000001087seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[nav2_composed-24] [INFO] [1794800175.786224597] [global_costmap.global_costmap]: Using plugin "static_layer"
+[nav2_composed-24] [INFO] [1794800175.801832614] [global_costmap.global_costmap]: Subscribing to the map topic (/map) with transient local durability
+[nav2_composed-24] [INFO] [1794800175.828038238] [global_costmap.global_costmap]: Initialized plugin "static_layer"
+[nav2_composed-24] [INFO] [1794800175.828106656] [global_costmap.global_costmap]: Using plugin "objects_layer"
+[nav2_composed-24] [INFO] [1794800175.828515243] [global_costmap.global_costmap]: Subscribing to the map topic (/map_objects) with transient local durability
+[ekf_node-8] [ERROR] [1794800175.836205345] [ekf_filter_node]: Failed to meet update rate! Took 0.028037003000000001313seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[nav2_composed-24] [INFO] [1794800175.851593164] [global_costmap.global_costmap]: Initialized plugin "objects_layer"
+[nav2_composed-24] [INFO] [1794800175.852101979] [global_costmap.global_costmap]: Using plugin "obstacle_layer"
+[nav2_composed-24] [INFO] [1794800175.853807050] [global_costmap.global_costmap]: Subscribed to Topics: scan
+[ros2_control_node-1] [WARN] [1794800175.962886624] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800175.989336671] [global_costmap.global_costmap]: Initialized plugin "obstacle_layer"
+[nav2_composed-24] [INFO] [1794800175.989420033] [global_costmap.global_costmap]: Using plugin "inflation_layer"
+[nav2_composed-24] [INFO] [1794800175.989906159] [global_costmap.global_costmap]: Initialized plugin "inflation_layer"
+[ros2_control_node-1] [WARN] [1794800176.271822565] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.906701 ms (missed cycles : 2).
+[nav2_composed-24] [INFO] [1794800176.416023979] [global_costmap.global_costmap]: StaticLayer: Resizing costmap to 191 X 267 at 0.025000 m/pix
+[nav2_composed-24] [WARN] [1794800176.416136334] [global_costmap.global_costmap]: StaticLayer: Costmap origin coordinates are not perfectly aligned with the resolution. This may cause misalignment aliasing between rolling and non-rolling costmaps.
+[nav2_composed-24] Map origin: (-0, -0) | Resolution: 0
+[nav2_composed-24] [INFO] [1794800176.429457856] [planner_server]: Created global planner plugin GridBased of type nav2_smac_planner::SmacPlanner2D
+[nav2_composed-24] [INFO] [1794800176.429607428] [planner_server]: Configuring GridBased of type SmacPlanner2D
+[nav2_composed-24] [ERROR] [1794800176.433175783] [planner_server]: Inflation layer either not found or inflation is not set sufficiently for optimized non-circular collision checking capabilities. It is HIGHLY recommended to set the inflation radius to be at MINIMUM half of the robot's largest cross-section. See github.com/ros-planning/navigation2/tree/main/nav2_smac_planner#potential-fields for full instructions. This will substantially impact run-time performance.
+[nav2_composed-24] [INFO] [1794800176.470293198] [planner_server]: Configured plugin GridBased of type SmacPlanner2D with tolerance 0.05, maximum iterations 1000000, max on approach iterations 1000, and not allowing unknown traversal.
+[nav2_composed-24] [INFO] [1794800176.471938076] [planner_server]: Planner Server has GridBased  planners available.
+[ros2_control_node-1] [WARN] [1794800176.732038197] [controller_manager]: Overrun might occur, Total time : 11927.788 us (Expected < 10000.000 us) --> Read time : 6020.455 us, Update time : 241.479 us, Write time : 5665.854 us
+[nav2_composed-24] [INFO] [1794800176.914233050] [lifecycle_manager_navigation]: [34m[1mConfiguring behavior_server[0m[0m
+[nav2_composed-24] [INFO] [1794800176.935118302] [behavior_server]: Configuring
+[ros2_control_node-1] [WARN] [1794800176.963245035] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800177.062070660] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[nav2_composed-24] [INFO] [1794800177.072464453] [behavior_server]: Creating behavior plugin backup of type nav2_behaviors::BackUp
+[nav2_composed-24] [INFO] [1794800177.081066228] [behavior_server]: Creating behavior plugin wait of type nav2_behaviors::Wait
+[scan_body_mask-15] [INFO] [1794800177.128544026] [scan_body_mask]: /scan_front: 스캔 164, 평균 가린 칸 121.2
+[scan_body_mask-15] [INFO] [1794800177.128683742] [scan_body_mask]: /scan_rear: 스캔 164, 평균 가린 칸 222.8
+[nav2_composed-24] [INFO] [1794800177.137156298] [behavior_server]: Configuring spin
+[ros2_control_node-1] [WARN] [1794800177.360761132] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.842644 ms (missed cycles : 2).
+[nav2_composed-24] [INFO] [1794800177.482602405] [behavior_server]: Configuring backup
+[nav2_composed-24] [INFO] [1794800177.785520194] [behavior_server]: Configuring wait
+[ros2_control_node-1] [WARN] [1794800177.983718307] [diff_drive_controller]: Velocity command timed out. Braking.
+[ekf_node-8] [ERROR] [1794800178.050478817] [ekf_filter_node]: Failed to meet update rate! Took 0.021406450999999999951seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[nav2_composed-24] [INFO] [1794800178.089404571] [lifecycle_manager_navigation]: [34m[1mConfiguring velocity_smoother[0m[0m
+[nav2_composed-24] [INFO] [1794800178.089963914] [velocity_smoother]: Configuring velocity smoother
+[nav2_composed-24] [INFO] [1794800178.143763872] [lifecycle_manager_navigation]: [34m[1mConfiguring collision_monitor[0m[0m
+[nav2_composed-24] [INFO] [1794800178.144328080] [collision_monitor]: Configuring
+[nav2_composed-24] [INFO] [1794800178.182531221] [collision_monitor]: [scan]: Creating Scan
+[nav2_composed-24] [INFO] [1794800178.206565425] [collision_monitor]: [FootprintApproach]: Creating Polygon
+[nav2_composed-24] [INFO] [1794800178.210723940] [collision_monitor]: [FootprintApproach]: Polygon points are not defined. Using dynamic subscription instead.
+[nav2_composed-24] [INFO] [1794800178.213756184] [collision_monitor]: [FootprintApproach]: Making footprint subscriber on /local_costmap/published_footprint topic
+[ros2_control_node-1] [WARN] [1794800178.215690894] [controller_manager]: Overrun might occur, Total time : 24086.909 us (Expected < 10000.000 us) --> Read time : 482.573 us, Update time : 16548.364 us, Write time : 7055.972 us
+[loc_monitor-20] [INFO] [1794800178.295453717] [loc_monitor]: {"t": 1794800178.295, "event": "report", "state": "OK", "n_check": 101, "n_skip": 0, "res_p50": 0.0139, "res_p95": 0.0507, "res_max": 0.0511, "traj": 1}
+[ros2_control_node-1] [WARN] [1794800178.450187167] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.269799 ms (missed cycles : 2).
+[nav2_composed-24] [INFO] [1794800178.511313793] [collision_monitor]: Collision monitor is enabled at startup.
+[nav2_composed-24] [INFO] [1794800178.523408433] [lifecycle_manager_navigation]: [34m[1mConfiguring bt_navigator[0m[0m
+[nav2_composed-24] [INFO] [1794800178.525390568] [bt_navigator]: Configuring
+[nav2_composed-24] [INFO] [1794800178.587327936] [bt_navigator]: Creating navigator id navigate_to_pose of type nav2_bt_navigator::NavigateToPoseNavigator
+[nav2_composed-24] [WARN] [1794800178.599819707] [bt_navigator]: error_code_name_prefixes parameters were not set. Using default values of: assisted_teleop backup compute_path dock_robot drive_on_heading follow_object follow_path nav_thru_poses nav_to_pose spin undock_robot wait
+[nav2_composed-24] Make sure these match your BT and there are not other sources of error codes youreported to your application
+[nav2_composed-24] [INFO] [1794800178.975986154] [bt_navigator_navigate_to_pose_rclcpp_node]: 
+[nav2_composed-24] 	bt_navigator_navigate_to_pose_rclcpp_node lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[ros2_control_node-1] [WARN] [1794800178.991667934] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800179.454276878] [bt_navigator]: Creating navigator id navigate_through_poses of type nav2_bt_navigator::NavigateThroughPosesNavigator
+[nav2_composed-24] [WARN] [1794800179.460206322] [bt_navigator]: error_code_name_prefixes parameters were not set. Using default values of: assisted_teleop backup compute_path dock_robot drive_on_heading follow_object follow_path nav_thru_poses nav_to_pose spin undock_robot wait
+[nav2_composed-24] Make sure these match your BT and there are not other sources of error codes youreported to your application
+[ros2_control_node-1] [WARN] [1794800179.498242227] [controller_manager]: Overrun might occur, Total time : 29157.385 us (Expected < 10000.000 us) --> Read time : 1841.683 us, Update time : 18629.957 us, Write time : 8685.745 us
+[ros2_control_node-1] [WARN] [1794800179.506788320] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 66.735972 ms (missed cycles : 7).
+[nav2_composed-24] [INFO] [1794800179.577110689] [bt_navigator_navigate_through_poses_rclcpp_node]: 
+[nav2_composed-24] 	bt_navigator_navigate_through_poses_rclcpp_node lifecycle node launched. 
+[nav2_composed-24] 	Waiting on external lifecycle transitions to activate
+[nav2_composed-24] 	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[nav2_composed-24] [INFO] [1794800179.711259535] [lifecycle_manager_navigation]: [34m[1mActivating controller_server[0m[0m
+[nav2_composed-24] [INFO] [1794800179.719016710] [controller_server]: Activating
+[nav2_composed-24] [INFO] [1794800179.719140458] [local_costmap.local_costmap]: Activating
+[nav2_composed-24] [INFO] [1794800179.719195147] [local_costmap.local_costmap]: Checking transform
+[nav2_composed-24] [INFO] [1794800179.719476499] [local_costmap.local_costmap]: start
+[ekf_node-8] [ERROR] [1794800179.731922637] [ekf_filter_node]: Failed to meet update rate! Took 0.022583731999999998724seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[nav2_composed-24] [INFO] [1794800179.880856277] [controller_server]: Activating controller: FollowPath of type nav2_rotation_shim_controller::RotationShimController
+[nav2_composed-24] [INFO] [1794800179.883272472] [MPPIController]: Activated MPPI Controller: FollowPath.primary_controller
+[nav2_composed-24] [INFO] [1794800179.890266618] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[ros2_control_node-1] [WARN] [1794800179.996764872] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800180.190224772] [lifecycle_manager_navigation]: Server controller_server connected with bond.
+[nav2_composed-24] [INFO] [1794800180.190309383] [lifecycle_manager_navigation]: [34m[1mActivating planner_server[0m[0m
+[nav2_composed-24] [INFO] [1794800180.191451878] [planner_server]: Activating
+[nav2_composed-24] [INFO] [1794800180.191607755] [global_costmap.global_costmap]: Activating
+[nav2_composed-24] [INFO] [1794800180.191642828] [global_costmap.global_costmap]: Checking transform
+[nav2_composed-24] [INFO] [1794800180.191850385] [global_costmap.global_costmap]: start
+[nav2_composed-24] [INFO] [1794800180.719027170] [planner_server]: Activating plugin GridBased of type SmacPlanner2D
+[nav2_composed-24] [INFO] [1794800180.734632787] [planner_server]: Creating bond (planner_server) to lifecycle manager.
+[ros2_control_node-1] [WARN] [1794800180.755787006] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 15.868070 ms (missed cycles : 2).
+[ekf_node-8] [ERROR] [1794800180.760362813] [ekf_filter_node]: Failed to meet update rate! Took 0.024701902000000001275seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800181.001181757] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800181.016755662] [lifecycle_manager_navigation]: Server planner_server connected with bond.
+[nav2_composed-24] [INFO] [1794800181.016844816] [lifecycle_manager_navigation]: [34m[1mActivating behavior_server[0m[0m
+[nav2_composed-24] [INFO] [1794800181.018331449] [behavior_server]: Activating
+[nav2_composed-24] [INFO] [1794800181.018386875] [behavior_server]: Activating spin
+[nav2_composed-24] [INFO] [1794800181.018435036] [behavior_server]: Activating backup
+[nav2_composed-24] [INFO] [1794800181.018531455] [behavior_server]: Activating wait
+[nav2_composed-24] [INFO] [1794800181.018563904] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[nav2_composed-24] [INFO] [1794800181.306094416] [lifecycle_manager_navigation]: Server behavior_server connected with bond.
+[nav2_composed-24] [INFO] [1794800181.306185043] [lifecycle_manager_navigation]: [34m[1mActivating velocity_smoother[0m[0m
+[nav2_composed-24] [INFO] [1794800181.308847325] [velocity_smoother]: Activating
+[nav2_composed-24] [INFO] [1794800181.310226947] [velocity_smoother]: Creating bond (velocity_smoother) to lifecycle manager.
+[nav2_composed-24] [INFO] [1794800181.652696105] [lifecycle_manager_navigation]: Server velocity_smoother connected with bond.
+[nav2_composed-24] [INFO] [1794800181.652780300] [lifecycle_manager_navigation]: [34m[1mActivating collision_monitor[0m[0m
+[nav2_composed-24] [INFO] [1794800181.653921291] [collision_monitor]: Activating
+[nav2_composed-24] [INFO] [1794800181.654061135] [collision_monitor]: Creating bond (collision_monitor) to lifecycle manager.
+[ros2_control_node-1] [WARN] [1794800182.002486043] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800182.005643122] [lifecycle_manager_navigation]: Server collision_monitor connected with bond.
+[nav2_composed-24] [INFO] [1794800182.005744021] [lifecycle_manager_navigation]: [34m[1mActivating bt_navigator[0m[0m
+[nav2_composed-24] [INFO] [1794800182.011776541] [bt_navigator]: Activating
+[nav2_composed-24] [WARN] [1794800182.040987560] [bt_navigator]: Skipping conflicting BT XML files, multiple files have the same ID. Please set unique behavior tree IDs. This may affect loading of subtrees. Files not loaded: /opt/ros/lyrical/share/nav2_bt_navigator/behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml
+[ros2_control_node-1] [WARN] [1794800182.062303000] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.387168 ms (missed cycles : 2).
+[ekf_node-8] [ERROR] [1794800182.234059449] [ekf_filter_node]: Failed to meet update rate! Took 0.025379072999999998522seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800183.007287831] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800183.081204828] [bt_navigator]: Created BT from ID: NavigateToPoseWReplanningAndRecovery
+[ros2_control_node-1] [WARN] [1794800183.149918128] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 10.002232 ms (missed cycles : 2).
+[component_container_mt-5] [INFO] [1794800183.281185581] [mission_node]: [준비 확인] NOT READY 12/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [대기] lifecycle_manager_navigation: 응답 기다림
+[component_container_mt-5] [ERROR] [1794800183.281293424] [mission_node]: 시작 거절 — not ready: /mission_planner/plan (계획기) (서버 없음), lifecycle_manager_navigation (응답 기다림)
+[ros2_control_node-1] [WARN] [1794800183.306420393] [controller_manager]: Overrun might occur, Total time : 12655.647 us (Expected < 10000.000 us) --> Read time : 272.904 us, Update time : 3831.210 us, Write time : 8551.533 us
+[ros2_control_node-1] [WARN] [1794800184.017881684] [diff_drive_controller]: Velocity command timed out. Braking.
+[nav2_composed-24] [INFO] [1794800184.035637409] [bt_navigator]: Created BT from ID: NavigateThroughPosesWReplanningAndRecovery
+[nav2_composed-24] [INFO] [1794800184.058879750] [bt_navigator]: Creating bond (bt_navigator) to lifecycle manager.
+[nav2_composed-24] [INFO] [1794800184.367728741] [lifecycle_manager_navigation]: Server bt_navigator connected with bond.
+[nav2_composed-24] [INFO] [1794800184.367850056] [lifecycle_manager_navigation]: [34m[1mManaged nodes are active[0m[0m
+[nav2_composed-24] [INFO] [1794800184.367974188] [lifecycle_manager_navigation]: [34m[1mCreating bond timer...[0m[0m
+[demo_start] 시도 3: 
+[component_container_mt-5] [ERROR] [1794800184.962466566] [manipulator_node]: startup: arm is not at STOW (0.23 rad) nor 'DRIVE' (3.61 rad) -> not moving. Put the arm in STOW by hand (support it, 12 V off), then power on / restart bringup
+[ros2_control_node-1] [WARN] [1794800185.020435087] [diff_drive_controller]: Velocity command timed out. Braking.
+[component_container_mt-5] [INFO] [1794800185.183734917] [mission_node]: [준비 확인] NOT READY 13/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [대기] /mission_planner/plan (계획기): 서버 없음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [ OK ] lifecycle_manager_navigation: 모든 노드 active
+[ros2_control_node-1] [WARN] [1794800186.030603420] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800187.040687557] [diff_drive_controller]: Velocity command timed out. Braking.
+[scan_body_mask-15] [INFO] [1794800187.127889978] [scan_body_mask]: /scan_front: 스캔 265, 평균 가린 칸 121.3
+[scan_body_mask-15] [INFO] [1794800187.127985341] [scan_body_mask]: /scan_rear: 스캔 265, 평균 가린 칸 222.7
+[ros2_control_node-1] [WARN] [1794800187.383350446] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 13.433974 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800188.043826476] [diff_drive_controller]: Velocity command timed out. Braking.
+[loc_monitor-20] [INFO] [1794800188.293570145] [loc_monitor]: {"t": 1794800188.294, "event": "report", "state": "OK", "n_check": 100, "n_skip": 0, "res_p50": 0.0141, "res_p95": 0.015, "res_max": 0.016, "traj": 1}
+[ros2_control_node-1] [WARN] [1794800189.050610967] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800190.052609051] [diff_drive_controller]: Velocity command timed out. Braking.
+[ekf_node-8] [ERROR] [1794800190.660219963] [ekf_filter_node]: Failed to meet update rate! Took 0.032203422000000002379seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800191.025972739] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 16.056331 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800191.056824027] [diff_drive_controller]: Velocity command timed out. Braking.
+[loc_scan_merge-18] [INFO] [1794800191.168948067] [scan_merge]: 합친 스캔 300 (같은 시각 뒤 스캔 0, 뒤 스캔 못 붙임 1)
+[ros2_control_node-1] [WARN] [1794800192.057538937] [diff_drive_controller]: Velocity command timed out. Braking.
+[mission_planner_node-21] [INFO] [1794800192.512552268] [mission_planner_node]: ready (mode hybrid, stop_after none, avoid_slots [], row_rule free, pucks /home/cart11/Lv2_Cartlidar_Assignment/mission_log/pucks_survey.yaml, log /home/cart11/Lv2_Cartlidar_Assignment/mission_log/planner)
+[component_container_mt-5] [INFO] [1794800192.904922037] [mission_node]: [준비 확인] READY 14/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [ OK ] /mission_planner/plan (계획기): 있음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [ OK ] lifecycle_manager_navigation: 모든 노드 active
+[component_container_mt-5] [INFO] [1794800193.006334164] [mission_node]: mission log: /home/cart11/Lv2_Cartlidar_Assignment/mission_log/261116_1236
+[component_container_mt-5] [INFO] [1794800193.006577946] [mission_node]: mission start (plan)
+[component_container_mt-5] [INFO] [1794800193.006857314] [mission_node]: -> [0] observe
+[ros2_control_node-1] [WARN] [1794800193.011725289] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.808913 ms (missed cycles : 2).
+[component_container_mt-5] [WARN] [1794800193.036864867] [manipulator_node]: execute_skill: startup to 'DRIVE' not finished (REARM, wait for 'startup: arm at DRIVE') -> reject
+[component_container_mt-5] [WARN] [1794800193.038033411] [mission_node]: [0] observe failed: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-5] [INFO] [1794800193.038116294] [mission_node]: retry 1/2 -> [0] observe in 1.0s
+[ros2_control_node-1] [WARN] [1794800193.060289197] [diff_drive_controller]: Velocity command timed out. Braking.
+[demo_start] 시도 4: 
+[ros2_control_node-1] [WARN] [1794800194.060583292] [diff_drive_controller]: Velocity command timed out. Braking.
+[component_container_mt-5] [INFO] [1794800194.064693710] [mission_node]: -> [0] observe
+[component_container_mt-5] [WARN] [1794800194.065969937] [mission_node]: [0] observe failed: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-5] [INFO] [1794800194.066041171] [mission_node]: retry 2/2 -> [0] observe in 1.0s
+[component_container_mt-5] [ERROR] [1794800195.010902398] [manipulator_node]: startup: arm is not at STOW (0.23 rad) nor 'DRIVE' (3.61 rad) -> not moving. Put the arm in STOW by hand (support it, 12 V off), then power on / restart bringup
+[component_container_mt-5] [INFO] [1794800195.066756108] [mission_node]: -> [0] observe
+[component_container_mt-5] [WARN] [1794800195.071087876] [manipulator_node]: execute_skill: startup to 'DRIVE' not finished (REARM, wait for 'startup: arm at DRIVE') -> reject
+[ros2_control_node-1] [WARN] [1794800195.071286730] [diff_drive_controller]: Velocity command timed out. Braking.
+[component_container_mt-5] [WARN] [1794800195.072324038] [mission_node]: [0] observe failed: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-5] [ERROR] [1794800195.072454314] [mission_node]: -> FAILED: observe failed after 2 retries: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-9] [INFO] [1794800195.076067918] [perception_node]: 모드 0 → 0
+[component_container_mt-5] [INFO] [1794800195.166844325] [mission_node]: [준비 확인] READY 14/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [ OK ] /mission_planner/plan (계획기): 있음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [ OK ] lifecycle_manager_navigation: 모든 노드 active
+[ros2_control_node-1] [WARN] [1794800196.061657186] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.739818 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800196.081122494] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800197.083035061] [diff_drive_controller]: Velocity command timed out. Braking.
+[scan_body_mask-15] [INFO] [1794800197.128901710] [scan_body_mask]: /scan_front: 스캔 365, 평균 가린 칸 121.4
+[scan_body_mask-15] [INFO] [1794800197.129027217] [scan_body_mask]: /scan_rear: 스캔 365, 평균 가린 칸 222.7
+[ros2_control_node-1] [WARN] [1794800198.090359169] [diff_drive_controller]: Velocity command timed out. Braking.
+[loc_monitor-20] [INFO] [1794800198.293446499] [loc_monitor]: {"t": 1794800198.293, "event": "report", "state": "OK", "n_check": 101, "n_skip": 0, "res_p50": 0.0138, "res_p95": 0.0151, "res_max": 0.0153, "traj": 1}
+[ros2_control_node-1] [WARN] [1794800199.090366944] [diff_drive_controller]: Velocity command timed out. Braking.
+[ekf_node-8] [ERROR] [1794800199.620479698] [ekf_filter_node]: Failed to meet update rate! Took 0.028562872999999999041seconds. Try decreasing the rate, limiting sensor output frequency, or limiting the number of sensors.
+[ros2_control_node-1] [WARN] [1794800200.091715811] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800200.691537794] [controller_manager]: Overrun might occur, Total time : 10067.223 us (Expected < 10000.000 us) --> Read time : 1627.597 us, Update time : 8361.928 us, Write time : 77.698 us
+[ros2_control_node-1] [WARN] [1794800200.691656997] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 11.740717 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800201.100342254] [diff_drive_controller]: Velocity command timed out. Braking.
+[component_container_mt-5] [INFO] [1794800201.904779000] [mission_node]: [준비 확인] READY 14/14
+[component_container_mt-5]   1 안전 (E-stop · OpenCR 진단)
+[component_container_mt-5]     [ OK ] E-stop · 진단: 정상
+[component_container_mt-5]   2 컨트롤러 (ros2_control)
+[component_container_mt-5]     [ OK ] joint_state_broadcaster: active
+[component_container_mt-5]     [ OK ] diff_drive_controller: active
+[component_container_mt-5]     [ OK ] arm_controller: active
+[component_container_mt-5]     [ OK ] imu_sensor_broadcaster: active
+[component_container_mt-5]   3 노드 서버
+[component_container_mt-5]     [ OK ] /drive/navigate: 있음
+[component_container_mt-5]     [ OK ] /drive/align: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pose: 있음
+[component_container_mt-5]     [ OK ] /manipulator/pick: 있음
+[component_container_mt-5]     [ OK ] /perception/set_mode: 있음
+[component_container_mt-5]     [ OK ] /mission_planner/plan (계획기): 있음
+[component_container_mt-5]     [ OK ] /perception/check_dice: 있음
+[component_container_mt-5]   4 위치 추정
+[component_container_mt-5]     [ OK ] /localization/status: OK
+[component_container_mt-5]   5 Nav2
+[component_container_mt-5]     [ OK ] lifecycle_manager_navigation: 모든 노드 active
+[component_container_mt-5] [INFO] [1794800201.972924250] [mission_node]: mission log: /home/cart11/Lv2_Cartlidar_Assignment/mission_log/261116_1236_2
+[component_container_mt-5] [INFO] [1794800201.973126047] [mission_node]: mission start (plan)
+[component_container_mt-5] [INFO] [1794800201.976917385] [mission_node]: -> [0] observe
+[component_container_mt-5] [WARN] [1794800201.981867794] [manipulator_node]: execute_skill: startup to 'DRIVE' not finished (REARM, wait for 'startup: arm at DRIVE') -> reject
+[component_container_mt-5] [WARN] [1794800201.988299524] [mission_node]: [0] observe failed: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-5] [INFO] [1794800201.988958807] [mission_node]: retry 1/2 -> [0] observe in 1.0s
+[ros2_control_node-1] [WARN] [1794800202.100420682] [diff_drive_controller]: Velocity command timed out. Braking.
+[demo_start] 시도 5: 
+[component_container_mt-5] [INFO] [1794800203.065129328] [mission_node]: -> [0] observe
+[component_container_mt-5] [WARN] [1794800203.067831451] [mission_node]: [0] observe failed: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-5] [INFO] [1794800203.067905789] [mission_node]: retry 2/2 -> [0] observe in 1.0s
+[ros2_control_node-1] [WARN] [1794800203.110507419] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800204.120408261] [diff_drive_controller]: Velocity command timed out. Braking.
+[component_container_mt-5] [INFO] [1794800204.165559049] [mission_node]: -> [0] observe
+[component_container_mt-5] [WARN] [1794800204.169563256] [manipulator_node]: execute_skill: startup to 'DRIVE' not finished (REARM, wait for 'startup: arm at DRIVE') -> reject
+[component_container_mt-5] [WARN] [1794800204.171971643] [mission_node]: [0] observe failed: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-5] [ERROR] [1794800204.172370150] [mission_node]: -> FAILED: observe failed after 2 retries: manipulator: /manipulator/execute_skill goal rejected
+[component_container_mt-9] [INFO] [1794800204.179232804] [perception_node]: 모드 0 → 0
+[component_container_mt-5] [ERROR] [1794800205.012432680] [manipulator_node]: startup: arm is not at STOW (0.23 rad) nor 'DRIVE' (3.61 rad) -> not moving. Put the arm in STOW by hand (support it, 12 V off), then power on / restart bringup
+[ros2_control_node-1] [WARN] [1794800205.120867911] [diff_drive_controller]: Velocity command timed out. Braking.
+[ros2_control_node-1] [WARN] [1794800205.842706074] [controller_manager]: Overrun detected! The controller manager missed its desired rate of 100 Hz. The loop took 12.790370 ms (missed cycles : 2).
+[ros2_control_node-1] [WARN] [1794800206.131913678] [diff_drive_controller]: Velocity command timed out. Braking.
+[demo_start] 시도 6: 

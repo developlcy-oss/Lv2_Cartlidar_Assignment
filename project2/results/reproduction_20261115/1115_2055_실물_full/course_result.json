@@ -1,0 +1,49 @@
+[
+ {
+  "seg": "S0",
+  "name": "S0 signal→box1",
+  "points": [
+   0,
+   1
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": "",
+    "t": 30.5
+   }
+  ],
+  "sim_s": 30.5,
+  "end_err_cm": 3.7,
+  "end_err_deg": 1.0,
+  "head_fix_deg": [
+   4.9,
+   29.7
+  ],
+  "detour": false
+ },
+ {
+  "seg": "S1",
+  "name": "S1 box1→box2",
+  "points": [
+   1,
+   2
+  ],
+  "ok": false,
+  "tries": [
+   {
+    "status": "fail",
+    "msg": "조각 3 (전진): 시작 방향 맞추기 -15°: 상태 6 · 오류 701 spin failed:Exceeded time allowance before reaching the Spin goal - Exiting Spin",
+    "t": 16.9
+   }
+  ],
+  "sim_s": 17.0,
+  "end_err_cm": 236.3,
+  "end_err_deg": 10.2,
+  "head_fix_deg": [
+   -14.6
+  ],
+  "detour": false
+ }
+]

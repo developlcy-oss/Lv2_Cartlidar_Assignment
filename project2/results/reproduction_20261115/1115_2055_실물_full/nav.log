@@ -1,0 +1,126 @@
+규칙 v2 시연 (real · full: 전진 0.30 · 후진 0.15 m/s · 제자리 0.5 rad/s) · 기록 /home/cart11/demo_v2/runs/1115_2055_실물_full
+[INFO] [1794743742.513099947] [lifecycle_manager_demo]: Creating
+[INFO] [1794743742.520334956] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle publishers[0m[0m
+[INFO] [1794743742.526455041] [controller_server]: 
+	controller_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794743742.540629495] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service clients[0m[0m
+[INFO] [1794743742.581145643] [controller_server]: Creating controller server
+[INFO] [1794743742.669042884] [behavior_server]: 
+	behavior_server lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794743742.793108483] [local_costmap.local_costmap]: 
+	local_costmap lifecycle node launched. 
+	Waiting on external lifecycle transitions to activate
+	See https://design.ros2.org/articles/node_lifecycle.html for more information.
+[INFO] [1794743742.794217999] [local_costmap.local_costmap]: Creating Costmap
+[INFO] [1794743743.024240568] [v2_filter]: 규칙 v2 필터: cmd_vel_raw → cmd_vel_nav · 전진 ≤ 0.3 · 후진 ≤ 0.15 m/s · 제자리 ≤ 0.5 rad/s · 벨트 1.5 · 꺾는 중 모터 ≤ 3.0
+[INFO] [1794743743.294360508] [lifecycle_manager_demo]: [34m[1mCreating and initializing lifecycle service servers[0m[0m
+[INFO] [1794743743.331987963] [lifecycle_manager_demo]: [34m[1mStarting managed nodes bringup...[0m[0m
+[INFO] [1794743743.332217540] [lifecycle_manager_demo]: [34m[1mConfiguring controller_server[0m[0m
+[INFO] [1794743743.336606451] [controller_server]: Configuring controller interface
+[INFO] [1794743743.336764793] [local_costmap.local_costmap]: Configuring
+[INFO] [1794743743.385143973] [local_costmap.local_costmap]: Using plugin "static_layer"
+[INFO] [1794743743.396100027] [local_costmap.local_costmap]: Subscribing to the map topic (/map) with transient local durability
+[INFO] [1794743743.403941492] [local_costmap.local_costmap]: Initialized plugin "static_layer"
+[INFO] [1794743743.404072249] [local_costmap.local_costmap]: Using plugin "inflation_layer"
+[INFO] [1794743743.404581934] [local_costmap.local_costmap]: Initialized plugin "inflation_layer"
+[WARN] [1794743743.497881884] [local_costmap.local_costmap]: The configured inflation radius (0.100) is smaller than the computed/custom inscribed radius (0.168) of your footprint, it is highly recommended to set inflation radius to be at least as big as the inscribed radius to avoid collisions
+[INFO] [1794743743.547452824] [local_costmap.local_costmap]: StaticLayer: Resizing static layer to 191 X 267 at 0.025000 m/pix
+[INFO] [1794743743.549732051] [controller_server]: Controller frequency set to 20.0000Hz
+[INFO] [1794743743.550116962] [controller_server]: getting progress checker plugins..
+[INFO] [1794743743.550344395] [controller_server]: getting goal checker plugins..
+[INFO] [1794743743.550430031] [controller_server]: getting controller plugins..
+[INFO] [1794743743.551264464] [controller_server]: getting path handler plugins..
+[INFO] [1794743743.554736763] [controller_server]: Created progress_checker : progress_checker of type nav2_controller::SimpleProgressChecker
+[INFO] [1794743743.554855775] [controller_server]: Controller Server has progress_checker  progress checkers available.
+[INFO] [1794743743.558316553] [controller_server]: Created goal checker : piece_checker of type nav2_controller::SimpleGoalChecker
+[INFO] [1794743743.559283056] [controller_server]: Controller Server has piece_checker  goal checkers available.
+[INFO] [1794743743.560634022] [controller_server]: Created path handler : PathHandler of type nav2_controller::FeasiblePathHandler
+[INFO] [1794743743.560699433] [controller_server]: Controller Server has PathHandler  path handlers available.
+[INFO] [1794743743.562562355] [controller_server]: Created controller : Forward of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794743743.563060423] [controller_server]: Parameter 'Forward.desired_linear_vel' is deprecated. Use 'Forward.max_linear_vel' instead.
+[INFO] [1794743743.589029108] [controller_server]: Created controller : Reverse of type nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[WARN] [1794743743.589412291] [controller_server]: Parameter 'Reverse.desired_linear_vel' is deprecated. Use 'Reverse.max_linear_vel' instead.
+[INFO] [1794743743.604105870] [controller_server]: Controller Server has Forward Reverse  controllers available.
+[INFO] [1794743743.691797020] [lifecycle_manager_demo]: [34m[1mConfiguring behavior_server[0m[0m
+[INFO] [1794743743.693510625] [behavior_server]: Configuring
+[INFO] [1794743743.714835348] [behavior_server]: Creating behavior plugin spin of type nav2_behaviors::Spin
+[INFO] [1794743743.746097621] [behavior_server]: Configuring spin
+[INFO] [1794743743.781738884] [lifecycle_manager_demo]: [34m[1mActivating controller_server[0m[0m
+[INFO] [1794743743.782520356] [controller_server]: Activating
+[INFO] [1794743743.782625224] [local_costmap.local_costmap]: Activating
+[INFO] [1794743743.782653737] [local_costmap.local_costmap]: Checking transform
+[INFO] [1794743743.782933044] [local_costmap.local_costmap]: start
+[INFO] [1794743743.833226317] [controller_server]: Activating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794743743.833353490] [controller_server]: Activating controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794743743.834575202] [controller_server]: Creating bond (controller_server) to lifecycle manager.
+[INFO] [1794743743.851069589] [lifecycle_manager_demo]: [34m[1mActivating behavior_server[0m[0m
+[INFO] [1794743743.851778449] [behavior_server]: Activating
+[INFO] [1794743743.851843924] [behavior_server]: Activating spin
+[INFO] [1794743743.851875349] [behavior_server]: Creating bond (behavior_server) to lifecycle manager.
+[INFO] [1794743743.861542519] [lifecycle_manager_demo]: [34m[1mManaged nodes are active[0m[0m
+  ✓ map_server active
+  ✓ controller_server active
+  ✓ behavior_server active
+[INFO] [1794743768.219135619] [behavior_server]: Running spin
+[INFO] [1794743768.219526259] [behavior_server]: Turning 0.09 for spin behavior.
+[INFO] [1794743768.620070451] [behavior_server]: spin completed successfully
+[INFO] [1794743768.702531087] [controller_server]: Received a goal, begin computing control effort.
+[WARN] [1794743768.702694486] [controller_server]: No path handler was specified in parameter 'current_path_handler'. Server will use only plugin loaded PathHandler . This warning will appear once.
+[INFO] [1794743795.902951975] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794743795.903139311] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794743795.923090668] [behavior_server]: Running spin
+[INFO] [1794743795.923307156] [behavior_server]: Turning 0.52 for spin behavior.
+[INFO] [1794743797.373846013] [behavior_server]: spin completed successfully
+[INFO] [1794743797.383012732] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794743797.783335224] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794743797.783480381] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794743797.803144142] [behavior_server]: Running spin
+[INFO] [1794743797.803321109] [behavior_server]: Turning -0.11 for spin behavior.
+[INFO] [1794743798.203760272] [behavior_server]: spin completed successfully
+[INFO] [1794743801.945993008] [controller_server]: Received a goal, begin computing control effort.
+[INFO] [1794743805.096295870] [controller_server]: Cancellation was successful. Stopping the robot.
+[INFO] [1794743805.096437955] [controller_server]: [follow_path] [ActionServer] Client requested to cancel the goal. Cancelling.
+[INFO] [1794743805.116690694] [behavior_server]: Running spin
+[INFO] [1794743805.116893133] [behavior_server]: Turning -1.05 for spin behavior.
+[INFO] [1794743807.867347500] [behavior_server]: spin completed successfully
+[INFO] [1794743807.877951903] [behavior_server]: Running spin
+[INFO] [1794743807.878316749] [behavior_server]: Turning -0.25 for spin behavior.
+[WARN] [1794743818.878641229] [behavior_server]: Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[WARN] [1794743818.878791154] [behavior_server]: spin failed:Exceeded time allowance before reaching the Spin goal - Exiting Spin
+[WARN] [1794743818.878855445] [behavior_server]: [spin] [ActionServer] Aborting handle. error_code:701, error_msg:'spin failed:Exceeded time allowance before reaching the Spin goal - Exiting Spin'.
+[INFO] [1794743820.375172356] [rclcpp]: signal_handler(signum=2)
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794743820.375346602] [controller_server]: Running Nav2 LifecycleNode rcl preshutdown (controller_server)
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794743820.375517169] [controller_server]: Deactivating
+[ros2run]: Received signal:  Interrupt
+[INFO] [1794743820.375645846] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794743820.375696856] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794743820.375783259] [behavior_server]: Running Nav2 LifecycleNode rcl preshutdown (behavior_server)
+[INFO] [1794743820.375800187] [controller_server]: Deactivating controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794743820.375890527] [controller_server]: Deactivating controller: Forward of type regulated_pure_pursuit_controller::R[INFO] [1794743820.375891199] [lifecycle_manager_demo]: Running Nav2 LifecycleManager rcl preshutdown (lifecycle_manager_demo)
+egulatedPurePursuitController
+[INFO] [1794743820.375919712] [behavior_server]: Deactivating
+[INFO] [1794743820.375983458] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794743820.375993507] [local_costmap.local_costmap]: Deactivating
+v2_filter 잘림 횟수 (50 Hz 틱): {'speed': 0, 'curv': 377, 'spin': 527, 'rev': 0, 'motor': 3}
+[INFO] [1794743820.384546917] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794743820.386631283] [behavior_server]: Cleaning up
+[INFO] [1794743820.396061782] [controller_server]: Cleaning up
+[INFO] [1794743820.398841310] [controller_server]: Cleaning up controller: Reverse of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794743820.398924417] [controller_server]: Cleaning up controller: Forward of type regulated_pure_pursuit_controller::RegulatedPurePursuitController
+[INFO] [1794743820.399125449] [local_costmap.local_costmap]: Cleaning up
+[INFO] [1794743820.402979450] [lifecycle_manager_demo]: Destroying lifecycle_manager_demo
+[INFO] [1794743820.415228167] [behavior_server]: Destroying bond (behavior_server) to lifecycle manager.
+[INFO] [1794743820.488186880] [behavior_server]: Destroying
+[WARN] [1794743820.488284196] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794743820.608407851] [controller_server]: Destroying bond (controller_server) to lifecycle manager.
+[INFO] [1794743820.618138106] [rclcpp]: signal_handler(signum=2)
+[INFO] [1794743820.625273830] [local_costmap.local_costmap]: Destroying
+[WARN] [1794743820.625374122] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor
+[INFO] [1794743820.665988226] [controller_server]: Destroying
+[WARN] [1794743820.666074629] [rclcpp_lifecycle]: LifecycleNode is not shut down: Node still in state(1) in destructor

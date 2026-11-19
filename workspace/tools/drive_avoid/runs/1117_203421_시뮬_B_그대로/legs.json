@@ -1,0 +1,31 @@
+[
+ {
+  "seg": "S0",
+  "name": "HOME>box3",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 39.3,
+  "end_err_cm": 2.3,
+  "end_err_deg": 1.0,
+  "replans": 0,
+  "notes": [],
+  "head_fix_deg": []
+ },
+ {
+  "seg": "S1",
+  "name": "box3>box5",
+  "result": "ok",
+  "ok": true,
+  "sim_s": 44.0,
+  "end_err_cm": 5.2,
+  "end_err_deg": 0.5,
+  "replans": 1,
+  "notes": [
+   "다시 계획 1: 합류 +0.45 m: 전진 2.10 m (3.7 s)"
+  ],
+  "head_fix_deg": [
+   6.0,
+   4.9
+  ]
+ }
+]

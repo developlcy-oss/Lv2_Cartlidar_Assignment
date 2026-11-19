@@ -14,7 +14,7 @@
                 -> 뒤 열부터 (3 -> 2 -> 1) -> 열 안 ROW_ORDER. 모양 같은 칸이 없으면 다른 모양 칸 (경고).
   --occupied "r_i ..."  이미 퍽이 있는 칸 · --removed "r_i ..."  쓰지 않는 칸 (기본 PALLET_REMOVED)
   칸 위치 = 노드 궤적 (control/config/pallet_place_traj.json, #293 실측 칸 맞춤). 설치본이 실측 (pallet_slot_teach.json) 과 다르면 경고.
-  노드가 시작 정리 중이라 거부하면 10 s 뒤 다시 (dice.sh 와 같음). 마지막 줄 'RESULT ok|pick_fail|load_fail|no_puck|no_slot <칸>' (load.sh 가 읽음), 종료 코드 0 = 성공.
+  노드가 거부하면 먼저 pose DRIVE (팔이 STOW 면 노드가 폄, 2026-11-18) 뒤, 그래도 거부면 10 s 뒤 다시 (dice.sh 와 같음). 마지막 줄 'RESULT ok|pick_fail|load_fail|no_puck|no_slot <칸>' (load.sh 가 읽음), 종료 코드 0 = 성공.
 
 기록: ~/실측/pick_<MMDD_HHMMSS>/  arm.mp4 (팔 카메라 10 fps, 640x360) · joints.csv (관절 1~5 도 · 집게 rad) · log.txt
 가져오기 (PC): scp -r cart11@cart11.local:~/실측/pick_* <PC 폴더>/
@@ -84,13 +84,26 @@ class Recorder:
         self.jf.close()
 
 
+def unfold():
+    """팔이 STOW 면 노드가 pick · skill 을 거절 (2026-11-18) -> pose DRIVE (노드가 단계 순서로 폄). 이미 DRIVE 면 바로 끝."""
+    out = subprocess.run(["ros2", "action", "send_goal", "/manipulator/pose", "robot_interfaces/action/ArmPose", "{name: DRIVE}"],
+                         capture_output=True, text=True).stdout
+    P("  pose DRIVE: " + ("ok" if "success: true" in out else "실패 (" + out[-200:].replace("\n", " ") + ")"))
+
+
 def run(args):
-    for k in range(9):                       # 노드가 시작 정리 (STOW -> DRIVE) 중이면 거부 -> 10 s 뒤 다시 (최대 90 s)
+    unfolded = False
+    for k in range(9):                       # 노드가 켜질 때 정리 중이면 거부 -> 10 s 뒤 다시 (최대 90 s)
         P("$ ros2 " + " ".join(args))
         out = subprocess.run(["ros2"] + args, capture_output=True, text=True).stdout
         if "Goal was rejected" not in out:
             break
-        P(f"  거부됨 (팔이 시작 자세로 펴는 중이거나 다른 스킬 중) -> 10 s 뒤 다시 ({k + 1}/9)")
+        if not unfolded:                     # 첫 거부: STOW 일 수 있음 -> 먼저 펴 보고 바로 다시
+            P("  거부됨 -> 팔이 STOW 일 수 있어 pose DRIVE 먼저")
+            unfold()
+            unfolded = True
+            continue
+        P(f"  거부됨 (켜질 때 정리 중이거나 다른 스킬 중) -> 10 s 뒤 다시 ({k + 1}/9)")
         time.sleep(10.0)
     keep = [l.strip() for l in out.splitlines() if l.strip().startswith(("success", "message", "response", "robot_interfaces.srv"))]
     P("  " + (" | ".join(keep) or out[-400:].replace("\n", " ")))

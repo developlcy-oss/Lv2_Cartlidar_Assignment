@@ -18,7 +18,7 @@ import rclpy
 from sensor_msgs.msg import Joy
 
 HELP = """키보드 조이스틱
-  r = 리셋 (REARM, 팔 HOLD 풀기 / 시작 정리 시작)     x = 비상정지 (E-stop, 다시 풀려면 r)
+  r = 리셋 (REARM, 팔 HOLD 풀기 / 켜질 때 정리 = STOW 맞춤)     x = 비상정지 (E-stop, 다시 풀려면 r)
   w / s = 앞 / 뒤 (누르고 있는 동안)   a / d = 왼쪽 / 오른쪽 회전   스페이스 = 멈춤
   q = 끝 (끝나면 /joy 가 끊겨 브링업이 잠김 = 안전)"""
 

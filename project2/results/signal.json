@@ -1,0 +1,16 @@
+{
+ "source": "실물 경기 2026-11-16",
+ "status": "미관측",
+ "reason": "실물 전체 미션 (12:36:33 · 12:36:41 두 번 시작) 이 첫 단계 observe 에서 FAILED. manipulator 가 /manipulator/execute_skill goal 을 거절함 (팔이 STOW 와 0.23 rad 어긋나 켜질 때 STOW → DRIVE 정리가 거부됨: 'arm is not at STOW (0.23 rad) nor DRIVE' → 'startup to DRIVE not finished -> reject'). 신호등 12 회 · 바코드를 본 기록 (signal.json · observe 의 sequence/barcode) 이 없고, Jetson 에서도 planner/signal.json 이 발견되지 않음. 그 뒤 실행 (12:37 ~ 13:51) 은 준비 확인 단계에서 시작 거절.",
+ "observed": null,
+ "evidence": [
+  "project2/results/real_20261116/mission_log/261116_1236/mission_log.jsonl",
+  "project2/results/real_20261116/mission_log/261116_1236_2/mission_log.jsonl",
+  "project2/results/real_20261116/launch_logs/demo_261116_123545.log",
+  "project2/results/real_20261116/launch_logs/demo_261116_123702.log.gz",
+  "project2/results/real_20261116/launch_logs/demo_261116_134910.log"
+ ],
+ "sim_reference": "results/sim_plan_q1/signal.json",
+ "sim_reference_note": "발제 05 쪽 공개 연습 문제 Q1 (config/problem_q1_example.yaml) 을 계획기 mission_plan 에 넣은 모의 결과. 로봇이 본 값이 아님.",
+ "official_rounds_note": "공식 1 · 2 회차 (11-16 12:15 · 12:25, 시간 순서 팀장 결정) 는 drive_demo 주행만 돌려 신호 · 바코드 관측과 할당 계산이 없었다 (official_scoring.md). 이 reason 은 그 뒤 12:36 전체 미션 시도 기록이다."
+}

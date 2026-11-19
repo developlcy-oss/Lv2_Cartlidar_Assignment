@@ -11,7 +11,7 @@
     python3 ~/slot_teach.py --make_box      상자 기록 -> ~/place_box_teach.json (노드 place.teach: 칸마다 모델 오차를 빼고 IK, 2026-11-17)
     python3 ~/slot_teach.py --set 3_1 왼 5 [node|offset]   맞춰 보지 않고 말로: 쥐는 자리에서 5 mm 왼쪽 (offset = 영점 보정 더한 자리 기준)
 
-준비: 브링업 (skill_enabled:=true) + kbd_joy.py 에서 r -> 팔이 DRIVE 까지 펴진 뒤. **맞출 칸에만 퍽 하나**를 넣어 둠 (다른 칸은 비움).
+준비: 브링업 (skill_enabled:=true) + kbd_joy.py 에서 r -> 'startup: arm at STOW' 뒤 (팔이 STOW 면 여기서 노드에 pose DRIVE 를 보내 폄). **맞출 칸에만 퍽 하나**를 넣어 둠 (다른 칸은 비움).
 맞춤 기준 (노드 쥐는 자리): 퍽이 두 손가락 정가운데, 손가락 가운데가 퍽 윗면보다 15 mm 아래, 집게 45° 기울임 그대로.
   조정 명령 (meas_session 과 같음): '아래 5' · '위 3' · '멀리 2' · '가까이 2' · '왼 1' · '오른 1' (mm, 로봇 기준) · '집게 42' (손가락 사이 mm)
   ok = 맞춤 끝 · 기록 / b = 이 칸 건너뜀 / q = 끝
@@ -196,8 +196,10 @@ def teach(names):
     m.P(f"\n===== 칸 맞추기 {datetime.datetime.now():%Y-%m-%d %H:%M} 칸 {' '.join(names)} | ik.joint_offsets {off} =====")
     a = m.Arm()
     q, _ = a.show()
-    if q[1] < -1.9:
-        sys.exit("STOW 자세로 보임 -> kbd_joy.py 에서 r 로 DRIVE 까지 편 뒤 다시")
+    if q[1] < -1.9:   # STOW (2026-11-18 부터 브링업 뒤 팔이 STOW 에 머묾) -> 노드 단계 펴기
+        if not m.node_unfold():
+            sys.exit("STOW 에서 pose DRIVE 실패 -> 노드 로그 확인 뒤 다시")
+        q, _ = a.show()
     rec = load_rec()
     os.makedirs(OUT_DIR, exist_ok=True)
     try:

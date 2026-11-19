@@ -1,0 +1,13 @@
+location,group,pip,cell_dx,cell_dy,x_mm,y_mm,z_mm,puck_id,color,shape
+L1,Y,1,-1,1,3610,1010,70,4,red,cylinder
+L1,Y,2,1,-1,3730,890,70,8,red,cylinder
+L2,R,1,-1,1,2142,3760,70,0,red,cylinder
+L2,R,2,1,1,2262,3760,70,2,red,box
+L2,R,3,-1,-1,2142,3640,70,6,red,box
+L2,R,4,1,-1,2262,3640,70,10,red,box
+L3,G,1,-1,1,3610,5414,70,1,green,box
+L3,G,2,-1,0,3610,5354,70,3,green,cylinder
+L3,G,3,-1,-1,3610,5294,70,5,green,cylinder
+L3,G,4,1,1,3730,5414,70,7,green,box
+L3,G,5,1,0,3730,5354,70,9,green,cylinder
+L3,G,6,1,-1,3730,5294,70,11,green,box

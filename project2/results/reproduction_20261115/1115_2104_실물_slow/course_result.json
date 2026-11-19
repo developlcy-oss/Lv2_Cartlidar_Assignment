@@ -1,0 +1,114 @@
+[
+ {
+  "seg": "S0",
+  "name": "S0 signal→box1",
+  "points": [
+   0,
+   1
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": "",
+    "t": 32.8
+   }
+  ],
+  "sim_s": 32.8,
+  "end_err_cm": 4.3,
+  "end_err_deg": 1.0,
+  "head_fix_deg": [
+   27.6
+  ],
+  "detour": false
+ },
+ {
+  "seg": "S1",
+  "name": "S1 box1→box2",
+  "points": [
+   1,
+   2
+  ],
+  "ok": true,
+  "tries": [
+   {
+    "status": "ok",
+    "msg": "",
+    "t": 37.3
+   }
+  ],
+  "sim_s": 37.3,
+  "end_err_cm": 4.2,
+  "end_err_deg": 1.2,
+  "head_fix_deg": [
+   -15.7
+  ],
+  "detour": false
+ },
+ {
+  "seg": "S2",
+  "name": "S2 box2→box6",
+  "points": [
+   2,
+   3
+  ],
+  "ok": false,
+  "tries": [
+   {
+    "status": "fail",
+    "msg": "정지점 어긋남 7.7 cm · 0.7°"
+   }
+  ],
+  "sim_s": 58.6,
+  "end_err_cm": 7.7,
+  "end_err_deg": 0.7,
+  "head_fix_deg": [
+   12.4,
+   -15.1
+  ],
+  "detour": false
+ },
+ {
+  "seg": "S3",
+  "name": "S3 box6→box3",
+  "points": [
+   3,
+   4
+  ],
+  "ok": false,
+  "tries": [
+   {
+    "status": "fail",
+    "msg": "정지점 어긋남 5.3 cm · 0.8°"
+   }
+  ],
+  "sim_s": 19.1,
+  "end_err_cm": 5.3,
+  "end_err_deg": 0.8,
+  "head_fix_deg": [
+   12.1
+  ],
+  "detour": false
+ },
+ {
+  "seg": "S4",
+  "name": "S4 box3→box5",
+  "points": [
+   4,
+   5
+  ],
+  "ok": false,
+  "tries": [
+   {
+    "status": "fail",
+    "msg": "조각 1 (후진): 상태 6 · 오류 105 Failed to make progress",
+    "t": 24.4
+   }
+  ],
+  "sim_s": 24.4,
+  "end_err_cm": 133.1,
+  "end_err_deg": 146.6,
+  "head_fix_deg": [],
+  "detour": false
+ }
+]

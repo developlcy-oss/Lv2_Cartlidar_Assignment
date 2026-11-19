@@ -95,6 +95,10 @@
              팔 펌웨어가 v5 (보정 전) 면 opencr_hardware 가 버전으로 거부 -->
         <param name="arm_standby_min_tick">3425,653,3025,797,1849,1531</param>
         <param name="arm_standby_max_tick">3539,721,3091,864,2246,2669</param>
+        <!-- 2026-11-18: 범위에서 340 tick (29.9°) 안으로 벗어나면 시작하고 켜질 때 정리 (manipulator_node startup) 가 STOW 로 모음.
+             J1 ~ J4 범위가 가운데 ±34 ~ 57 tick 이라 가운데에서 최대 397 tick (0.61 rad) → manipulator.yaml startup.auto_stow_max (0.65 rad) 안. 더 벗어나면 예전처럼 거부 (칸 안 · 펴진 자세)
+             오늘 (11-18) 실물: J1 −289 · J4 +42 tick 벗어나 거부됐던 경우가 여기 들어옴 -->
+        <param name="arm_standby_margin_tick">340</param>
         </xacro:if>
       </hardware>
 

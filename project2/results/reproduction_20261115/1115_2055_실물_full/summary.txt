@@ -1,0 +1,3 @@
+계획 따라가기 (실물): 구간 1/10 성공 · 계획 길모음7cm_어제순서
+S0 signal→box1: 성공 · 30.5 s · 정지점 어긋남 3.7 cm · 1.0°
+S1 box1→box2: 실패 · 17.0 s · 정지점 어긋남 236.3 cm · 10.2° · 조각 3 (전진): 시작 방향 맞추기 -15°: 상태 6 · 오류 701 spin failed:Exceeded time allowance before reaching the Spin goal - Exiting Spin
