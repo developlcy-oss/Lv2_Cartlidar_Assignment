@@ -343,5 +343,15 @@ manipulator_node:
       #   2 차 (1024 대, 칸별 평균 오차 ±0.5 mm 안으로 모임): 96.1 % (넘어짐 5, 간격 탓 32 = 칸과 상관없는 흩어짐, 95 % 3.0 mm)
       source_offset_mm: ["3_0:-0.4:0.0", "3_1:1.1:0.1", "2_1:-0.3:0.3", "2_2:0.3:0.0", "2_0:0.6:0.4",
                          "2_3:-0.1:0.5", "1_1:0.5:0.2", "1_2:-1.1:-0.3", "1_0:-0.7:0.2", "1_3:-1.3:-0.1"]
+      # 2026-11-17 상자 놓기 손 맞춤 보정 (include/control/place_teach.hpp). 책상에서 상자를 가장 가까운 정지 자리 (5 cm) 에 두고
+      #   tools/arm_bench/real/slot_teach.py --box (9 칸 손 맞춤) -> --make_box -> config/place_box_teach.json. 노드가 칸마다 모델 오차
+      #   (맞춘 자리 − 노드 FK(손 맞춤 관절)) 를 구해 놓기 IK 목표에서 뺌 (주변 칸 2 차 국소 맞춤). 처짐 보정 스트리밍 놓기 (sag.enabled · place.sag) 에서만.
+      #   모의 팔 (위팔 −5 · 아래팔 +3 mm · 영점 어긋남, test_place_teach): 모델만 최대 10.2 mm -> 9 칸 안 0.9 mm · 먼 쪽 · 옆 3 cm 밖 1.4 mm
+      #   (J1 쪽 3 cm 밖은 팔이 접혀 5 mm -> 맞출 때 상자를 가장 가까운 자리에). 맞춘 상자 자리가 틀리면 그 차이가 그대로 들어감 (자 · 지그로 둘 것)
+      teach:
+        enabled: false           # ★ 실물 9 칸 맞춘 뒤 true
+        file: ""                 # 빈 문자열 = <control share>/config/place_box_teach.json
+        max_error: 0.03          # m, 모델 오차가 이보다 큰 칸은 버림 (잘못 맞춤 · 기록 틀림)
+        keep_radial_lateral: false   # true 면 맞춤을 쓸 때도 radial_offset · lateral_offset (Isaac 값) 을 더함. source_offset_mm 는 늘 씀
     floor_frame: base_footprint  # 바닥 frame. arm_base_link 높이 = 이 frame → arm_base_link TF
     arm_base_height: 0.120       # TF 가 없을 때 arm_base_link 바닥 높이 (B안 base_link 0.00675 + 0.1135) ★
