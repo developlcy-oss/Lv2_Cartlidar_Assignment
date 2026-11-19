@@ -9,7 +9,10 @@ diff_drive_controller:
     left_wheel_names: ["wheel_left_front_joint", "wheel_left_rear_joint"]
     right_wheel_names: ["wheel_right_front_joint", "wheel_right_rear_joint"]
     # wheel_separation · linear.x 한계는 구동 방식별 drive_<direct|belt>.yaml (base_bringup 의 drive 인자가 고름)
-    wheel_separation_multiplier: 1.0
+    # 2026-11-18 실물 v7 벨트 시연 기록 7 개 (11-15 · 16): 실제 회전 / 명령 = 0.775 (전진 반경 0.15 ~ 2 m 에서 0.75 ~ 0.80 일정,
+    #   후진 0.768 · 제자리 0.763) → 스키드 실효 간격 = 0.317 × 1/0.775. 회전 속도는 EKF 가 IMU 만 써서 위치 추정 영향 없음.
+    #   시연 필터 (tools/drive_demo/v2_filter.py SEP) 도 같은 실효 간격으로 바깥 바퀴 상한 계산
+    wheel_separation_multiplier: 1.29
     wheel_radius: 0.0335   # 2026-11-13 홈 채운 림 R31.5 + 타이어 (Ø67, 이전 0.033)
     odom_frame_id: odom
     base_frame_id: base_link
