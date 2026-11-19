@@ -77,6 +77,7 @@
 #include <vector>
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 
 #include "action_msgs/srv/cancel_goal.hpp"
 #include "control_msgs/action/follow_joint_trajectory.hpp"
@@ -94,6 +95,7 @@
 #include "control/arm_ik.hpp"
 #include "control/grasp_detector.hpp"
 #include "control/min_jerk.hpp"
+#include "control/place_teach.hpp"
 #include "control/puck_height.hpp"
 #include "control/sag_comp.hpp"
 #include "control/startup_stow.hpp"
@@ -507,6 +509,11 @@ private:
       RCLCPP_WARN(get_logger(), "place.source_offset_mm: ignored '%s' (format row_index:fwd:left)", e.c_str());
     }
     place_sag_ = declare_parameter<bool>("place.sag", true);   // 2026-11-11 놓기도 처짐 보정 스트리밍 (sag.enabled 일 때)
+    // 2026-11-17 상자 놓기 손 맞춤 보정 (place_teach.hpp): 칸마다 모델 오차 e = 맞춘 자리 − 노드 FK(손 맞춤 관절), 놓을 때 목표 − e 로 IK
+    place_teach_enabled_ = declare_parameter<bool>("place.teach.enabled", false);
+    place_teach_file_ = declare_parameter<std::string>("place.teach.file", "");   // 빈 문자열 = <control share>/config/place_box_teach.json
+    place_teach_max_error_ = declare_parameter<double>("place.teach.max_error", 0.03);   // m, 모델 오차가 이보다 큰 칸은 버림 (잘못 맞춤 · 기록 틀림)
+    place_teach_keep_comp_ = declare_parameter<bool>("place.teach.keep_radial_lateral", false);   // 맞춤을 쓸 때도 radial · lateral 보정을 더할지
     // 바닥 frame (z = 바닥). arm_base_link 높이 = 이 frame → arm_base_link TF, 없으면 arm_base_height
     floor_frame_ = declare_parameter<std::string>("floor_frame", "base_footprint");
     arm_base_height_ = declare_parameter<double>("arm_base_height", 0.120);   // ★ base_link 바닥 위 0.00675 + 0.1135 (B안)
@@ -667,6 +674,77 @@ private:
     loadLiePolicy();
     loadPallet();
     loadPlaceCells();
+    loadPlaceTeach();
+  }
+
+  // place_box_teach.json (slot_teach.py --make_box): frame · cells.<칸>.bottom (퍽 바닥 중심, 윗면에 닿은 자리) · q (손 맞춤 관절, 명령값).
+  //   여기서는 읽기만, frame -> arm_base_link 변환과 모델 오차 계산은 첫 놓기 때 (resolvePlaceTeach, TF 가 필요)
+  void loadPlaceTeach()
+  {
+    if (!place_teach_enabled_) {return;}
+    std::string file = place_teach_file_;
+    try {
+      if (file.empty()) {
+        file = (ament_index_cpp::get_package_share_path("control") / "config" / "place_box_teach.json").string();
+      }
+      const YAML::Node doc = YAML::LoadFile(file);
+      place_teach_frame_ = doc["frame"] ? doc["frame"].as<std::string>() : std::string("base_link");
+      for (const auto & kv : doc["cells"]) {
+        const auto b = kv.second["bottom"].as<std::vector<double>>();
+        const auto q = kv.second["q"].as<std::vector<double>>();
+        if (b.size() != 3 || q.size() < 5) {
+          RCLCPP_WARN(get_logger(), "place.teach: cell %s ignored (bottom 3 · q 5 values)", kv.first.as<std::string>().c_str());
+          continue;
+        }
+        place_teach_raw_.push_back({kv.first.as<std::string>(), Eigen::Vector3d(b[0], b[1], b[2]), std::vector<double>(q.begin(), q.begin() + 5)});
+      }
+      RCLCPP_INFO(get_logger(), "place.teach: %zu cell(s) from %s (frame %s)", place_teach_raw_.size(), file.c_str(),
+        place_teach_frame_.c_str());
+    } catch (const std::exception & e) {
+      RCLCPP_WARN(get_logger(), "place.teach not loaded (%s): %s -> place without taught correction", file.c_str(), e.what());
+    }
+  }
+
+  // 첫 놓기 때 한 번: 맞춘 칸 -> arm_base_link 집게 끝, 모델 오차 e = 집게 끝 − 노드 FK(손 맞춤 관절). 큰 오차 칸은 버림. 남은 칸이 없으면 false
+  bool resolvePlaceTeach()
+  {
+    if (place_teach_resolved_) {return !place_teach_.empty();}
+    if (place_teach_raw_.empty()) {return false;}
+    geometry_msgs::msg::TransformStamped tf;
+    try {
+      tf = tf_buffer_->lookupTransform(base_frame_, place_teach_frame_, tf2::TimePointZero);
+    } catch (const tf2::TransformException & e) {
+      RCLCPP_WARN(get_logger(), "place.teach: TF %s -> %s: %s (try again next place)", place_teach_frame_.c_str(),
+        base_frame_.c_str(), e.what());
+      return false;
+    }
+    place_teach_resolved_ = true;
+    const auto & tr = tf.transform;
+    const Eigen::Quaterniond rot(tr.rotation.w, tr.rotation.x, tr.rotation.y, tr.rotation.z);
+    const Eigen::Vector3d off(tr.translation.x, tr.translation.y, tr.translation.z);
+    for (const auto & r : place_teach_raw_) {
+      PlaceTeachPoint pt;
+      pt.tip = rot * r.bottom + off + Eigen::Vector3d(0.0, 0.0, puck_half_height_ + grasp_z_offset_);
+      ArmJoints q{};
+      std::copy(r.q.begin(), r.q.begin() + 5, q.begin());
+      pt.err = pt.tip - ik_->forward(q);
+      if (pt.err.norm() > place_teach_max_error_) {
+        RCLCPP_WARN(get_logger(), "place.teach: cell %s model error %.1f mm > max_error %.1f mm -> ignored", r.cell.c_str(),
+          pt.err.norm() * 1000.0, place_teach_max_error_ * 1000.0);
+        continue;
+      }
+      RCLCPP_INFO(get_logger(), "place.teach: cell %s tip (%.3f, %.3f, %.3f) model error (%.1f, %.1f, %.1f) mm", r.cell.c_str(),
+        pt.tip.x(), pt.tip.y(), pt.tip.z(), pt.err.x() * 1000.0, pt.err.y() * 1000.0, pt.err.z() * 1000.0);
+      place_teach_.push_back(pt);
+    }
+    RCLCPP_INFO(get_logger(), "place.teach: %zu / %zu cell(s) in use", place_teach_.size(), place_teach_raw_.size());
+    return !place_teach_.empty();
+  }
+
+  // 놓기 IK 목표: 손 맞춤을 쓰면 p − e(p) (노드 모델이 이 자리라고 생각해야 실물이 p), 아니면 p
+  Eigen::Vector3d placeTeachTarget(const Eigen::Vector3d & p) const
+  {
+    return place_teach_on_ ? Eigen::Vector3d(p - placeTeachOffset(place_teach_, p).err) : p;
   }
 
   // pallet_place_traj.json (JSON = YAML 이라 yaml-cpp 로 읽음). 없으면 pallet_* skill 이 실패를 돌려준다
@@ -3839,7 +3917,14 @@ private:
         base_frame_.c_str(), arm_base_height_);
     }
     const double surface = has_z ? arm.point.z : floor_z + place_surface_height_;
-    {   // 2026-11-11 처짐 보정: 칸을 J1 축 바깥으로 (a + b x (J1 거리 − 0.2665) / 0.06) mm
+    // 2026-11-17 손 맞춤 보정은 처짐 보정 스트리밍 놓기에서만 (경유점마다 목표에서 모델 오차를 빼고 IK)
+    const bool stream = sag_enabled_ && place_sag_ && gripper_mode_ != GripperMode::ACTION;
+    place_teach_on_ = place_teach_enabled_ && stream && resolvePlaceTeach();
+    if (place_teach_enabled_ && !stream) {
+      RCLCPP_WARN(get_logger(), "place.teach: needs sag streaming (sag.enabled · place.sag) -> place without taught correction");
+    }
+    const bool model_comp = !place_teach_on_ || place_teach_keep_comp_;
+    if (model_comp) {   // 2026-11-11 처짐 보정: 칸을 J1 축 바깥으로 (a + b x (J1 거리 − 0.2665) / 0.06) mm
       const double r = std::hypot(arm.point.x, arm.point.y);
       if (r > 1e-6) {
         const double comp = (place_radial_a_ + place_radial_b_ * (r - 0.2665) / 0.06) / 1000.0;
@@ -3852,7 +3937,7 @@ private:
       arm.point.y += so->second.second / 1000.0;
       RCLCPP_INFO(get_logger(), "place: source slot %s offset (%.1f, %.1f) mm", held_src_slot_.c_str(), so->second.first, so->second.second);
     }
-    arm.point.y += place_lateral_ / 1000.0;   // 2026-11-12 옆 보정 (Isaac 꺼내기 → 놓기 칸별 평균 오차 왼 −1.8 mm -> 1.8 mm, 216 대 93.1 -> 99.1 %)
+    if (model_comp) {arm.point.y += place_lateral_ / 1000.0;}   // 2026-11-12 옆 보정 (Isaac 꺼내기 → 놓기 칸별 평균 오차 왼 −1.8 mm -> 1.8 mm, 216 대 93.1 -> 99.1 %)
     const Eigen::Vector3d tip(arm.point.x, arm.point.y, surface + puck_half_height_ + grasp_z_offset_ + place_clearance_);
     const auto current = currentJoints();
     if (!current) {
@@ -3872,8 +3957,21 @@ private:
       return;
     }
     RCLCPP_INFO(get_logger(), "place: tip (%.3f, %.3f, %.3f) in %s", tip.x(), tip.y(), tip.z(), base_frame_.c_str());
-    if (sag_enabled_ && place_sag_ && gripper_mode_ != GripperMode::ACTION) {
-      runPlaceStream(*current, *q_pre, pre, tip, back);
+    if (place_teach_on_) {
+      const auto d = placeTeachOffset(place_teach_, tip);
+      RCLCPP_INFO(get_logger(), "place.teach: nearest taught cell %.1f mm, model error (%.1f, %.1f, %.1f) mm", d.nearest * 1000.0,
+        d.err.x() * 1000.0, d.err.y() * 1000.0, d.err.z() * 1000.0);
+      if (d.nearest > 0.1) {
+        RCLCPP_WARN(get_logger(), "place.teach: tip %.0f mm from taught cells (box far from the taught spot)", d.nearest * 1000.0);
+      }
+    }
+    if (stream) {
+      const auto q_pre_t = place_teach_on_ ? solveArm(placeTeachTarget(pre), pitch_, *current) : q_pre;
+      if (!q_pre_t) {
+        finishSkill(false, "place: IK no solution for taught-corrected approach");
+        return;
+      }
+      runPlaceStream(*current, *q_pre_t, pre, tip, back);
       return;
     }
     sendArm(*q_pre, trajDuration(*current, *q_pre, min_duration_),
@@ -3929,7 +4027,8 @@ private:
         const int n = std::max(1, static_cast<int>(std::ceil(length / cartesian_step_)));
         const double segment_min_time = (length / n) / cartesian_speed_;
         for (int i = 1; i <= n; ++i) {
-          const auto q = solveArm(a + (b - a) * (static_cast<double>(i) / n), pitch_, seed);
+          const Eigen::Vector3d p = a + (b - a) * (static_cast<double>(i) / n);
+          const auto q = solveArm(placeTeachTarget(p), pitch_, seed);   // 2026-11-17 손 맞춤 보정 (꺼져 있으면 p 그대로)
           if (!q) {return false;}
           double max_delta = 0.0;
           for (size_t j = 0; j < 5; ++j) {max_delta = std::max(max_delta, std::abs((*q)[j] - seed[j]));}
@@ -4258,6 +4357,13 @@ private:
   double place_approach_{0.04}, place_retreat_{0.04}, arm_base_height_{0.120};
   double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};
   std::map<std::string, std::pair<double, double>> place_src_off_;   // place.source_offset_mm: 칸 "열_칸" -> (앞, 왼) mm
+  // 2026-11-17 상자 놓기 손 맞춤 보정 (place.teach.*)
+  struct PlaceTeachRaw {std::string cell; Eigen::Vector3d bottom; std::vector<double> q;};
+  bool place_teach_enabled_{false}, place_teach_keep_comp_{false}, place_teach_resolved_{false}, place_teach_on_{false};
+  std::string place_teach_file_, place_teach_frame_{"base_link"};
+  double place_teach_max_error_{0.03};
+  std::vector<PlaceTeachRaw> place_teach_raw_;
+  std::vector<PlaceTeachPoint> place_teach_;
   std::string held_src_slot_;   // 직전 pallet_unload 칸 ("2_1"), 상자 집기 · pallet_load 뒤 비움
   double place_lateral_{0.0};   // 2026-11-11 놓기 벌림 폭 · J1 바깥 보정
   std::string base_frame_, fixed_frame_, range_frame_;

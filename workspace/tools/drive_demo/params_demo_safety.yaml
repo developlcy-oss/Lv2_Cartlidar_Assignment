@@ -1,0 +1,157 @@
+# 11-19 시연 안전 덧씌우기 — params_demo*.yaml 다음에 두 번째 --params-file 로 붙임 (run_demo.sh SAFETY=1, 기본). 저장소 밖.
+#   run_demo.sh 가 __SCAN__ 을 채워 기록 폴더에 safety.yml 로 씀 (실물 /scan_merged · 시뮬 loopback 의 scan)
+#   local_costmap: 라이다 장애물 층 추가 (plugins 목록만 바꿈, static_layer · inflation_layer 설정은 앞 파일 것이 그대로 남음)
+#   planner_server: 막힌 조각을 돌아갈 길 (Detour, 전진만 Hybrid-A*) — demo_follow.py 가 compute_path_to_pose (planner_id Detour) 로 부름
+#   collision_monitor: v2_filter → cmd_vel_cm_in → (감속 · 정지) → 실물 cmd_vel_nav / 시뮬 cmd_vel (cmd_vel_out_topic 은 run_demo.sh 가 -p 로)
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        observation_sources: scan
+        scan:
+          topic: __SCAN__
+          data_type: "LaserScan"
+          marking: true
+          clearing: true
+          obstacle_max_range: 2.0
+          raytrace_max_range: 2.5
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      update_frequency: 2.0
+      publish_frequency: 1.0
+      global_frame: map
+      robot_base_frame: base_link
+      resolution: 0.05
+      track_unknown_space: false
+      footprint: "[[0.25, 0.07], [0.25, -0.07], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676], [0.1328, 0.1676]]"   # params_demo_max.yaml local_costmap 과 같음
+      footprint_padding: 0.05              # 우회 경로 계획에 차체 여유 5 cm. 0 이면 장애물에 붙어 지나가 앞 띠 · approach 에 걸려 갇힘 (11-19 시뮬 S2 장애물).
+                                           #   0.05 로 우회 성공, 다만 따라가기 오차로 실제 옆 틈 최소 ≈ 0.5 cm. 0.08 은 같은 자리에서 우회 경로 없음
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /map
+        map_subscribe_transient_local: true
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        observation_sources: scan
+        scan:
+          topic: __SCAN__
+          data_type: "LaserScan"
+          marking: true
+          clearing: true
+          obstacle_max_range: 2.0
+          raytrace_max_range: 2.5
+      inflation_layer:                     # 공간이 있으면 우회 경로가 가운데로 가게 넓고 완만한 비용 (11-19 시뮬 S2 장애물, 우회 중 옆 틈 최소):
+        plugin: "nav2_costmap_2d::InflationLayer"   #   0.10 · 10.0 → 0.5 cm · 0.25 · 5.0 → 3.6 cm · 0.25 · 5.0 + cost_penalty 3.0 → 4.0 cm · 0.30 · 4.0 + 3.0 → 5.7 cm (합류 1.3 m 로 밀림)
+        inflation_radius: 0.25
+        cost_scaling_factor: 5.0
+      always_send_full_costmap: true
+
+planner_server:
+  ros__parameters:
+    expected_planner_frequency: 1.0
+    planner_plugins: ["Detour"]
+    Detour:
+      plugin: "nav2_smac_planner::SmacPlannerHybrid"
+      motion_model_for_search: "DUBIN"     # 전진만 (후진은 규칙 v2 이어진 후진 한계가 있어 돌아갈 길에 안 씀)
+      minimum_turning_radius: 0.35         # 규칙 v2 반경은 0.20 이지만 v2_filter 곡률 한계로 0.20 경로는 못 따라가 경로 이탈 (11-19 시뮬 DEMO_TEST_BLOCK).
+                                           #   0.35 로 시험해 보니 우회 → 합류 성공 (옆 0.32 m 비킴에 앞 약 0.6 m, 합류 1.1 m 안)
+      allow_unknown: false
+      tolerance: 0.10
+      max_planning_time: 2.0
+      max_iterations: 1000000
+      max_on_approach_iterations: 1000
+      downsample_costmap: false
+      angle_quantization_bins: 72
+      analytic_expansion_ratio: 3.5
+      analytic_expansion_max_length: 1.0
+      reverse_penalty: 2.0
+      change_penalty: 0.0
+      non_straight_penalty: 1.2
+      cost_penalty: 3.0                    # 비용 높은 칸 (장애물 가까이) 을 더 피함 (기본 2.0, 위 inflation 과 함께 옆 틈 3.6 → 4.0 cm)
+      retrospective_penalty: 0.015
+      lookup_table_size: 5.0
+      cache_obstacle_heuristic: false
+      smooth_path: true
+
+collision_monitor:
+  ros__parameters:
+    enabled: true
+    base_frame_id: "base_link"
+    odom_frame_id: "odom"
+    cmd_vel_in_topic: "cmd_vel_cm_in"        # v2_filter out_topic
+    cmd_vel_out_topic: "cmd_vel_nav"         # run_demo.sh 가 -p 로 덮어씀 (실물 cmd_vel_nav · 시뮬 cmd_vel / cmd_vel_turn)
+    state_topic: "collision_monitor_state"   # 네임스페이스 없이 띄우므로 /collision_monitor_state (demo_follow.py 가 봄)
+    enable_stamped_cmd_vel: true
+    transform_tolerance: 0.2
+    source_timeout: 1.0
+    base_shift_correction: true
+    stop_pub_timeout: 2.0
+    polygons: ["FootprintApproach", "VelocityStop"]   # 앞 polygon 부터 검사, 정지가 감속보다 우선
+    FootprintApproach:                       # 차체 외곽이 time_before_collision 안에 닿을 속도면 줄임
+      type: "polygon"
+      action_type: "approach"
+      footprint_topic: "/local_costmap/published_footprint"
+      time_before_collision: 1.2
+      simulation_time_step: 0.1
+      min_points: 6
+      visualize: false
+      enabled: true
+    VelocityStop:                            # 진행 방향 띠에 라이다 점 ≥ min_points 면 정지
+      type: "velocity_polygon"
+      action_type: "stop"
+      holonomic: false
+      min_points: 4
+      visualize: false
+      enabled: true
+      # 속도별 앞 띠 길이 (앞 끝 0.25 에서) slow +0.05 · mid +0.10 · fast +0.15. HOLD 확인 띠 0.20 m (demo_follow) 보다 작아야 함
+      #   멈출 수 있음: 구간 최고 속도에서 띠 > 정지거리 v²/3 + 0.1·v (감속 1.5 m/s² · 지연 0.1 s): 0.15 → 2.3 · 0.25 → 4.6 · 0.45 → 11.3 cm
+      #   정지점 앞 잘못 멈춤: 라이다 높이 (map_amcl) 에서 demo_plan_max 정지점 앞 틈이 모두 ≥ 36 cm 라 띠를 키워도 됨 (상자는 라이다 아래)
+      # 11-19 시뮬 비교 (장애물 0.15 m 지도 · HOLD 들어간 demo_follow, 앞 최소 = 앞 끝 ↔ 장애물):
+      #   +0.025/0.055/0.12: (a) S2 slow 2.8 cm · max 8.5 · (b) S0 slow 1.2 · max 0-2 잘못 멈춤 0
+      #   +0.05/0.10/0.15  : (a) S2 slow 6.5 cm · max 11.0 · (b) S0 slow 3.2 (꺾으며 다가감) · max 0-2 잘못 멈춤 0 → 이 값
+      # 띠 모양 = 차체 앞 외곽 (끝 0.25 · |y| ≤ 0.07, 모서리 0.1328 · 반폭 0.1676) 을 앞으로 L 만큼 민 자리 (직진으로 L 갈 때 쓸고 가는 곳).
+      #   직사각형 (0.25 ~ 0.25+L · ±0.17) 은 곡선에서 2 cm 옆 기둥이 앞 모서리 밖 빈 곳에 들어와 잘못 멈춤 (11-19 시뮬 max S0 box1 앞, 기둥 x 0.29 · y -0.15)
+      # 속도 구간은 앞에서부터 처음 맞는 것을 씀. 맞는 구간이 없으면 직전 띠를 그대로 씀 (nav2 1.5 velocity_polygon.cpp)
+      #   → 제자리 회전 (|직진| < 0.02) 용 spin 구간을 빈 띠 (차체 중심 1 cm 사각형, 라이다 점 없음. 삼각형은 "at least three points" 오류) 로 둠: 기둥 옆 꺾기를 막지 않게
+      velocity_polygons: ["fwd_fast", "fwd_mid", "fwd_slow", "backward", "spin"]
+      fwd_fast:                              # 0.25 ~ 1.0 m/s → +0.15
+        points: "[[0.1328, 0.1676], [0.2828, 0.1676], [0.4, 0.07], [0.4, -0.07], [0.2828, -0.1676], [0.1328, -0.1676], [0.25, -0.07], [0.25, 0.07]]"
+        linear_min: 0.25
+        linear_max: 1.0
+        theta_min: -2.0
+        theta_max: 2.0
+      fwd_mid:                               # 0.15 ~ 0.25 m/s → +0.10
+        points: "[[0.1328, 0.1676], [0.2328, 0.1676], [0.35, 0.07], [0.35, -0.07], [0.2328, -0.1676], [0.1328, -0.1676], [0.25, -0.07], [0.25, 0.07]]"
+        linear_min: 0.15
+        linear_max: 0.25
+        theta_min: -2.0
+        theta_max: 2.0
+      fwd_slow:                              # 0.02 ~ 0.15 m/s → +0.05
+        points: "[[0.1328, 0.1676], [0.1828, 0.1676], [0.3, 0.07], [0.3, -0.07], [0.1828, -0.1676], [0.1328, -0.1676], [0.25, -0.07], [0.25, 0.07]]"
+        linear_min: 0.02
+        linear_max: 0.15
+        theta_min: -2.0
+        theta_max: 2.0
+      backward:                              # 후진 ≤ 0.15 m/s → 뒤 끝 -0.2135 에서 -0.10
+        points: "[[-0.2135, 0.17], [-0.3135, 0.17], [-0.3135, -0.17], [-0.2135, -0.17]]"
+        linear_min: -1.0
+        linear_max: -0.02
+        theta_min: -2.0
+        theta_max: 2.0
+      spin:                                  # 제자리 회전 · 정지 = 검사 안 함
+        points: "[[0.0, 0.0], [0.01, 0.0], [0.01, 0.01], [0.0, 0.01]]"
+        linear_min: -0.02
+        linear_max: 0.02
+        theta_min: -2.0
+        theta_max: 2.0
+    observation_sources: ["scan"]
+    scan:
+      type: "scan"
+      topic: __SCAN__
+      enabled: true

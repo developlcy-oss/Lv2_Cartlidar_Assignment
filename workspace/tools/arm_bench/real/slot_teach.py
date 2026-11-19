@@ -8,6 +8,7 @@
     python3 ~/slot_teach.py --show          기록된 칸별 차이 (mm · 도) 만 출력
     python3 ~/slot_teach.py --box [셀 …] [--cx 0.2853]   상자 위 놓는 자리 맞추기 (책상: 상자 = 앞 끝에서 5 cm 가운데, 셀 '1,1' = 먼 줄 왼쪽 … 기본 9 칸)
     python3 ~/slot_teach.py --fit_box       상자 기록 -> 관절 영점 (ik.joint_offsets) 제안 · 셀별 잔차 (노드 놓기 IK 용)
+    python3 ~/slot_teach.py --make_box      상자 기록 -> ~/place_box_teach.json (노드 place.teach: 칸마다 모델 오차를 빼고 IK, 2026-11-17)
     python3 ~/slot_teach.py --set 3_1 왼 5 [node|offset]   맞춰 보지 않고 말로: 쥐는 자리에서 5 mm 왼쪽 (offset = 영점 보정 더한 자리 기준)
 
 준비: 브링업 (skill_enabled:=true) + kbd_joy.py 에서 r -> 'startup: arm at STOW' 뒤 (팔이 STOW 면 여기서 노드에 pose DRIVE 를 보내 폄). **맞출 칸에만 퍽 하나**를 넣어 둠 (다른 칸은 비움).
@@ -30,6 +31,7 @@ YAML = os.path.join(REPO, "ros2_ws/src/control/config/manipulator.yaml")
 OUT_DIR = os.environ.get("TEACH_OUT", os.path.expanduser("~/실측"))
 REC = os.path.join(OUT_DIR, "slot_teach.json")
 BOX_REC = os.path.join(OUT_DIR, "box_teach.json")
+BOX_TAUGHT = os.environ.get("TEACH_BOX_OUT", os.path.expanduser("~/place_box_teach.json"))   # 노드 place.teach.file 로 넣을 파일
 BOX_CELL0 = (0.2853, 0.0, 0.0633)   # 2026-11-15 상자 = 로봇 앞 끝 0.1328 + 5 cm + 반 변 0.1025 (예전 12.72 cm 는 0.3625), --cx 로 바꿈. 책상 시험 가운데 칸 (dice.sh --bench 와 같음): 놓을 윗면 높이 = base_link z
 BOX_PITCH = 0.06
 BOX_ORDER = ["-1,1", "1,1", "-1,0", "0,0", "1,0", "-1,-1", "0,-1", "1,-1", "0,1"]
@@ -272,10 +274,18 @@ def _pt():
     return PT, PT.Arm(PT.URDF)
 
 
-def box_target(cell):
-    """셀 'dx,dy' (눈 그림: dy+ = 먼 쪽, dx+ = 로봇 오른쪽) -> 놓는 퍽 바닥 (base_link, 노드 place_at 과 같게: 옆 1.8 mm 왼쪽 · 틈 2 mm)."""
+BOX_TARGET_BIAS = (0.0, 0.0018, 0.002)   # box_target 이 칸 가운데 · 윗면에 더하는 값 (옛 노드 place_at 옆 1.8 mm · 틈 2 mm)
+
+
+def box_cell(cell):
+    """셀 'dx,dy' -> 칸 가운데 · 상자 윗면 (base_link) = 손으로 맞춘 퍽 바닥 자리 (맞춤 기준: 바닥이 윗면에 막 닿고 칸 가운데)."""
     dx, dy = (int(v) for v in cell.split(","))
-    return [BOX_CELL0[0] + dy * BOX_PITCH, BOX_CELL0[1] - dx * BOX_PITCH + 0.0018, BOX_CELL0[2] + 0.002]
+    return [BOX_CELL0[0] + dy * BOX_PITCH, BOX_CELL0[1] - dx * BOX_PITCH, BOX_CELL0[2]]
+
+
+def box_target(cell):
+    """셀 'dx,dy' (눈 그림: dy+ = 먼 쪽, dx+ = 로봇 오른쪽) -> 맞추기 시작 자리 = 퍽 바닥 (base_link, 노드 place_at 과 같게: 옆 1.8 mm 왼쪽 · 틈 2 mm)."""
+    return [v + b for v, b in zip(box_cell(cell), BOX_TARGET_BIAS)]
 
 
 def box_q(PT, arm, p_bottom, offs):
@@ -311,7 +321,8 @@ def teach_box(cells):
             a.move(q[:5], label=f"{c} 놓는 자리 (노드 값)")
             qm = m.jog(a, q[:5], f"{c} 놓는 자리")
             if qm is not None:
-                rec[c] = {"q_meas": qm, "q_node": q[:5], "target": p, "t": f"{datetime.datetime.now():%m-%d %H:%M}"}
+                rec[c] = {"q_meas": qm, "q_node": q[:5], "target": p, "bottom": box_cell(c), "cx": BOX_CELL0[0],
+                          "t": f"{datetime.datetime.now():%m-%d %H:%M}"}
                 os.makedirs(OUT_DIR, exist_ok=True)
                 json.dump(rec, open(BOX_REC, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
                 m.P(f"[기록] {c}")
@@ -350,6 +361,30 @@ def fit_box():
     print("-> 맞춘 값을 manipulator.yaml ik.joint_offsets 에 넣으면 노드 IK (상자 놓기 · 내려다보기 · 집기 접근) 가 이 값을 씀 (팔레트 궤적은 따로)")
 
 
+def make_box():
+    """상자 기록 -> 노드 place.teach 파일 (base_link 퍽 바닥 · 손 맞춤 관절). 노드가 칸마다 모델 오차 = 바닥 자리 − 노드 FK 를 구해 놓기 IK 목표에서 뺌."""
+    rec = json.load(open(BOX_REC, encoding="utf-8")) if os.path.exists(BOX_REC) else {}
+    if len(rec) < 3:
+        sys.exit(f"상자 기록이 {len(rec)} 개 — 3 개 이상 필요, 9 칸 권장 ({BOX_REC})")
+    cells = {}
+    for c, v in sorted(rec.items()):
+        # bottom 없는 예전 기록 (11-17 전): 시작 자리 target 에서 옛 치우침을 빼서 칸 가운데 · 윗면으로
+        b = v.get("bottom") or [t - d for t, d in zip(v["target"], BOX_TARGET_BIAS)]
+        cells[c] = {"bottom": [round(x, 5) for x in b], "q": [round(x, 5) for x in v["q_meas"][:5]], "t": v.get("t", "")}
+        print(f"  {c}: 퍽 바닥 (base_link mm) {[round(x * 1000, 1) for x in b]}  상자 가운데 x {v.get('cx', '기록 없음')}")
+    out = {"note": "slot_teach.py --box 손 맞춤 (쥔 퍽 바닥이 상자 윗면에 막 닿고 칸 가운데). bottom = 그 퍽 바닥 (frame), q = /joint_states 관절 1 ~ 5 (명령값). "
+                   "노드 place.teach 가 칸마다 모델 오차 (bottom + 퍽 반 높이 + 잡는 높이 − 노드 FK(q)) 를 구해 놓기 IK 목표에서 뺌",
+           "frame": "base_link", "made": f"{datetime.datetime.now():%Y-%m-%d %H:%M}", "cells": cells}
+    json.dump(out, open(BOX_TAUGHT, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    print(f"만듦: {BOX_TAUGHT} (칸 {len(cells)} 개)")
+    if len(cells) < 6:
+        print("  주의: 6 칸 미만이면 노드가 2 차 대신 1 차로 맞춤 (칸 사이 오차 더 남음). 9 칸 권장")
+    print("\n노드에 넣기:")
+    print(f"  cp {BOX_TAUGHT} {os.path.join(REPO, 'ros2_ws/src/control/config/place_box_teach.json')}")
+    print("  manipulator.yaml place.teach.enabled: true -> colcon build --packages-select control -> 브링업 다시")
+    print("  확인: 첫 놓기 때 노드 로그 'place.teach: cell … model error (…) mm' · 'place.teach: N / N cell(s) in use'")
+
+
 def main():
     global BOX_CELL0
     args = sys.argv[1:]
@@ -362,6 +397,9 @@ def main():
         return
     if "--fit_box" in args:
         fit_box()
+        return
+    if "--make_box" in args:
+        make_box()
         return
     if args and args[0] == "--set":   # --set 3_1 왼 5 [offset]
         set_nudge(args[1], args[2], float(args[3]), args[4] if len(args) > 4 else "node")

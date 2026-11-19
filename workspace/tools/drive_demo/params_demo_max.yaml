@@ -1,0 +1,154 @@
+# 11-16 max 모드 (주행만 최고 속도): params_demo_v7B.yaml 과 같고 RPP 곡선 감속 반경만 속도에 맞춰 run_demo.sh 가 채움
+#   __MRF__ = 전진 속도 × 1.1585 / 0.201 (0.45 → 2.59) · __MRR__ = 후진 0.15 → 0.86. 함께: BELT=2.0 TURN_MOTOR=3.0 (max 모드 기본)
+# 11-15 벨트 v7 (1:2.0) B안: 꺾는 중 모터 ≤ 3.0 (v7 모터) 에 맞춘 RPP 곡선 감속 — params_demo.yaml 에서 이 두 값만 다름
+#   min_radius = 0.30 × 1.1585 / (모터 3.0 × 0.0335 × 2.0) (반경 1 m 에서 바깥 모터 = 상한) · min_speed = 반경 0.2 m 에서 바깥 모터 = 상한
+#   함께 쓸 것: BELT=2.0 TURN_MOTOR=3.0 PARAMS=…/params_demo_v7B.yaml ./run_demo.sh …
+# 규칙 v2 계획 시연 — Nav2 노드 설정 (run_demo.sh 가 __VF__ · __VR__ · __ODOM__ 을 채워 기록 폴더에 params.yaml 로 씀). 저장소 밖.
+#   controller_server: 계획 조각 FollowPath (Forward = RPP 전진 __VF__ · Reverse = RPP 후진 __VR__ m/s, 곡률 감속) — 충돌 판단은 계획에서 함 (RPP 충돌 검사 끔)
+#   behavior_server: Spin (계획의 제자리 회전 · 정지점 방향 맞추기, 0.5 rad/s 이하)
+#   Nav2 명령 cmd_vel → cmd_vel_raw (remap) → v2_filter.py (규칙 v2 한계) → 실물 cmd_vel_nav (twist_mux nav) / 시뮬 cmd_vel (loopback)
+#   loopback_simulator · map_server 는 시뮬 (run_demo.sh sim) 에서만 띄움
+loopback_simulator:
+  ros__parameters:
+    base_frame_id: "base_link"
+    odom_frame_id: "odom"
+    map_frame_id: "map"
+    scan_frame_id: "base_scan"
+    update_duration: 0.02
+    enable_stamped_cmd_vel: true
+    scan_range_min: 0.05
+    scan_range_max: 8.0
+    scan_angle_min: -3.1415
+    scan_angle_max: 3.1415
+    scan_angle_increment: 0.02617
+    scan_use_inf: true
+
+map_server:
+  ros__parameters:
+    yaml_filename: ""          # run_follow.sh 가 넣음 (mission_planner/maps/map_amcl.yaml = 라이다 높이 벽만)
+
+controller_server:
+  ros__parameters:
+    controller_frequency: 20.0
+    odom_topic: __ODOM__
+    enable_stamped_cmd_vel: true
+    min_x_velocity_threshold: 0.001
+    min_y_velocity_threshold: 0.5
+    min_theta_velocity_threshold: 0.001
+    failure_tolerance: 0.3
+    progress_checker_plugins: ["progress_checker"]
+    goal_checker_plugins: ["piece_checker"]
+    controller_plugins: ["Forward", "Reverse"]
+    path_handler_plugins: ["PathHandler"]
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.02
+      movement_time_allowance: 20.0
+    piece_checker:                 # 조각 끝 (방향 바뀌는 곳 · 정지점) 위치만 — 방향은 Spin 으로
+      plugin: "nav2_controller::SimpleGoalChecker"
+      stateful: true
+      xy_goal_tolerance: 0.03
+      yaw_goal_tolerance: 6.28
+    PathHandler:
+      plugin: "nav2_controller::FeasiblePathHandler"
+      prune_distance: 1.0
+    Forward:
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      desired_linear_vel: __VF__
+      max_linear_vel: __VF__
+      min_linear_vel: 0.0
+      max_angular_vel: 1.5
+      min_angular_vel: -1.5
+      lookahead_dist: 0.15
+      min_lookahead_dist: 0.10
+      max_lookahead_dist: 0.30
+      lookahead_time: 1.0
+      use_velocity_scaled_lookahead_dist: false
+      use_fixed_curvature_lookahead: true
+      curvature_lookahead_dist: 0.25
+      use_regulated_linear_velocity_scaling: false   # 11-18: 곡선 속도는 v2_filter 모터 상한 (바깥 바퀴 실측 기준) 이 정함 — RPP 곡률 감속은 끔
+      regulated_linear_scaling_min_radius: __MRF__
+      regulated_linear_scaling_min_speed: 0.107
+      use_cost_regulated_linear_velocity_scaling: false
+      approach_velocity_scaling_dist: 0.15
+      min_approach_linear_velocity: 0.05
+      max_linear_accel: 1.5
+      max_linear_decel: 1.5
+      max_angular_accel: 3.0
+      use_rotate_to_heading: false
+      allow_reversing: false
+      use_collision_detection: false
+      use_dynamic_window: false
+      interpolate_curvature_after_goal: true    # 조각 끝에서 곡률이 튀지 않게 (끝 뒤로 늘린 점으로 곡률)
+      max_robot_pose_search_dist: 1.0
+    Reverse:
+      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
+      desired_linear_vel: __VR__
+      max_linear_vel: __VR__
+      min_linear_vel: -__VR__
+      max_angular_vel: 1.5
+      min_angular_vel: -1.5
+      lookahead_dist: 0.12
+      min_lookahead_dist: 0.08
+      max_lookahead_dist: 0.25
+      lookahead_time: 1.0
+      use_velocity_scaled_lookahead_dist: false
+      use_fixed_curvature_lookahead: true
+      curvature_lookahead_dist: 0.2
+      use_regulated_linear_velocity_scaling: false   # 11-18: 곡선 속도는 v2_filter 모터 상한 (바깥 바퀴 실측 기준) 이 정함 — RPP 곡률 감속은 끔
+      regulated_linear_scaling_min_radius: __MRR__   # 후진 (0.15 m/s) = 전진 값의 절반
+      regulated_linear_scaling_min_speed: 0.107
+      use_cost_regulated_linear_velocity_scaling: false
+      approach_velocity_scaling_dist: 0.10
+      min_approach_linear_velocity: 0.05
+      max_linear_accel: 1.5
+      max_linear_decel: 1.5
+      max_angular_accel: 3.0
+      use_rotate_to_heading: false
+      allow_reversing: true
+      use_collision_detection: false
+      use_dynamic_window: false
+      interpolate_curvature_after_goal: true    # 조각 끝에서 곡률이 튀지 않게 (끝 뒤로 늘린 점으로 곡률)
+      max_robot_pose_search_dist: 1.0
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      update_frequency: 10.0
+      publish_frequency: 5.0
+      global_frame: odom
+      robot_base_frame: base_link
+      rolling_window: true
+      width: 2
+      height: 2
+      resolution: 0.02
+      footprint: "[[0.25, 0.07], [0.25, -0.07], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676], [0.1328, 0.1676]]"
+      footprint_padding: 0.0
+      plugins: ["static_layer", "inflation_layer"]
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /map
+        map_subscribe_transient_local: true
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        inflation_radius: 0.10
+        cost_scaling_factor: 10.0
+      always_send_full_costmap: true
+
+behavior_server:
+  ros__parameters:
+    enable_stamped_cmd_vel: true
+    local_costmap_topic: local_costmap/costmap_raw
+    local_footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 20.0
+    behavior_plugins: ["spin"]
+    spin:
+      plugin: "nav2_behaviors::Spin"
+    local_frame: odom
+    global_frame: map
+    robot_base_frame: base_link
+    transform_tolerance: 0.1
+    simulate_ahead_time: 1.0
+    max_rotational_vel: 0.5          # 규칙 v2 제자리 회전 ≤ 0.5 rad/s
+    min_rotational_vel: 0.15
+    rotational_acc_lim: 2.0

@@ -39,6 +39,7 @@
 |---|---|---|
 | `slot_teach.py` | 칸마다 칸에 넣은 퍽에 집게를 손으로 맞춰 기록 (`~/실측/slot_teach.json`) -> `--make` 로 노드 궤적 칸 근처 보정판 (`~/pallet_place_traj_taught.json`, 원본 `~/pallet_place_traj_orig.json` 기준). `--show` 칸별 차이, `--set 칸 방향 mm` 말로 보정 | 브링업 + `r` 뒤 `python3 ~/slot_teach.py [칸 …]` |
 | `slot_teach.py --box` · `--fit_box` | 상자 위 놓는 자리 맞추기 (쥔 퍽 바닥이 윗면에 닿고 칸 가운데, 기본 9 칸 `~/실측/box_teach.json`) -> 노드 놓기 IK 영점 (`ik.joint_offsets`) 제안 · 셀별 오차 | 브링업 + `r` 뒤 `python3 ~/slot_teach.py --box` |
+| `slot_teach.py --make_box` | (2026-11-17) 상자 기록 -> `~/place_box_teach.json` -> 저장소 `control/config/place_box_teach.json` + `manipulator.yaml` `place.teach.enabled: true`. 노드가 칸마다 모델 오차 (맞춘 자리 − 노드 FK) 를 빼고 놓기 IK (주변 칸 2 차 국소 맞춤, 처짐 보정 스트리밍 놓기에서) | `python3 ~/slot_teach.py --make_box` |
 | `arm_only.sh` | 보드 확인 (읽기만: 팔 HOLD = 재부팅 안 됨 · 모터 못 읽음 구분) + 최소 브링업 (센서 없이, 포트 자동) | `~/arm_only.sh --check` · `~/arm_only.sh` |
 | `arm_stow.py` | 브링업 끈 상태에서 대기 자세 (STOW) 범위 밖 관절만 범위 가운데로 (opencr_arm_tool 저속, 접는 차례 5 -> 1 -> 4 -> 2 -> 3) | `python3 ~/arm_stow.py [--check]` |
 | `arm_free.py` | 칸 안에 멈춘 팔 빼내기 (벌림 -> 4 cm 위 -> 높은 자세 -> 정면) | `python3 ~/arm_free.py [--keep]` |
@@ -47,4 +48,7 @@
 - 팔 속도 (2026-11-14): `manipulator.yaml` 의 `arm.max_joint_velocity` (0.8 rad/s) 하나가 기준. 노드 (이름 자세 · 팔레트 · 팔레트 진입 · 켜질 때 정리) 와
   시험 도구 (`meas_session` · `slot_teach` · `arm_free` 의 이동, `arm_stow`) 가 모두 이 값을 읽음. 정밀 구간 (3 열 쥔 채 넣기 `pallet.row3_hold_speed`,
   `meas_session` 손 맞춤 jog 한 걸음 1.5 s, 놓기 직선, 강화학습 정책 한계) 은 따로.
+- 상자 놓기 손 맞춤 (2026-11-17, `place.teach`): 상자를 **가장 가까운 정지 자리 (5 cm)** 에 자 · 지그로 정확히 두고 9 칸 모두 맞춤 (상자 자리 오차는 그대로 들어감,
+  J1 쪽 밖으로 늘리기는 약함). 다시 맞출 때: 팔 조립 · 영점 · 펌웨어가 바뀐 뒤. 확인: 첫 놓기 노드 로그 `place.teach: cell … model error` · `N / N cell(s) in use`
+  -> `dice.sh real L1 5 --bench` 로 놓인 퍽 칸 오차를 자로 잼.
 - 책상 시험 상자 자리 (2026-11-15): 로봇 앞 끝에서 **5 cm** (예전 12.72 cm). `dice.sh --bench` 가운데 칸 0.2853, `slot_teach.py --box` 같음. 6 cm 면 `--cell0 "0.2953 0.0 0.0633"` · `--cx 0.2953`.

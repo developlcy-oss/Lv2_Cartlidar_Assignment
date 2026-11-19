@@ -163,10 +163,11 @@ python3 ~/demo_v2/scan_rotate.py /dev/serial/by-path/platform-3610000.usb-usb-0:
 ### 단계 6 — J3: 위치 추정 · 팔 주행 자세
 
 ```bash
-ros2 launch bringup bringup.launch.py use_hardware:=false use_sensors:=false use_perception:=false use_tfmini:=false \
-  use_planner:=false use_localization:=true use_amcl_node:=true use_nav2:=false use_loc_monitor:=false 2>&1 | tee ~/demo_loc.log
+ros2 launch bringup bringup.launch.py mode:=drive use_hardware:=false use_sensors:=false use_perception:=false use_tfmini:=false \
+  use_loc_monitor:=false 2>&1 | tee ~/demo_loc.log
 ```
-- 지도 · 라이다 몸체 가림 · 합치기 (`/scan_merged`) · AMCL · EKF 를 띄움. 하드웨어 (J1) · 라이다 드라이버 (J2) · 인식 · 계획기 · 팀 Nav2 는 안 띄움.
+- 지도 · 라이다 몸체 가림 · 합치기 (`/scan_merged`) · AMCL · EKF 를 띄움. 하드웨어 (J1) · 라이다 드라이버 (J2) · 인식 · 계획기 · 팀 Nav2 · mission_node 는 안 띄움.
+- `mode:=drive` 가 팀 Nav2 · 계획기를 끄고 AMCL 을 켭니다 (예전의 `use_nav2:=false use_planner:=false use_amcl_node:=true` 를 대신함). 아래 "주행 모드 / 미션 모드" 참고.
 - ⚠ **켜질 때 팔이 대기 → 주행 자세로 펴집니다** (J3 → J2 → J4 → J1 → J5). 손을 빼고, 리모컨 1 준비. 계산상 틈이 거의 없는 곳이 있어 지켜봅니다.
 - 10 ~ 30 초 걸립니다.
 
@@ -246,6 +247,35 @@ cd ~/demo_v2 && ./check_jetson.sh
 | 제자리 회전에서 멈칫 · 덜 돎 | 벨트 v7 토크 → 리모컨 1 → 기록을 제어 담당에게 |
 
 기록: Jetson `~/demo_v2/runs/<월일_시각>_실물_…/` — `follow.log` (화면) · `nav.log` (Nav2 · 필터) · `track_live.csv` (0.1 s 마다 위치 · 명령, Ctrl+C 로 끊겨도 남음) · `track.csv` · `course_result.json`.
+
+### 주행 모드 / 미션 모드
+
+bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
+
+| | 주행 모드 `mode:=drive` | 미션 모드 (기본, 인자 없이) |
+|---|---|---|
+| 쓰는 곳 | A. 주행 시연 (단계 6) | B. 전체 미션 · 경기 |
+| 팀 Nav2 · 계획기 | 안 띄움 (인자로 켜도 꺼짐) | 띄움 |
+| mission_node | 안 띄움 | 띄움 |
+| drive_node · manipulator_node · TFmini | 띄움 (켤 때 팔을 주행 자세로) | 띄움 |
+| AMCL (`use_amcl_node` 기본) | `use_localization` 을 따름 | `use_nav2` 를 따름 |
+
+- 지금 모드는 `/system/mode` (std_msgs/String, reliable · transient_local, 1 Hz) 로 나옵니다: `ros2 topic echo --once --qos-durability transient_local /system/mode`.
+- `./run_demo.sh real` 은 `/system/mode` 가 `mission` 이면 `✗ 미션 모드 bringup 이 떠 있음` 을 찍고 시작하지 않습니다 (팀 Nav2 · mission_node 와 시연 노드가 함께 바퀴를 움직이지 않게). 단계 6 을 `mode:=drive` 로 다시 띄웁니다. 토픽을 못 받으면 (옛 bringup) 경고만 찍고 진행합니다.
+
+#### 장애물 정지 · 막힘 우회 (11-19 추가)
+
+- **`SAFETY` (기본 1)** — `run_demo.sh` 가 시연 Nav2 에 `params_demo_safety.yaml` 을 덧씌우고 라이다 장애물 층 · `collision_monitor` (v2_filter 뒤) · `planner_server` (Detour) 를 함께 띄웁니다. 정지 띠는 속도에 따라 바뀝니다 (전진 빠름 · 중간 · 느림 앞 띠, 후진 뒤 띠, 제자리 회전 띠).
+  - `SAFETY=0 ./run_demo.sh …` 이면 예전 그대로 (정지 띠 · 우회 없음) 돌고, `demo_follow.py` 에 `--no-detour` 를 넘깁니다.
+- **막힘 우회** (`demo_follow.py`, 전진 조각만) — 정지 띠에 걸려 멈추면:
+  1. 최대 **5 s** 기다립니다 (그 사이 비키면 그대로 이어감).
+  2. 지나온 길로 **0.15 m** 후진합니다.
+  3. planner_server 로 우회 경로를 받습니다. 합류점은 조각에서 **1.1 · 1.3 · 1.5 m** 앞 (또는 조각 끝) 이고, 원래 조각에서 **0.4 m** 넘게 벗어나는 경로는 받지 않습니다.
+  4. 우회 경로를 따라간 뒤 합류점부터 원래 조각을 이어 갑니다.
+  - 구간당 최대 **2 번**. 후진 실패 · 우회 경로 없음 · 후진 조각이면 기존 되찾기로 넘어갑니다.
+  - 끄려면 `DEMO_DETOUR=0 ./run_demo.sh …` (또는 `demo_follow.py --no-detour`). 시험용 `DEMO_TEST_BLOCK=1` = 첫 긴 전진 조각 (> 0.6 m) 이 3 s 뒤 막힌 것처럼 (전체에서 한 번).
+- **한계:** 비켜 갈 옆 공간이 이어져 있는 곳은 시연 경로의 약 19 % 뿐입니다 (S0 · S1 · S3 · S5 는 0 %). 그 밖에서는 우회 경로가 안 나와 기다린 뒤 되찾기 (step 모드면 건너뛰기) 로 넘어갑니다.
+- 기록: `course_result.json` 의 구간마다 `detour_n` (우회 횟수), `tries` 에 상태 `"detour"` 줄 (후진 · 경로 · 결과).
 
 ## 4. B. 전체 미션 시험 (팀 bringup)
 
