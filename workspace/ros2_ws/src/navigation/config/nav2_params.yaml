@@ -57,7 +57,7 @@ controller_server:
     FollowPath:
       # RotationShim: 경로 방향 · 목표 방향과 차이가 크면 제자리 회전을 먼저 하고, 나머지는 MPPI (아래 값) 에 맡김
       plugin: "nav2_rotation_shim_controller::RotationShimController"
-      angular_dist_threshold: 0.785        # 경로 방향과 45° 넘게 다르면 먼저 제자리 회전
+      angular_dist_threshold: 0.96         # 경로 방향과 55° 넘게 다르면 먼저 제자리 회전 (45° 는 팔레트 집기 자리 (1.47, 0.31) 에서 뒤 벽에 걸려 MPPI·복구 모두 거부, Gazebo 11-19)
       forward_sampling_distance: 0.3       # ★ 경로 방향을 볼 앞 거리 (기본 0.5, 좁은 미로라 줄임)
       rotate_to_heading_angular_vel: 0.8   # ★ 제자리 회전 속도 (≤ MPPI wz_max)
       max_angular_accel: 2.0
@@ -288,7 +288,7 @@ collision_monitor:
     source_timeout: 1.0
     base_shift_correction: true
     stop_pub_timeout: 2.0
-    polygons: ["FootprintApproach"]
+    polygons: ["FootprintApproach", "VelocityStop"]   # 앞 polygon 부터 검사, 정지가 감속보다 우선
     FootprintApproach:                   # 차체 외곽이 time_before_collision 안에 닿을 속도면 줄임
       type: "polygon"
       action_type: "approach"
@@ -298,6 +298,38 @@ collision_monitor:
       min_points: 6
       visualize: false
       enabled: true
+    VelocityStop:                        # 진행 방향 앞 · 뒤 띠에 라이다 점 ≥ min_points 면 정지 (approach 가 못 막은 마지막 거리)
+      type: "velocity_polygon"
+      action_type: "stop"
+      holonomic: false
+      min_points: 4
+      visualize: false
+      enabled: true
+      # 앞 띠 = 차체 앞 외곽 (끝 0.25 · |y| ≤ 0.07, 모서리 0.1328 · 반폭 0.1676) 을 진행 방향으로 0.12 민 자리 (직진으로 쓸고 가는 곳, V자 8 점).
+      #   직사각형 (0.25 ~ 0.37 · ±0.17) 은 깎인 모서리 앞 빈 곳 (x 0.29 · y -0.15 근처) 에 기둥이 들어와 잘못 멈춤 (11-19 시연 시뮬 S0)
+      # 뒤 띠 = 뒤 끝 -0.2135 → -0.31, 폭 ±0.17 (뒤 외곽은 직선이라 직사각형 그대로)
+      # Nav2 목표 standoff ≥ 0.30 m (mission_planner poses.py STANDOFFS) 라 0.12 띠는 상자 앞 정차를 막지 않음. 최고 0.2 m/s 정지거리 ≈ 3.3 cm
+      # 속도 구간은 앞에서부터 처음 맞는 것을 씀. 맞는 구간이 없으면 직전 띠를 그대로 씀 (nav2 1.5 velocity_polygon.cpp)
+      #   → 제자리 회전 (|직진| < 0.02) 용 spin 구간을 빈 띠 (차체 중심 1 cm 사각형, 라이다 점 없음. 삼각형은 "at least three points" 오류) 로 둠: 기둥 옆 2 cm 꺾기를 막지 않게
+      velocity_polygons: ["forward", "backward", "spin"]
+      forward:
+        points: "[[0.1328, 0.1676], [0.2528, 0.1676], [0.37, 0.07], [0.37, -0.07], [0.2528, -0.1676], [0.1328, -0.1676], [0.25, -0.07], [0.25, 0.07]]"
+        linear_min: 0.02
+        linear_max: 1.0
+        theta_min: -2.0
+        theta_max: 2.0
+      backward:
+        points: "[[-0.2135, 0.17], [-0.31, 0.17], [-0.31, -0.17], [-0.2135, -0.17]]"
+        linear_min: -1.0
+        linear_max: -0.02
+        theta_min: -2.0
+        theta_max: 2.0
+      spin:
+        points: "[[0.0, 0.0], [0.01, 0.0], [0.01, 0.01], [0.0, 0.01]]"
+        linear_min: -0.02
+        linear_max: 0.02
+        theta_min: -2.0
+        theta_max: 2.0
     observation_sources: ["scan"]
     scan:
       type: "scan"

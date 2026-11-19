@@ -15,6 +15,16 @@
       요청한 곳 (예 L2) 을 먼저 들른 뒤 기본 경로 다음 곳으로 복귀. 길은 길 모음 (legs.json, 90 개) 에서 꺼냄.
       요청 = step 모드에서 L1 · L2 · L3 (또는 상자 이름) 입력 · 토픽 /drive_demo/detour (std_msgs/String) · 계획 파일 auto_detour (시뮬 시험).
       정지점에 도착하면 /drive_demo/arrived (std_msgs/String, 그 이름) 를 냄. 어느 L 이 완성 가능한지는 정하지 않음 (요청을 따를 뿐).
+11-19 장애물 막힘 · 우회: 전진 · 후진 조각 중 collision_monitor 가 멈춤 (/collision_monitor_state STOP) 을 걸면 최대 BLOCK_WAIT (5 s) 기다림
+      (FollowPath 는 살아 있어 장애물이 사라지면 그대로 이어감, 기다린 시간은 조각 시간 초과에 더함). 5 s 넘으면 조각을 취소하고 전진 조각이면
+      먼저 지나온 길로 DETOUR_BACK (0.15 m) 후진 (멈춘 자리는 앞 끝 ↔ 장애물 3 ~ 15 cm 라 반경 0.20 전진만으로는 어깨가 모서리를 못 비킴,
+      0.20 m 넘게 떨어져야 앞뒤 약 1.06 m · 옆 0.32 m 로 비킴) → planner_server (compute_path_to_pose, planner_id Detour) 로
+      조각 1.1 · 1.3 · 1.5 m 앞 (또는 끝) 까지 우회 경로 (조각에서 0.4 m 안) 를 받아 따라간 뒤 남은 조각을 이어감 (구간당 최대 DETOUR_MAX 번).
+      후진 실패 (뒤쪽 띠 막힘 등) 도 기존 되찾기로.
+      정지 래치 (HOLD): STOP 을 처음 받으면 FollowPath 를 바로 취소하고, 라이다 (--scan-topic, 기본 /scan_merged) 로 진행 방향 차체 끝
+      0.20 m · 폭 ±0.20 m 띠를 직접 봄 → 점 4 개 미만이 1 s 이어지면 진행 인덱스부터 이어감 (멈춘 뒤 느린 명령으로 다가가는 것 막음).
+      라이다가 끊기면 안 풂. 시작 방향이 90° 넘게 틀어진 조각은 방향 맞추기 대신 실패로 (되찾기 · 건너뛰기). 후진 조각 · 우회 경로 없음 · planner 없음 (SAFETY=0) 이면 기존 되찾기. --no-detour 또는 DEMO_DETOUR=0 으로 끔.
+      시험: DEMO_TEST_BLOCK=1 = 첫 전진 조각 (> 0.6 m) 3 s 뒤 5 s 넘게 막힌 것처럼.
 기록: 0.1 s 마다 map → base_link + cmd_vel_raw (Nav2 명령) + 필터 뒤 명령 → track.csv · course_result.json · moves.json · summary.txt (주행기록 HTML 형식)
 """
 from __future__ import annotations
@@ -33,20 +43,23 @@ from collections import deque
 import rclpy
 from builtin_interfaces.msg import Duration
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TwistStamped
-from nav2_msgs.action import FollowPath, Spin
+from nav2_msgs.action import ComputePathToPose, FollowPath, Spin
+from nav2_msgs.msg import CollisionMonitorState
 from nav_msgs.msg import Path
+from sensor_msgs.msg import LaserScan
 from std_srvs.srv import Empty
 from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
-from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from rclpy.time import Time
-from std_msgs.msg import String
+from std_msgs.msg import Float32, String
 from tf2_ros import Buffer, TransformListener
 
 POS_OK, YAW_OK, YAW_FIX = 0.05, math.radians(10.0), math.radians(2.0)
 EXT_F, EXT_R = 0.15, 0.10
+STOP_CREEP_D = 0.05   # 11-18 속도 곡선: v2_filter stop_creep_d 와 같게. 구간 끝 (정지점) 만 마지막 이 길이를 천천히, 중간 정지 (후진 · 제자리 앞) 는 이만큼 더해 보내 건너뜀
 START_TOL, START_YAW_TOL = 0.15, math.radians(15.0)
 AMCL_XY_OK, AMCL_YAW_OK = 0.05, 5.0   # 위치 감시를 껐을 때 출발 허용 AMCL σ [m] · [deg]
 OFF_PATH = 0.10   # 11-15 21:4x 사용자 결정: 전진 · 후진 조각 중 AMCL 자리가 조각 경로에서 max(이 값, 시작 때 어긋남 + 3 cm) 넘게
@@ -54,6 +67,22 @@ OFF_PATH = 0.10   # 11-15 21:4x 사용자 결정: 전진 · 후진 조각 중 AM
 RECOVER_TRIES, BACK_MAX = 2, 0.30   # 11-16 사용자 결정: 조각 실패 시 되찾기 (자기 위치 찾기 → 왔던 길 ≤ BACK_MAX m → 다시) 최대 횟수 (0 = 끔)
 STEP_MODE = False                  # step 모드면 되찾기도 안 될 때 사람에게 물음
 HEAD_FIX = math.radians(4.0)          # 전진 · 후진 조각 시작 때 방향이 이보다 틀어져 있으면 먼저 제자리로 맞춤 (0 = 끔, --no-head-fix)
+BLOCK_WAIT, DETOUR_MAX = 5.0, 2   # 11-19 사용자 결정: collision_monitor 멈춤을 기다리는 최대 시간 [s] · 구간당 우회 최대 횟수
+DETOUR_BACK = 0.15                  # 11-19 (팀원 D 기하): 우회 계획 전 후진 길이 [m] — 장애물과 0.20 m 넘게 떨어져야 반경 0.20 전진만으로 비킴
+START_BACK_N = int(round((DETOUR_BACK + BACK_MAX + 0.15) / 0.01))   # 11-19: 다시 시작할 인덱스를 진행 인덱스 뒤로 찾는 창 [점 수, 1 cm 간격]
+                                    #   = 우회 전 후진 + 되찾기 후진 (최대 0.45 m) + 여유 0.15 → 60 개
+DETOUR_JOIN = (1.1, 1.3, 1.5)       # 우회 뒤 다시 합류할 점 후보: 후진한 자리 (조각 가장 가까운 점) 부터 경로 길이 [m] 앞 (+ 조각 끝). 1.06 m 기하 + 후진 0.15
+DETOUR_DEV_MAX = 0.4                # 우회 경로가 원래 조각에서 벗어나도 되는 최대 거리 [m] (필요한 비킴 0.32 m, 더 크게 돌면 기둥 · 팔레트 위험)
+DETOUR_ON = os.environ.get("DEMO_DETOUR", "1") != "0"   # --no-detour 로도 끔
+BLOCKED = "BLOCKED"                 # abort_when 이 돌려주는 막힘 표시 (문자열 앞머리)
+HOLD = "HOLD"                       # 11-19 정지 래치: STOP 을 받아 goal 을 취소했다는 표시 (follow_piece 안에서만)
+BODY_FRONT, BODY_REAR = 0.25, 0.2135   # base_link 에서 차체 앞 끝 · 뒤 끝 [m] (params footprint)
+HOLD_DEPTH, HOLD_HALF = 0.20, 0.20     # HOLD 확인 띠: 진행 방향 차체 끝에서 깊이 · 폭 ± [m]
+HOLD_PTS, HOLD_CLEAR = 4, 1.0          # 띠 안 점이 이 개수 미만인 채 이 시간 [s] 이어지면 비었다고 봄
+SCAN_STALE = 2.0                       # 라이다가 이 시간 [s] 넘게 끊기면 HOLD 를 풀지 않음
+CM_STALE = 0.5                         # goal 보내기 전부터 남은 STOP 은 이 시간 [s] 동안 안 믿음 (상태가 바뀔 때만 발행되므로)
+HOLD_RUN_OK = 1.0                      # 이어간 뒤 이 시간 [s] 넘게 달렸으면 다음 STOP 은 새 HOLD (기다림 시계 새로)
+TEST_BLOCK = {"done": False}        # 시험용 DEMO_TEST_BLOCK=1 은 전체에서 한 번만
 STOP = threading.Event()
 LIVE = None   # 11-15 21:3x: track_live.csv — 0.1 s 마다 바로 씀 (Ctrl+C · 강제 종료로 save() 를 못 해도 남음)
 NAMES = ["HOME", "box1", "box2", "box3", "box4", "box5", "box6", "L1", "L2", "L3"]
@@ -69,7 +98,7 @@ def yaw_q(y):
 
 
 class Follower(Node):
-    def __init__(self, sim):
+    def __init__(self, sim, scan_topic="/scan_merged"):
         super().__init__("demo_follower", parameter_overrides=[Parameter("use_sim_time", Parameter.Type.BOOL, sim)])
         self.tf = Buffer()
         self.tfl = TransformListener(self.tf, self)
@@ -102,6 +131,39 @@ class Follower(Node):
         self.plock = threading.Lock()
         self.create_subscription(String, "/drive_demo/detour", self._detour, 10)
         self.arrived = self.create_publisher(String, "/drive_demo/arrived", 10)
+        self.stop_pub = self.create_publisher(Float32, "/drive_demo/stop_dist", 10)   # 11-18 속도 곡선: 다음 정지까지 남은 길이 (v2_filter 가 감속)
+        # 11-19 장애물 막힘 · 우회: collision_monitor 상태 (바뀔 때만 옴) → STOP 이 시작된 벽시계, planner_server 우회 경로
+        self.cm_since = None
+        self.create_subscription(CollisionMonitorState, "/collision_monitor_state", self._cm, 10)
+        self.planner = ActionClient(self, ComputePathToPose, "compute_path_to_pose")
+        self.planner_warned = False
+        # 11-19 정지 래치 (HOLD): 라이다 직접 (받은 벽시계, 메시지) · base_link ← 라이다 정적 TF (한 번 조회해 둠)
+        self.scan, self.scan_tf = None, None
+        self.create_subscription(LaserScan, scan_topic, lambda m: setattr(self, "scan", (time.time(), m)), qos_profile_sensor_data)
+        self.hold_n, self.tries, self.leg_t0 = 0, [], 0.0   # run_leg 이 구간마다 맞춤 (follow_piece 가 HOLD 기록)
+
+    def band_count(self, kind):
+        """HOLD 확인 띠 안 라이다 점 개수 → (개수, "") 또는 (None, 이유)"""
+        sc = self.scan
+        if sc is None or time.time() - sc[0] > SCAN_STALE:
+            return None, f"라이다 못 받음 ({SCAN_STALE:.0f} s 넘게)"
+        m = sc[1]
+        if self.scan_tf is None:
+            try:
+                t = self.tf.lookup_transform("base_link", m.header.frame_id, Time())
+            except Exception:  # noqa: BLE001
+                return None, f"TF base_link ← {m.header.frame_id} 없음"
+            q = t.transform.rotation
+            self.scan_tf = (t.transform.translation.x, t.transform.translation.y,
+                            math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)))
+        return count_in_band(m.ranges, m.angle_min, m.angle_increment, m.range_min, m.range_max, self.scan_tf, kind), ""
+
+    def _cm(self, m):
+        if m.action_type == CollisionMonitorState.STOP:
+            if self.cm_since is None:
+                self.cm_since = time.time()
+        else:
+            self.cm_since = None
 
     def _detour(self, m):
         nm = norm(m.data)
@@ -249,7 +311,26 @@ def run_action(client, goal, timeout, done_when=None, abort_when=None):
     return ok, ("" if ok else f"상태 {res.status} · 오류 {getattr(r, 'error_code', 0)} {getattr(r, 'error_msg', '') or ''}".strip())
 
 
-def follow_piece(node, pc):
+def merge_pieces(pieces):
+    """11-18: 이어진 같은 방향 조각 (전진 → 전진, 끝 · 시작 2 cm · 10° 안) 을 하나로 — 사이에서 멈추지 않게"""
+    out = []
+    for pc in pieces:
+        if out and pc["kind"] in "FR" and out[-1]["kind"] == pc["kind"] and pc.get("poses") and out[-1].get("poses"):
+            e, b = out[-1]["poses"][-1], pc["poses"][0]
+            if math.hypot(b[0] - e[0], b[1] - e[1]) < 0.02 and abs(wrap(b[2] - e[2])) < math.radians(10):
+                out[-1] = dict(out[-1], poses=list(out[-1]["poses"]) + list(pc["poses"][1:] if math.hypot(b[0] - e[0], b[1] - e[1]) < 1e-4 else pc["poses"]))
+                continue
+        out.append(dict(pc))
+    return out
+
+
+def pub_stop(node, d):
+    m = Float32()
+    m.data = float(d)
+    node.stop_pub.publish(m)
+
+
+def follow_piece(node, pc, final=True):
     if pc["kind"] == "S":
         g = Spin.Goal()
         g.target_yaw = float(pc["dth"])
@@ -261,8 +342,15 @@ def follow_piece(node, pc):
         return True, ""
     # 11-15: 조각 시작 방향 맞추기 — 앞 조각 (특히 짧은 후진) 끝에서 방향이 틀어진 채 출발하면 반경 0.20 한계 때문에 못 돌아와 옆으로 밀림
     #   (11-14 22:57 시뮬 S5: 후진 끝 +8.5° → 전진 중 기둥 쪽으로 2 ~ 3 cm). 멈춘 순간이라 작은 제자리 회전 (규칙 v2 예산 안)
+    #   11-19: 목표는 실제로 따라가기 시작할 인덱스 (진행 인덱스 근처, 보내는 Path 의 시작) 의 경로 방향. 처음 시작하는 조각은 0 = 예전과 같음
+    #   (전에는 늘 poses[0] → 곡선 조각을 되찾기 · 이어가기로 중간부터 다시 갈 때 -119° · -124° 같은 엉뚱한 각, 팀원 A 시뮬 (b) S0)
+    k_start, err = start_heading(poses, cur, pc.get("_near", 0)) if cur is not None else (0, 0.0)
     if HEAD_FIX > 0 and cur is not None:
-        err = wrap(poses[0][2] - cur[2])
+        if abs(err) > math.radians(SPIN_MAX_DEG):
+            # 11-19: 규칙 v2 제자리 한도 (90°) 넘는 방향 맞추기는 안 함 — 되찾기 중 -124° 요구 → Spin 시간 초과 (팀원 A 시뮬).
+            #   이 조각 시도를 실패로 돌려 되찾기 · 자동 건너뛰기 · 사람 판단으로
+            print(f"    · 조각 시작 방향 {math.degrees(err):+.0f}° > {SPIN_MAX_DEG:.0f}° — 방향 맞추기 안 함 (이 시도 실패)", flush=True)
+            return False, f"시작 방향 {math.degrees(err):+.0f}° 가 제자리 한도 {SPIN_MAX_DEG:.0f}° 넘음"
         if abs(err) > HEAD_FIX:
             print(f"    · 조각 시작 방향 맞추기 {math.degrees(err):+.1f}°", flush=True)
             node.head_fix.append(round(math.degrees(err), 1))
@@ -281,21 +369,25 @@ def follow_piece(node, pc):
     ex, ey, eth = poses[-1]
     ext = EXT_F if d > 0 else EXT_R
     full = list(poses) + [(ex + d * s * math.cos(eth), ey + d * s * math.sin(eth), eth) for s in [0.01 * i for i in range(1, int(ext / 0.01) + 1)]]
-    path = Path()
-    path.header.frame_id = "map"
-    path.header.stamp = node.get_clock().now().to_msg()
-    for x, y, th in full:
-        ps = PoseStamped()
-        ps.header = path.header
-        ps.pose.position.x, ps.pose.position.y = x, y
-        ps.pose.orientation.z, ps.pose.orientation.w = yaw_q(th)
-        path.poses.append(ps)
-    g = FollowPath.Goal()
-    g.path = path
-    g.controller_id = "Forward" if d > 0 else "Reverse"
-    g.goal_checker_id = "piece_checker"
-    if hasattr(g, "progress_checker_id"):
-        g.progress_checker_id = "progress_checker"
+    ctrl = "Forward" if d > 0 else "Reverse"
+
+    def make_goal(k0):   # 11-19 HOLD 뒤 이어갈 때는 진행 인덱스부터 (지나온 부분은 안 보냄)
+        path = Path()
+        path.header.frame_id = "map"
+        path.header.stamp = node.get_clock().now().to_msg()
+        for x, y, th in full[k0:]:
+            ps = PoseStamped()
+            ps.header = path.header
+            ps.pose.position.x, ps.pose.position.y = x, y
+            ps.pose.orientation.z, ps.pose.orientation.w = yaw_q(th)
+            path.poses.append(ps)
+        g = FollowPath.Goal()
+        g.path = path
+        g.controller_id = ctrl
+        g.goal_checker_id = "piece_checker"
+        if hasattr(g, "progress_checker_id"):
+            g.progress_checker_id = "progress_checker"
+        return g
     ux, uy = d * math.cos(eth), d * math.sin(eth)
 
     def passed():
@@ -312,6 +404,26 @@ def follow_piece(node, pc):
     d0 = dev() or 0.0
     lim = max(OFF_PATH, d0 + 0.03)
     last = [0.0]
+    # 11-18 속도 곡선: 조각 끝 = 정지 (구간 끝이면 마지막 STOP_CREEP_D 천천히, 중간이면 그만큼 더해 보내 그 구간을 건너뜀)
+    cum = [0.0]
+    for a, b in zip(poses, poses[1:]):
+        cum.append(cum[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    # 11-19: 진행 인덱스 = 조각 dict 의 "_near" (follow_piece 밖 우회 · 되돌아가기 · 합류도 이 근처 앞쪽만 찾음).
+    #   node 하나에 두면 우회 조각을 따라가는 동안 원래 조각 값이 덮이므로 조각마다 둠. 다시 따라갈 때는 되돌아간 만큼 (≤ BACK_MAX) 뒤까지 찾음
+    near = [k_start]   # 방향 맞추기와 같은 시작 인덱스 (Path 는 make_goal(k_start - 2) 부터)
+    pc["_near"] = near[0]
+    t_pub = [0.0]
+
+    def send_stop():
+        if time.time() - t_pub[0] < 0.05:
+            return
+        t_pub[0] = time.time()
+        p = node.pose()
+        if p is None:
+            return
+        i = nearest_ahead(poses, p, near[0])   # 앞으로만 찾음 (경로가 겹쳐도 엉뚱한 점을 안 고름)
+        near[0] = pc["_near"] = i
+        pub_stop(node, max(cum[-1] - cum[i], 0.0) + (0.0 if final else STOP_CREEP_D))
 
     t_start = time.time()
     test_fail = os.environ.get("DEMO_TEST_PIECE_FAIL") == "1" and pc["kind"] == "F" and length > 0.6 and not pc.get("_tested")
@@ -327,7 +439,106 @@ def follow_piece(node, pc):
         if d is not None and d > lim:
             return f"경로에서 {d * 100:.0f} cm 벗어남 (한도 {lim * 100:.0f} cm) — 멈춤 (소프트웨어 정지)"
         return None
-    return run_action(node.fp, g, length / 0.03 + 30, done_when=passed, abort_when=off_path)
+    # 11-19 정지 래치 (HOLD): collision_monitor STOP 을 처음 받으면 FollowPath 를 바로 취소 (Nav2 가 0 → 섬).
+    #   그대로 두면 RPP 가 더 느린 명령을 내고 collision_monitor 가 그 명령을 더 좁은 띠로만 봐서 다시 통과 → 정지 · 이어감 반복하며 다가감
+    #   (11-19 팀원 A 시뮬: 앞 끝 ↔ 장애물 2.1 cm, 한 번 0 cm). HOLD 동안은 라이다를 직접 봐서 진행 방향 띠가 1 s 비면 진행 인덱스부터 이어감,
+    #   BLOCK_WAIT 안에 안 비면 BLOCKED (→ run_leg 후진 · 우회). 이어간 뒤 HOLD_RUN_OK 넘게 달리기 전에 또 멈추면 기다림 시계는 이어서 셈
+    test_block = (os.environ.get("DEMO_TEST_BLOCK") == "1" and pc["kind"] == "F" and length > 0.6 and not TEST_BLOCK["done"])
+    run = {"t": t_start}
+    hold_t0 = None
+
+    def stop_seen():
+        now = time.time()
+        if test_block and now - t_start > 3.0:   # 시험용: 우회 흐름 확인 (DEMO_TEST_BLOCK=1, 전체에서 한 번)
+            TEST_BLOCK["done"] = True
+            print(f"    ⏸ 장애물 — 시험용 (DEMO_TEST_BLOCK=1): {BLOCK_WAIT:.0f} s 넘게 막힌 것으로 침", flush=True)
+            return f"{BLOCKED}: 시험용 막힘 (DEMO_TEST_BLOCK=1)"
+        st = node.cm_since
+        if st is None:
+            return None
+        if st < run["t"] and now - run["t"] < CM_STALE:   # 보내기 전부터 남은 STOP (상태는 바뀔 때만 옴) — 잠깐은 새 명령의 판정을 기다림
+            return None
+        return HOLD
+
+    def abort():
+        send_stop()
+        return off_path() or stop_seen()
+    try:
+        while True:
+            k0 = max(pc["_near"] - 2, 0)
+            run["t"] = time.time()
+            r, msg = run_action(node.fp, make_goal(k0), (cum[-1] - cum[k0]) / 0.03 + 30, done_when=passed, abort_when=abort)
+            if r or msg != HOLD:
+                return r, msg
+            now = time.time()
+            if hold_t0 is None or now - run["t"] >= HOLD_RUN_OK:   # 새 HOLD
+                hold_t0 = now
+                node.hold_n += 1
+                print(f"    ⏸ 장애물 — 정지 (HOLD, goal 취소), 최대 {BLOCK_WAIT:.0f} s 기다림 · 라이다 {'앞' if d > 0 else '뒤'} 띠 확인", flush=True)
+            else:
+                print(f"    ⏸ 장애물 — 다시 정지 (HOLD 이어서 {now - hold_t0:.1f} s 째)", flush=True)
+            res, info = hold_wait(node, pc["kind"], hold_t0)
+            w = time.time() - hold_t0
+            node.tries.append({"status": "hold", "msg": f"{'전진' if d > 0 else '후진'} HOLD {w:.1f} s → "
+                               + {"clear": "이어감", "blocked": "막힘", "stop": "Ctrl+C"}[res] + (f" ({info})" if info else ""),
+                               "t": round(node.now_s() - node.leg_t0, 1)})
+            if res == "clear":
+                print(f"    ▶ 장애물 사라짐 — 이어감 ({w:.1f} s · {info})", flush=True)
+                continue
+            if res == "stop":
+                return False, "Ctrl+C 로 멈춤"
+            return False, f"{BLOCKED}: 장애물로 {w:.1f} s 막힘 (HOLD · {info})"
+    finally:
+        pub_stop(node, -1.0)   # 상한 끔 (다음 조각이 다시 냄)
+
+
+def count_in_band(ranges, angle_min, angle_inc, rmin, rmax, tf, kind, front=None, rear=None, depth=None, half=None):
+    """11-19 HOLD: 라이다 점 중 진행 방향 확인 띠 (F = 앞 끝 front ~ front + depth, R = 뒤 끝 -rear ~ -rear - depth, 폭 ±half) 안 개수.
+    tf = base_link 에서 본 라이다 (x, y, yaw)"""
+    front = BODY_FRONT if front is None else front
+    rear = BODY_REAR if rear is None else rear
+    depth = HOLD_DEPTH if depth is None else depth
+    half = HOLD_HALF if half is None else half
+    lo, hi = (front, front + depth) if kind == "F" else (-rear - depth, -rear)
+    tx, ty, tth = tf
+    c, s_ = math.cos(tth), math.sin(tth)
+    n = 0
+    for i, r in enumerate(ranges):
+        if not (rmin <= r <= rmax) or math.isnan(r):   # inf · nan · 범위 밖은 버림
+            continue
+        a = angle_min + i * angle_inc
+        px, py = r * math.cos(a), r * math.sin(a)
+        bx, by = tx + c * px - s_ * py, ty + s_ * px + c * py
+        if lo <= bx <= hi and abs(by) <= half:
+            n += 1
+    return n
+
+
+def hold_wait(node, kind, t0):
+    """11-19 HOLD 기다림: 진행 방향 띠 안 점이 HOLD_PTS 개 미만인 채 HOLD_CLEAR s 이어지면 ("clear", 설명).
+    t0 부터 BLOCK_WAIT 넘으면 ("blocked", 설명). 라이다 · TF 를 못 받으면 풀지 않음 (안전 쪽). Ctrl+C → ("stop", "")"""
+    clear_since, said, last = None, False, "점 모름"
+    while True:
+        if STOP.is_set():
+            return "stop", ""
+        now = time.time()
+        if now - t0 > BLOCK_WAIT:
+            return "blocked", last
+        n, why = node.band_count(kind)
+        if n is None:
+            clear_since, last = None, why
+            if not said:
+                said = True
+                print(f"    · HOLD: {why} — 풀지 않음 (안전 쪽)", flush=True)
+        else:
+            last = f"띠 안 점 {n} 개"
+            if n < HOLD_PTS:
+                clear_since = clear_since or now
+                if now - clear_since >= HOLD_CLEAR:
+                    return "clear", last
+            else:
+                clear_since = None
+        time.sleep(0.05)
 
 
 def relocalize(node, label):
@@ -346,22 +557,173 @@ def relocalize(node, label):
     print(f"    · {label}: 자기 위치 다시 찾기 (nomotion 갱신 {n} 번) · {sig}", flush=True)
 
 
-def backtrack_piece(node, pc):
-    """왔던 길 되돌아가기 조각 (11-16): 이 조각에서 이미 지나온 부분을 거꾸로, 최대 BACK_MAX m. 전진 조각이면 후진으로 (반대도)"""
+def backtrack_piece(node, pc, max_len=None):
+    """왔던 길 되돌아가기 조각 (11-16): 이 조각에서 이미 지나온 부분을 거꾸로, 최대 max_len (기본 BACK_MAX) m. 전진 조각이면 후진으로 (반대도)"""
+    max_len = BACK_MAX if max_len is None else max_len
     p = node.pose()
     poses = pc["poses"]
-    if p is None or len(poses) < 2 or BACK_MAX <= 0:
+    if p is None or len(poses) < 2 or max_len <= 0:
         return None
-    k = min(range(len(poses)), key=lambda i: math.hypot(poses[i][0] - p[0], poses[i][1] - p[1]))
+    k = nearest_ahead(poses, p, pc.get("_near", 0), ahead=120)   # 11-19: 전체 대신 진행 인덱스 근처 앞쪽만
     back, length = [tuple(poses[k])], 0.0
     for i in range(k - 1, -1, -1):
         step = math.hypot(poses[i][0] - back[-1][0], poses[i][1] - back[-1][1])
-        if length + step > BACK_MAX:
+        if length + step > max_len:
             break
         back.append(tuple(poses[i])); length += step
     if length < 0.05:
         return None
     return {"kind": "R" if pc["kind"] == "F" else "F", "poses": back, "len": length}
+
+
+def straight_back_piece(p, dist):
+    """11-19: 지금 자세 p 에서 방향 그대로 곧게 dist m 후진하는 조각 (1 cm 간격)"""
+    n = max(int(round(dist / 0.01)), 1)
+    x, y, th = p
+    poses = [(x - dist * i / n * math.cos(th), y - dist * i / n * math.sin(th), th) for i in range(n + 1)]
+    return {"kind": "R", "poses": poses, "len": dist}
+
+
+def detour_back(node, pc):
+    """11-19 우회 전 후진 조각: 지나온 길 (조각 위 5 cm 안이면) 로 DETOUR_BACK, 그게 5 cm 보다 짧거나 조각에서 벗어나 있으면 곧게 DETOUR_BACK"""
+    p = node.pose()
+    if p is None:
+        return None
+    poses = pc["poses"]
+    k = nearest_ahead(poses, p, pc.get("_near", 0), ahead=120)
+    on = math.hypot(poses[k][0] - p[0], poses[k][1] - p[1]) < 0.05
+    back = backtrack_piece(node, pc, DETOUR_BACK) if on else None
+    return back if back is not None else straight_back_piece(p, DETOUR_BACK)
+
+
+def path_len(poses):
+    return sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(poses, poses[1:]))
+
+
+def nearest_ahead(poses, p, i0, back=5, ahead=60):
+    """11-19: 진행 인덱스 i0 근처 (i0 - back ~ i0 + ahead) 에서 p 에 가장 가까운 인덱스 — 경로가 겹쳐도 엉뚱한 점을 안 고름 (send_stop 과 같은 창)"""
+    i0 = max(0, min(int(i0), len(poses) - 1))
+    lo, hi = max(i0 - back, 0), min(i0 + ahead, len(poses))
+    return min(range(lo, hi), key=lambda j: math.hypot(poses[j][0] - p[0], poses[j][1] - p[1]))
+
+
+def start_heading(poses, cur, i0):
+    """11-19: 조각을 따라가기 시작할 인덱스 (진행 인덱스 i0 근처, 되돌아간 만큼 뒤 START_BACK_N 개까지) 와 그 점 경로 방향 - 지금 방향 [rad]"""
+    k = nearest_ahead(poses, cur, i0, back=START_BACK_N, ahead=60)
+    return k, wrap(poses[k][2] - cur[2])
+
+
+def join_candidates(poses, p, dists=DETOUR_JOIN, i0=0):
+    """11-19 우회 합류점 후보 인덱스: 진행 인덱스 i0 근처 앞쪽에서 로봇 p 에 가장 가까운 점부터 경로 길이 dists 앞의 점들 + 조각 끝
+    (남은 길이 < dists[0] 이면 끝만)"""
+    if len(poses) < 2:
+        return []
+    k = nearest_ahead(poses, p, i0, back=30, ahead=120)   # back 30: 우회 전 0.15 m 후진한 만큼 뒤로도 찾음
+    cum = [0.0]
+    for a, b in zip(poses[k:], poses[k + 1:]):
+        cum.append(cum[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    last = len(poses) - 1
+    if cum[-1] < dists[0] - 1e-6:
+        return [last]
+    out = []
+    for d in dists:
+        j = next((k + n for n, c in enumerate(cum) if c >= d - 1e-6), last)
+        if j not in out:
+            out.append(j)
+    if last not in out:
+        out.append(last)
+    return out
+
+
+def seg_dist(q, a, b):
+    """점 q 에서 선분 a-b 까지 거리"""
+    dx, dy = b[0] - a[0], b[1] - a[1]
+    L2 = dx * dx + dy * dy
+    t = 0.0 if L2 < 1e-12 else max(0.0, min(1.0, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / L2))
+    return math.hypot(q[0] - a[0] - t * dx, q[1] - a[1] - t * dy)
+
+
+def detour_ok(path, piece_poses, dev_max=DETOUR_DEV_MAX):
+    """11-19 우회 경로 받아들이기 (옆으로 지나갈 공간 검사): 점 2 개 이상 · 길이 ≤ 직선 × 3 + 0.5 m · 원래 조각에서 가장 먼 편차 ≤ dev_max.
+    (True, "") 또는 (False, 이유)"""
+    if len(path) < 2:
+        return False, f"점 {len(path)} 개"
+    L, straight = path_len(path), math.hypot(path[-1][0] - path[0][0], path[-1][1] - path[0][1])
+    if L > straight * 3 + 0.5:
+        return False, f"길이 {L:.2f} m > 직선 {straight:.2f} × 3 + 0.5"
+    segs = list(zip(piece_poses, piece_poses[1:])) or [(piece_poses[0], piece_poses[0])]
+    dev = max(min(seg_dist(q, a, b) for a, b in segs) for q in path)
+    if dev > dev_max:
+        return False, f"조각에서 {dev:.2f} m 벗어남 (한도 {dev_max:.1f})"
+    return True, ""
+
+
+def cut_piece(pc, j):
+    """11-19 우회 뒤 남은 조각: poses[j:] (남은 길이 < 0.03 m 면 None = 다음 조각으로)"""
+    rest = list(pc["poses"][j:])
+    if len(rest) < 2 or path_len(rest) < 0.03:
+        return None
+    out = dict(pc, poses=rest)
+    out.pop("_near", None)   # 인덱스가 바뀌므로 진행 인덱스는 새로 (합류점 = 0)
+    return out
+
+
+def request_path(node, goal, timeout=10.0):
+    """ComputePathToPose 한 번 → (poses [(x, y, yaw)…], "") 또는 (None, 이유)"""
+    gf = node.planner.send_goal_async(goal)
+    if not wait_future(gf, 5.0):
+        return None, "goal 응답 없음"
+    gh = gf.result()
+    if not gh.accepted:
+        return None, "goal 거절"
+    rf = gh.get_result_async()
+    if not wait_future(rf, timeout):
+        wait_future(gh.cancel_goal_async(), 2.0)
+        return None, f"{timeout:.0f} s 안에 계획 못 함"
+    res = rf.result()
+    if res.status != 4:
+        return None, f"상태 {res.status} · 오류 {getattr(res.result, 'error_code', 0)} {getattr(res.result, 'error_msg', '') or ''}".strip()
+    out = []
+    for ps in res.result.path.poses:
+        q = ps.pose.orientation
+        out.append((ps.pose.position.x, ps.pose.position.y, math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))))
+    return out, ""
+
+
+def plan_detour(node, pc):
+    """11-19 막힌 전진 조각의 우회: 합류점 후보마다 planner_server (Detour) 에 경로 요청 → 처음 받아들일 수 있는 것.
+    (우회 조각, 합류 인덱스, 설명) 또는 (None, None, 이유)"""
+    if not node.planner.wait_for_server(timeout_sec=1.0):
+        if not node.planner_warned:
+            node.planner_warned = True
+            print("  ⚠ planner_server (compute_path_to_pose) 없음 — 우회 없이 되찾기 (SAFETY=0 실행?)", flush=True)
+        return None, None, "planner_server 없음"
+    p = node.pose()
+    if p is None:
+        return None, None, "map → base_link TF 없음"
+    poses = pc["poses"]
+    k = nearest_ahead(poses, p, pc.get("_near", 0), back=30, ahead=120)   # 후진한 자리 기준
+    why = []
+    for j in join_candidates(poses, p, i0=pc.get("_near", 0)):
+        ahead = path_len(poses[k:j + 1])
+        x, y, th = poses[j]
+        g = ComputePathToPose.Goal()
+        g.goal.header.frame_id = "map"
+        g.goal.header.stamp = node.get_clock().now().to_msg()
+        g.goal.pose.position.x, g.goal.pose.position.y = float(x), float(y)
+        g.goal.pose.orientation.z, g.goal.pose.orientation.w = yaw_q(th)
+        g.planner_id = "Detour"
+        g.use_start = False
+        path, msg = request_path(node, g)
+        if path is not None:
+            ok, msg = detour_ok(path, poses)
+            if ok:
+                return {"kind": "F", "poses": path, "len": path_len(path)}, j, f"{ahead:.2f} m 앞 합류"
+        print(f"    · 우회 후보 {ahead:.2f} m 앞: {msg}", flush=True)
+        why.append(f"{ahead:.1f} m: {msg}")
+        if STOP.is_set():
+            break
+    return None, None, " · ".join(why) or "후보 없음"
 
 
 def ask_choice(prompt):
@@ -419,7 +781,12 @@ def main():
     ap.add_argument("--no-head-fix", action="store_true", help="조각 시작 방향 맞추기 끔 (11-14 판처럼)")
     ap.add_argument("--off-path", type=float, default=None, help="경로 이탈 멈춤 한도 [m] (기본 0.10, 0 = 끔)")
     ap.add_argument("--no-recover", action="store_true", help="조각 실패 시 되찾기 끔 (11-16 전처럼)")
+    ap.add_argument("--no-detour", action="store_true", help="장애물 막힘 우회 끔 (막히면 기존 되찾기, 환경 DEMO_DETOUR=0 과 같음)")
+    ap.add_argument("--scan-topic", default="/scan_merged", help="정지 래치 (HOLD) 때 앞 · 뒤 띠를 볼 라이다 (시뮬 /scan)")
     a = ap.parse_args()
+    if a.no_detour:
+        global DETOUR_ON
+        DETOUR_ON = False
     if a.off_path is not None:
         global OFF_PATH
         OFF_PATH = a.off_path
@@ -458,7 +825,7 @@ def main():
     LIVE = open(os.path.join(a.out, "track_live.csv"), "w", encoding="utf-8", buffering=1)
     LIVE.write("t,x,y,yaw,v,w,step,v_nav,w_nav,loc\n")
     rclpy.init()
-    node = Follower(a.sim)
+    node = Follower(a.sim, a.scan_topic)
     ex = MultiThreadedExecutor(num_threads=4)
     ex.add_node(node)
     def _spin():
@@ -560,17 +927,63 @@ def run_leg(node, g, results):
     node.head_skip = []
     node.recover = []
     tries, ok = [], True
-    for i, pc in enumerate(g["pieces"]):
+    det_n = 0   # 11-19 이 구간 우회 횟수
+    node.tries, node.leg_t0, node.hold_n = tries, tl, 0   # 11-19 follow_piece 가 HOLD 를 여기 기록
+    pieces = merge_pieces(g["pieces"])   # 11-18: 같은 방향 이어진 조각은 하나로 (사이에서 안 멈춤)
+    for i, pc in enumerate(pieces):
         what = {"F": "전진", "R": "후진", "S": "제자리"}[pc["kind"]] + (f" {math.degrees(pc['dth']):+.0f}°" if pc["kind"] == "S" else "")
-        print(f"  · 조각 {i + 1}/{len(g['pieces'])} {what}", flush=True)
-        r, msg = follow_piece(node, pc)
+        print(f"  · 조각 {i + 1}/{len(pieces)} {what}", flush=True)
+        fin = (i == len(pieces) - 1)
+        cur = pc   # 11-19: 우회 뒤에는 남은 조각 (합류점부터)
+        r, msg = follow_piece(node, cur, final=fin)
         k = 0
-        while not r and not STOP.is_set() and k < RECOVER_TRIES:   # 11-16 되찾기: 자기 위치 찾기 → 왔던 길 되돌아가기 → 다시
+        while not r and not STOP.is_set():
+            # 11-19 우회: 전진 조각이 장애물로 BLOCK_WAIT 넘게 막히면 planner 우회 경로 → 합류점부터 남은 조각
+            if msg.startswith(BLOCKED) and cur["kind"] == "F" and DETOUR_ON and det_n < DETOUR_MAX:
+                det_n += 1
+                print(f"  ⤳ 우회 {det_n}/{DETOUR_MAX} ({msg[len(BLOCKED) + 2:]})", flush=True)
+                back = detour_back(node, cur)   # 먼저 짧게 후진 (장애물과 0.20 m 넘게 떨어져야 전진만으로 비킴)
+                if back is None:
+                    tries.append({"status": "detour", "msg": f"조각 {i + 1} ({what}): 우회 전 후진 못 함 (TF 없음)", "t": round(node.now_s() - tl, 1)})
+                    msg = "장애물로 막힘 · 우회 전 후진 못 함 (TF 없음)"
+                    continue
+                print(f"    · 우회 전 후진 {back['len']:.2f} m", flush=True)
+                rb, mb = follow_piece(node, back, final=False)
+                if not rb:
+                    print(f"  ✗ 우회 전 후진 못 함 ({mb}) — 되찾기로", flush=True)
+                    tries.append({"status": "detour", "msg": f"조각 {i + 1} ({what}): 우회 전 후진 못 함 ({mb})", "t": round(node.now_s() - tl, 1)})
+                    msg = f"장애물로 막힘 · 우회 전 후진 못 함 ({mb[len(BLOCKED) + 2:] if mb.startswith(BLOCKED) else mb})"
+                    continue
+                dpc, j, info = plan_detour(node, cur)
+                if dpc is None:
+                    if info != "planner_server 없음":
+                        print("  ✗ 우회 경로 없음 (옆 공간 부족)", flush=True)
+                    tries.append({"status": "detour", "msg": f"조각 {i + 1} ({what}): 우회 경로 없음 ({info})", "t": round(node.now_s() - tl, 1)})
+                    msg = f"장애물로 막힘 · 우회 경로 없음 ({info})"   # BLOCKED 표시를 떼서 아래 되찾기로
+                    continue
+                print(f"    · 우회 경로 {dpc['len']:.2f} m 따라가기 ({info})", flush=True)
+                rd, md = follow_piece(node, dpc, final=False)
+                tries.append({"status": "detour", "msg": f"조각 {i + 1} ({what}): 우회 {dpc['len']:.2f} m ({info})" + ("" if rd else f" — 중단: {md}"),
+                              "t": round(node.now_s() - tl, 1)})
+                if not rd:
+                    r, msg = False, md   # 다시 막힘 (BLOCKED) 이면 한 번 더 우회, 아니면 원래 조각으로 되찾기
+                    continue
+                rest = cut_piece(cur, j)
+                if rest is None:
+                    print(f"    · 우회로 조각 {i + 1} 끝까지 옴", flush=True)
+                    r, msg = True, ""
+                    break
+                cur = rest
+                print(f"    · 조각 {i + 1}/{len(pieces)} {what} 이어감 (남은 {path_len(cur['poses']):.2f} m)", flush=True)
+                r, msg = follow_piece(node, cur, final=fin)
+                continue
+            if k >= RECOVER_TRIES:   # 11-16 되찾기: 자기 위치 찾기 → 왔던 길 되돌아가기 → 다시
+                break
             k += 1
             print(f"  ↺ 되찾기 {k}/{RECOVER_TRIES} ({msg})", flush=True)
             tries.append({"status": "recover", "msg": f"조각 {i + 1} ({what}): {msg}", "t": round(node.now_s() - tl, 1)})
             relocalize(node, "멈춤")
-            back = backtrack_piece(node, pc) if pc["kind"] in "FR" else None
+            back = backtrack_piece(node, cur) if cur["kind"] in "FR" else None
             if back:
                 print(f"    · 왔던 길 {back['len']:.2f} m 되돌아가기 ({'후진' if back['kind'] == 'R' else '전진'})", flush=True)
                 rb, mb = follow_piece(node, back)
@@ -579,10 +992,14 @@ def run_leg(node, g, results):
                 relocalize(node, "되돌아간 뒤")
             if STOP.is_set():
                 break
-            print(f"    · 조각 {i + 1}/{len(g['pieces'])} {what} 다시", flush=True)
-            r, msg = follow_piece(node, pc)
+            print(f"    · 조각 {i + 1}/{len(pieces)} {what} 다시", flush=True)
+            r, msg = follow_piece(node, cur, final=fin)
         if k:
             node.recover.append(k)
+        if not r and not STOP.is_set() and not STEP_MODE and os.environ.get("DEMO_AUTO_SKIP") == "1":   # 11-16 max: 사람 없이 끝까지 — 되찾기도 안 되면 이 조각 건너뛰고 계속
+            print(f"    · 조각 {i + 1} 건너뜀 (자동, 되찾기 {k} 번 뒤: {msg})", flush=True)
+            tries.append({"status": "skip", "msg": f"조각 {i + 1} ({what}) 자동 건너뜀: {msg}", "t": round(node.now_s() - tl, 1)})
+            r, msg = True, ""
         while not r and not STOP.is_set() and STEP_MODE:
             c = ask_choice(f"  ▶ 조각 {i + 1} 되찾기 실패 ({msg}) — Enter 한 번 더 · s 이 조각 건너뛰기 · q 구간 끝 : ")
             if c == "quit":
@@ -593,7 +1010,7 @@ def run_leg(node, g, results):
                 r, msg = True, ""
                 break
             relocalize(node, "사람 요청")
-            r, msg = follow_piece(node, pc)
+            r, msg = follow_piece(node, cur, final=fin)
         if not r:
             ok = False
             tries.append({"status": "fail", "msg": f"조각 {i + 1} ({what}): {msg}", "t": round(node.now_s() - tl, 1)})
@@ -620,12 +1037,13 @@ def run_leg(node, g, results):
         tries.append({"status": "ok", "msg": "", "t": round(node.now_s() - tl, 1)})
     results.append({"seg": f"S{g['leg']}", "name": g["name"], "points": g["points"], "ok": ok, "tries": tries,
                     "sim_s": round(node.now_s() - tl, 1), "end_err_cm": round(dpos * 100, 1), "end_err_deg": round(math.degrees(dyaw), 1),
-                    "head_fix_deg": list(node.head_fix), "head_skip_deg": list(node.head_skip), "recover": list(node.recover), "detour": bool(g.get("detour"))})
+                    "head_fix_deg": list(node.head_fix), "head_skip_deg": list(node.head_skip), "recover": list(node.recover), "detour": bool(g.get("detour")),
+                    "detour_n": det_n, "hold_n": node.hold_n})
     print(f"{'✓' if ok else '✗'} {g['name']}: {node.now_s() - tl:.1f} s · 정지점 어긋남 {dpos * 100:.1f} cm · {math.degrees(dyaw):.1f}°"
-          f" · 위치 추정 {node.loc or '-'}" + (f" · 조각 방향 맞추기 {node.head_fix}" if node.head_fix else "") + (f" · 건너뜀 {node.head_skip}" if node.head_skip else "") + (f" · 되찾기 {sum(node.recover)} 번" if node.recover else ""), flush=True)
+          f" · 위치 추정 {node.loc or '-'}" + (f" · 조각 방향 맞추기 {node.head_fix}" if node.head_fix else "") + (f" · 건너뜀 {node.head_skip}" if node.head_skip else "") + (f" · 되찾기 {sum(node.recover)} 번" if node.recover else "") + (f" · 우회 {det_n} 번" if det_n else "") + (f" · HOLD {node.hold_n} 번" if node.hold_n else ""), flush=True)
     if ok:   # 도착 알림 (팔 · 미션 쪽이 들을 수 있게)
         node.arrived.publish(String(data=g.get("to") or g["name"].split("→")[-1]))
-    # 11-16: 되찾기 (recover) · 사람 건너뛰기 (skip) 기록은 실패가 아님 — 실패 (fail) 만 봄
+    # 11-16: 되찾기 (recover) · 사람 건너뛰기 (skip) · 11-19 우회 (detour) · HOLD (hold) 기록은 실패가 아님 — 실패 (fail) 만 봄
     return not any(t["status"] == "fail" and ("조각" in t["msg"] or "방향 맞추기" in t["msg"]) for t in tries)
 
 
