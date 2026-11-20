@@ -3,10 +3,10 @@
 # TFmini 변환기(CP2102N)는 고유 시리얼로 잡는다. 라이다 두 대의 변환기(CP2102)는 시리얼이 둘 다 0001 이라
 # 시리얼로 가를 수 없어 USB 경로(ID_PATH)로 잡는다. 경로 중 Jetson 쪽 포트(2.?)는 비우고 허브 칸만 본다
 #   → 허브를 Jetson 의 다른 USB 포트에 꽂아도 그대로 (11-15 실물: 허브를 2.3 → 2.2 → 2.1 로 옮길 때마다 링크가 사라졌음).
-#   라이다 USB 선은 허브 칸을 바꾸지 말 것: 허브 2 번 칸 = 앞, 1 번 칸 = 뒤. 시리얼 0001 도 같이 봐서, 같은 VID · PID 인
+#   라이다 USB 선은 허브 칸을 바꾸지 말 것: 허브 1 번 칸 = 앞, 2 번 칸 = 뒤 (11-18 사용자 지정). 시리얼 0001 도 같이 봐서, 같은 VID · PID 인
 #   TFmini 변환기(CP2102N, 고유 시리얼)를 그 칸에 꽂아도 라이다 이름이 TFmini 를 가리키지 않음.
 # 앞 · 뒤 구분: 앞 · 뒤에 상자를 대어 스캔이 바뀌는 쪽으로 정함(실물 11-12 · 11-15).
 SUBSYSTEM=="video4linux", ATTRS{idVendor}=="0c45", ATTRS{idProduct}=="6366", ATTR{index}=="0", SYMLINK+="arm_cam", MODE="0666"
 SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="628a51ca4795eb11ae0c07608dca6574", SYMLINK+="tfmini", MODE="0666"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="0001", ENV{ID_PATH}=="platform-3610000.usb-usb-0:2.?.2:1.0", SYMLINK+="lidar_front", MODE="0666"
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="0001", ENV{ID_PATH}=="platform-3610000.usb-usb-0:2.?.1:1.0", SYMLINK+="lidar_rear", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="0001", ENV{ID_PATH}=="platform-3610000.usb-usb-0:2.?.1:1.0", SYMLINK+="lidar_front", MODE="0666"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", ATTRS{serial}=="0001", ENV{ID_PATH}=="platform-3610000.usb-usb-0:2.?.2:1.0", SYMLINK+="lidar_rear", MODE="0666"

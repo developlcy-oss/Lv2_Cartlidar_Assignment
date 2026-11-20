@@ -5,6 +5,8 @@
 // 720 칸 0.5°)으로 낸다. 각 점의 끝 위치는 그대로 두고 base_link 원점에서 본 각 · 거리로만 바꾼다.
 // 앞 스캔마다 낸다(stamp = 앞 스캔). 같은 stamp 의 뒤 스캔이 pair_wait 초 안에 오면 그대로 붙이고, 안 오면 가장 최근 뒤 스캔(max_rear_age 안)을
 // odom TF 로 앞 스캔 시각의 차체 자세에 옮겨 넣는다(움직임 보정).
+// 앞 라이다가 끊기면 (front_timeout 넘게 앞 스캔 없음) 뒤 스캔마다 뒤 스캔만으로 낸다 (2026-11-17, 데모 점검 2 번:
+//   예전에는 앞 스캔이 와야만 내서 앞 라이다 하나가 빠지면 AMCL · costmap 입력이 통째로 멈췄음). front_timeout ≤ 0 이면 예전과 같음.
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -30,16 +32,18 @@ public:
   {
     const auto front = declare_parameter("front", std::string("/scan_front_filtered"));
     const auto rear = declare_parameter("rear", std::string("/scan_rear_filtered"));
-    const auto out = declare_parameter("out", std::string("/scan_merged"));
+    out_ = declare_parameter("out", std::string("/scan_merged"));
     base_ = declare_parameter("base_frame", std::string("base_link"));
     odom_ = declare_parameter("odom_frame", std::string("odom"));
     bins_ = static_cast<int>(declare_parameter("bins", 720));
     rmax_ = declare_parameter("range_max", 12.0);
     max_age_ = declare_parameter("max_rear_age", 0.15);
     pair_wait_ = declare_parameter("pair_wait", 0.06);
+    front_timeout_ = declare_parameter("front_timeout", 0.5);
     if (bins_ < 1) {throw std::invalid_argument("bins < 1");}
     tf_ = std::make_unique<TfHelper>(*this);
-    pub_ = create_publisher<LaserScan>(out, 10);
+    pub_ = create_publisher<LaserScan>(out_, 10);
+    last_front_rx_ = now().seconds();   // 시작 직후는 앞 스캔을 기다림
     rear_sub_ = create_subscription<LaserScan>(rear, rclcpp::SensorDataQoS(),
         [this](LaserScan::ConstSharedPtr m) {on_rear(m);});
     front_sub_ = create_subscription<LaserScan>(front, rclcpp::SensorDataQoS(),
@@ -89,6 +93,11 @@ private:
 
   void on_front_in(const LaserScan::ConstSharedPtr & m)
   {
+    last_front_rx_ = now().seconds();
+    if (rear_only_) {
+      rear_only_ = false;
+      RCLCPP_WARN(get_logger(), "앞 스캔 다시 들어옴 — 앞 · 뒤 합치기로 돌아감 (뒤 스캔만 %ld 장 냈음)", n_rear_only_);
+    }
     if (pending_) {auto p = pending_; pending_.reset(); on_front(*p);}
     if (rear_ && same_stamp(*rear_, *m)) {
       on_front(*m);
@@ -100,6 +109,19 @@ private:
   void on_rear(const LaserScan::ConstSharedPtr & m)
   {
     rear_ = m;
+    const double t = now().seconds();
+    if (front_timeout_ > 0 && t - last_front_rx_ > front_timeout_) {
+      if (!rear_only_) {
+        rear_only_ = true;
+        RCLCPP_WARN(get_logger(), "앞 스캔이 %.2f s 넘게 없음 — 뒤 스캔만으로 %s 를 냄", front_timeout_, out_.c_str());
+      }
+      std::vector<P2> pts;
+      if (points(*m, pts)) {
+        publish(pts, *m);
+        ++n_rear_only_;
+      }
+      return;
+    }
     if (pending_ && same_stamp(*pending_, *m)) {auto p = pending_; pending_.reset(); on_front(*p);}
   }
 
@@ -134,6 +156,12 @@ private:
     } else {
       ++n_no_rear_;
     }
+    publish(pts, msg);
+  }
+
+  // base_link 점 → 720 칸 스캔 (stamp · scan_time = src)
+  void publish(const std::vector<P2> & pts, const LaserScan & src)
+  {
     const double inc = 2 * M_PI / bins_;
     auto m = std::make_unique<LaserScan>();
     m->ranges.assign(bins_, std::numeric_limits<float>::infinity());
@@ -145,13 +173,13 @@ private:
       if (rng < best[idx]) {best[idx] = rng;}
     }
     for (int i = 0; i < bins_; ++i) {m->ranges[i] = static_cast<float>(best[i]);}
-    m->header.stamp = msg.header.stamp;
+    m->header.stamp = src.header.stamp;
     m->header.frame_id = base_;
     m->angle_min = static_cast<float>(-M_PI + inc / 2);
     m->angle_increment = static_cast<float>(inc);
     m->angle_max = static_cast<float>(-M_PI + inc / 2 + inc * (bins_ - 1));
     m->time_increment = 0.0f;
-    m->scan_time = msg.scan_time;
+    m->scan_time = src.scan_time;
     m->range_min = 0.0f;
     m->range_max = static_cast<float>(rmax_);
     pub_->publish(std::move(m));
@@ -160,7 +188,10 @@ private:
     }
   }
 
-  std::string base_, odom_;
+  std::string base_, odom_, out_;
+  double front_timeout_ = 0.5, last_front_rx_ = 0.0;
+  bool rear_only_ = false;
+  long n_rear_only_ = 0;
   int bins_ = 720;
   double rmax_ = 12.0, max_age_ = 0.15, pair_wait_ = 0.06;
   std::unique_ptr<TfHelper> tf_;

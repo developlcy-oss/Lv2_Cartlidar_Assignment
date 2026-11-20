@@ -1,0 +1,57 @@
+# 로봇 콘솔 모드 (console_daemon.py 가 읽음). 번호 = TUI 에서 누르는 숫자.
+#   launch : 모드의 바탕 (bringup). {ports} = 지금 꽂힌 OpenCR 두 대 (/dev/ttyACM*), {repo} = 저장소, {here} = 이 폴더
+#   wait_nodes : launch 뒤 이 노드들이 보일 때까지 기다림 (최대 wait_timeout_s), 그 뒤 wait_extra_s 더 기다림
+#   action : 준비가 끝나면 실행 (없으면 launch 만). 표준 입력은 TUI 의 Enter · y · q · s 키로 넘어감 (시연 확인 질문)
+#   use_nav2:=false 인 모드는 use_amcl_node:=true 를 꼭 줌 (bringup 은 AMCL 을 Nav2 와 같이 띄움 — 빼면 map → odom 이 없음, 11-18 실물).
+#   모드를 바꾸면 앞 모드 (action → launch) 를 모두 끄고 새로 띄움. 하드웨어도 다시 켜지므로 팔은 다시 STOW 로 접힘
+# 모드가 준비되면 rosbag 을 ~/robot_logs/<날짜_시각>_mode<번호>/bag 에 녹화 (모드를 바꾸거나 끄면 멈춤). 모드마다 record: false 로 끔.
+#   영상은 너무 커서 (카메라 한 대 약 25 MB/s) 넣지 않음 — 인지 결과 토픽만
+record_topics: >-
+  /scan_front /scan_rear /scan_front_filtered /scan_rear_filtered /scan_merged /odom /odom_icr /odometry/filtered /imu/data
+  /tf /tf_static /amcl_pose /localization/status /localization/lock /cmd_vel /cmd_vel_nav /cmd_vel_teleop /e_stop /joy
+  /joint_states /diagnostics /rosout /perception/signal /perception/barcode /perception/pucks /perception/task_marker
+  /mission/status /console/status /tfmini/range /perception/obstacle_stop
+common_launch: >-
+  ros2 launch bringup bringup.launch.py ports:={ports}
+
+modes:
+  0:
+    name: 대기 · 수동 조작
+    about: 하드웨어 · 라이다 · 위치 추정만. 팔은 STOW 로 접고 멈춤. TUI 로 앞뒤 · 회전 · 비상정지
+    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_amcl_node:=true use_d435:=false use_arm_camera:=false
+    wait_nodes: [/controller_manager, /amcl]
+    wait_timeout_s: 120
+    wait_extra_s: 3
+    action: ""
+  1:
+    name: 자율주행 시연 (AMCL + Nav2)
+    about: 팔 STOW, AMCL 이 발제 SDF 지도 위 위치를 잡고 Nav2 가 길을 스스로 짜서 상자 6 곳 → L3 · L2 · L1 → 출발 로 감. 라이다로 장애물을 피하고, TFmini 정면 정지 · 위치 잃음 잠금은 켬. 목표마다 TUI Enter. 출발 자리 (0.694, 0.950) · 신호등 쪽에 놓고 시작
+    launch_args: use_perception:=false use_planner:=false arm_startup_pose:=none use_d435:=false use_arm_camera:=false
+    wait_nodes: [/controller_manager, /amcl, /bt_navigator]
+    wait_timeout_s: 180
+    wait_extra_s: 5
+    action: python3 {here}/actions/nav_goals.py --step --out {run_dir}
+  2:
+    name: 팔 시연
+    about: 바퀴는 멈춘 채 팔 이름 자세를 차례로 (DRIVE → ALIGN → TAG_VIEW → BOX_VIEW → DRIVE), 자세마다 Enter. ⚠ 팔 영점 · 링크 길이 실측 전 (#292 · #295)
+    launch_args: use_nav2:=false use_perception:=false use_planner:=false use_tfmini:=false use_loc_lock:=false
+    wait_nodes: [/controller_manager, /manipulator_node]
+    wait_timeout_s: 120
+    wait_extra_s: 3
+    action: python3 {here}/actions/arm_demo.py DRIVE ALIGN TAG_VIEW BOX_VIEW DRIVE
+  3:
+    name: 인지 시연
+    about: 팔 STOW, 앞 · 뒤 D435 로 퍽 찾기 · 장소 태그 · 신호등 점멸 세기를 켬 (결과는 로그 창). 바코드는 팔 카메라가 라벨을 봐야 해서 빠짐
+    launch_args: use_nav2:=false use_planner:=false arm_startup_pose:=none use_tfmini:=false use_loc_lock:=false use_amcl_node:=true use_arm_camera:=false
+    wait_nodes: [/controller_manager, /perception_node]
+    wait_timeout_s: 150
+    wait_extra_s: 5
+    action: bash {here}/actions/perception_demo.sh 57
+  4:
+    name: 통합 시연 (미션 전체)
+    about: bringup 전체 (팔 DRIVE 로 폄 · 인지 · 위치 추정 · Nav2 · 계획기 · 미션) 뒤 /mission/start. 준비 확인 14 개가 모두 OK 일 때 시작됨
+    launch_args: ""
+    wait_nodes: [/controller_manager, /mission_node]
+    wait_timeout_s: 180
+    wait_extra_s: 5
+    action: python3 {here}/actions/mission_start.py
