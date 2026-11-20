@@ -23,10 +23,11 @@ ros2 launch navigation navigation.launch.py use_composition:=false             #
 
 | 인자 | 바꾸는 곳 | 기본 (YAML) |
 |---|---|---|
-| `max_vx` [m/s] | MPPI `vx_max` · smoother `max_velocity[0]` | 0.2 |
-| `max_wz` [rad/s] | MPPI `wz_max` · behavior `max_rotational_vel` · smoother `max · min_velocity[2]` | 1.0 |
-| `rotate_wz` [rad/s] | RotationShim `rotate_to_heading_angular_vel` (≤ `max_wz`, `max_wz` 만 주면 그보다 크지 않게) | 0.8 |
+| `max_vx` [m/s] | MPPI `vx_max` · smoother `max_velocity[0]` | 0.26 (11-20, 전 0.2) |
+| `max_wz` [rad/s] | MPPI `wz_max` · behavior `max_rotational_vel` · smoother `max · min_velocity[2]` | 0.75 (11-20, 전 1.0) |
+| `rotate_wz` [rad/s] | RotationShim `rotate_to_heading_angular_vel` (≤ `max_wz`, `max_wz` 만 주면 그보다 크지 않게) | 0.75 (11-20, 전 0.8) |
 
+- 11-20 상향 이유: 병목이 Nav2 0.2 (하드웨어 0.45 의 44 %). 0.26 은 정지 거리 0.26·0.2 s + 0.26²/(2·1.5) = 0.075 m < 앞 정지 띠 0.12. 돌 때 바깥 바퀴 v + 0.2045·w ≤ 실측 0.425 m/s 라 vx 를 올리면 wz 를 내림 (0.26 + 0.2045·0.75 = 0.413). 상자 근접 감속은 drive_node align (0.15 · 0.08) 이 맡음. Gazebo 미션 (LOC=1, vx 0.26 · wz 0.8) DONE 420.2 s (0.2 때 477.7 s) · Nav2 실패 0. 2차 후보 0.32 (wz 0.5), 0.35 넘으면 정지 띠 · TFmini 정지 거리 다시 계산. Gazebo 는 바퀴 포화를 재현 못 하니 회전은 실물 확인.
 - 같은 한계가 4 노드 6 곳에 있어 YAML 을 고치면 함께 맞춰야 한다. 인자로 주면 launch 가 한 번에 덮어쓴다 (시작 때 로그 한 줄).
 - `bringup.launch.py` · `gazebo_sim.launch.py` 에 줘도 된다 (명령 줄 인자는 포함된 launch 까지 간다).
 - 실물 상한: diff_drive vx 0.34 (`opencr_hardware/config/drive_belt.yaml`) · wz **1.0** (`controllers_4wd.yaml`, 2026-11-12 2.0 → 1.0). 넘게 주면 알림만 내고, 실물에서는 바퀴 앞에서 잘린다.

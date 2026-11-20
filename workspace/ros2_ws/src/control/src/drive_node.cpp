@@ -11,6 +11,13 @@
 //                        먼 거리: object_pose(D435, base_link) → 회전 + 전진/후진, 범퍼 기준 거리, /scan 장애물 감시
 //                        박스 (goal.box_only, #160 빈 장소 상자): 인식 결과를 기다리지 않음. 시작 yaw (odom) 유지 + TFmini → 전후.
 //                        정지 거리 낮추기 · 박스 앞 정차는 정밀과 같음. 남는 좌우 · 각도는 mission measure_box 가 메움
+//   (11-20) 상자 중앙 맞춤 (align.center.*, control/box_center.hpp): FINE 이 끝나면 Arducam 상자 윗면 측정
+//          (/perception/place_box/prior → /perception/place_box/measure → /perception/place_box, odom 중심 · 요) 으로
+//          상자 법선 · 중심선 옆 어긋남을 구해 회전 → 곧은 후진 → 비스듬 전진 → 회전 (차동 구동 옆 이동) 뒤 법선 yaw + TFmini 유지.
+//          측정 실패 · 믿기 어려운 값이면 움직이지 않고 FINE 결과로 성공, 기동 중 막힘 · 끊김 · 시간 초과면 기존 FINE 으로 되돌아감
+//          ★ 측정은 팔 ALIGN 자세에서는 상자 변이 화면 밖이라 기본은 mission 이 함: mission center_box 단계가 BOX_VIEW 로 잰 상자를
+//          goal.center · center_box 로 넘기면 (팔은 ALIGN 으로 되돌린 뒤) 측정 없이 위 기동부터. FINE 안에서 스스로 재는 것은
+//          align.center.auto_after_fine (기본 false)
 //   (#157) /drive/navigate 를 정차 중에 받으면 먼저 곧게 후진 (navigate.backoff.*, 뒤 /scan · 뒤 카메라 확인) → 물러남 확인 뒤 Nav2
 //   (11-19) 뒤가 벽에 붙은 채 받으면 먼저 곧게 전진 (navigate.pullout.*, control/pullout.hpp, 앞 /scan · TFmini 확인) → Nav2
 //          (Nav2 제자리 회전에 뒤 모서리가 벽 칸에 걸려 MPPI · 복구가 모두 거부되는 것 막음). 못 가도 실패 없이 Nav2
@@ -29,6 +36,7 @@
 #include <utility>
 #include <vector>
 
+#include "geometry_msgs/msg/point_stamped.hpp"
 #include "geometry_msgs/msg/twist_stamped.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "nav2_msgs/action/spin.hpp"
@@ -38,6 +46,7 @@
 #include "rclcpp_action/rclcpp_action.hpp"
 #include "rclcpp_components/register_node_macro.hpp"
 #include "control/align_controller.hpp"
+#include "control/box_center.hpp"
 #include "control/box_park.hpp"
 #include "control/pullout.hpp"
 #include "control/loc_gate.hpp"
@@ -51,6 +60,7 @@
 #include "sensor_msgs/msg/range.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_srvs/srv/trigger.hpp"
 #include "tf2/utils.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2_ros/buffer.hpp"
@@ -129,11 +139,35 @@ public:
     pull_.speed = declare_parameter("navigate.pullout.speed", pull_.speed);
     pull_.max_m = declare_parameter("navigate.pullout.max_m", pull_.max_m);
     pull_.timeout_s = declare_parameter("navigate.pullout.timeout_s", pull_.timeout_s);
+    center_cfg_.enabled = declare_parameter("align.center.enabled", center_cfg_.enabled);
+    center_cfg_.lateral_tol = declare_parameter("align.center.lateral_tolerance", center_cfg_.lateral_tol);
+    center_cfg_.max_shift = declare_parameter("align.center.max_shift", center_cfg_.max_shift);
+    center_cfg_.back_min = declare_parameter("align.center.back_min", center_cfg_.back_min);
+    center_cfg_.back_max = declare_parameter("align.center.back_max", center_cfg_.back_max);
+    center_cfg_.max_alpha = declare_parameter("align.center.max_alpha", center_cfg_.max_alpha);
+    center_cfg_.speed = declare_parameter("align.center.speed", center_cfg_.speed);
+    center_cfg_.kp_yaw = declare_parameter("align.center.kp_yaw", center_cfg_.kp_yaw);
+    center_cfg_.max_angular = declare_parameter("align.center.max_angular", center_cfg_.max_angular);
+    center_cfg_.min_angular = declare_parameter("align.center.min_angular", center_cfg_.min_angular);
+    center_cfg_.yaw_tol = declare_parameter("align.center.yaw_tolerance", center_cfg_.yaw_tol);
+    center_cfg_.max_iter = static_cast<int>(declare_parameter("align.center.max_iter", center_cfg_.max_iter));
+    center_cfg_.final_puck = declare_parameter("align.center.final_puck", center_cfg_.final_puck);
+    center_cfg_.max_puck_yaw_dev = declare_parameter("align.center.max_puck_yaw_dev_deg", center_cfg_.max_puck_yaw_dev * 180 / M_PI) * M_PI / 180;
+    center_rear_half_ = declare_parameter("align.center.rear_half_angle", 0.785);
+    shift_ = ShiftManeuver(center_cfg_);
+    center_service_ = declare_parameter("align.center.measure_service", std::string("/perception/place_box/measure"));
+    center_box_half_ = declare_parameter("align.center.box_half", 0.1025);
+    center_prior_delay_s_ = declare_parameter("align.center.prior_delay_s", 0.3);
+    center_measure_timeout_s_ = declare_parameter("align.center.measure_timeout_s", 12.0);
+    center_phase_timeout_s_ = declare_parameter("align.center.phase_timeout_s", 8.0);
+    center_timeout_s_ = declare_parameter("align.center.timeout_s", 45.0);
+    center_fwd_min_m_ = declare_parameter("align.center.forward_min_m", 0.12);
+    center_auto_ = declare_parameter("align.center.auto_after_fine", false);
     coarse_min_ = declare_parameter("align.coarse_min", 0.3);
     default_tol_ = declare_parameter("align.default_tolerance", 0.01);
     front_offset_ = declare_parameter("base.front_offset", 0.1328);   // base_link → 차체 앞 끝 (B안) ★
     scan_half_ = declare_parameter("scan.half_angle", 0.349);        // ±20°
-    scan_front_margin_ = declare_parameter("scan.front_margin", 0.10);
+    scan_front_margin_ = declare_parameter("scan.front_margin", 0.18);
     scan_rear_stop_ = declare_parameter("scan.rear_stop", 0.30);
     require_scan_ = declare_parameter("scan.required", true);
     rear_camera_ = declare_parameter("scan.rear_camera", false);   // 뒤 D435 후진 확인 (카메라 없는 실행 · 시뮬은 false)
@@ -200,6 +234,20 @@ public:
         [this](sensor_msgs::msg::LaserScan::ConstSharedPtr m) {scan_ = m;}, so);
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(names::ODOM_FILTERED, 10,
         [this](nav_msgs::msg::Odometry::ConstSharedPtr m) {odom_ = m;}, so);
+    if (center_cfg_.enabled && center_auto_) {   // FINE 안 자동 측정: perception place_box (latched) · 사전값 · 측정 서비스
+      const auto latched = rclcpp::QoS(1).reliable().transient_local();
+      pb_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/perception/place_box", latched,
+          [this](geometry_msgs::msg::PoseStamped::ConstSharedPtr m) {pb_pose_ = m; pb_pose_rx_ = now();}, so);
+      pb_status_sub_ = create_subscription<std_msgs::msg::String>("/perception/place_box/status", latched,
+          [this](std_msgs::msg::String::ConstSharedPtr m) {pb_status_ = m; pb_status_rx_ = now();}, so);
+      pb_prior_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("/perception/place_box/prior", latched);
+      pb_client_ = create_client<std_srvs::srv::Trigger>(center_service_, rclcpp::ServicesQoS(), cbg_);
+    }
+    if (center_cfg_.enabled) {   // 퍽 마무리 전 퍽 위치 판단 (goal.center · 자동 둘 다)
+      arm_target_sub_ = create_subscription<geometry_msgs::msg::PointStamped>(
+          declare_parameter("align.center.arm_target_topic", std::string("/perception/arm_target")), qos::result(),
+          [this](geometry_msgs::msg::PointStamped::ConstSharedPtr m) {arm_target_ = m;}, so);
+    }
     if (lg.enabled) {
       loc_sub_ = create_subscription<std_msgs::msg::String>(names::LOCALIZATION_STATUS, rclcpp::QoS(1).transient_local(),
           [this](std_msgs::msg::String::ConstSharedPtr m) {loc_gate_.status(m->data, now().seconds());}, so);
@@ -575,6 +623,25 @@ private:
     box_.reset();
     align_tol_ = gh->get_goal()->tolerance > 0.0 ? gh->get_goal()->tolerance : default_tol_;
     box_yaw_.reset();
+    center_phase_ = CenterPhase::OFF;
+    center_tried_ = false;
+    center_iter_ = 0;
+    center_last_measured_iter_ = 0;
+    center_lateral_ = 0.0;
+    center_note_.clear();
+    center_given_ = false;
+    if (gh->get_goal()->center) {   // 상자 중앙 맞춤만 (mission 이 잰 상자): 측정 없이 기동부터, 정밀 모드
+      if (!center_cfg_.enabled) {finish_align(true, "중앙 맞춤 꺼짐 (align.center.enabled false) — 움직이지 않음"); return;}
+      if (!odom_ || !fresh(odom_->header.stamp)) {finish_align(true, "중앙 맞춤 안 함: /odometry/filtered 없음"); return;}
+      enter_box_approach(AlignMode::FINE);
+      center_given_ = true;
+      center_given_box_ = gh->get_goal()->center_box;
+      center_tried_ = true;
+      center_start_ = now();
+      center_phase_ = CenterPhase::GIVEN;
+      center_phase_start_ = center_start_;
+      return;
+    }
     if (gh->get_goal()->box_only) {   // 인식 결과 없이 바로 박스 모드: 지금 yaw 를 지킴 (#160)
       if (!odom_ || !fresh(odom_->header.stamp)) {finish_align(false, "박스 접근: /odometry/filtered 없음 (yaw 를 지킬 수 없음)"); return;}
       box_yaw_ = tf2::getYaw(odom_->pose.pose.orientation);
@@ -661,7 +728,12 @@ private:
       return;
     }
     const auto t = now();
-    if ((t - align_start_).seconds() > align_timeout_s_) {finish_align(false, "시간 초과"); return;}
+    if (center_phase_ != CenterPhase::OFF) {   // 상자 중앙 맞춤은 따로 시간을 잼 (측정이 Jetson 에서 장당 약 3 s)
+      if ((t - center_start_).seconds() > center_timeout_s_) {center_fallback("중앙 맞춤 시간 초과"); return;}
+    } else if ((t - align_start_).seconds() > align_timeout_s_) {
+      finish_align(false, "시간 초과");
+      return;
+    }
 
     if (align_mode_ == AlignMode::WAIT) {
       // goal 수신 뒤 stamp 인 첫 result 의 모드로 결정 — 이후 바꾸지 않음
@@ -705,6 +777,9 @@ private:
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "박스 접근: 후방 장애물 (뒤 카메라: %s) — 후진 0", rear_why().c_str());
         c.v = 0.0;
       }
+    } else if (align_mode_ == AlignMode::FINE && center_phase_ != CenterPhase::OFF) {
+      tick_center(t);
+      return;
     } else if (align_mode_ == AlignMode::FINE) {
       const bool off_ok = result_ && fresh(result_->header.stamp) && (result_->mode & PerceptionMode::ARM_ALIGN) && result_->offset_valid;
       const auto box = box_.value(t.seconds());
@@ -754,8 +829,287 @@ private:
       }
     }
     align_gh_->publish_feedback(fb);
-    if (c.done) {finish_align(true, "허용오차 안에서 정지"); return;}
+    if (c.done && align_mode_ == AlignMode::FINE && center_cfg_.enabled && center_auto_ && !center_tried_) {start_center(); return;}
+    if (c.done) {finish_align(true, center_note_.empty() ? "허용오차 안에서 정지" : "허용오차 안에서 정지 (" + center_note_ + ")"); return;}
     publish_cmd(c.v, c.w);
+  }
+
+  // ---------- 상자 중앙 맞춤 (FINE 뒤, control/box_center.hpp) ----------
+  enum class CenterPhase { OFF, GIVEN, PRIOR, MEASURE, MOVE, HOLD, PUCK };   // GIVEN = goal.center (잰 상자를 받음)
+
+  void start_center()
+  {
+    publish_cmd(0, 0);
+    center_tried_ = true;
+    center_start_ = now();
+    if (!pb_client_) {return;}
+    enter_center_prior();
+  }
+
+  // 측정 사전값 = TFmini 로 본 상자 중심 (base_link 앞 front_offset + 거리 + 반 변, 요 0) → 잠시 뒤 측정 서비스
+  void enter_center_prior()
+  {
+    const auto r = box_.value(now().seconds());
+    geometry_msgs::msg::PoseStamped pr;
+    pr.header.stamp = now();
+    pr.header.frame_id = base_frame_;
+    pr.pose.position.x = front_offset_ + (r ? *r : align_target_) + center_box_half_;
+    pr.pose.orientation.w = 1.0;
+    pb_prior_pub_->publish(pr);
+    center_svc_state_ = 0;
+    center_phase_ = CenterPhase::PRIOR;
+    center_phase_start_ = now();
+    RCLCPP_INFO(get_logger(), "중앙 맞춤 %d: 상자 사전값 base_link x %.3f → %s", center_iter_ + 1, pr.pose.position.x, center_service_.c_str());
+  }
+
+  // 움직이기 전 (측정 실패 · 믿기 어려운 값): 지금 자리가 FINE 결과 그대로이므로 성공으로 끝냄
+  void center_skip(const std::string & why)
+  {
+    RCLCPP_WARN(get_logger(), "중앙 맞춤 안 함 (%s)", why.c_str());
+    center_phase_ = CenterPhase::OFF;
+    finish_align(true, "허용오차 안에서 정지 (중앙 맞춤 안 함: " + why + ")");
+  }
+
+  // 움직인 뒤 문제: 기존 FINE (퍽 arm_offset + TFmini) 로 되돌아가 처음부터 다시 맞춤 (시간도 새로)
+  void center_fallback(const std::string & why)
+  {
+    RCLCPP_WARN(get_logger(), "중앙 맞춤 포기 (%s) → 기존 FINE 으로", why.c_str());
+    publish_cmd(0, 0);
+    center_phase_ = CenterPhase::OFF;
+    center_note_ = "중앙 맞춤 포기: " + why;
+    fine_.reset();
+    align_start_ = now();
+    last_valid_ = align_start_;
+  }
+
+  void tick_center(const rclcpp::Time & t)
+  {
+    auto fb = std::make_shared<Align::Feedback>();
+    const bool odom_ok = odom_ && fresh(odom_->header.stamp);
+    const auto range = box_.value(t.seconds());
+    fb->lateral_error = static_cast<float>(center_lateral_);
+    fb->distance = static_cast<float>(range.value_or(NAN));
+    align_gh_->publish_feedback(fb);
+    if (!odom_ok) {
+      publish_cmd(0, 0);
+      if ((t - last_valid_).seconds() > lost_s_) {
+        if (center_phase_ == CenterPhase::GIVEN || center_phase_ == CenterPhase::PRIOR || center_phase_ == CenterPhase::MEASURE) {
+          center_skip("/odometry/filtered 끊김");
+        } else {
+          center_fallback("/odometry/filtered 끊김");
+        }
+      }
+      return;
+    }
+    last_valid_ = t;
+    const double rx = odom_->pose.pose.position.x, ry = odom_->pose.pose.position.y;
+    const double ryaw = tf2::getYaw(odom_->pose.pose.orientation);
+    const double in_phase = (t - center_phase_start_).seconds();
+
+    if (center_phase_ == CenterPhase::PRIOR) {
+      publish_cmd(0, 0);
+      if (in_phase < center_prior_delay_s_) {return;}
+      if (!pb_client_->service_is_ready()) {center_skip(center_service_ + " 서비스 없음"); return;}
+      center_req_t_ = now();
+      const int gen = ++center_req_gen_;
+      pb_client_->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>(),
+        [this, gen](rclcpp::Client<std_srvs::srv::Trigger>::SharedFuture f) {
+          if (gen != center_req_gen_) {return;}
+          const auto r = f.get();
+          center_svc_state_ = r->success ? 1 : -1;
+          center_svc_msg_ = r->message;
+        });
+      center_phase_ = CenterPhase::MEASURE;
+      center_phase_start_ = now();
+      return;
+    }
+
+    if (center_phase_ == CenterPhase::MEASURE) {
+      publish_cmd(0, 0);
+      if (center_svc_state_ < 0) {center_skip("측정 거부: " + center_svc_msg_); return;}
+      const bool st_new = pb_status_ && pb_status_rx_ > center_req_t_;
+      const bool pose_new = pb_pose_ && pb_pose_rx_ > center_req_t_;
+      if (!pose_new) {
+        if (st_new && pb_status_->data.find("\"ok\": false") != std::string::npos) {center_skip("상자 못 찾음 " + pb_status_->data); return;}
+        if (in_phase > center_measure_timeout_s_) {center_skip("측정 시간 초과"); return;}
+        return;
+      }
+      center_use_box(*pb_pose_, rx, ry, ryaw);
+      return;
+    }
+
+    if (center_phase_ == CenterPhase::GIVEN) {   // goal.center: 받은 상자로 바로 판단 (측정 없음)
+      publish_cmd(0, 0);
+      center_use_box(center_given_box_, rx, ry, ryaw);
+      return;
+    }
+
+    if (center_phase_ == CenterPhase::MOVE) {
+      if (shift_.phase() != center_move_phase_) {center_move_phase_ = shift_.phase(); center_phase_start_ = t;}
+      else if (in_phase > center_phase_timeout_s_) {center_fallback("기동 단계 시간 초과"); return;}
+      if (shift_.forward() && range && *range < center_fwd_min_m_) {shift_.cut_forward();}   // TFmini 가 너무 가까우면 비스듬 전진 끝
+      const auto c = shift_.step(rx, ry, ryaw);
+      if (c.done) {enter_center_hold(); return;}
+      if (c.v < 0.0) {
+        const bool scan_ok = scan_ && fresh(scan_->header.stamp);
+        if (!scan_ok && require_scan_) {center_fallback("후진 중 /scan 없음"); return;}
+        if (scan_ok && scan_blocked(scan_->ranges, scan_->angle_min, scan_->angle_increment, M_PI, scan_half_, scan_rear_stop_)) {
+          center_fallback("후방 장애물 (/scan)");
+          return;
+        }
+        if (rear_camera_blocks(c.v, rear_camera_, rear_state())) {center_fallback("후방 장애물 (뒤 카메라: " + rear_why() + ")"); return;}
+      }
+      publish_cmd(c.v, c.w);
+      return;
+    }
+
+    if (center_phase_ == CenterPhase::PUCK) {tick_center_puck(t, rx, ry, ryaw, range); return;}
+
+    // HOLD: 법선 yaw 유지 + TFmini 거리 (BoxApproach). 끝나면 반복 남았으면 다시 잼
+    if (!range) {
+      publish_cmd(0, 0);
+      if (in_phase > lost_s_ && (t - center_range_ok_).seconds() > lost_s_) {center_fallback("유지 중 박스 거리 무효");}
+      return;
+    }
+    center_range_ok_ = t;
+    auto c = box_only_.step(wrap_pi(center_heading_ - ryaw), *range, align_target_, align_tol_);
+    if (rear_camera_blocks(c.v, rear_camera_, rear_state())) {c.v = 0.0;}
+    if (c.done) {
+      if (!center_given_ && pb_client_ && center_iter_ < center_cfg_.max_iter && center_last_measured_iter_ < center_iter_) {
+        center_last_measured_iter_ = center_iter_;
+        enter_center_prior();   // 옮긴 뒤 다시 잼
+        return;
+      }
+      if (center_cfg_.final_puck && center_iter_ > 0) {   // 옮겼으면 퍽 arm_offset 으로 마무리
+        fine_.reset();
+        center_puck_checked_ = false;
+        center_phase_ = CenterPhase::PUCK;
+        center_phase_start_ = t;
+        return;
+      }
+      center_finish("");
+      return;
+    }
+    publish_cmd(c.v, c.w);
+  }
+
+  // 잰 상자 (자동 측정 · goal.center) → 법선 · 옆 어긋남 → 건너뜀 · 유지 · 옆 이동 기동
+  void center_use_box(const geometry_msgs::msg::PoseStamped & box, double rx, double ry, double ryaw)
+  {
+    double bx = box.pose.position.x, by = box.pose.position.y;
+    double byaw = tf2::getYaw(box.pose.orientation);
+    const std::string & of = odom_->header.frame_id;
+    if (!of.empty() && !box.header.frame_id.empty() && box.header.frame_id != of) {   // place_box = odom_frame, /odometry/filtered 와 다르면 옮김
+      try {
+        const auto tr = tf_buffer_->lookupTransform(of, box.header.frame_id, tf2::TimePointZero);
+        geometry_msgs::msg::PoseStamped o;
+        tf2::doTransform(box, o, tr);
+        bx = o.pose.position.x;
+        by = o.pose.position.y;
+        byaw = tf2::getYaw(o.pose.orientation);
+      } catch (const tf2::TransformException & e) {
+        center_skip(std::string("상자 프레임 변환 실패: ") + e.what());
+        return;
+      }
+    }
+    const auto e = center_error(rx, ry, ryaw, bx, by, byaw);
+    center_box_ = {bx, by};
+    center_lateral_ = e.lateral;
+    center_heading_ = e.heading;
+    const auto d = decide_center(e, center_cfg_);
+    RCLCPP_INFO(get_logger(), "중앙 맞춤 %d: 상자 (%.3f, %.3f) 요 %.1f° → 옆 %+.1f mm · 요 오차 %+.2f° · 깊이 %.3f m",
+      center_iter_ + 1, bx, by, byaw * 180 / M_PI, e.lateral * 1000, e.yaw_err * 180 / M_PI, -e.depth);
+    if (d == CenterDecision::BEHIND || d == CenterDecision::TOO_FAR) {
+      const std::string why = d == CenterDecision::BEHIND ? "상자가 앞에 없음" : "옆 어긋남이 max_shift 초과";
+      if (center_iter_ == 0) {center_skip(why); return;}
+      enter_center_hold();   // 이미 한 번 옮김: 측정이 이상하면 법선 유지만 하고 끝냄
+      return;
+    }
+    if (d == CenterDecision::DONE || center_iter_ >= center_cfg_.max_iter) {enter_center_hold(); return;}
+    // 뒤 여유 (pullout 처럼 뒤 /scan ± rear_half_angle 가장 가까운 점 − scan.rear_stop) 로 후진 거리 제한
+    const bool scan_ok = scan_ && fresh(scan_->header.stamp);
+    if (!scan_ok && require_scan_) {
+      if (center_iter_ == 0) {center_skip("/scan 없음 — 뒤 여유 모름"); return;}
+      enter_center_hold();
+      return;
+    }
+    const double rear_min = scan_ok ?
+      rear_min_range(scan_->ranges, scan_->angle_min, scan_->angle_increment, center_rear_half_) :
+      std::numeric_limits<double>::infinity();
+    const double room = rear_back_room(rear_min, scan_rear_stop_, center_cfg_);
+    if (room <= 0.0) {
+      const std::string why = "뒤 여유 부족 (뒤 /scan " + std::to_string(rear_min) + " m)";
+      if (center_iter_ == 0) {center_skip(why); return;}
+      enter_center_hold();
+      return;
+    }
+    const auto p = plan_shift(e, center_cfg_, room);
+    shift_.start(p);
+    ++center_iter_;
+    center_phase_ = CenterPhase::MOVE;
+    center_phase_start_ = now();
+    center_move_phase_ = shift_.phase();
+    RCLCPP_INFO(get_logger(), "중앙 맞춤 기동: 법선 %.1f° · 후진 %.3f m · %+.1f° · 전진 %.3f m",
+      p.heading * 180 / M_PI, p.back, p.alpha * 180 / M_PI, p.fwd);
+  }
+
+  void center_finish(const std::string & extra)
+  {
+    char buf[96];
+    std::snprintf(buf, sizeof(buf), "상자 중앙 맞춤 %d 회, 마지막 측정 옆 %+.1f mm", center_iter_, center_lateral_ * 1000);
+    center_phase_ = CenterPhase::OFF;
+    finish_align(true, extra.empty() ? std::string(buf) : std::string(buf) + ", " + extra);
+  }
+
+  // PUCK: 퍽 arm_offset → 회전, TFmini → 전후 (기존 FINE 법칙). 법선에서 max_puck_yaw_dev 넘게 돌아야 하면 돌지 않고 경고
+  void tick_center_puck(const rclcpp::Time & t, double rx, double ry, double ryaw, const std::optional<double> & range)
+  {
+    const double dev_lim = center_cfg_.max_puck_yaw_dev;
+    if (!center_puck_checked_ && arm_target_ && fresh(arm_target_->header.stamp)) {   // 돌기 전에 퍽 위치로 미리 판단
+      center_puck_checked_ = true;
+      try {
+        const auto tr = tf_buffer_->lookupTransform(odom_->header.frame_id, arm_target_->header.frame_id, tf2::TimePointZero);
+        geometry_msgs::msg::PointStamped o;
+        tf2::doTransform(*arm_target_, o, tr);
+        const auto k = puck_check(rx, ry, o.point.x, o.point.y, center_box_.first, center_box_.second, center_heading_, center_cfg_);
+        if (!k.rotate) {
+          RCLCPP_WARN(get_logger(), "퍽이 상자 중심선에서 %+.1f mm 벗어남 (방향 %+.1f° > %.1f°) — 칸 어긋남? 퍽 쪽으로 돌지 않음",
+            k.lateral * 1000, k.yaw_dev * 180 / M_PI, dev_lim * 180 / M_PI);
+          center_finish("퍽 마무리 안 함: 퍽 방향 벌어짐");
+          return;
+        }
+      } catch (const tf2::TransformException & e) {
+        RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000, "퍽 마무리: arm_target 변환 실패 (%s) — 회전 중 확인만", e.what());
+      }
+    }
+    const bool off_ok = result_ && fresh(result_->header.stamp) && (result_->mode & PerceptionMode::ARM_ALIGN) && result_->offset_valid;
+    if (!off_ok || !range) {
+      publish_cmd(0, 0);
+      if ((t - center_phase_start_).seconds() > lost_s_ && (t - center_range_ok_).seconds() > lost_s_) {
+        RCLCPP_WARN(get_logger(), "퍽 마무리 건너뜀: %s", !off_ok ? "퍽이 화면에 없음 (arm_offset)" : "TFmini 무효");
+        center_finish("퍽 마무리 건너뜀");
+      }
+      return;
+    }
+    center_range_ok_ = t;
+    auto c = fine_.step(result_->arm_offset.x, *range, align_target_, align_tol_);
+    const double dev = wrap_pi(ryaw - center_heading_);
+    if (std::fabs(dev) > dev_lim && c.w * dev > 0.0) {   // 더 벌어지려 함 (미리 판단 못 했을 때 막음)
+      RCLCPP_WARN(get_logger(), "퍽이 상자 중심선에서 벗어남 (법선에서 %+.1f° 넘게 돌아야 함) — 칸 어긋남? 퍽 마무리 멈춤", dev * 180 / M_PI);
+      center_finish("퍽 마무리 멈춤: 퍽 방향 벌어짐");
+      return;
+    }
+    if (rear_camera_blocks(c.v, rear_camera_, rear_state())) {c.v = 0.0;}
+    if (c.done) {center_finish("퍽 마무리 회전 " + std::to_string(dev * 180 / M_PI).substr(0, 5) + "°"); return;}
+    publish_cmd(c.v, c.w);
+  }
+
+  void enter_center_hold()
+  {
+    box_only_.reset();
+    center_phase_ = CenterPhase::HOLD;
+    center_phase_start_ = now();
+    center_range_ok_ = now();
   }
 
   // ---------- /drive/execute_skill ----------
@@ -877,7 +1231,7 @@ private:
     skill_gh_->publish_feedback(fb);
   }
 
-  // 제자리 회전 (v 0). 회전 여유는 계획기 BOX_GAP 이 보장 — 스캔면(82 mm)은 박스(70 mm)를 못 보므로 /scan 확인 없음
+  // 제자리 회전 (v 0). 회전 여유는 계획기 BOX_GAP 이 보장 — /scan 확인 없음 (11-20 앞 라이다를 낮춰 스캔면 59.75 mm 가 박스 70 mm 를 보게 됐지만, 제자리 회전 여유는 BOX_GAP 로 보장)
   void tick_turn(double el)
   {
     if (el >= skill_timeout_) {finish_skill(false, "turn: 시간 초과"); return;}
@@ -960,6 +1314,34 @@ private:
   CoarseAlign coarse_;
   BoxApproach box_only_;
   std::optional<double> box_yaw_;   // 박스 접근 목표 yaw (odom, goal 받은 때)
+  // 상자 중앙 맞춤 (align.center.*)
+  BoxCenterConfig center_cfg_;
+  ShiftManeuver shift_;
+  CenterPhase center_phase_ = CenterPhase::OFF;
+  ShiftManeuver::Phase center_move_phase_ = ShiftManeuver::Phase::DONE;
+  bool center_tried_ = false;
+  bool center_auto_ = false;    // align.center.auto_after_fine: FINE 안에서 스스로 잼 (팔 ALIGN 자세라 대개 못 찾음)
+  bool center_given_ = false;   // 이 goal 이 goal.center (mission 이 잰 상자)
+  geometry_msgs::msg::PoseStamped center_given_box_;
+  int center_iter_ = 0, center_last_measured_iter_ = 0, center_req_gen_ = 0, center_svc_state_ = 0;
+  double center_lateral_ = 0.0, center_heading_ = 0.0;
+  std::string center_service_, center_svc_msg_, center_note_;
+  double center_box_half_ = 0.1025, center_prior_delay_s_ = 0.3, center_measure_timeout_s_ = 12.0;
+  double center_phase_timeout_s_ = 8.0, center_timeout_s_ = 45.0, center_fwd_min_m_ = 0.12;
+  rclcpp::Time center_start_{0, 0, RCL_ROS_TIME}, center_phase_start_{0, 0, RCL_ROS_TIME};
+  rclcpp::Time center_req_t_{0, 0, RCL_ROS_TIME}, center_range_ok_{0, 0, RCL_ROS_TIME};
+  geometry_msgs::msg::PoseStamped::ConstSharedPtr pb_pose_;
+  std_msgs::msg::String::ConstSharedPtr pb_status_;
+  rclcpp::Time pb_pose_rx_{0, 0, RCL_ROS_TIME}, pb_status_rx_{0, 0, RCL_ROS_TIME};
+  rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pb_pose_sub_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr pb_status_sub_;
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pb_prior_pub_;
+  rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr pb_client_;
+  std::pair<double, double> center_box_{0.0, 0.0};   // 측정한 상자 중심 (odom)
+  double center_rear_half_ = 0.785;
+  bool center_puck_checked_ = false;
+  geometry_msgs::msg::PointStamped::ConstSharedPtr arm_target_;   // /perception/arm_target (퍽 중심, base_footprint)
+  rclcpp::Subscription<geometry_msgs::msg::PointStamped>::SharedPtr arm_target_sub_;
   robot_policy::PolicyLibrary policies_;
 
   // 입력 (최신값, 300 ms 규칙은 쓸 때 확인)

@@ -99,6 +99,7 @@
 #include "control/puck_height.hpp"
 #include "control/sag_comp.hpp"
 #include "control/startup_stow.hpp"
+#include "control/stow_hint.hpp"
 #include "control/toppick_obs.hpp"
 #include "control/lieupright.hpp"
 #include "control/target_look_pose.hpp"
@@ -333,6 +334,8 @@ private:
     std::copy(offsets.begin(), offsets.end(), ik.joint_offsets.begin());
     std::copy(signs.begin(), signs.end(), ik.joint_signs.begin());
     ik_ = std::make_unique<ArmIK>(ik);
+    // STOW 어긋남 안내 (stow_hint.hpp): 같은 URDF 치수, 관절 각은 명령값 그대로 (offset 없음)
+    stow_geom_ = {ik.shoulder_height, ik.upper_arm_x, ik.upper_arm_z, ik.forearm, ik.wrist_to_tool};
     ik_signs_ = ik.joint_signs;     // 강화학습 집기: 측정 → 모델 관절 (q_model = (q − offset) / sign)
     ik_offsets_ = ik.joint_offsets;
     // 앞에서부터 순서대로 시도하는 집게 pitch 후보 (rad, 위로 +, -pi/4 = 45° 아래, -pi/2 = 바로 아래)
@@ -1812,16 +1815,19 @@ private:
       // STOW 로 모을 때 STOW 근처 (startup.auto_stow_max 안) 면 정리 순서 (접기 = 묶음 역순) 로 천천히 STOW 에 맞춤
       const bool near_stow = startup_pose_ == "STOW" && d_stow <= startup_auto_stow_max_;
       if (d_stow > pose_start_tol_ && d_goal > pose_start_tol_ && d_unfold > pose_start_tol_ && d_via > pose_start_tol_ && !near_stow) {
+        const std::string hint = stow != poses_.end() ?
+          stowHintText(*current, stow->second, startup_auto_stow_max_, stow_geom_) : std::string();
         RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 10000,
           "startup: arm is not near STOW (%.2f rad > auto_stow_max %.2f) nor '%s' (%.2f rad) -> not moving. Put the arm near STOW by hand "
-          "(support it, 12 V off), then power on / restart bringup", d_stow, startup_auto_stow_max_,
-          unfold_pose_.c_str(), d_unfold);
+          "(support it, 12 V off), then power on / restart bringup%s", d_stow, startup_auto_stow_max_,
+          unfold_pose_.c_str(), d_unfold, hint.c_str());
         return;
       }
       startup_slow_ = near_stow && d_stow > pose_start_tol_;
       if (startup_slow_) {
-        RCLCPP_WARN(get_logger(), "startup: arm %.2f rad off STOW (within auto_stow_max %.2f) -> moving to STOW at %.2f rad/s",
-          d_stow, startup_auto_stow_max_, startup_auto_stow_vel_);
+        RCLCPP_WARN(get_logger(), "startup: arm %.2f rad off STOW (within auto_stow_max %.2f) -> moving to STOW at %.2f rad/s%s",
+          d_stow, startup_auto_stow_max_, startup_auto_stow_vel_,
+          stowHintText(*current, stow->second, startup_auto_stow_max_, stow_geom_).c_str());
       }
     }
     job_ = Job::STARTUP;
@@ -4300,6 +4306,7 @@ private:
   double min_jerk_dt_{0.05};
   double max_joint_vel_{0.8}, min_duration_{1.0}, joint_state_timeout_{1.0};
   std::unique_ptr<ArmIK> ik_;
+  StowHintGeom stow_geom_;
   std::vector<double> approach_pitches_;
   bool allow_elbow_down_{false}, use_object_yaw_{false};
   double wrist_roll_default_{0.0}, gripper_roll_default_{0.0};

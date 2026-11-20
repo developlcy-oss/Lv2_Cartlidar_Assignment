@@ -6,7 +6,7 @@
 #   odom_topic 은 실물 EKF (/odometry/filtered) 기준. Gazebo 는 launch 인자 odom_topic:=/odom 으로 덮어씀
 #   속도 한계 (MPPI vx_max · wz_max, RotationShim rotate_to_heading_angular_vel, behavior max_rotational_vel, smoother max · min_velocity) 는
 #   launch 인자 max_vx · max_wz · rotate_wz 로 함께 덮어쓸 수 있음 (navigation.launch.py). 여기 값은 인자를 비웠을 때의 기본값.
-#   실물 diff_drive 상한: vx 0.34 (drive_belt.yaml) · wz 1.0 (controllers_4wd.yaml, 11-12 벨트 때문에 2.0 → 1.0)
+#   실물 diff_drive 상한: vx 0.45 (drive_belt.yaml, 11-14) · wz 1.0 (controllers_4wd.yaml, 11-12 벨트 때문에 2.0 → 1.0)
 
 bt_navigator:
   ros__parameters:
@@ -59,7 +59,7 @@ controller_server:
       plugin: "nav2_rotation_shim_controller::RotationShimController"
       angular_dist_threshold: 0.96         # 경로 방향과 55° 넘게 다르면 먼저 제자리 회전 (45° 는 팔레트 집기 자리 (1.47, 0.31) 에서 뒤 벽에 걸려 MPPI·복구 모두 거부, Gazebo 11-19)
       forward_sampling_distance: 0.3       # ★ 경로 방향을 볼 앞 거리 (기본 0.5, 좁은 미로라 줄임)
-      rotate_to_heading_angular_vel: 0.8   # ★ 제자리 회전 속도 (≤ MPPI wz_max)
+      rotate_to_heading_angular_vel: 0.75  # ★ 제자리 회전 속도 (≤ MPPI wz_max) (11-20, 전 0.8)
       max_angular_accel: 2.0
       simulate_ahead_time: 1.0             # 회전 중 충돌 검사 시간
       rotate_to_goal_heading: true         # 도착 (xy 안) 뒤 목표 방향 회전은 shim 이 함 — MPPI 가 도착 근처에서 돌다 밀려나는 것 막음 (Gazebo 2026-11-04)      
@@ -74,9 +74,9 @@ controller_server:
         motion_model: "diff_drive"
         diff_drive:
           plugin: "mppi::DiffDriveMotionModel"
-        vx_max: 0.2                        # ★ 처음은 낮게 (diff_drive 0.34 · drive skill 0.3 m/s)
+        vx_max: 0.26                       # ★ 1차 +30 % (11-20, 전 0.2). 상자 근접 감속은 drive_node align (0.15 · 0.08). 정지 거리 0.26·0.2 s + 0.26²/(2·1.5) = 0.075 m < 앞 띠 0.12. 2차 0.32 (wz 0.5)
         vx_min: -0.1                       # ★ 좁은 곳에서 조금 후진 허용
-        wz_max: 1.0                        # ★ = 실물 diff_drive 상한 1.0 rad/s (모터 3.2, 벨트). 실물에서 낮출 때는 launch 인자 max_wz
+        wz_max: 0.75                       # ★ 바깥 바퀴 v + 0.2045·w = 0.26 + 0.153 = 0.413 < 실측 0.425 m/s (12.7 rad/s, 11-18 arc_test), 0.8 이면 여유 0.2 % 라 배터리 저하에 포화 (11-20, 전 1.0). 실물에서 낮출 때는 launch 인자 max_wz
         ax_max: 1.5                        # diff_drive linear.x.max_acceleration 과 같게
         ax_min: -1.5
         az_max: 2.0
@@ -258,7 +258,7 @@ behavior_server:
     robot_base_frame: base_link
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
-    max_rotational_vel: 1.0              # ★ = MPPI wz_max
+    max_rotational_vel: 0.75             # ★ = MPPI wz_max
     min_rotational_vel: 0.3              # ★ 모의에서 약 0.15 rad/s 아래 회전 명령은 거의 안 돎 (drive_rl README)
     rotational_acc_lim: 2.0
 
@@ -267,8 +267,8 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: false
     feedback: "OPEN_LOOP"
-    max_velocity: [0.2, 0.0, 1.0]        # ★ = MPPI vx_max · wz_max
-    min_velocity: [-0.1, 0.0, -1.0]
+    max_velocity: [0.26, 0.0, 0.75]      # ★ = MPPI vx_max · wz_max
+    min_velocity: [-0.1, 0.0, -0.75]
     max_accel: [1.5, 0.0, 2.0]           # diff_drive linear.x.max_acceleration 1.5
     max_decel: [-1.5, 0.0, -2.0]
     odom_topic: /odometry/filtered

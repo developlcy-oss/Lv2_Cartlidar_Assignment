@@ -15,6 +15,7 @@
 |---|---|
 | `run_demo.sh` | 시연 한 회차: 시연 Nav2 노드 · 규칙 v2 필터를 띄우고 active 확인 → 계획을 따라감 → 기록 → 끝나면 끔 (`real` · `sim`, `RUN_TAG=` 이름표, `NO_RECOVER=1` 되찾기 끔, `SIM_TURN=` 실물형 시뮬) |
 | `demo_follow.py` | 계획의 조각 (전진 · 후진 · 제자리) 을 Nav2 에 차례로 보냄 · 출발 확인 · 경로 이탈 멈춤 (10 cm) · 방향 맞추기 거부 시 건너뛰기 · **되찾기** (조각 실패 → 위치 다시 찾기 → 왔던 길 ≤ 0.30 m → 다시, 최대 2 번) · 기록 (`track_live.csv`) |
+| `box_quiet.py` · `test_box_quiet.py` | 11-20 상자 정지점 0.40 m 안 판정 (demo_follow 가 import — **`demo_follow.py` 와 같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_quiet.py` |
 | `v2_filter.py` | Nav2 속도를 규칙 v2 로 자름 (제자리 ≤ 90° 실제 각도 · 이어진 후진 ≤ 0.40 m (실물 0.50) · 반경 ≥ 0.20 · 꺾는 중 모터 상한) |
 | `sim_turn_scale.py` | 시뮬만: 실물처럼 덜 도는 로봇 흉내 (회전 명령을 꺾기 · 제자리 비율로 줄임, `SIM_TURN=0.79,0.70`) |
 | `scan_rotate.py` | LDS-03 두 대 드라이버 (URDF 에 라이다 보정이 없을 때만 180° 돌림, 자동) |
@@ -45,7 +46,7 @@
 | 전원 순서 | USB (Jetson) 가 배터리보다 먼저 켜지면 OpenCR 부팅 점검이 모터를 못 찾아 `MOTOR_CONFIG\|FAULT` 가 걸림 (재부팅으로만 풀림). **Jetson 을 재부팅해도 같음** | 배터리를 켠 채 **두 OpenCR 모두 RESET** |
 | 팔 대기 자세 | 하드웨어를 켤 때 팔 여섯 칸이 대기 범위 안이어야 함 (아니면 토크를 안 켜고 거부). 범위 (dev 11-16): J1 **3425 ~ 3539** · J2 653 ~ 721 · J3 3025 ~ 3091 · J4 797 ~ 864 · J5 **1849 ~ 2246** · 집게 **1531 ~ 2669** (tick, 팔 펌웨어 v6 이 보고하는 모델 각도). 11-15 에 J1 · J5 로 거부된 적 있음 | 손으로 가운데 쪽 (J1 3482 · J5 2048) 에 맞추고, 집게는 손으로 닫기 (단계 3) |
 | 팔 펌웨어 | dev 11-16 (#316) 부터 호스트가 팔 보드 **v6** (관절 1 π 보정) 을 요구. 주행 보드는 v5 그대로. 다르면 하드웨어가 안 켜짐 | `./jetson_check.sh opencr` 가 버전이 다르면 ❌ — 팔 담당이 `opencr_arm_v6.bin` 업로드 |
-| 라이다 USB | 11-15 에는 허브가 2.1.x 로 옮겨져 udev 이름이 안 생겼음. dev 11-16 (#309) 규칙은 허브 칸 기준 (**2 번 칸 = 앞 · 1 번 칸 = 뒤**) 이라 Jetson 에 설치되면 `/dev/lidar_front` · `rear` 가 생김 | `ls -l /dev/lidar_*` 가 있으면 인자 없이, 없으면 by-path 로 직접 (11-15: 앞 2.1.2 · 뒤 2.1.1) |
+| 라이다 USB | 11-15 에는 허브가 2.1.x 로 옮겨져 udev 이름이 안 생겼음. dev 11-16 (#309) 규칙은 허브 칸 기준이라 Jetson 에 설치되면 `/dev/lidar_front` · `rear` 가 생김. ⚠ Jetson `/etc/udev/rules.d/99-sensors.rules` 는 11-18 에 **1 번 칸 = 앞 · 2 번 칸 = 뒤** 로 바뀜 (예전 2 = 앞 · 1 = 뒤, 백업 `…before_codex_1118`) — 앞 · 뒤는 손으로 가려서 확인 | `ls -l /dev/lidar_*` 가 있으면 인자 없이, 없으면 by-path 로 직접 (11-15: 앞 2.1.2 · 뒤 2.1.1) |
 | 라이다 방향 | dev 1b9266c (PR #304) 부터 URDF 가 실물 라이다 180° 를 고침 | 따로 돌리지 않음 (시연 도구가 자동 판단) |
 | lifecycle 응답 지연 | Jetson 에서 노드 켜기 응답이 시간 초과로 사라져 `map_server` · `controller_server` · `behavior_server` · `bt_navigator` 가 `inactive` 로 남는 일이 잦음 (#276 같은 종류) | `ros2 lifecycle set /<노드> activate` (시연 도구는 자동으로 함) |
 | 출발 자리 | 11 cm 벗어나 놓으면 출발 확인에서 멈춤 · 계획 경로와 어긋남 | 출발 자리 **(0.694, 0.950) · 앞이 신호등 쪽 (180°)**, 2 ~ 3 cm 안 |
@@ -155,9 +156,10 @@ ros2 launch opencr_hardware base_bringup.launch.py rc100:=true obstacle_lock:=fa
 ### 단계 5 — J2: 라이다
 
 ```bash
-python3 ~/demo_v2/scan_rotate.py /dev/serial/by-path/platform-3610000.usb-usb-0:2.1.2:1.0-port0 /dev/serial/by-path/platform-3610000.usb-usb-0:2.1.1:1.0-port0
+python3 ~/demo_v2/scan_rotate.py
 ```
-- 인자 = 앞 · 뒤 라이다 장치. **udev 이름 (`/dev/lidar_front` · `rear`) 이 있으면 인자 없이** `python3 ~/demo_v2/scan_rotate.py` 로 씁니다 (#309 규칙 설치 뒤).
+- 인자 없이 = udev 이름 `/dev/lidar_front` · `/dev/lidar_rear` (#309 규칙). `ls -l /dev/lidar_*` 로 있는지 확인.
+- udev 이름이 없을 때만 앞 · 뒤 장치를 인자로: `ls -l /dev/serial/by-path/` 에서 `…-port0` 두 개 (USB 허브 자리에 따라 `2.1.x` · `2.2.x` 로 바뀜, 11-20 실물 = 앞 `2.2.1` · 뒤 `2.2.2`).
 - 나와야 하는 것: `라이다 그대로 (돌리지 않음) 내보내는 중 … [URDF 에 라이다 yaw 보정 있음 (PR #304) → 돌리지 않음]`.
 - 팀원의 `sensors.launch.py` 가 켜져 있으면 라이다를 서로 잡습니다 → 그것을 끔.
 
@@ -277,6 +279,21 @@ bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
   - 끄려면 `DEMO_DETOUR=0 ./run_demo.sh …` (또는 `demo_follow.py --no-detour`). 시험용 `DEMO_TEST_BLOCK=1` = 첫 긴 전진 조각 (> 0.6 m) 이 3 s 뒤 막힌 것처럼 (전체에서 한 번).
 - **한계:** 비켜 갈 옆 공간이 이어져 있는 곳은 시연 경로의 약 19 % 뿐입니다 (S0 · S1 · S3 · S5 는 0 %). 그 밖에서는 우회 경로가 안 나와 기다린 뒤 되찾기 (step 모드면 건너뛰기) 로 넘어갑니다.
 - 기록: `course_result.json` 의 구간마다 `detour_n` (우회 횟수), `tries` 에 상태 `"detour"` 줄 (후진 · 경로 · 결과).
+
+#### 상자 앞에서 정지 띠 · HOLD 끄기 (11-20 추가, 실물 미시험)
+
+- 11-20 에 실물 앞 LDS-03 을 **1.5 cm 낮췄습니다** (`laser_front` z 0.0675 → 0.0525, 스캔면 바닥 위 약 60 mm). 이제 높이 70 mm 상자가 앞 라이다에 보입니다. 뒤 라이다는 그대로입니다.
+- 시연 정지점은 대부분 상자 바로 앞입니다 (앞 끝 ↔ 상자 −8.8 ~ +2.5 cm). 그래서 다가가는 동안 정지 띠와 HOLD 가 상자에 걸려 우회로 빠집니다.
+- 그래서 `demo_follow.py` 는 목적지가 상자 (`box1` ~ `box6`, `L1` ~ `L3`) 인 구간에서 로봇 (map 자세) 이 정지점 **0.40 m 안**에 들어오면 아래 두 가지를 끕니다.
+  - `collision_monitor`: `/collision_monitor/toggle` 로 끔. 끄면 명령이 그대로 통과합니다.
+  - HOLD 판단
+- 다시 켜는 때: 0.42 m 밖으로 나갈 때 · 구간이 끝날 때 · Ctrl+C · 오류로 끝날 때. 켜고 끌 때마다 로그 한 줄 (`정지 띠 (collision_monitor) · HOLD 끔` / `다시 켬`) 을 남기고, `course_result.json` 의 `box_quiet_n` 에 끈 횟수를 적습니다.
+- 거리는 `demo_follow.py --box-quiet-m 0.40` 으로 바꿉니다. `0` 이면 이 기능을 끕니다. S9 (→ A1) 에는 적용하지 않습니다.
+- ⚠ **끈 동안 남는 보호:**
+  - 정지 앞 감속 (v2_filter `v ≤ √(0.05² + 0.6·(d − 0.05))`): 0.40 m 에서 0.46 · 0.16 m 에서 0.26 · 0.10 m 에서 0.18 · 마지막 5 cm 는 0.05 m/s 입니다. 이 계산상 상한은 max 전진 0.45 m/s 보다 0.16 m 안에서만 낮습니다.
+  - 경로 이탈 멈춤 (10 cm)
+  - 리모컨
+- 시연 base_bringup 은 `obstacle_lock:=false` 라 **TFmini 비상 정지가 없습니다**. 상자 앞 0.40 m 안에 사람이나 물건이 들어와도 로봇이 멈추지 않으니 리모컨을 손에 들고 지켜봅니다.
 
 #### 반경 넓힌 계획 `demo_plan_wide.json` (11-19 추가, 실물 미시험)
 

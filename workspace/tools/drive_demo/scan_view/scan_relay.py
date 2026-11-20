@@ -92,10 +92,11 @@ class Relay(Node):
         fixed = jetson_urdf_fixed(host)   # 11-15: 새 URDF (yaw 보정) 면 앞 yaw π · 뒤 0, 옛 URDF 면 앞 0 · 뒤 π
         yf, yr = (math.pi, 0.0) if fixed else (0.0, math.pi)
         self.get_logger().info("Jetson URDF 라이다 yaw 보정: " + {True: "있음 (PR #304)", False: "없음 (옛 판)", None: "못 읽음 → 옛 판으로 그림"}[fixed])
-        for child, x, roll, yaw in (("laser_front", 0.1318, math.pi, yf), ("laser_rear", -0.1318, math.pi, yr)):
+        # 11-20: 실물 앞 LDS-03 만 1.5 cm 낮춤 (laser_front z 0.0675 → 0.0525, 높이 70 mm 상자를 봄). 뒤는 그대로
+        for child, x, z, roll, yaw in (("laser_front", 0.1318, 0.0525, math.pi, yf), ("laser_rear", -0.1318, 0.0675, math.pi, yr)):
             t = TransformStamped()
             t.header.frame_id, t.child_frame_id = "base_link", child
-            t.transform.translation.x, t.transform.translation.z = x, 0.0675
+            t.transform.translation.x, t.transform.translation.z = x, z
             cr, sr, cy, sy = math.cos(roll / 2), math.sin(roll / 2), math.cos(yaw / 2), math.sin(yaw / 2)
             t.transform.rotation.x, t.transform.rotation.y = sr * cy, sr * sy   # q = Rz(yaw) · Rx(roll)
             t.transform.rotation.z, t.transform.rotation.w = cr * sy, cr * cy

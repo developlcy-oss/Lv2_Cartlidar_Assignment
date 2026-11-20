@@ -2,6 +2,10 @@
 float32 target_distance   # m — 정밀(ARM_ALIGN): TFmini 기준 >= 0.10 / 먼 거리: 범퍼 기준 (D435)
 float32 tolerance
 bool box_only              # true = 퍽 없이 (#160 장소 상자): 인식 결과를 보지 않고 시작 yaw 를 유지한 채 TFmini 박스 거리만으로 target_distance 까지 (>= 0.10)
+bool center                # true = 상자 중앙 맞춤 (11-20): FINE 자리에서 center_box (mission 이 BOX_VIEW 로 잰 상자 중심 · 요) 로
+                           #   법선 회전 · 옆 이동 · 법선 유지 (TFmini) → 옮겼으면 퍽 arm_offset 마무리. 정밀 모드 (ARM_ALIGN) 를 켜고 보냄.
+                           #   믿기 어려운 값 (옆 > max_shift · 상자가 뒤) · 뒤 여유 없음 → 움직이지 않고 성공. 기동 중 문제 → 같은 goal 에서 기존 FINE
+geometry_msgs/PoseStamped center_box   # center 일 때 상자 윗면 중심 · 요 (frame 아무거나, drive 가 odom 으로 옮김. 요는 90° 마다 같음)
 ---
 bool success
 string message

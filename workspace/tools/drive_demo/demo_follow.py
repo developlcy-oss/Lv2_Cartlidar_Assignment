@@ -25,6 +25,9 @@
       0.20 m · 폭 ±0.20 m 띠를 직접 봄 → 점 4 개 미만이 1 s 이어지면 진행 인덱스부터 이어감 (멈춘 뒤 느린 명령으로 다가가는 것 막음).
       라이다가 끊기면 안 풂. 시작 방향이 90° 넘게 틀어진 조각은 방향 맞추기 대신 실패로 (되찾기 · 건너뛰기). 후진 조각 · 우회 경로 없음 · planner 없음 (SAFETY=0) 이면 기존 되찾기. --no-detour 또는 DEMO_DETOUR=0 으로 끔.
       시험: DEMO_TEST_BLOCK=1 = 첫 전진 조각 (> 0.6 m) 3 s 뒤 5 s 넘게 막힌 것처럼.
+11-20 상자 앞 정지 띠 끄기 (box_quiet.py): 앞 라이다를 1.5 cm 낮춰 70 mm 상자가 보이므로, 목적지가 상자 (box1 ~ 6 · L1 ~ 3) 인 구간에서
+      map 자세가 정지점 --box-quiet-m (기본 0.40 m) 안이면 collision_monitor 를 끄고 (/collision_monitor/toggle, nav2_msgs/Toggle)
+      HOLD 판단을 건너뜀. 0.42 m 밖으로 나가거나 구간이 끝나면 · Ctrl+C · 예외로 끝날 때 다시 켬. 0 = 기능 끔.
 기록: 0.1 s 마다 map → base_link + cmd_vel_raw (Nav2 명령) + 필터 뒤 명령 → track.csv · course_result.json · moves.json · summary.txt (주행기록 HTML 형식)
 """
 from __future__ import annotations
@@ -45,6 +48,7 @@ from builtin_interfaces.msg import Duration
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, TwistStamped
 from nav2_msgs.action import ComputePathToPose, FollowPath, Spin
 from nav2_msgs.msg import CollisionMonitorState
+from nav2_msgs.srv import Toggle
 from nav_msgs.msg import Path
 from sensor_msgs.msg import LaserScan
 from std_srvs.srv import Empty
@@ -56,6 +60,8 @@ from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profi
 from rclpy.time import Time
 from std_msgs.msg import Float32, String
 from tf2_ros import Buffer, TransformListener
+
+from box_quiet import BOX_QUIET_HYST, BOX_QUIET_M, box_goal, quiet_next
 
 POS_OK, YAW_OK, YAW_FIX = 0.05, math.radians(10.0), math.radians(2.0)
 EXT_F, EXT_R = 0.15, 0.10
@@ -141,6 +147,73 @@ class Follower(Node):
         self.scan, self.scan_tf = None, None
         self.create_subscription(LaserScan, scan_topic, lambda m: setattr(self, "scan", (time.time(), m)), qos_profile_sensor_data)
         self.hold_n, self.tries, self.leg_t0 = 0, [], 0.0   # run_leg 이 구간마다 맞춤 (follow_piece 가 HOLD 기록)
+        # 11-20 상자 앞 정지 띠 끄기: 구간 정지점 (상자 구간만) 0.40 m 안이면 collision_monitor 끔 · HOLD 건너뜀
+        self.cm_toggle = self.create_client(Toggle, "/collision_monitor/toggle")
+        self.quiet_m = BOX_QUIET_M
+        self.quiet_goal = None    # 지금 구간이 상자 구간이면 정지점 (x, y)
+        self.quiet = False        # True = 끈 상태
+        self.quiet_sent = False   # 끔을 한 번이라도 보냈나 (끝낼 때 다시 켬)
+        self.quiet_n = 0          # 이 구간 끈 횟수 (기록)
+        self.toggle_warned = False
+        self.qlock = threading.Lock()
+        self.create_timer(0.1, self._quiet_tick)
+
+    def _quiet_tick(self):
+        p = self.pose()
+        with self.qlock:
+            self._apply_quiet(quiet_next(p, self.quiet_goal, self.quiet, self.quiet_m), p)
+
+    def set_quiet_goal(self, goal):
+        """구간 시작 (상자 정지점 또는 None) · 끝 (None) 에 부름. None 이면 바로 다시 켬"""
+        p = self.pose()
+        with self.qlock:
+            self.quiet_goal = goal
+            self._apply_quiet(quiet_next(p, goal, self.quiet, self.quiet_m), p)
+
+    def _apply_quiet(self, q, p):   # self.qlock 안에서만
+        if q == self.quiet:
+            return
+        self.quiet = q
+        self.cm_since = None   # 끈 동안 · 끄기 전 STOP 은 안 씀 (끈 동안 상태가 안 올 수 있음)
+        g = self.quiet_goal
+        dist = f"정지점까지 {math.hypot(p[0] - g[0], p[1] - g[1]):.2f} m" if (p and g) else "구간 끝"
+        if q:
+            self.quiet_n += 1
+            self.quiet_sent = True
+            print(f"    · 상자 {self.quiet_m:.2f} m 안 ({dist}) — 정지 띠 (collision_monitor) · HOLD 끔", flush=True)
+        else:
+            print(f"    · 상자 구간 벗어남 ({dist}) — 정지 띠 · HOLD 다시 켬", flush=True)
+        self._toggle(not q)
+
+    def _toggle(self, enable):
+        """collision_monitor ~/toggle (비동기). 서비스가 없으면 (SAFETY=0) 한 번만 알림 — HOLD 건너뛰기만 적용"""
+        if not self.cm_toggle.service_is_ready():
+            if not self.toggle_warned:
+                self.toggle_warned = True
+                print("    ⚠ /collision_monitor/toggle 없음 (SAFETY=0?) — HOLD 건너뛰기만 적용", flush=True)
+            return None
+        req = Toggle.Request()
+        req.enable = bool(enable)
+        fut = self.cm_toggle.call_async(req)
+        fut.add_done_callback(lambda f, e=enable: None if (f.result() is not None and f.result().success) else
+                              print(f"    ⚠ collision_monitor {'켜기' if e else '끄기'} 응답 실패", flush=True))
+        return fut
+
+    def quiet_close(self):
+        """끝낼 때 (정상 · Ctrl+C · 예외): 끈 적이 있으면 collision_monitor 를 다시 켜고 응답을 기다림 (최대 2 s)"""
+        with self.qlock:
+            self.quiet_goal = None
+            was = self.quiet
+            self.quiet = False
+            sent = self.quiet_sent
+        if not sent:
+            return
+        if not self.cm_toggle.wait_for_service(timeout_sec=1.0):
+            print("  ⚠ 끝냄: /collision_monitor/toggle 없음 — 다시 켜지 못함 (run_demo.sh 가 collision_monitor 를 끄므로 다음 실행엔 영향 없음)", flush=True)
+            return
+        fut = self._toggle(True)
+        ok = fut is not None and wait_future(fut, 2.0) and fut.result() is not None and fut.result().success
+        print(f"  · 끝냄: 정지 띠 (collision_monitor) 다시 켬{' (끈 채였음)' if was else ''} — " + ("확인" if ok else "⚠ 응답 없음"), flush=True)
 
     def band_count(self, kind):
         """HOLD 확인 띠 안 라이다 점 개수 → (개수, "") 또는 (None, 이유)"""
@@ -453,6 +526,8 @@ def follow_piece(node, pc, final=True):
             TEST_BLOCK["done"] = True
             print(f"    ⏸ 장애물 — 시험용 (DEMO_TEST_BLOCK=1): {BLOCK_WAIT:.0f} s 넘게 막힌 것으로 침", flush=True)
             return f"{BLOCKED}: 시험용 막힘 (DEMO_TEST_BLOCK=1)"
+        if node.quiet:   # 11-20: 상자 정지점 0.40 m 안 — HOLD 판단 건너뜀 (collision_monitor 도 꺼 둠)
+            return None
         st = node.cm_since
         if st is None:
             return None
@@ -783,6 +858,8 @@ def main():
     ap.add_argument("--no-recover", action="store_true", help="조각 실패 시 되찾기 끔 (11-16 전처럼)")
     ap.add_argument("--no-detour", action="store_true", help="장애물 막힘 우회 끔 (막히면 기존 되찾기, 환경 DEMO_DETOUR=0 과 같음)")
     ap.add_argument("--scan-topic", default="/scan_merged", help="정지 래치 (HOLD) 때 앞 · 뒤 띠를 볼 라이다 (시뮬 /scan)")
+    ap.add_argument("--box-quiet-m", type=float, default=BOX_QUIET_M,
+                    help=f"11-20: 상자 정지점 이 거리 [m] 안이면 정지 띠 (collision_monitor) · HOLD 끔 (기본 {BOX_QUIET_M}, 0 = 기능 끔)")
     a = ap.parse_args()
     if a.no_detour:
         global DETOUR_ON
@@ -826,6 +903,7 @@ def main():
     LIVE.write("t,x,y,yaw,v,w,step,v_nav,w_nav,loc\n")
     rclpy.init()
     node = Follower(a.sim, a.scan_topic)
+    node.quiet_m = max(a.box_quiet_m, 0.0)
     ex = MultiThreadedExecutor(num_threads=4)
     ex.add_node(node)
     def _spin():
@@ -837,6 +915,8 @@ def main():
     print(f"출발 자세 (계획) {start[0]:.3f}, {start[1]:.3f}, {math.degrees(start[2]):.0f}° · "
           + (f"기본 경로 {' → '.join(data['route'])} · 들르기 요청 /drive_demo/detour" + (" 또는 step 입력" if a.step else "")
              if route else f"구간 {legs[0]['name']} ~ {legs[-1]['name']}"), flush=True)
+    print("상자 앞 정지 띠 끄기: " + (f"상자 정지점 {node.quiet_m:.2f} m 안 (다시 켬 {node.quiet_m + BOX_QUIET_HYST:.2f} m 밖) — collision_monitor · HOLD 끔"
+                                   if node.quiet_m > 0 else "꺼짐 (--box-quiet-m 0)"), flush=True)
 
     # 출발 확인
     t0 = time.time()
@@ -899,16 +979,19 @@ def main():
                 STOP.set()
 
     results = []
-    if route:
-        run_route(a, node, data, LIB, PTS, results)
-    else:
-        for g in legs:
-            if STOP.is_set():
-                break
-            if a.step and not ask(f"\n▶ {g['name']} — Enter 출발 · q 끝 : "):
-                break
-            if not run_leg(node, g, results):
-                break
+    try:
+        if route:
+            run_route(a, node, data, LIB, PTS, results)
+        else:
+            for g in legs:
+                if STOP.is_set():
+                    break
+                if a.step and not ask(f"\n▶ {g['name']} — Enter 출발 · q 끝 : "):
+                    break
+                if not run_leg(node, g, results):
+                    break
+    finally:
+        node.quiet_close()   # 11-20: 정지 띠를 끈 채 끝나지 않게 (정상 · Ctrl+C · 예외)
     node.step = -1
     time.sleep(1.0)
     with node.lock:
@@ -929,6 +1012,15 @@ def run_leg(node, g, results):
     tries, ok = [], True
     det_n = 0   # 11-19 이 구간 우회 횟수
     node.tries, node.leg_t0, node.hold_n = tries, tl, 0   # 11-19 follow_piece 가 HOLD 를 여기 기록
+    node.quiet_n = 0
+    node.set_quiet_goal(box_goal(g))   # 11-20: 상자 구간이면 정지점 0.40 m 안에서 정지 띠 · HOLD 끔 (아니면 켬)
+    try:
+        return _run_leg(node, g, results, tl, tries, ok, det_n)
+    finally:
+        node.set_quiet_goal(None)   # 구간 끝 = 다시 켬 (다음 구간 시작 전)
+
+
+def _run_leg(node, g, results, tl, tries, ok, det_n):
     pieces = merge_pieces(g["pieces"])   # 11-18: 같은 방향 이어진 조각은 하나로 (사이에서 안 멈춤)
     for i, pc in enumerate(pieces):
         what = {"F": "전진", "R": "후진", "S": "제자리"}[pc["kind"]] + (f" {math.degrees(pc['dth']):+.0f}°" if pc["kind"] == "S" else "")
@@ -1038,9 +1130,9 @@ def run_leg(node, g, results):
     results.append({"seg": f"S{g['leg']}", "name": g["name"], "points": g["points"], "ok": ok, "tries": tries,
                     "sim_s": round(node.now_s() - tl, 1), "end_err_cm": round(dpos * 100, 1), "end_err_deg": round(math.degrees(dyaw), 1),
                     "head_fix_deg": list(node.head_fix), "head_skip_deg": list(node.head_skip), "recover": list(node.recover), "detour": bool(g.get("detour")),
-                    "detour_n": det_n, "hold_n": node.hold_n})
+                    "detour_n": det_n, "hold_n": node.hold_n, "box_quiet_n": node.quiet_n})
     print(f"{'✓' if ok else '✗'} {g['name']}: {node.now_s() - tl:.1f} s · 정지점 어긋남 {dpos * 100:.1f} cm · {math.degrees(dyaw):.1f}°"
-          f" · 위치 추정 {node.loc or '-'}" + (f" · 조각 방향 맞추기 {node.head_fix}" if node.head_fix else "") + (f" · 건너뜀 {node.head_skip}" if node.head_skip else "") + (f" · 되찾기 {sum(node.recover)} 번" if node.recover else "") + (f" · 우회 {det_n} 번" if det_n else "") + (f" · HOLD {node.hold_n} 번" if node.hold_n else ""), flush=True)
+          f" · 위치 추정 {node.loc or '-'}" + (f" · 조각 방향 맞추기 {node.head_fix}" if node.head_fix else "") + (f" · 건너뜀 {node.head_skip}" if node.head_skip else "") + (f" · 되찾기 {sum(node.recover)} 번" if node.recover else "") + (f" · 우회 {det_n} 번" if det_n else "") + (f" · HOLD {node.hold_n} 번" if node.hold_n else "") + (f" · 상자 앞 띠 끔 {node.quiet_n} 번" if node.quiet_n else ""), flush=True)
     if ok:   # 도착 알림 (팔 · 미션 쪽이 들을 수 있게)
         node.arrived.publish(String(data=g.get("to") or g["name"].split("→")[-1]))
     # 11-16: 되찾기 (recover) · 사람 건너뛰기 (skip) · 11-19 우회 (detour) · HOLD (hold) 기록은 실패가 아님 — 실패 (fail) 만 봄

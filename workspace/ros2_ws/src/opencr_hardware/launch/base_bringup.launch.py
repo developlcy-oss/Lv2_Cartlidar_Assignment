@@ -2,7 +2,11 @@
 # ros2 launch opencr_hardware base_bringup.launch.py wheel_count:=4 use_gripper:=false drive:=belt
 # 장치 없이: ros2 launch opencr_hardware base_bringup.launch.py backend:=mock use_teleop:=false
 # Isaac Sim: ros2 launch opencr_hardware base_bringup.launch.py backend:=isaac use_teleop:=false  (브리지 workspace/tools/isaac_sim, 예전 이름 sim:=true 도 같음)
+# 포트: 기본 ports:=auto (/dev/ttyACM* 중 OpenCR 2 개를 찾음). 직접 주려면 ports:=/dev/ttyACM2,/dev/ttyACM3
 # RC-100 리모컨 주행 시험 (Nav2 와 따로): ros2 launch opencr_hardware base_bringup.launch.py rc100:=true  → joy_node 대신 rc100_joy (scripts/rc100_joy.py)
+import os
+import re
+
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, ExecuteProcess, OpaqueFunction
 from launch.substitutions import Command, LaunchConfiguration, PathJoinSubstitution
@@ -11,6 +15,57 @@ from launch_ros.parameter_descriptions import ParameterValue
 from launch_ros.substitutions import FindPackageShare
 
 BACKENDS = ('opencr', 'mock', 'isaac')
+
+# OpenCR USB 식별 (udev/99-opencr.rules 와 같은 VID/PID). 두 보드가 시리얼까지 같아 by-id 로는 못 가름 → 역할은 STATE.role
+OPENCR_USB_IDS = {('0483', '5740')}
+
+
+def _read(path):
+    try:
+        with open(path, encoding='utf-8', errors='replace') as f:
+            return f.read().strip()
+    except OSError:
+        return ''
+
+
+def _usb_info(sys_tty, name):
+    """sys_tty/<name>/device (USB 인터페이스) 에서 위로 올라가 idVendor 가 있는 USB 장치의 (vid, pid, 제조사, 제품)"""
+    d = os.path.realpath(os.path.join(sys_tty, name, 'device'))
+    for _ in range(4):
+        if os.path.isfile(os.path.join(d, 'idVendor')):
+            return tuple(_read(os.path.join(d, f)) for f in ('idVendor', 'idProduct', 'manufacturer', 'product'))
+        d = os.path.dirname(d)
+    return None
+
+
+def find_opencr_ports(sys_tty='/sys/class/tty', dev='/dev'):
+    """/dev/ttyACM* 를 OpenCR (USB VID:PID 0483:5740 또는 제조사/제품 이름에 ROBOTIS · OpenCR) 과 나머지로 나눈다.
+    반환 (opencr, others) — 둘 다 번호순 경로 목록. sysfs 를 못 읽으면 (USB 정보 없음) 그 포트는 OpenCR 후보로 둔다"""
+    names = sorted((n for n in os.listdir(dev) if re.fullmatch(r'ttyACM\d+', n)) if os.path.isdir(dev) else [],
+                   key=lambda n: int(n[6:]))
+    opencr, others = [], []
+    for n in names:
+        info = _usb_info(sys_tty, n)
+        if info is None:
+            ok = True
+        else:
+            vid, pid, mfr, prod = (s.lower() for s in info)
+            ok = (vid, pid) in OPENCR_USB_IDS or 'opencr' in prod or 'robotis' in mfr
+        (opencr if ok else others).append(os.path.join(dev, n))
+    return opencr, others
+
+
+def resolve_ports(ports, finder=find_opencr_ports):
+    """ports 인자 → 하드웨어에 넘길 '포트,포트'. 'auto' 면 찾아서 정확히 2 개일 때만, 아니면 직접 준 값 그대로"""
+    if ports.strip().lower() != 'auto':
+        return ports
+    opencr, others = finder()
+    if len(opencr) != 2:
+        raise RuntimeError(
+            f'ports:=auto — OpenCR 포트를 2 개 찾아야 하는데 {len(opencr)} 개: {opencr or "없음"}'
+            f' (OpenCR 아닌 ttyACM: {others or "없음"}). USB 연결 · 보드 전원을 확인하거나 '
+            'ports:=/dev/ttyACMx,/dev/ttyACMy 로 직접 지정 (순서 무관, 역할은 STATE.role 로 판별)')
+    return ','.join(opencr)
 
 
 def _backend(context):
@@ -41,6 +96,12 @@ def _setup(context):
     backend = _backend(context)
     obstacle_lock = LaunchConfiguration('obstacle_lock').perform(context).lower() == 'true'
     loc_lock = LaunchConfiguration('loc_lock').perform(context).lower() == 'true'
+    ports = LaunchConfiguration('ports').perform(context)
+    if backend == 'opencr':
+        ports = resolve_ports(ports)
+        print(f'[base_bringup] OpenCR 포트: {ports}', flush=True)
+    elif ports.strip().lower() == 'auto':
+        ports = '/dev/ttyACM0,/dev/ttyACM1'   # mock · isaac 은 포트를 쓰지 않음 (xacro 자리값)
     clock = {'use_sim_time': backend == 'isaac'}   # Isaac 이면 /clock (브리지 발행)
     # twist_mux 잠금: twist_mux.yaml 은 e_stop 만. 내는 노드가 있을 때만 여기서 붙인다 (끊겨도 잠기는 잠금이라)
     locks = {}
@@ -54,7 +115,7 @@ def _setup(context):
         'xacro ', PathJoinSubstitution([pkg, 'urdf', 'robot.urdf.xacro']),
         ' wheel_count:=', wheel_count,
         ' use_gripper:=', 'true' if use_gripper else 'false',
-        ' ports:=', LaunchConfiguration('ports'),
+        ' ports:=', ports,
         ' joy_required:=', LaunchConfiguration('use_teleop'),
         ' drive:=', drive,
         ' backend:=', backend]), value_type=str)
@@ -134,8 +195,10 @@ def generate_launch_description():
         DeclareLaunchArgument('rc100_ang', default_value='0.5', description='RC-100 회전 축 값 (× teleop scale_angular 1.0 = 0.5 rad/s, 모터 1.6)'),
         DeclareLaunchArgument('rc100_hold_timeout', default_value='0.5',
                               description='RC-100 마지막 패킷 뒤 이 시간 [s] 이 지나면 뗀 것으로 봄. 0 = 끔 (리모컨이 누르는 동안 되풀이해 보내지 않을 때)'),
-        DeclareLaunchArgument('ports', default_value='/dev/ttyACM0,/dev/ttyACM1',
-                              description='역할 자동 판별을 위한 두 OpenCR 후보 포트, 쉼표로 구분'),
+        DeclareLaunchArgument('ports', default_value='auto',
+                              description='두 OpenCR 포트. auto = /dev/ttyACM* 중 OpenCR (USB 0483:5740) 을 찾아 정확히 2 개면 그 둘 '
+                                          '(보드 리셋 뒤 ttyACM2·3 으로 바뀌어도 됨, 2 개가 아니면 찾은 목록과 함께 실행 중단). '
+                                          '직접: /dev/ttyACM0,/dev/ttyACM1 (쉼표 구분, 순서 무관 — 역할은 STATE.role 로 판별)'),
         DeclareLaunchArgument('drive', default_value='belt',
                               description='구동: belt (증속벨트 1:2.0, v7) | direct (직결) — URDF · 기어비 · diff_drive 가 같이 바뀜'),
         DeclareLaunchArgument('backend', default_value='opencr',

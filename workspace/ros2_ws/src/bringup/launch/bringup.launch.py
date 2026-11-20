@@ -293,8 +293,10 @@ def generate_launch_description():
                               description='카메라 · 라이다 드라이버 (sensors.launch.py). 기본: 실물 true · sim:=true 면 false'),
         DeclareLaunchArgument('front_serial', default_value='261822072247', description='앞 D435 시리얼 (sensors.launch.py 와 같게), 빈 값 = 아무 장치'),
         DeclareLaunchArgument('rear_serial', default_value='261822079801', description='뒤 D435 시리얼, 빈 값 = 아무 장치'),
-        DeclareLaunchArgument('ports', default_value='/dev/ttyACM0,/dev/ttyACM1',
-                              description='두 OpenCR 후보 포트 (역할은 프로토콜 응답으로 판별)'),
+        DeclareLaunchArgument('ports', default_value='auto',
+                              description='두 OpenCR 포트. auto = /dev/ttyACM* 중 OpenCR 2 개를 찾아 씀 (보드 리셋으로 번호가 바뀌어도 됨, '
+                                          '2 개가 아니면 찾은 목록과 함께 중단). 직접: ports:=/dev/ttyACM2,/dev/ttyACM3 (순서 무관, 역할은 STATE.role). '
+                                          'RC-100 리모컨을 쓸 때는 rc100:=true 필수 — 없으면 리모컨 리셋 (2+3) 이 E-stop 을 못 풂'),
         DeclareLaunchArgument('drive', default_value='belt', description='구동: belt (증속벨트) | direct (직결)'),
         DeclareLaunchArgument('skill_enabled', default_value='false',
                               description='정책 실행 — ONNX Runtime 빌드에서만 true (없으면 거절 → 미션 fallback)'),

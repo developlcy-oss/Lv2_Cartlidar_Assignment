@@ -5569,7 +5569,7 @@
     <limit lower="${-0.794600 - limit_margin}" upper="${0.954100 + limit_margin}" effort="4.1" velocity="4.8"/>
   </joint>
   <joint name="${prefix}lds_front_joint" type="fixed">
-    <origin xyz="0.1318 0 0.0675" rpy="3.14159265 0 0"/>
+    <origin xyz="0.1318 0 0.0525" rpy="3.14159265 0 0"/>  <!-- 2026-11-20 앞 LDS-03 만 1.5 cm 낮춤 (브라켓 v3): 스캔면 바닥 위 59.75 mm, 상자 70 mm 를 봄. 뒤는 0.0675 그대로 -->
     <parent link="${prefix}base_link"/>
     <child link="${prefix}lds_front"/>
   </joint>
