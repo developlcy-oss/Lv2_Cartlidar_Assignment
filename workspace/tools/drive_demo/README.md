@@ -21,6 +21,7 @@
 | `check_jetson.sh` · `jetson_check.sh` | 시연 전 점검 · Jetson / OpenCR (펌웨어 버전 · 팔 대기 범위) / 센서 장치 점검 (읽기만) |
 | `params_demo*.yaml` | 시연 Nav2 설정 (A = 기본, B · C = 벨트 v7 빠른 꺾기) |
 | `demo_plan.json` · `legs.json` · `route_*.json` | 오늘 계획 `7cm_실측L_어제순서` (10 구간, L1 ~ L3 실측) · 미리 계산한 길 90 개 · 들르기 방식 |
+| `demo_plan_wide.json` · `widen_plan.py` | 11-19 반경 넓힌 계획 (정지점 같음, 제자리 회전 · 방향 맞추기 적게) · 만드는 도구 (아래 "반경 넓힌 계획") |
 | `scan_view/` | 노트북 RViz 감시 (ssh 로 Jetson 라이다 · AMCL 자세만 받음) |
 | `rc100_state_watch.py` · `lv2_paths.py` | 리모컨 버튼 값 읽기 · 저장소 위치 찾기 |
 
@@ -276,6 +277,26 @@ bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
   - 끄려면 `DEMO_DETOUR=0 ./run_demo.sh …` (또는 `demo_follow.py --no-detour`). 시험용 `DEMO_TEST_BLOCK=1` = 첫 긴 전진 조각 (> 0.6 m) 이 3 s 뒤 막힌 것처럼 (전체에서 한 번).
 - **한계:** 비켜 갈 옆 공간이 이어져 있는 곳은 시연 경로의 약 19 % 뿐입니다 (S0 · S1 · S3 · S5 는 0 %). 그 밖에서는 우회 경로가 안 나와 기다린 뒤 되찾기 (step 모드면 건너뛰기) 로 넘어갑니다.
 - 기록: `course_result.json` 의 구간마다 `detour_n` (우회 횟수), `tries` 에 상태 `"detour"` 줄 (후진 · 경로 · 결과).
+
+#### 반경 넓힌 계획 `demo_plan_wide.json` (11-19 추가, 실물 미시험)
+
+정지점은 `demo_plan_max.json` 과 같고 구간 길만 `widen_plan.py` (하이브리드 A*) 로 새로 만든 계획입니다. 큰 반경 (전진 0.4 ~ 0.5 m, 상자 칸 들어가기만 0.25) · 제자리 회전 · 방향 바뀜 최소 · 정지점 앞 0.26 m 곧게 들어가기. S2 · S9 는 원래 길 그대로 (시뮬에서 새 길이 더 나빴음).
+```bash
+PLAN=~/demo_v2/demo_plan_wide.json ./run_demo.sh real max step init 0-0     # 실물 첫 구간
+PLAN=$PWD/demo_plan_wide.json ./run_demo.sh sim max                          # 노트북 시뮬
+```
+| SAFETY=1 시뮬 (11-19) | `demo_plan_max.json` | `demo_plan_wide.json` |
+|---|---|---|
+| 전체 | 155.6 s | 136.6 s |
+| 계획 제자리 회전 | 120° | 60° |
+| 조각 시작 방향 맞추기 | 14 번 (127°) | 8 번 (73°) |
+| 정지점 방향 맞추기 | 91° | 38° |
+| HOLD · 되찾기 | S0 에서 2 · 2 (38 s) | 0 |
+
+- 줄어든 시간의 대부분은 S0 (38.3 → 15.1 s). 원래 S0 은 출발 구역 작은 원이 벽에 붙어 collision_monitor 앞 띠에 걸립니다. 나머지 구간은 길이 길어져 1 ~ 2 s 씩 느립니다.
+- 다시 만들기: `python3 widen_plan.py demo_plan_max.json demo_plan_wide.json --keep 2,9` (구간마다 몇 초 ~ 2 분, `--legs 3-5` = 그 구간만).
+- 계획을 새로 만들 때 꼭 지킬 것: ① 안전 띠 (전진 앞 · 후진 뒤) 에 `map_amcl` 벽 · 기둥이 안 들어오게 ② 이어진 후진 ≤ 0.30 m (필터 0.40 − 따라가기 끝 밀기 0.10, 꽉 채우면 `Failed to make progress`) ③ 벽 여유 4 cm.
+- 원래 S9 출발 후진은 뒤 띠에 1 cm 걸치는 점이 있습니다 (시뮬에선 안 걸림) — 실물에서 S9 출발 HOLD 가 나면 이것.
 
 ## 4. B. 전체 미션 시험 (팀 bringup)
 
