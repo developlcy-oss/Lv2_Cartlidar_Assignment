@@ -11,6 +11,16 @@ drive_node:
         speed: 0.08                # [m/s]
         max_m: 0.30                # FINE 자리 (TFmini 0.13) → 0.35 확인까지 약 0.22 m. 이만큼 가도 확인 못 하면 되돌리고 Nav2
         timeout_s: 8.0             # 막혀 기다린 시간 포함. 넘으면 navigate 실패 (mission 재시도)
+      pullout:                     # 뒤가 벽에 붙은 채 navigate → Nav2 전에 곧게 전진 (2026-11-19, control/pullout.hpp). 못 가도 실패 없이 Nav2
+                                   #   Gazebo: 팔레트 집기 자리 (1.47, 0.31) 뒤 벽 0.29 m 에서 Nav2 제자리 회전 → 뒤 모서리가 벽 칸에 걸려 MPPI · 복구 모두 거부
+        enabled: true
+        rear_clear_m: 0.33         # 뒤 /scan (± rear_half_angle) 가장 가까운 점이 이 안이면 전진 (뒤 모서리 회전 반지름 0.271 + padding + 칸)
+        rear_half_angle: 0.785     # 45° (모서리 방향 ±38° 포함, 옆 통로 벽은 덜 잡게)
+        front_clear_m: 0.35        # 앞 /scan (± scan.half_angle) 이 이 안이면 전진 안 함 (주행 자세 팔 앞 0.25 + 여유)
+        front_tfmini_m: 0.20       # TFmini 가 이 안이거나 값 없음이면 전진 안 함 (/scan 아래 상자 · 퍽)
+        speed: 0.05                # [m/s]
+        max_m: 0.06                # 최대 전진 [m]
+        timeout_s: 3.0
       # 위치 추정 상태로 목표 막기 (#121, include/control/loc_gate.hpp). loc_monitor (/localization/status) 가 없는 실행은 false
       #   (bringup 은 use_loc_gate 인자로 덮어씀, 기본 = use_loc_lock)
       loc_gate:

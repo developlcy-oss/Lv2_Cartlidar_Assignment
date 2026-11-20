@@ -12,6 +12,8 @@
 //                        박스 (goal.box_only, #160 빈 장소 상자): 인식 결과를 기다리지 않음. 시작 yaw (odom) 유지 + TFmini → 전후.
 //                        정지 거리 낮추기 · 박스 앞 정차는 정밀과 같음. 남는 좌우 · 각도는 mission measure_box 가 메움
 //   (#157) /drive/navigate 를 정차 중에 받으면 먼저 곧게 후진 (navigate.backoff.*, 뒤 /scan · 뒤 카메라 확인) → 물러남 확인 뒤 Nav2
+//   (11-19) 뒤가 벽에 붙은 채 받으면 먼저 곧게 전진 (navigate.pullout.*, control/pullout.hpp, 앞 /scan · TFmini 확인) → Nav2
+//          (Nav2 제자리 회전에 뒤 모서리가 벽 칸에 걸려 MPPI · 복구가 모두 거부되는 것 막음). 못 가도 실패 없이 Nav2
 //   /drive/execute_skill 강화학습 정책 (robot_policy, CPU) → 속도
 //                        turn_p<deg> · turn_m<deg> · turn_0 = 직전 FINE 정렬 방향 기준 제자리 회전 (#77, 정책 · skill.enabled 와 상관없음)
 //   result · /tfmini/range · /scan · odom 은 header.stamp 300 ms 지나면 버림. 바퀴 goal 은 한 번에 하나.
@@ -20,6 +22,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -36,6 +39,7 @@
 #include "rclcpp_components/register_node_macro.hpp"
 #include "control/align_controller.hpp"
 #include "control/box_park.hpp"
+#include "control/pullout.hpp"
 #include "control/loc_gate.hpp"
 #include "control/turn_skill.hpp"
 #include "robot_interfaces/srv/set_perception_mode.hpp"
@@ -117,6 +121,14 @@ public:
     pc.backoff_max_m = declare_parameter("navigate.backoff.max_m", pc.backoff_max_m);
     pc.backoff_timeout_s = declare_parameter("navigate.backoff.timeout_s", pc.backoff_timeout_s);
     box_park_ = BoxPark(pc);
+    pull_.enabled = declare_parameter("navigate.pullout.enabled", pull_.enabled);
+    pull_.rear_clear_m = declare_parameter("navigate.pullout.rear_clear_m", pull_.rear_clear_m);
+    pull_.rear_half_angle = declare_parameter("navigate.pullout.rear_half_angle", pull_.rear_half_angle);
+    pull_.front_clear_m = declare_parameter("navigate.pullout.front_clear_m", pull_.front_clear_m);
+    pull_.front_tfmini_m = declare_parameter("navigate.pullout.front_tfmini_m", pull_.front_tfmini_m);
+    pull_.speed = declare_parameter("navigate.pullout.speed", pull_.speed);
+    pull_.max_m = declare_parameter("navigate.pullout.max_m", pull_.max_m);
+    pull_.timeout_s = declare_parameter("navigate.pullout.timeout_s", pull_.timeout_s);
     coarse_min_ = declare_parameter("align.coarse_min", 0.3);
     default_tol_ = declare_parameter("align.default_tolerance", 0.01);
     front_offset_ = declare_parameter("base.front_offset", 0.1328);   // base_link → 차체 앞 끝 (B안) ★
@@ -322,6 +334,7 @@ private:
     ref_yaw_.reset();   // turn_* 기준 방향은 다음 FINE 정렬 성공으로 다시 정함
     nav_gh_ = gh;
     if (box_park_.parked()) {start_backoff(); return;}   // 박스 앞이면 먼저 후진 (#157) → tick_backoff 가 begin_nav
+    if (start_pullout()) {return;}                       // 뒤가 벽에 붙었으면 먼저 전진 (11-19) → tick_pullout 이 begin_nav
     begin_nav();
   }
 
@@ -448,9 +461,90 @@ private:
     begin_nav();
   }
 
+  // ---------- 뒤가 벽에 붙은 채 navigate: 먼저 곧게 전진 (11-19, control/pullout.hpp) ----------
+  // 뒤 /scan 가장 가까운 점 (/scan 없음 · 오래됨 = nullopt)
+  std::optional<double> pullout_rear_min()
+  {
+    if (!scan_ || !fresh(scan_->header.stamp)) {return std::nullopt;}
+    return rear_min_range(scan_->ranges, scan_->angle_min, scan_->angle_increment, pull_.rear_half_angle);
+  }
+
+  bool pullout_front_blocked_now()
+  {
+    const bool scan_near = !scan_ || !fresh(scan_->header.stamp) ||
+      scan_blocked(scan_->ranges, scan_->angle_min, scan_->angle_increment, 0.0, scan_half_, pull_.front_clear_m);
+    return pullout_front_blocked(pull_, scan_near, box_.nearest(now().seconds()));
+  }
+
+  // 전진을 시작하면 true. 목표가 도착 기준 안 (spin 으로 처리) 이면 하지 않음 — 위치가 바뀌면 안 됨
+  bool start_pullout()
+  {
+    const auto rear = pullout_rear_min();
+    if (!rear) {return false;}
+    const bool front = pullout_front_blocked_now();
+    if (!pullout_wanted(pull_, *rear, front)) {
+      if (pull_.enabled && *rear < pull_.rear_clear_m) {
+        const auto tf = box_.nearest(now().seconds());
+        double front_min = std::numeric_limits<double>::infinity();
+        if (scan_ && fresh(scan_->header.stamp)) {
+          for (size_t i = 0; i < scan_->ranges.size(); ++i) {
+            const float r = scan_->ranges[i];
+            if (!std::isfinite(r) || r <= 0.01f) {continue;}
+            double a = scan_->angle_min + scan_->angle_increment * static_cast<double>(i);
+            a = std::atan2(std::sin(a), std::cos(a));
+            if (std::fabs(a) <= scan_half_ && r < front_min) {front_min = r;}
+          }
+        }
+        RCLCPP_WARN(get_logger(), "navigate: 뒤 %.2f m 로 가깝지만 앞이 막혀 전진 없이 Nav2 (앞 /scan %.2f m < %.2f ?, TFmini %s < %.2f ?)",
+          *rear, front_min, pull_.front_clear_m, tf ? std::to_string(*tf).substr(0, 5).c_str() : "값 없음", pull_.front_tfmini_m);
+      }
+      return false;
+    }
+    const auto & goal = *nav_gh_->get_goal();
+    const std::string frame = goal.pose.header.frame_id.empty() ? map_frame_ : goal.pose.header.frame_id;
+    if (auto cur = current_pose(frame)) {
+      if (std::hypot(goal.pose.pose.position.x - cur->pose.position.x,
+        goal.pose.pose.position.y - cur->pose.position.y) <= xy_tol_) {return false;}
+    }
+    pullout_active_ = true;
+    pullout_start_ = now();
+    pullout_from_.reset();
+    RCLCPP_INFO(get_logger(), "navigate: 뒤 %.2f m (< %.2f) → 먼저 곧게 전진 (%.2f m/s, 최대 %.2f m)",
+      *rear, pull_.rear_clear_m, pull_.speed, pull_.max_m);
+    return true;
+  }
+
+  void tick_pullout()
+  {
+    const double el = (now() - pullout_start_).seconds();
+    double traveled = 0.0;
+    if (odom_ && fresh(odom_->header.stamp)) {
+      const auto & p = odom_->pose.pose.position;
+      if (!pullout_from_) {pullout_from_ = std::make_pair(p.x, p.y);}
+      traveled = std::hypot(p.x - pullout_from_->first, p.y - pullout_from_->second);
+    }
+    const auto rear = pullout_rear_min();
+    const char * why = nullptr;
+    switch (pullout_step(pull_, rear.value_or(0.0), traveled, el, pullout_front_blocked_now())) {
+      case PulloutStep::DRIVE:
+        if (!rear) {why = "/scan 없음"; break;}   // 뒤를 못 보면 더 가지 않음
+        publish_cmd(pull_.speed, 0.0);
+        return;
+      case PulloutStep::CLEAR: why = "뒤 비었음"; break;
+      case PulloutStep::MAX_DISTANCE: why = "최대 거리"; break;
+      case PulloutStep::FRONT_BLOCKED: why = "앞 막힘"; break;
+      case PulloutStep::TIMEOUT: why = "시간 초과"; break;
+    }
+    publish_cmd(0, 0);
+    pullout_active_ = false;
+    RCLCPP_INFO(get_logger(), "전진 끝 (%s, %.3f m, %.1f s, 뒤 %.2f m) → Nav2", why, traveled, el, rear.value_or(NAN));
+    begin_nav();
+  }
+
   void cancel_nav2()
   {
     if (backoff_active_) {backoff_active_ = false; publish_cmd(0, 0);}
+    if (pullout_active_) {pullout_active_ = false; publish_cmd(0, 0);}
     ++nav_gen_;
     loc_gate_.reset();
     if (nav2_handle_) {nav_client_->async_cancel_goal(nav2_handle_); nav2_handle_.reset();}
@@ -828,7 +922,7 @@ private:
       end(nav_gh_, false, std::make_shared<Nav::Result>(), true);
     }
     if (nav_gh_) {
-      if (backoff_active_) {tick_backoff();} else {tick_loc_gate();}
+      if (backoff_active_) {tick_backoff();} else if (pullout_active_) {tick_pullout();} else {tick_loc_gate();}
     }
     if (align_gh_) {tick_align();}
     if (box_park_.refresh_due(now().seconds())) {set_box_approach(box_park_.stop_m());}   // 정차 중 다시 보냄 (#157)
@@ -881,6 +975,10 @@ private:
   bool backoff_active_ = false;
   rclcpp::Time backoff_start_{0, 0, RCL_ROS_TIME};
   std::optional<std::pair<double, double>> backoff_from_;   // 후진 시작 odom (x, y)
+  PulloutConfig pull_;
+  bool pullout_active_ = false;
+  rclcpp::Time pullout_start_{0, 0, RCL_ROS_TIME};
+  std::optional<std::pair<double, double>> pullout_from_;   // 전진 시작 odom (x, y)
   std::shared_ptr<rclcpp::AsyncParametersClient> obstacle_params_;
   sensor_msgs::msg::LaserScan::ConstSharedPtr scan_;
   nav_msgs::msg::Odometry::ConstSharedPtr odom_;
