@@ -13,6 +13,9 @@ STATE = {0: 'IDLE', 1: 'RUNNING', 2: 'PAUSED', 3: 'DONE', 4: 'FAILED'}
 def main():
     rclpy.init()
     node = rclpy.create_node('console_mission_start')
+    from start_check import wait_and_check   # 출발 자리 확인 (검토 C, 2026-11-20)
+    if not wait_and_check(node, lambda t: print(t, flush=True)):
+        return 1
     cli = node.create_client(Trigger, '/mission/start')
     if not cli.wait_for_service(timeout_sec=120.0):
         print('✗ /mission/start 서비스 없음', flush=True)
