@@ -100,3 +100,7 @@ codex/
 # 예외: 최종 제출물 (project2) 의 결과 · 실물 경기 로그는 올림
 !project2/results/
 !project2/results/**
+
+# Claude 작업 규칙 · 상태, 강사 자료 · 발제 · 교안 PDF (이 컴퓨터에만)
+.claude/
+ref/
