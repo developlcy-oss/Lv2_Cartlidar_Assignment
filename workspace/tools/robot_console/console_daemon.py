@@ -8,6 +8,7 @@
 """
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -27,6 +28,11 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[2]
 LOG_ROOT = Path(os.environ.get('ROBOT_LOG_DIR', str(Path.home() / 'robot_logs')))
 ESTOP_BTN, RESET_BTN, N_BTN = 6, 7, 12   # opencr.ros2_control.xacro estop_button · reset_button
+# 모드 전환 (2026-11-20 검토 D 승인): 앞 모드 프로세스가 모두 끝난 것을 확인 (최대 SWITCH_END_WAIT_S) 한 뒤 SWITCH_GAP_S 더 기다림.
+#   11-20 실물: 모드 3 종료 4 s 뒤 모드 4 시작에서 map_server change_state 응답 전송 시간 초과 → AMCL 지도 없음 → Nav2 시작 중단
+SWITCH_END_WAIT_S, SWITCH_GAP_S = 30.0, 10.0
+# lifecycle 확인 · 다시 시작 (검토 D): manager 마다 is_active 를 LIFECYCLE_WAIT_S 까지 기다리고, 안 되면 최대 LIFECYCLE_RETRY 번
+LIFECYCLE_WAIT_S, LIFECYCLE_RETRY, LIFECYCLE_RETRY_GAP_S = 90.0, 2, 15.0
 
 
 def now_s():
@@ -194,12 +200,82 @@ class Console(Node):
 
     # ---------------- 모드 ----------------
     def stop_all(self):
+        """끄고, 끈 프로세스 그룹 번호 목록을 돌려줌 (남은 것이 있는지는 wait_group_end 로)"""
+        groups = []
         for name in ('action', 'bag', 'launch'):
             p = getattr(self, name)
             if p and p.alive():
                 self.event(f'{name} 끄는 중 …')
+                groups.append(p.p.pid)
                 p.stop(15.0 if name == 'launch' else 8.0)
             setattr(self, name, None)
+        return groups
+
+    @staticmethod
+    def group_left(pgids):
+        left = []
+        for g in pgids:
+            out = subprocess.run(['pgrep', '-g', str(g), '-a'], capture_output=True, text=True).stdout
+            left += [line[:100] for line in out.splitlines()]
+        return left
+
+    def wait_group_end(self, pgids, timeout_s=SWITCH_END_WAIT_S):
+        """앞 모드 프로세스 그룹이 모두 끝날 때까지 기다림. 돌려줌: 남은 프로세스 (빈 목록 = 모두 끝남)"""
+        end = time.time() + timeout_s
+        left = self.group_left(pgids)
+        while left and time.time() < end:
+            time.sleep(1.0)
+            left = self.group_left(pgids)
+        return left
+
+    @staticmethod
+    def svc(name, srv_type, req='{}', timeout=8.0):
+        """ros2 service call 한 번 (시간 초과 · 실패 = None). 데몬 실행기를 막지 않게 따로 프로세스로"""
+        try:
+            r = subprocess.run(['ros2', 'service', 'call', name, srv_type, req], capture_output=True, text=True, timeout=timeout)
+            return r.stdout if r.returncode == 0 else None
+        except subprocess.TimeoutExpired:
+            return None
+
+    def lifecycle_ready(self, run_dir, managers):
+        """lifecycle manager 들이 모두 active 인지 보고, 아니면 다시 시작 (검토 D 승인안).
+        노드마다 get_state: 시간 초과 · active 아님 → 그 manager RESET → STARTUP / 모두 active 인데 manager 만 아님 → STARTUP.
+        최대 LIFECYCLE_RETRY 번, LIFECYCLE_RETRY_GAP_S 간격. 돌려줌: (ok, 이유)"""
+        log = Path(run_dir) / 'launch.log'
+        bad = list(managers)
+        for attempt in range(LIFECYCLE_RETRY + 1):
+            end = time.time() + LIFECYCLE_WAIT_S
+            while time.time() < end and not self.cancel:
+                bad = [m for m in managers if 'success=True' not in (self.svc(f'/{m}/is_active', 'std_srvs/srv/Trigger') or '')]
+                failed = log.exists() and log.read_text(errors='ignore').count('Failed to bring up all requested nodes') > attempt
+                if not bad or failed:
+                    break
+                with self.lock:
+                    self.msg = f'lifecycle 기다림: {" ".join(bad)} ({int(end - time.time())} s 남음)'
+                time.sleep(3.0)
+            if not bad:
+                return True, ''
+            if self.cancel:
+                return False, '다음 모드 요청으로 그만둠'
+            with open(Path(run_dir) / 'loadavg.txt', 'a') as f:
+                f.write(f'{now_s()} lifecycle 실패 {bad} loadavg {open("/proc/loadavg").read().split()[:3]}\n')
+            if attempt == LIFECYCLE_RETRY:
+                break
+            for m in bad:
+                try:
+                    out = subprocess.run(['ros2', 'param', 'get', f'/{m}', 'node_names'], capture_output=True, text=True, timeout=15).stdout
+                except subprocess.TimeoutExpired:
+                    out = ''
+                names = re.findall(r"'([^']+)'", out)
+                not_active = [n for n in names if "label='active'" not in (self.svc(f'/{n}/get_state', 'lifecycle_msgs/srv/GetState') or '')]
+                if not_active or not names:
+                    self.event(f'lifecycle {m}: active 아님 {not_active or "(노드 목록 못 읽음)"} → RESET → STARTUP ({attempt + 1}/{LIFECYCLE_RETRY})')
+                    self.svc(f'/{m}/manage_nodes', 'nav2_msgs/srv/ManageLifecycleNodes', '{command: 3}', 60.0)
+                else:
+                    self.event(f'lifecycle {m}: 노드는 모두 active, manager 만 아님 → STARTUP ({attempt + 1}/{LIFECYCLE_RETRY})')
+                self.svc(f'/{m}/manage_nodes', 'nav2_msgs/srv/ManageLifecycleNodes', '{command: 0}', 90.0)
+            time.sleep(LIFECYCLE_RETRY_GAP_S)
+        return False, f'lifecycle 시작 실패 ({LIFECYCLE_RETRY} 번 다시 해도): {" ".join(bad)} — 모드를 다시 켜세요'
 
     def ports(self):
         if os.environ.get('CONSOLE_PORTS'):   # 시험용 (PC, 로봇 없음)
@@ -245,9 +321,18 @@ class Console(Node):
         self.busy = True
         self.cancel = False
         try:
-            if self.launch or self.action:
+            if self.launch or self.action or self.bag:
                 self.set('stopping', '앞 모드 끔')
-                self.stop_all()
+                left = self.wait_group_end(self.stop_all())
+                if left:
+                    self.mode = n
+                    self.set('failed', f'앞 모드 프로세스가 {SWITCH_END_WAIT_S:.0f} s 안에 안 끝남 (끄지 않음): ' + ' | '.join(left[:4]))
+                    return
+                if n is not None:
+                    self.event(f'앞 모드 프로세스 모두 끝남 — {SWITCH_GAP_S:.0f} s 더 기다림 (시작 부하 겹침 막기)')
+                    end = time.time() + SWITCH_GAP_S
+                    while time.time() < end and not self.cancel:
+                        time.sleep(0.2)
             self.mode = n
             if n is None:
                 with self.lock:
@@ -278,6 +363,15 @@ class Console(Node):
                 self.set('failed', why + f' — {d}/launch.log')
                 return
             time.sleep(m.get('wait_extra_s', 0))
+            managers = m.get('lifecycle_managers')
+            if managers is None:   # 기본: AMCL · 지도는 늘, Nav2 는 use_nav2:=false 가 아닐 때
+                managers = ['lifecycle_manager_maps', 'lifecycle_manager_amcl'] + \
+                    ([] if 'use_nav2:=false' in launch_cmd else ['lifecycle_manager_navigation'])
+            if managers:
+                ok, why = self.lifecycle_ready(d, managers)
+                if not ok:
+                    self.set('failed', why + f' — {d}/launch.log')
+                    return
             if m.get('record', True) and self.record_topics:
                 self.bag = Proc(f'exec ros2 bag record -o {d}/bag --topics {self.record_topics}', d / 'bag.log')
                 self.event(f'rosbag 녹화 시작 → {d}/bag')
