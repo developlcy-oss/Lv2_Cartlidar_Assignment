@@ -57,12 +57,12 @@ modes:
     action: python3 {here}/actions/mission_start.py
   5:
     name: 출발 상자 재기 (주행 중, 앞 D435)
-    about: 출발 자리에서 Nav2 로 출발 상자 대기 자리를 돌며 measure_front 3 번씩 → trials.jsonl (정답 = 발제 좌표). 팔은 STOW. 계획 data/261120_tonight/PLAN.md 4 절. Gazebo 판정 실패 자세는 action 의 --skip 에
+    about: 출발 자리에서 Nav2 로 출발 상자 대기 자리를 돌며 measure_front 3 번씩 → trials.jsonl (정답 = 발제 좌표). 팔은 STOW. 계획 data/261120_tonight/PLAN.md 4 절. Gazebo 판정 (11-20 run2, 라이다 0.0675 조건) 통과라 6 곳 모두 (뺄 자세는 action 에 --skip B1:S 처럼)
     launch_args: use_planner:=false arm_startup_pose:=none use_arm_camera:=false
     wait_nodes: [/controller_manager, /amcl, /bt_navigator, /perception_node]
     wait_timeout_s: 180
     wait_extra_s: 5
-    action: python3 {here}/actions/front_box_trial.py --out {run_dir} --skip B1:S,B5:N
+    action: python3 {here}/actions/front_box_trial.py --out {run_dir}
   6:
     name: 깊이 짝 원인 측정 — 카메라만
     about: 인지 노드 끔, D435 두 대만. 컬러 · 정렬 깊이 · 정렬 전 깊이 Hz, 앞 컬러-깊이 시각 차, realsense CPU 30 s (검토 A (0) (a)(b)(c)). 녹화 안 함
