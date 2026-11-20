@@ -49,8 +49,50 @@ modes:
     action: bash {here}/actions/perception_demo.sh 57
   4:
     name: 통합 시연 (미션 전체)
-    about: bringup 전체 (팔 DRIVE 로 폄 · 인지 · 위치 추정 · Nav2 · 계획기 · 미션) 뒤 /mission/start. 준비 확인 14 개가 모두 OK 일 때 시작됨
-    launch_args: ""
+    about: bringup 전체 (팔 DRIVE 로 폄 · 인지 · 위치 추정 · Nav2 · 계획기 · 미션) 뒤 /mission/start. 준비 확인이 모두 OK 일 때 시작됨. 정책 집기 (ONNX) 켬, 출발 상자 재기 끔
+    launch_args: skill_enabled:=true start_box:=false
+    wait_nodes: [/controller_manager, /mission_node]
+    wait_timeout_s: 180
+    wait_extra_s: 5
+    action: python3 {here}/actions/mission_start.py
+  5:
+    name: 출발 상자 재기 (주행 중, 앞 D435)
+    about: 출발 자리에서 Nav2 로 출발 상자 대기 자리를 돌며 measure_front 3 번씩 → trials.jsonl (정답 = 발제 좌표). 팔은 STOW. 계획 data/261120_tonight/PLAN.md 4 절. Gazebo 판정 실패 자세는 action 의 --skip 에
+    launch_args: use_planner:=false arm_startup_pose:=none use_arm_camera:=false
+    wait_nodes: [/controller_manager, /amcl, /bt_navigator, /perception_node]
+    wait_timeout_s: 180
+    wait_extra_s: 5
+    action: python3 {here}/actions/front_box_trial.py --out {run_dir} --skip B1:S,B5:N
+  6:
+    name: 깊이 짝 원인 측정 — 카메라만
+    about: 인지 노드 끔, D435 두 대만. 컬러 · 정렬 깊이 · 정렬 전 깊이 Hz, 앞 컬러-깊이 시각 차, realsense CPU 30 s (검토 A (0) (a)(b)(c)). 녹화 안 함
+    launch_args: use_nav2:=false use_planner:=false use_perception:=false arm_startup_pose:=none use_tfmini:=false use_loc_lock:=false use_amcl_node:=true use_arm_camera:=false
+    wait_nodes: [/controller_manager, /top_camera_front, /top_camera_rear]
+    wait_timeout_s: 150
+    wait_extra_s: 10
+    record: false
+    action: python3 {here}/actions/camera_probe.py --out {run_dir} --label cameras_only
+  7:
+    name: 깊이 짝 원인 측정 — 인지 켬
+    about: 모드 3 과 같은 바탕에 인지 모드 57 을 켠 뒤 모드 6 과 같은 측정 30 s (검토 A (0) (c)). 녹화 안 함
+    launch_args: use_nav2:=false use_planner:=false arm_startup_pose:=none use_tfmini:=false use_loc_lock:=false use_amcl_node:=true use_arm_camera:=false
+    wait_nodes: [/controller_manager, /perception_node]
+    wait_timeout_s: 150
+    wait_extra_s: 5
+    record: false
+    action: python3 {here}/actions/camera_probe.py --out {run_dir} --label perception_on --perception_mode 57
+  8:
+    name: 통합 시연 + 출발 상자 재기
+    about: 모드 4 에 출발 상자 재기 (start_box) 를 켬. 모드 5 결과가 흩어짐 ≤ 5 mm · 평균 퍽 자리 오차 ≤ 2 cm 일 때만 (data/261120_tonight/PLAN.md 3 절)
+    launch_args: skill_enabled:=true start_box:=true
+    wait_nodes: [/controller_manager, /mission_node]
+    wait_timeout_s: 180
+    wait_extra_s: 5
+    action: python3 {here}/actions/mission_start.py
+  9:
+    name: 통합 (예비 지도 — 출발 상자 뺀 map_amcl)
+    about: 모드 4 와 같고 위치 추정 지도만 출발 상자 6 개를 뺀 예비판. 모드 4 · 8 에서 상자 근처 SUSPECT · LOST 가 날 때 (상자가 돌아 놓여 지도와 어긋남) 쓴다 (2026-11-20 검토 조건)
+    launch_args: skill_enabled:=true start_box:=false map:={repo}/workspace/ros2_ws/src/mission_planner/maps/map_amcl_no_startbox.yaml
     wait_nodes: [/controller_manager, /mission_node]
     wait_timeout_s: 180
     wait_extra_s: 5
