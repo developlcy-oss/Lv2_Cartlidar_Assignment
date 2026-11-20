@@ -84,6 +84,10 @@
 //     결정마다 mission_log "oblique" 줄
 //   approach_view <L>             (oblique 전용, 자동으로만 붙음) 주행 자세 → align BOX, 목표 = 보기 자리 TFmini 거리
 //   시작 박스 집기 (start_box.enabled, include/mission/start_box.hpp, #226) — 켜면:
+//   center_box <거리>             (자동으로만 붙음, approach.center.enabled) 퍽을 집는 approach 바로 뒤 (include/mission/center_box.hpp):
+//                                 팔 place_box.arm_pose (BOX_VIEW) → approach.center.mode → settle → /perception/place_box/measure (팔) →
+//                                 팔 align.arm_pose (ALIGN) → kFineMode → /drive/align goal.center (잰 상자) = 옆 이동 · 법선 · 퍽 마무리.
+//                                 측정 실패 · 믿기 어려운 값은 움직이지 않고 계속 (실패 아님). 단계 실패 · 시간 초과는 앞 approach 부터 다시
 //   measure_start <B<n>:<면>>     (자동으로만 붙음) 시작 박스 goto (approach_poses.yaml kind box 의 stage) 뒤 approach 앞, 그 접근에
 //                                 target_look 이 있을 때: SEARCH_FRONT + /perception/place_box/prior (final + box_x 앞) →
 //                                 /perception/place_box/measure_front → status ok (camera front) + 상자 (odom 중심 · 요).
@@ -163,6 +167,8 @@
 #include "mission/episode_log.hpp"
 #include "mission/give_up.hpp"
 #include "mission/readiness.hpp"
+#include "mission/boot_notice.hpp"
+#include "mission/center_box.hpp"
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 
@@ -254,7 +260,7 @@ public:
           "/perception/pucks", rclcpp::QoS(1).reliable(),
           [this](PuckArray::ConstSharedPtr msg) {onPucks(msg);}, sub_opt);
       }
-      if (place_box_enabled_ || start_box_enabled_) {   // 장소 상자 · 시작 박스 측정 결과 (perception, latched)
+      if (place_box_enabled_ || start_box_enabled_ || center_enabled_) {   // 장소 상자 · 시작 박스 측정 결과 (perception, latched)
         const auto latched = rclcpp::QoS(1).reliable().transient_local();
         pb_pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>("/perception/place_box", latched,
           [this](geometry_msgs::msg::PoseStamped::ConstSharedPtr m) {
@@ -282,11 +288,16 @@ public:
     pick_client_ = rclcpp_action::create_client<Pick>(this, "/manipulator/pick", mission_cb_group_);
     arm_skill_client_ =
       rclcpp_action::create_client<ExecuteSkill>(this, "/manipulator/execute_skill", mission_cb_group_);
+    if (center_enabled_) {   // 상자 중앙 맞춤: 팔 Arducam 상자 재기 (place_box 와 같은 서비스)
+      place_box_client_ = create_client<Trigger>("/perception/place_box/measure", rclcpp::ServicesQoS(), mission_cb_group_);
+    }
     if (plan_mode_) {
       plan_client_ = create_client<Trigger>(plan_service_, rclcpp::ServicesQoS(), mission_cb_group_);
       dice_client_ = create_client<CheckDice>("/perception/check_dice", rclcpp::ServicesQoS(), mission_cb_group_);
       if (place_box_enabled_) {
-        place_box_client_ = create_client<Trigger>("/perception/place_box/measure", rclcpp::ServicesQoS(), mission_cb_group_);
+        if (!place_box_client_) {
+          place_box_client_ = create_client<Trigger>("/perception/place_box/measure", rclcpp::ServicesQoS(), mission_cb_group_);
+        }
         if (oblique_enabled_) {   // 비스듬히 서기: 앞 D435 로 대기 자리에서 먼저 잼 (사전값 = 지도 칸 중심, perception 이 5 s 안 것만 씀)
           pb_front_client_ =
             create_client<Trigger>("/perception/place_box/measure_front", rclcpp::ServicesQoS(), mission_cb_group_);
@@ -578,6 +589,18 @@ private:
     place_box_max_shift_ = declare_parameter<double>("place_box.max_shift", 0.10);
     place_box_required_ = declare_parameter<bool>("place_box.required", false);
     timeout_["measure_box"] = declare_parameter<double>("timeout.measure_box", 15.0);
+    // 상자 중앙 맞춤 (approach.center.*, center_box.hpp): 퍽을 집는 approach 뒤 BOX_VIEW 로 상자를 재고 drive 가 상자 중심선으로 옮김
+    center_enabled_ = declare_parameter<bool>("approach.center.enabled", false);
+    center_arm_pose_ = declare_parameter<std::string>("approach.center.arm_pose", place_box_arm_pose_);
+    center_mode_text_ = declare_parameter<std::string>("approach.center.mode", place_box_mode_text_);
+    center_settle_ = declare_parameter<double>("approach.center.settle_s", place_box_settle_);
+    center_measure_timeout_ = declare_parameter<double>("approach.center.measure_timeout_s", 12.0);
+    // 기본 90 s = 팔 자세 2 번 (10 s) + settle 0.5 + 측정 12 + drive align.center.timeout_s 45 + 여유 12.5
+    timeout_["center_box"] = declare_parameter<double>("timeout.center_box", center_box_timeout(10.0, 0.5, 12.0, 45.0, 12.5));
+    if (center_enabled_ && (!parseModeNames(center_mode_text_) || !(center_settle_ >= 0.0) || !(center_measure_timeout_ > 0.0))) {
+      throw std::invalid_argument("approach.center: mode names joined by '+', settle_s >= 0, measure_timeout_s > 0");
+    }
+    RCLCPP_INFO(get_logger(), "approach.center (상자 중앙 맞춤): %s", center_enabled_ ? "켬" : "끔");
     // 비스듬히 서기 (oblique.*): 꺼져 있으면 지금 흐름 그대로
     oblique_enabled_ = declare_parameter<bool>("oblique.enabled", false);
     ob_view_gap_ = declare_parameter<double>("oblique.view_gap", 0.35);
@@ -1202,6 +1225,8 @@ private:
       tickMeasureBox();
     } else if (s.type == "measure_start") {
       tickStartMeasure();
+    } else if (s.type == "center_box") {
+      tickCenterMeasure();
     } else if (s.type == "wait") {
       if (now() >= wait_until_) {
         logReturn();
@@ -1296,8 +1321,8 @@ private:
     const std::string S1 = "1 안전 (E-stop · OpenCR 진단)", S2 = "2 컨트롤러 (ros2_control)",
       S3 = "3 노드 서버", S4 = "4 위치 추정", S5 = "5 Nav2";
     const std::string why = safetyReason();
-    add(S1, "E-stop · 진단", why.empty() ? ReadyState::OK : ReadyState::FAIL,
-      why.empty() ? "정상" : why + (estop_active_ ? " -> 조이스틱 리셋" : ""));
+    add(S1, kReadySafety, why.empty() ? ReadyState::OK : ReadyState::FAIL,
+      why.empty() ? "정상" : why + (estop_active_ ? " -> 리모컨 2+3 으로 해제 (보드 리셋 버튼 X)" : ""));
     for (const auto & c : ready_controllers_) {
       if (!ctrl_rx_) {
         add(S2, c, ReadyState::WAIT,
@@ -1321,8 +1346,8 @@ private:
     srv("/manipulator/execute_skill", arm_skill_client_->action_server_is_ready());   // observe barcode_look · 집기 · 놓기
     if (ready_arm_startup_) {
       const int a = arm_startup_.load();
-      add(S3, "팔 정리 (/manipulator/startup_done)", a == 1 ? ReadyState::OK : ReadyState::WAIT,
-        a == 1 ? "STOW 정리 끝" : a == 0 ? "정리 전 — 리셋 버튼 (REARM) 뒤 'startup: arm at STOW' 기다림 · 팔이 STOW 근처인지" :
+      add(S3, kReadyArmStartup, a == 1 ? ReadyState::OK : ReadyState::WAIT,
+        a == 1 ? "STOW 정리 끝" : a == 0 ? "정리 전 — E-stop 해제 (리모컨 2+3) 뒤 'startup: arm at STOW' 기다림 · 팔이 STOW 근처인지" :
         "못 받음 (manipulator_node?)");
     }
     srv("/perception/set_mode", mode_client_->service_is_ready());
@@ -1402,6 +1427,17 @@ private:
       }
     }
     const auto items = readyItems();
+    // 기동 안내: E-stop 만 남으면 "리모컨으로 해제" (10 s 마다 다시), 다 OK 가 되면 "기동 완료" 한 번
+    const BootPhase phase = boot_phase(items, estop_active_, {kReadySafety, kReadyArmStartup});
+    if (boot_notice_due(boot_phase_, phase, (t - boot_notice_t_).seconds(), 10.0)) {
+      if (phase == BootPhase::WAIT_ESTOP) {
+        RCLCPP_WARN(get_logger(), "%s", boot_notice_text(phase));
+      } else {
+        RCLCPP_INFO(get_logger(), "%s", boot_notice_text(phase));
+      }
+      boot_notice_t_ = t;
+    }
+    boot_phase_ = phase;
     const std::string text = format_ready(items);
     if (text == ready_text_) {return;}
     ready_text_ = text;
@@ -1539,7 +1575,16 @@ private:
       drive_done_ = true;
       pb_requested_ = false;
       setModeThen(Mode::SEARCH_FRONT, [this]() {startStartMeasure();});
+    } else if (s.type == "center_box") {
+      // ① 팔 BOX_VIEW → (advancePhase) ② 모드 → tickCenterMeasure ③ 팔 ALIGN → ④ align center
+      drive_done_ = true;
+      ctr_requested_ = false;
+      ctr_box_.reset();
+      sendArmPose(center_arm_pose_);
     } else if (s.type == "approach" || s.type == "approach_box" || s.type == "approach_view") {
+      if (s.type == "approach" && needsCenter(idx)) {   // 퍽을 집는 접근: FINE 뒤 상자 중앙 맞춤 단계를 붙임 (approach 는 그대로 진행)
+        steps_.insert(steps_.begin() + static_cast<std::ptrdiff_t>(idx + 1), parseStep("center_box " + s.args[0]));
+      }
       // approach_view: approach_box 와 같고 목표 = 보기 자리 TFmini 거리 (비스듬히 서기, viewAlignTarget)
       // approach: ① 주행 자세 완료 → ② SEARCH_FRONT → ③ align COARSE → ④ 정렬 자세 (align.arm_pose) → ⑤ SEARCH_FRONT | ARM_ALIGN → ⑥ align FINE
       // approach_box: ① 주행 자세 완료 → ② align box_only (인식 모드와 상관없음, #160)
@@ -1703,6 +1748,24 @@ private:
           stepSucceeded();
           break;
       }
+    } else if (s.type == "center_box") {
+      switch (phase_) {
+        case 1:  // BOX_VIEW 완료 → 팔 카메라 모드 → settle 뒤 재기 (tickCenterMeasure)
+          setModeThen(*parseModeNames(center_mode_text_), [this]() {beginWatch();});
+          break;
+        case 2:  // ALIGN 으로 되돌림 완료 → 잰 상자가 있으면 정밀 모드로 drive 중앙 맞춤, 없으면 끝 (FINE 결과 그대로)
+          if (ctr_box_) {
+            setModeThen(kFineMode, [this]() {sendCenterAlign();});
+          } else {
+            recordStartRef();
+            stepSucceeded();
+          }
+          break;
+        default:  // drive 중앙 맞춤 완료
+          recordStartRef();   // 옮겼으면 turn 기준 yaw 를 새 자리로
+          stepSucceeded();
+          break;
+      }
     } else if (s.type == "approach_box") {
       if (phase_ == 1) {
         sendAlign(AlignStage::BOX, std::stod(s.args[0]));   // 주행 자세 완료 → 박스 접근
@@ -1722,7 +1785,7 @@ private:
   {
     const auto & t = steps_[step_idx_].type;
     return t == "search" || t == "approach" || t == "approach_box" || t == "observe" || t == "verify" || t == "survey_view" ||
-           t == "measure_box" || t == "approach_view";
+           t == "measure_box" || t == "approach_view" || t == "center_box";
   }
 
   void stepSucceeded()
@@ -2292,6 +2355,68 @@ private:
     o << std::fixed << std::setprecision(4) << "place_at:" << m->second.frame << ":" << p.first << ":" << p.second << ":" << m->second.z;
     RCLCPP_INFO(get_logger(), "%s -> %s (잰 상자)", step.args[1].c_str(), o.str().c_str());
     step.args[1] = o.str();
+  }
+
+  // ------------------------------------------------------------------ 상자 중앙 맞춤 (approach.center.*, center_box.hpp)
+  bool needsCenter(size_t idx) const
+  {
+    if (!center_enabled_) {return false;}
+    std::vector<std::string> texts;
+    texts.reserve(steps_.size());
+    for (const auto & st : steps_) {texts.push_back(st.text);}
+    return approach_needs_center(texts, idx);
+  }
+
+  // ② settle → measure → 결과 (status ok + 상자). 실패 · 시간 초과면 잰 상자 없이 ③ (팔 ALIGN) 으로
+  void tickCenterMeasure()
+  {
+    if (!watching_ || ctr_box_) {return;}
+    if (!ctr_requested_) {
+      if ((now() - view_since_).seconds() < center_settle_) {return;}
+      ctr_requested_ = true;
+      ctr_request_t_ = now();
+      const uint64_t id = stage_id_;
+      callTrigger(place_box_client_, "/perception/place_box/measure", [this, id](bool ok, const std::string & msg) {
+          if (id != stage_id_ || !watching_) {return;}
+          if (!ok) {centerMeasureDone(std::nullopt, "measure: " + msg);}
+        });
+      return;
+    }
+    std::string status;
+    geometry_msgs::msg::PoseStamped::ConstSharedPtr pose;
+    {
+      std::lock_guard<std::mutex> lock(sensor_mutex_);
+      if (pb_status_ && pb_status_rx_ >= ctr_request_t_) {status = pb_status_->data;}
+      if (pb_pose_ && pb_pose_rx_ >= ctr_request_t_) {pose = pb_pose_;}
+    }
+    if (!status.empty() && !place_box_status_ok(status)) {centerMeasureDone(std::nullopt, "status " + status); return;}
+    if (status.empty() || !pose) {   // status 가 상자 자세보다 먼저 옴
+      if ((now() - ctr_request_t_).seconds() > center_measure_timeout_) {
+        centerMeasureDone(std::nullopt, std::to_string(center_measure_timeout_) + " s 안에 결과 없음");
+      }
+      return;
+    }
+    centerMeasureDone(*pose, "");
+  }
+
+  // 잰 상자 (없으면 why) 를 기록하고 ③ 팔 ALIGN 으로 되돌림
+  void centerMeasureDone(const std::optional<geometry_msgs::msg::PoseStamped> & pose, const std::string & why)
+  {
+    watching_ = false;
+    ctr_box_ = pose;
+    if (pose) {
+      std::ostringstream o;
+      o << std::fixed << std::setprecision(4) << "\"event\": \"measure\", \"ok\": true, \"frame\": \"" << pose->header.frame_id
+        << "\", \"center\": [" << pose->pose.position.x << ", " << pose->pose.position.y << "], \"yaw_deg\": "
+        << tf2::getYaw(pose->pose.orientation) * 180.0 / M_PI;
+      logEvent("center_box", o.str());
+      RCLCPP_INFO(get_logger(), "center_box: 상자 (%s %.3f, %.3f) → 팔 %s 뒤 drive 중앙 맞춤", pose->header.frame_id.c_str(),
+        pose->pose.position.x, pose->pose.position.y, align_arm_pose_.c_str());
+    } else {
+      RCLCPP_WARN(get_logger(), "center_box: 상자 못 잼 -> 중앙 맞춤 없이 FINE 결과로 계속: %s", why.c_str());
+      logEvent("center_box", "\"event\": \"measure\", \"ok\": false, \"why\": \"" + escape(why) + "\"");
+    }
+    sendArmPose(align_arm_pose_);
   }
 
   // ------------------------------------------------------------------ 시작 박스 집기 (start_box.*, start_box.hpp, #226)
@@ -3071,6 +3196,8 @@ private:
       for (size_t i = failed; i-- > 0;) {
         if (steps_[i].type == "search") {target = i; break;}
       }
+    } else if (s.type == "center_box" && failed > 0 && steps_[failed - 1].type == "approach") {
+      target = failed - 1;   // 중앙 맞춤 중 실패 (옮긴 뒤 FINE 도 못 맞춤 · 시간 초과): 접근부터 다시 (center_box 는 다시 붙지 않음)
     } else if (isArmSkill(s, "toppick_tilt") || is_empty_hand_load(s.text, reason)) {
       // toppick_tilt 실패 (빈손 · 들다 놓침 · 정책 시간 초과 등) 와 빈손 pallet_load (운반 중 떨어뜨림, 2026-11-16) 는
       //   바로 앞 target_look 부터: manipulator 는 target_look 이 잰 퍽 위치를 한 번만 쓰므로 (집기 시작 때 지움)
@@ -3355,6 +3482,24 @@ private:
       [](const AlignBase::Result & r, std::string & msg) {msg = r.message; return r.success;});
   }
 
+  // 상자 중앙 맞춤 (center_box ④): 정밀 모드에서 잰 상자 중심 · 요를 넘김. drive 가 측정 없이 옆 이동 · 법선 · 퍽 마무리
+  void sendCenterAlign()
+  {
+    AlignBase::Goal goal;
+    goal.target_distance = static_cast<float>(std::stod(steps_[step_idx_].args[0]));
+    goal.tolerance = static_cast<float>(align_tolerance_);
+    goal.center = true;
+    goal.center_box = *ctr_box_;
+    sendGoal<AlignBase>(align_client_, goal, align_goal_, "/drive/align(CENTER)", driveReport(),
+      [this](const AlignBase::Result & r, std::string & msg) {
+        msg = r.message;
+        RCLCPP_INFO(get_logger(), "center_box: drive %s — %s", r.success ? "성공" : "실패", r.message.c_str());
+        logEvent("center_box", "\"event\": \"drive\", \"ok\": " + std::string(r.success ? "true" : "false") +
+          ", \"message\": \"" + escape(r.message) + "\"");
+        return r.success;
+      });
+  }
+
   void sendArmPose(const std::string & pose_name)
   {
     ArmPose::Goal goal;
@@ -3451,6 +3596,12 @@ private:
   static constexpr double kGrid = 0.06;        // 3 x 3 칸 간격 (발제)
   static constexpr double place_top_z_ = 0.07; // 계획기 지도 윗면 높이 (verify z 는 이보다 0.03 아래 = 퍽 바닥 위 0.03)
   bool place_box_enabled_{true}, place_box_required_{false}, pb_requested_{false};
+  // 상자 중앙 맞춤 (approach.center.*)
+  bool center_enabled_{false}, ctr_requested_{false};
+  std::string center_arm_pose_{"BOX_VIEW"}, center_mode_text_{"READ_TAG"};
+  double center_settle_{0.5}, center_measure_timeout_{12.0};
+  rclcpp::Time ctr_request_t_{0, 0, RCL_ROS_TIME};
+  std::optional<geometry_msgs::msg::PoseStamped> ctr_box_;   // 이번 center_box 에서 잰 상자 (perception frame)
   std::string place_box_arm_pose_, place_box_mode_text_;
   double place_box_settle_{0.5}, place_box_max_shift_{0.10};
   std::map<std::string, std::pair<double, double>> place_centers_;   // L -> 지도 격자 중심
@@ -3593,6 +3744,11 @@ private:
   std::map<std::string, bool> mgr_pending_;
   std::map<std::string, rclcpp::Time> mgr_sent_;
   std::string ready_text_;
+  // 준비 표 항목 이름 중 E-stop 이 풀려야 OK 가 되는 것 (boot_phase 에서 뺌)
+  static constexpr const char * kReadySafety = "E-stop · 진단";
+  static constexpr const char * kReadyArmStartup = "팔 정리 (/manipulator/startup_done)";
+  BootPhase boot_phase_{BootPhase::NOT_READY};
+  rclcpp::Time boot_notice_t_{0, 0, RCL_ROS_TIME};
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr ready_pub_;
   rclcpp::TimerBase::SharedPtr ready_timer_;
 };

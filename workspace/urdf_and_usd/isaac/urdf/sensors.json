@@ -24,7 +24,7 @@
    "pos": [
     0.1318,
     0.0,
-    0.0675
+    0.0525
    ],
    "quat_xyzw": [
     1.0,
@@ -39,14 +39,15 @@
     "belt_motor_FR",
     "belt_motor_RL",
     "belt_motor_RR",
+    "jetson_battery",
     "light_part157",
     "light_part176",
     "light_corner_FL",
     "light_corner_FR",
     "light_corner_RL",
     "light_corner_RR",
-    "lds_rear_head",
-    "opencr_upper"
+    "jetson_heatsink",
+    "opencr_lower"
    ]
   },
   "lds03_rear": {
@@ -78,7 +79,7 @@
     "light_corner_FR",
     "light_corner_RL",
     "light_corner_RR",
-    "lds_front_head",
+    "lds_front_body",
     "opencr_upper"
    ]
   },
@@ -1269,7 +1270,7 @@
    "pos": [
     0.1318,
     0.0,
-    0.08345
+    0.06845
    ],
    "quat_xyzw": [
     1.0,
@@ -1283,8 +1284,8 @@
     0.0211
    ],
    "z_range": [
-    0.0729,
-    0.094
+    0.0579,
+    0.079
    ]
   },
   {
@@ -1294,7 +1295,7 @@
    "pos": [
     0.1318,
     -0.0,
-    0.06625
+    0.05125
    ],
    "quat_xyzw": [
     1.0,
@@ -1308,8 +1309,8 @@
     0.0133
    ],
    "z_range": [
-    0.0596,
-    0.0729
+    0.0446,
+    0.0579
    ]
   },
   {

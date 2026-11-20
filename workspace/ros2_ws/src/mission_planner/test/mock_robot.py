@@ -7,6 +7,8 @@
   - /perception/check_dice: observed · passed true (요청 칸 · 기대값 기록)
   - /perception/place_box/measure (#73): 마지막 navigate 목표에서 가까운 장소 L 의 지도 칸 중심을 --box_shift 만큼 밀고 --box_rot 만큼 돌린
     상자를 odom 기준 /perception/place_box · /status 로 냄 (map -> odom 정적 TF = --odom_offset). --box_fail 이면 ok false
+    단 마지막 navigate 가 장소보다 시작 박스에 가까우면 (mission center_box, 11-20) 그 시작 박스를 --start_shift · --start_rot 로 냄 (log center).
+    /drive/align goal.center 는 align 기록에 [거리, "center"]
   - /perception/place_box/measure_front (#226 시작 박스): 마지막 navigate 목표에서 가까운 시작 박스 (poses.START_BOXES) 를 --start_shift 만큼
     밀고 --start_rot 만큼 돌린 상자를 odom 기준으로 냄 (status camera front). 참 퍽 자리 (중심 + R(돌림) (±PUCK_DX, 0)) 를 기록
   - 차체 자세 (odom -> base_link TF, --real_nav 가 아니면): navigate 목표, align 뒤 = 그 접근의 final (자세표), drive turn_<p|m><deg> 는
@@ -52,7 +54,7 @@ class Mock(Node):
         super().__init__("mock_robot")
         self.a = a
         self.log = dict(navigate=[], align=[], drive_skill=[], pose=[], pick=[], skill=[], set_mode=[], check_dice=[], place_box=[],
-                        start_box=[], events=[])
+                        start_box=[], center=[], events=[])
         self.pose = None       # 차체 자세 (지도 x, y, yaw), --real_nav 가 아니면 navigate · align · turn 으로 바뀜
         self.ref_yaw = None    # drive turn 기준 요 (마지막 align 끝)
         self.mode = 0
@@ -242,8 +244,8 @@ class Mock(Node):
             p = g.pose.pose
             import math
             return [round(p.position.x, 4), round(p.position.y, 4), round(2 * math.atan2(p.orientation.z, p.orientation.w), 4)]
-        if kind == "align":
-            return round(g.target_distance, 3)
+        if kind == "align":   # 상자 중앙 맞춤 (goal.center, mission center_box) 은 [거리, "center"]
+            return [round(g.target_distance, 3), "center"] if getattr(g, "center", False) else round(g.target_distance, 3)
         if kind == "pose":
             return g.name
         if kind == "pick":
@@ -280,6 +282,10 @@ class Mock(Node):
             nav = list(here)
             self.odom_off = [mo[0], mo[1], math.degrees(mo[2])]
         L = min(self.places, key=lambda k: math.hypot(self.places[k][2][0] - nav[0], self.places[k][2][1] - nav[1]))
+        b = min(START_BOXES, key=lambda k: math.hypot(START_BOXES[k][0] - nav[0], START_BOXES[k][1] - nav[1]))
+        d_place = math.hypot(self.places[L][2][0] - nav[0], self.places[L][2][1] - nav[1])
+        if math.hypot(START_BOXES[b][0] - nav[0], START_BOXES[b][1] - nav[1]) < d_place:
+            return self.center_measure(b, res)   # 시작 박스 앞 (mission center_box): 팔로 잰 시작 박스
         if self.a.box_fail:
             self.log["place_box"].append(dict(place=L, ok=False))
             self.pb_status_pub.publish(String(data='{"ok": false, "why": "mock"}'))
@@ -299,6 +305,29 @@ class Mock(Node):
         self.pb_pub.publish(m)
         self.log["place_box"].append(dict(place=L, map_center=[round(mx, 4), round(my, 4)], rot_deg=self.a.box_rot))
         res.success, res.message = True, "mock measure"
+        return res
+
+    def center_measure(self, b, res):
+        """상자 중앙 맞춤 재기 (mission center_box, 팔 BOX_VIEW): 시작 박스 b 를 --start_shift · --start_rot 만큼 밀고 돌려 odom 으로 냄."""
+        dx, dy = (float(v) for v in self.a.start_shift.split(","))
+        mx, my = START_BOXES[b][0] + dx, START_BOXES[b][1] + dy
+        ox, oy, oyaw = self.odom_off[0], self.odom_off[1], math.radians(self.odom_off[2])
+        c, s_ = math.cos(-oyaw), math.sin(-oyaw)
+        px, py = c * (mx - ox) - s_ * (my - oy), s_ * (mx - ox) + c * (my - oy)
+        yaw = math.radians(self.a.start_rot) - oyaw
+        if self.a.box_fail:
+            self.log["center"].append(dict(box=b, ok=False))
+            self.pb_status_pub.publish(String(data='{"ok": false, "why": "mock"}'))
+            res.success, res.message = True, "mock center measure (fail)"
+            return res
+        self.pb_status_pub.publish(String(data=f'{{"ok": true, "frames": 3, "x": {px:.4f}, "y": {py:.4f}, "yaw": {yaw:.4f}, "frame": "odom"}}'))
+        m = PoseStamped()
+        m.header.stamp, m.header.frame_id = self.get_clock().now().to_msg(), "odom"
+        m.pose.position.x, m.pose.position.y, m.pose.position.z = px, py, 0.07
+        m.pose.orientation.z, m.pose.orientation.w = math.sin(yaw / 2), math.cos(yaw / 2)
+        self.pb_pub.publish(m)
+        self.log["center"].append(dict(box=b, map_center=[round(mx, 4), round(my, 4)], rot_deg=self.a.start_rot))
+        res.success, res.message = True, "mock center measure"
         return res
 
     def pub_perception(self):

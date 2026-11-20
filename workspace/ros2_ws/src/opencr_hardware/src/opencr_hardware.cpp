@@ -1,4 +1,5 @@
 #include "opencr_hardware/opencr_hardware.hpp"
+#include "opencr_hardware/standby_hint.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -534,8 +535,14 @@ bool OpenCRHardware::check_arm_standby() const
   }
   std::ostringstream bad;
   bool beyond = false;   // 여유 (arm_standby_margin_tick) 도 넘음 · 한 바퀴 넘게 쌓임
+  std::vector<long> ticks, lo5, hi5;   // 관절 1~5 (칸 0~4) — STOW 어긋남 안내 (standby_hint.hpp)
   for (int k = 0; k < opencr_proto::ARM_JOINTS; ++k) {
     const long t = arm_tick(latest_.pos[opencr_proto::MAX_WHEELS + k]);
+    if (k < 5) {
+      ticks.push_back(t);
+      lo5.push_back(standby_min_tick_[k]);
+      hi5.push_back(standby_max_tick_[k]);
+    }
     const long lo = standby_min_tick_[k], hi = standby_max_tick_[k];
     if (t >= lo && t <= hi) {continue;}
     std::string name = "칸 " + std::to_string(k);
@@ -554,13 +561,15 @@ bool OpenCRHardware::check_arm_standby() const
     RCLCPP_INFO(get_logger(), "팔 대기 자세 확인 — 여섯 칸 모두 범위 안");
     return true;
   }
+  const std::string hint = arm_standby_hint(ticks, lo5, hi5);
   if (!beyond) {
-    RCLCPP_WARN(get_logger(), "팔이 대기 자세 범위를 조금 벗어남 (여유 %d tick 안) — 토크를 켜고 시작, 켜질 때 정리가 STOW 로 천천히 모음:%s",
-      standby_margin_tick_, bad.str().c_str());
+    RCLCPP_WARN(get_logger(), "팔이 대기 자세 범위를 조금 벗어남 (여유 %d tick 안) — 토크를 켜고 시작, 켜질 때 정리가 STOW 로 천천히 모음:%s%s",
+      standby_margin_tick_, bad.str().c_str(), hint.c_str());
     return true;
   }
-  RCLCPP_ERROR(get_logger(), "팔이 대기 자세가 아님 (여유 %d tick 도 넘음) — 토크를 켜지 않고 시작을 거부합니다:%s\n"
-    "  지금은 토크가 꺼져 있습니다. 팔을 손으로 대기 자세 근처에 놓은 뒤 다시 시작하세요", standby_margin_tick_, bad.str().c_str());
+  RCLCPP_ERROR(get_logger(), "팔이 대기 자세가 아님 (여유 %d tick 도 넘음) — 토크를 켜지 않고 시작을 거부합니다:%s%s\n"
+    "  지금은 토크가 꺼져 있습니다. 팔을 손으로 대기 자세 근처에 놓은 뒤 다시 시작하세요", standby_margin_tick_, bad.str().c_str(),
+    hint.c_str());
   return false;
 }
 

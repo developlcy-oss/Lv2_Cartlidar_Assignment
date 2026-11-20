@@ -5427,7 +5427,7 @@
     <limit effort="4.1" lower="-0.7946" upper="0.9541" velocity="4.8"/>
   </joint>
   <joint name="lds_front_joint" type="fixed">
-    <origin rpy="3.14159265 0 0" xyz="0.1318 0 0.0675"/>
+    <origin rpy="3.14159265 0 0" xyz="0.1318 0 0.0525"/>
     <parent link="base_link"/>
     <child link="lds_front"/>
   </joint>
