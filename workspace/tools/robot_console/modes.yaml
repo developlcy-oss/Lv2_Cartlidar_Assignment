@@ -18,7 +18,7 @@ modes:
   0:
     name: 대기 · 수동 조작
     about: 하드웨어 · 라이다 · 위치 추정만. 팔은 STOW 로 접고 멈춤. TUI 로 앞뒤 · 회전 · 비상정지
-    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_amcl_node:=true
+    launch_args: use_nav2:=false use_perception:=false use_planner:=false arm_startup_pose:=none use_loc_lock:=false use_amcl_node:=true use_d435:=false use_arm_camera:=false
     wait_nodes: [/controller_manager, /amcl]
     wait_timeout_s: 120
     wait_extra_s: 3
@@ -26,7 +26,7 @@ modes:
   1:
     name: 자율주행 시연 (AMCL + Nav2)
     about: 팔 STOW, AMCL 이 발제 SDF 지도 위 위치를 잡고 Nav2 가 길을 스스로 짜서 상자 6 곳 → L3 · L2 · L1 → 출발 로 감. 라이다로 장애물을 피하고, TFmini 정면 정지 · 위치 잃음 잠금은 켬. 목표마다 TUI Enter. 출발 자리 (0.694, 0.950) · 신호등 쪽에 놓고 시작
-    launch_args: use_perception:=false use_planner:=false arm_startup_pose:=none
+    launch_args: use_perception:=false use_planner:=false arm_startup_pose:=none use_d435:=false use_arm_camera:=false
     wait_nodes: [/controller_manager, /amcl, /bt_navigator]
     wait_timeout_s: 180
     wait_extra_s: 5
@@ -42,7 +42,7 @@ modes:
   3:
     name: 인지 시연
     about: 팔 STOW, 앞 · 뒤 D435 로 퍽 찾기 · 장소 태그 · 신호등 점멸 세기를 켬 (결과는 로그 창). 바코드는 팔 카메라가 라벨을 봐야 해서 빠짐
-    launch_args: use_nav2:=false use_planner:=false arm_startup_pose:=none use_tfmini:=false use_loc_lock:=false use_amcl_node:=true
+    launch_args: use_nav2:=false use_planner:=false arm_startup_pose:=none use_tfmini:=false use_loc_lock:=false use_amcl_node:=true use_arm_camera:=false
     wait_nodes: [/controller_manager, /perception_node]
     wait_timeout_s: 150
     wait_extra_s: 5
