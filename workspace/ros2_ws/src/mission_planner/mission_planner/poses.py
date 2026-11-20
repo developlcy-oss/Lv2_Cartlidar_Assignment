@@ -189,7 +189,9 @@ def j1_dist(pose: Pose, wx, wy):
 
 
 STANDOFFS = tuple(round(0.45 - 0.01 * k, 2) for k in range(16))  # 0.45, 0.44, …, 0.30
-ROTATE_MARGIN = 0.005  # [m] stage 에서 제자리 한 바퀴 돌 때 외곽 여유 (Nav2 RotationShim 이 도착 · 출발 때 stage 에서 돎)
+ROTATE_MARGIN = 0.05   # [m] stage 에서 제자리 한 바퀴 돌 때 외곽 여유 (Nav2 RotationShim 이 도착 · 출발 때 stage 에서 돎).
+#   2026-11-20 0.005 → 0.05 (검토 B 승인): 실물 도착 오차 5.2~5.8 cm (= xy_goal_tolerance 0.05) 에서 B1:S 뒤 모서리가 벽에 걸려
+#   RotationShim "rotational collision" 로 30~60 s 멈춤. 북쪽 통로 (B3 · B4 · B5 :N) 는 standoff 0.40 → 0.34 — 아래 #135 기록 범위라 Gazebo 재확인
 
 
 def rotate_clear(solids, pose: Pose, margin=ROTATE_MARGIN, step_deg=10):
