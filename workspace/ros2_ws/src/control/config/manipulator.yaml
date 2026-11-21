@@ -191,7 +191,9 @@ manipulator_node:
       range_mismatch_tolerance: 0.04  # 측정 기반 거리와 계획 거리 차이가 이보다 크면 /arm_range 무시 (이웃 퍽 간격 40 mm) (m)
       max_final_approach: 0.25   # 최종 전진 거리 상한 (m), 넘으면 abort
       lift_height: 0.05
-      grasp_z_offset: 0.015      # 집게 끝(tool_link) = 퍽 중심 + 위로 이만큼 (팔레트 궤적 grasp_dz 와 같게)
+      # 2026-11-21 실물: 0.015 (손가락 끝이 퍽 윗부분만 쥠) 는 옮기는 동안 퍽이 손 안에서 돌아 칸에 누워 들어감 -> 퍽 중심 쪽 0.008.
+      #   놓기 (place_*) 높이도 같은 값을 써서 일관됨. 팔레트 궤적은 grasp_dz 0.015 가정이라 넣을 때 퍽이 7 mm 위에서 놓임 (칸 안으로 떨어짐)
+      grasp_z_offset: 0.008      # 집게 끝(tool_link) = 퍽 중심 + 위로 이만큼
       cartesian_step: 0.01       # 최종 접근 · 들어올리기 직선 경로 경유점 간격 (m)
       cartesian_speed: 0.05      # 직선 경로 끝단 속도 (m/s)
       max_waypoint_joint_step: 0.2  # 경유점 사이 관절 변화 상한 (rad), 넘으면 abort (특이점)
