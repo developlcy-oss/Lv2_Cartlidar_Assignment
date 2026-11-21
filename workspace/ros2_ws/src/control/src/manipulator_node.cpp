@@ -498,6 +498,10 @@ private:
     place_press_speed_ = declare_parameter<double>("place.press_speed", 0.005);          // m/s, 거기서 수직으로 내려가는 속도
     place_press_settle_ = declare_parameter<double>("place.press_settle", 0.3);          // s, 멈춘 뒤 누르기 전 머묾 (닿음 판정 전 가라앉힘)
     place_press_contact_ = declare_parameter<double>("place.press_contact_error", 0.03);  // rad, 누르는 중 관절 2 ~ 4 가 시작 때보다 이만큼 더 뒤처지면 (3 주기 연속) 닿음
+    // 2026-11-22 실물: 수직 칸 넣기가 칸 벽을 눌러 부딪힘 (sag.max_error 0.3 rad 까지 못 알아채고, 처짐 적분이 막힌 만큼을 더 밂).
+    //   넣기 (load) 스트림의 들어가는 구간에서 관절 2 ~ 4 가 시작 때보다 계획에서 이만큼 더 뒤처진 주기가 3 번 연속이면
+    //   그 자리에 멈추고 (놓지 않고 bias 없이 측정 자세 유지) 실패로 끝냄. 0 = 끔
+    pallet_contact_error_ = declare_parameter<double>("pallet.contact_error", 0.08);   // rad
     // 2026-11-11 Isaac 주사위 연속 놓기 (dice_place_check.py, 2048 대): 끝까지 벌리면 (81.6 mm) 먼저 놓은 옆 퍽을 밀고,
     //   퍽 쥔 팔 처짐으로 J1 쪽으로 3 ~ 10 mm 덜 감 -> 놓을 때 벌림 폭 · J1 바깥 보정 (판 전체 33.6 % -> 90.0 %)
     place_release_ = declare_parameter<double>("place.release_position", gripper_open_);   // rad, 기본 = 끝까지 (이전 동작)
@@ -1066,6 +1070,7 @@ private:
     requirePositive("place.press_speed", place_press_speed_);
     requireNonNegative("place.press_settle", place_press_settle_);
     requirePositive("place.press_contact_error", place_press_contact_);
+    requireNonNegative("pallet.contact_error", pallet_contact_error_);
     requirePositive("arm_base_height", arm_base_height_);
     requireNonNegative("gripper.max_effort", gripper_effort_);
     requirePositive("tf_cache_time", get_parameter("tf_cache_time").as_double());
@@ -3786,6 +3791,9 @@ private:
     JointTimeline tl(arm5(*current), grip0);
     tl.hold(sag_settle_, grip0);                          // 지금 자세에서 bias 먼저 맞춤
     tl.moveThrough(qin, in_speed, in_grip, min_duration_);
+    pallet_contact_win_.reset();
+    pallet_contact_.reset();
+    if (load && pallet_contact_error_ > 0.0) {pallet_contact_win_ = {sag_settle_, tl.duration()};}   // 들어가는 구간 (놓기 전)
     tl.hold(pallet_dwell_, in_grip);                      // 놓는 · 집는 자세에서 머묾
     tl.hold(gripper_move_time_, out_grip);                // 그리퍼 바꿈
     sag_check_t_.reset();
@@ -3837,6 +3845,30 @@ private:
     for (size_t j = 0; j < 5; ++j) {
       meas[j] = (*cur)[j];
       if (std::abs(p.q[j] - meas[j]) > err) {err = std::abs(p.q[j] - meas[j]); err_j = j;}
+    }
+    if (pallet_contact_win_ && t >= pallet_contact_win_->first && t <= pallet_contact_win_->second &&
+      pallet_contact_.update(p.q, meas, pallet_contact_error_))
+    {
+      // 막힘: 더 밀지 않게 bias 없이 지금 측정 자세 (그리퍼 그대로) 를 한 점으로 내고 멈춤
+      std::vector<double> hold(meas.begin(), meas.end());
+      hold.push_back(gripper_mode_ == GripperMode::ARM_JOINT ? p.grip : gripper_roll_default_);
+      trajectory_msgs::msg::JointTrajectory jt;
+      jt.joint_names = joint_names_;
+      trajectory_msgs::msg::JointTrajectoryPoint point;
+      point.positions = hold;
+      point.time_from_start = rclcpp::Duration::from_seconds(0.2);
+      jt.points.push_back(point);
+      jt_pub_->publish(jt);
+      last_sent_ = hold;
+      char buf[200];
+      std::snprintf(buf, sizeof(buf), "pallet load: blocked at %.1f s of %.1f (joints 2-4 %.3f rad behind plan) -> stopped, puck still held",
+        t, pallet_contact_win_->second, pallet_contact_.deviation(p.q, meas));
+      RCLCPP_ERROR(get_logger(), "%s", buf);
+      pallet_contact_win_.reset();
+      sag_tl_.reset();
+      stream_active_ = false;
+      finishSkill(false, buf);
+      return;
     }
     // 2026-11-21 누르는 구간 (place.press_*): 퍽이 상자에 닿아 팔이 멈추면 (관절 2 ~ 4 가 누르기 시작 때보다 계획에서 더 뒤처짐,
     //   연속 몇 주기) 더 누르지 않고 그 자리에서 놓음 (빠지는 경유점 중 닿은 높이 아래 점은 버림).
@@ -4497,6 +4529,9 @@ private:
   double press_t1_{0.0};                           // 누르는 구간 끝 (= tip 도착)
   std::optional<std::pair<double, double>> press_freeze_;   // 처짐 적분을 쉬는 시간표 구간 (누르기 시작 ~ 벌림 · 머묾 끝)
   PressContact press_contact_;                     // 닿음 판정 (시작 때 값 · 연속 주기)
+  double pallet_contact_error_{0.08};              // pallet.contact_error (0 = 끔)
+  PressContact pallet_contact_;                    // 칸 넣기 막힘 판정 (같은 규칙)
+  std::optional<std::pair<double, double>> pallet_contact_win_;   // 판정 구간 (스트림 시간표, 들어가는 구간)
   std::vector<TimedWaypoint> press_after_;         // 벌린 뒤 빠지는 경유점 (닿은 자리에서 이어 씀)
   double press_hold_{0.0};                         // 누르는 동안 그리퍼 값 (쥠)
   double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};

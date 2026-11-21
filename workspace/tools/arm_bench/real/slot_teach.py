@@ -220,9 +220,15 @@ def teach(names):
             a.move(a.cmd, grip_for_mm(TEACH_OPEN_MM), label=f"집게 {TEACH_OPEN_MM:.0f} mm 벌림")
             if not a.move(above, label=f"{k} 칸 위 (노드 값)"):
                 continue
-            m.P("  노드 쥐는 자리로 내릴까? (퍽 바로 위면 '아래' 로 직접 내려도 됨)")
-            if m.ask("내림? (y / n)") == "y":
-                a.move(grasp, label=f"{k} 쥐는 자리 (노드 값)")
+            if vertical:   # 2026-11-22 실물: 수직 판 노드 쥐는 자리가 모델 오차로 칸 벽 · 바닥을 누를 수 있음 -> 30 mm 위에서 멈춤
+                m.P("  노드 쥐는 자리 30 mm 위로 내릴까? (거기서 '아래' · '멀리' 등으로 맞춤)")
+                hi, err = m.cart_step(grasp, [0.0, 0.0, 0.03])
+                if m.ask("내림? (y / n)") == "y":
+                    a.move(hi if err < 1.0 else above, label=f"{k} 쥐는 자리 30 mm 위 (노드 값)" if err < 1.0 else "30 mm 위 못 풂 -> 칸 위 그대로")
+            else:
+                m.P("  노드 쥐는 자리로 내릴까? (퍽 바로 위면 '아래' 로 직접 내려도 됨)")
+                if m.ask("내림? (y / n)") == "y":
+                    a.move(grasp, label=f"{k} 쥐는 자리 (노드 값)")
             qm = m.jog(a, above, f"{k} 칸 위")
             if qm is not None:
                 delta = [x - y for x, y in zip(qm, grasp)]

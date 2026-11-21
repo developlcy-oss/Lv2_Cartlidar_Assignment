@@ -338,6 +338,8 @@ manipulator_node:
       require_held: true         # pallet_load 전에 그리퍼가 퍽을 쥐고 있는지 확인
       release_position: 0.0798   # rad = 2100 tick, 실측 36.4 mm (Isaac FINGER_RELEASED 37.6). 칸 안에서 놓을 때 · 꺼내러 들어갈 때 이만큼만 벌림 (끝까지 열면 칸 벽에 닿음, #75)
       place_dwell: 0.3           # s, 놓는 자세에서 벌리기 · 쥐기 전 머묾 (Isaac 0.3)
+      contact_error: 0.08        # rad, 넣기 들어가는 중 관절 2 ~ 4 가 시작 때보다 계획에서 이만큼 더 뒤처진 주기 3 번 연속 = 막힘 -> 멈춤 (놓지 않음), 0 = 끔.
+                                 #   2026-11-22 실물 수직 넣기가 칸 벽을 누름 (sag.max_error 0.3 은 너무 큼, 처짐 적분이 막힌 만큼 더 밂)
       # 2026-11-14 실물: ik.joint_offsets (J2 −27°, v3 칸으로 맞춘 실효값) 를 v5 궤적에 더하면 이동 자세에서 관절 3 (팔꿈치) 이
       #   60 mm 내려가 2 열 퍽 윗면 높이 → DRIVE 에서 첫 구간에 퍽 스토리지를 누름. v5 칸으로 다시 맞추기 (#266) 전까지 false
       apply_joint_offsets: false
