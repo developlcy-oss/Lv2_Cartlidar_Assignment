@@ -8,3 +8,5 @@ if [ -f "$REPO/workspace/ros2_ws/install/setup.bash" ]; then
 else
   echo "✗ $REPO/workspace/ros2_ws/install 없음 — 먼저 colcon build" >&2; return 1 2>/dev/null || exit 1
 fi
+# ONNX Runtime (정책 집기 · 모드 4 · 8): robot_policy 를 -DONNXRUNTIME_ROOT=$HOME/onnxruntime 로 빌드했을 때 실행 때 찾게 (2026-11-20)
+[ -d "$HOME/onnxruntime/lib" ] && export LD_LIBRARY_PATH="$HOME/onnxruntime/lib:${LD_LIBRARY_PATH:-}"

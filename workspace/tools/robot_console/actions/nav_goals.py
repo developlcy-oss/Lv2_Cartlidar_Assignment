@@ -46,7 +46,8 @@ def default_goals():
                  and (k == name or k.startswith(name + ':'))]
         if not cands:
             continue
-        k, v = max(cands, key=lambda kv: kv[1].get('stage_clearance') or 0.0)
+        # 제자리 회전이 되는 접근 먼저 (계획기와 같은 규칙, 검토 B 2026-11-20), 그 안에서 틈이 가장 큰 쪽
+        k, v = max(cands, key=lambda kv: (bool(kv[1].get('stage_rotate')), kv[1].get('stage_clearance') or 0.0))
         x, y, yaw = v['stage']
         out.append({'name': '출발' if k == 'HOME' else k, 'x': x, 'y': y, 'yaw_deg': math.degrees(yaw),
                     'clearance_m': v.get('stage_clearance')})
@@ -138,6 +139,24 @@ def main():
                 pass
         return None
 
+    # 액션 서버는 Nav2 가 active 되기 전에도 보임 → bt_navigator 가 active 일 때까지 (11-20 실물 15:11 · Gazebo: "Action server is inactive")
+    from lifecycle_msgs.srv import GetState
+    gs = node.create_client(GetState, '/bt_navigator/get_state')
+    end, active = time.time() + 180.0, False
+    while time.time() < end and not active:
+        if gs.wait_for_service(timeout_sec=1.0):
+            f = gs.call_async(GetState.Request())
+            rclpy.spin_until_future_complete(node, f, timeout_sec=3.0)
+            active = bool(f.result() and f.result().current_state.label == 'active')
+        if not active:
+            time.sleep(2.0)
+    if not active:
+        print('✗ bt_navigator 가 180 s 안에 active 가 안 됨 — Nav2 시작 실패 (터미널 2 · launch.log)', flush=True)
+        return 1
+    print('Nav2 active', flush=True)
+    from start_check import wait_and_check   # 출발 자리 확인 (검토 C)
+    if not wait_and_check(node, lambda t: print(t, flush=True)):
+        return 1
     results = []
     print(f'목표 {len(goals)} 곳: ' + ' → '.join(g['name'] for g in goals), flush=True)
     quit_all = False
