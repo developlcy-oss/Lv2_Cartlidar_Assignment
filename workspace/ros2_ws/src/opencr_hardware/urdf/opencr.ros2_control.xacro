@@ -98,7 +98,11 @@
         <!-- 2026-11-18: 범위에서 340 tick (29.9°) 안으로 벗어나면 시작하고 켜질 때 정리 (manipulator_node startup) 가 STOW 로 모음.
              J1 ~ J4 범위가 가운데 ±34 ~ 57 tick 이라 가운데에서 최대 397 tick (0.61 rad) → manipulator.yaml startup.auto_stow_max (0.65 rad) 안. 더 벗어나면 예전처럼 거부 (칸 안 · 펴진 자세)
              오늘 (11-18) 실물: J1 −289 · J4 +42 tick 벗어나 거부됐던 경우가 여기 들어옴 -->
-        <param name="arm_standby_margin_tick">340</param>
+             2026-11-21: 340 → 620 tick (54.5°, 가운데에서 최대 677 tick = 59.5°) — 시험 때 손으로 STOW 에 정확히 놓기 어려움.
+             토크를 켜는 것 자체는 그 자리 유지 (명령 초기값 = 현재 위치) 라 안전하고, 그 뒤 켜질 때 정리 (접기 순서 5·6 → 1 → 4 → 2 → 3)
+             경로를 계산 (fold_clearance.py 모델, 관절 1 ~ 4 각 ±60° 조합 62 자세): 최소 틈 3.8 mm (30° 때와 같음, 관절 2 아래 한계 = 상판 위).
+             ±90° 면 퍽 R_1 과 −14 mm 라 60° 안으로 둠. 노드 manipulator.yaml startup.auto_stow_max (1.05 rad = 60°) 와 짝 -->
+        <param name="arm_standby_margin_tick">620</param>
         </xacro:if>
       </hardware>
 

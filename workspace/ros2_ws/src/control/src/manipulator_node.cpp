@@ -938,7 +938,7 @@ private:
     startup_warn_after_ = declare_parameter<double>("startup.warn_after", 15.0);
     // 2026-11-18 STOW 근처 (STOW 와 관절 최대 차이가 이 안, rad) 면 STOW 로 천천히 모은 뒤 시작 (예전: 손으로 정확히 놓아야 했음).
     //   하드웨어 arm_standby_margin_tick 과 맞춤. 0 = 끔 (예전처럼 STOW · 정리 자세 근처 pose.start_tolerance 안에서만)
-    startup_auto_stow_max_ = declare_parameter<double>("startup.auto_stow_max", 0.65);
+    startup_auto_stow_max_ = declare_parameter<double>("startup.auto_stow_max", 1.05);   // rad, 2026-11-21 0.65 → 1.05 (하드웨어 여유 620 tick 과 짝)
     startup_auto_stow_vel_ = declare_parameter<double>("startup.auto_stow_velocity", 0.1);   // rad/s, 그때 속도
     if (!startup_pose_.empty()) {
       if (poses_.count(startup_pose_) == 0) {
@@ -4446,7 +4446,7 @@ private:
   double max_step_{0.02}, correction_min_duration_{0.3}, settle_time_{0.2}, wait_timeout_{1.0};
   std::string startup_pose_{"DRIVE"};                 // 빈 문자열 = 켜질 때 정리 끔
   double startup_vel_{0.1}, startup_skip_tol_{0.05}, startup_diag_wait_{5.0}, startup_warn_after_{15.0};
-  double startup_auto_stow_max_{0.65}, startup_auto_stow_vel_{0.1};
+  double startup_auto_stow_max_{1.05}, startup_auto_stow_vel_{0.1};
   bool startup_slow_{false};   // 이번 켜질 때 정리가 STOW 근처에서 모으는 중 (startup.auto_stow_velocity)
 
   // ROS 인터페이스
