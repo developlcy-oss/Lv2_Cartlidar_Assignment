@@ -109,13 +109,22 @@ def main():
     ap.add_argument("--joint_offsets", default=None,
                     help="관절 영점 보정 'j1,j2,j3,j4,j5' [rad]: 파일 관절값 = 모델 + 이 값 (노드 pallet.apply_joint_offsets false 그대로 명령). "
                          "2026-11-22: 11-14 45° 손 맞춤 10 칸으로 맞춘 값 J2 −29.04° · J4 +22.89° (오차 50 -> 3 mm)")
+    ap.add_argument("--radial_mm", type=float, default=0.0, help="[mm] 칸 목표를 J1 에서 먼 쪽으로 (2026-11-22 실물 1_3: 보정 모델이 3 mm 덜 감)")
+    ap.add_argument("--enter_gap", type=float, default=None, help="[m] 집게를 다 세우는 높이 = 칸 벽 윗면 + 이 값 (기본 ENTER_GAP)")
+    ap.add_argument("--j4_max", type=float, default=None,
+                    help="[rad] 관절 4 명령 상한 (2026-11-22 실물: 약 2.24 rad (128.4°) 에서 기구적으로 막힘 -> 2.21)")
     ap.add_argument("--vertical", action="store_true", help="수직 집기 판 기본값 묶음 (위 설명)")
     a = ap.parse_args()
     if a.vertical:
         a.puck_axis = True
+        if a.tilt_deg == 45.0:   # 11-22: J4 2.21 상한이면 45° 로는 앞 운반 자세 (반경 0.10, 퍽 바닥 0.23) 가 안 풀림 -> 55° 로 옮김
+            a.tilt_deg = 55.0
         a.hand_dz = 0.010 if a.hand_dz is None else a.hand_dz
         a.enter_tilt_deg = 5.0 if a.enter_tilt_deg is None else a.enter_tilt_deg
         a.joint_offsets = a.joint_offsets or "0,-0.50685,-0.00192,0.39951,0"
+        a.radial_mm = a.radial_mm or 3.0
+        a.enter_gap = 0.002 if a.enter_gap is None else a.enter_gap
+        a.j4_max = 2.21 if a.j4_max is None else a.j4_max
         if a.out == OUT:
             a.out = os.path.join(HERE, "pallet_place_traj_vertical.json")
         if a.control == CONTROL:
@@ -132,6 +141,8 @@ def main():
     PUCK_AXIS_D = d_axis if a.puck_axis else None
     joff = np.array([float(v) for v in a.joint_offsets.split(",")]) if a.joint_offsets else np.zeros(5)
     # 모델 관절 한계는 명령 (= 모델 + 보정) 기준으로 지켜야 함 -> 모델 쪽 한계를 보정만큼 옮김
+    if a.j4_max is not None:
+        arm.hi[3] = min(arm.hi[3], a.j4_max)
     arm.lo, arm.hi = arm.lo - joff, arm.hi - joff
     JOFF = joff
     taught = json.load(open(a.taught, encoding="utf-8"))["slots"] if a.taught else {}
@@ -160,9 +171,9 @@ def main():
             s.update(x_nominal=s["x"], y_nominal=s["y"], floor_z_nominal=s["floor_z"], x=round(float(b[0]), 5), y=round(float(b[1]), 5),
                      floor_z=round(float(b[2]), 5), wall_top_z=round(float(s["wall_top_z"] + b[2] - s["floor_z"]), 5), taught_target=True)
         yaw = math.atan2(s["y"] - j1[1], s["x"] - j1[0])
-        r = math.hypot(s["x"] - j1[0], s["y"] - j1[1])
+        r = math.hypot(s["x"] - j1[0], s["y"] - j1[1]) + a.radial_mm / 1000.0
         z_p = s["floor_z"] + PT.PLACE_GAP
-        z_in = s["wall_top_z"] + ENTER_GAP
+        z_in = s["wall_top_z"] + (ENTER_GAP if a.enter_gap is None else a.enter_gap)
         ok = lambda e_, t_: e_ < 1e-3 and t_ < math.radians(1.0)
         tilt_in = a.tilt_deg if a.enter_tilt_deg is None else a.enter_tilt_deg
         if a.enter_tilt_deg is not None:   # 입구 · 바닥이 모두 풀리는 가장 작은 기울기

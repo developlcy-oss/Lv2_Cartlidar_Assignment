@@ -15,7 +15,7 @@ using control::startupStageTarget;
 namespace
 {
 const std::vector<double> kLower{-3.14159, -2.14, -1.6, -1.92, -2.8, -0.7946};
-const std::vector<double> kUpper{3.14159, 1.6, 1.6, 2.5, 2.8, 0.9541};
+const std::vector<double> kUpper{3.14159, 1.6, 1.6, 2.21, 2.8, 0.9541};
 const std::vector<double> kStow{-1.5953, -2.0816, 1.5478, -1.8607, -0.0138, 0.923};
 }  // namespace
 
@@ -48,7 +48,7 @@ TEST(StartupStow, RejectsBadStages)
 // 묶음 관절만 정리 자세로, 나머지는 지금 자리 — 한계 밖에서 시작했으면 한계 안으로 자른 값
 TEST(StartupStow, StageTargetMovesOnlyStageJointsAndClampsOthers)
 {
-  // 2026-11-08 실물: joint4 2.23 rad (그때 한계 2.0 밖) 에서 시작. 2026-11-21 한계 2.5 -> 그 밖 2.63 으로
+  // 2026-11-08 실물: joint4 2.23 rad (그때 한계 2.0 밖) 에서 시작. 2026-11-21 한계 2.5 -> 그 밖 2.63 으로 (11-22 한계 2.21)
   const std::vector<double> current{0.1, -0.5, -1.618, 2.63, 0.0, 0.5};
   const auto first = startupStageTarget(current, kStow, {1, 2, 3, 4, 5}, kLower, kUpper);
   EXPECT_DOUBLE_EQ(first[0], 0.1);   // 허리는 그대로 (첫 묶음 밖)
@@ -57,7 +57,7 @@ TEST(StartupStow, StageTargetMovesOnlyStageJointsAndClampsOthers)
   const auto waist_only = startupStageTarget(current, kStow, {0}, kLower, kUpper);
   EXPECT_DOUBLE_EQ(waist_only[0], kStow[0]);
   EXPECT_DOUBLE_EQ(waist_only[2], -1.6);   // 한계 밖 → 한계로
-  EXPECT_DOUBLE_EQ(waist_only[3], 2.5);
+  EXPECT_DOUBLE_EQ(waist_only[3], 2.21);
   EXPECT_DOUBLE_EQ(waist_only[1], -0.5);
 }
 

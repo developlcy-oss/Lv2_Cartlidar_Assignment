@@ -116,7 +116,7 @@
   <xacro:arm_joint name="joint1" parent="arm_base_link" child="link1" xyz="0 0 0.077" axis="0 0 1" lower="-3.14159" upper="3.14159"/>
   <xacro:arm_joint name="joint2" parent="link1" child="link2" xyz="0 0 0" axis="0 1 0" lower="-2.14" upper="1.6"/>
   <xacro:arm_joint name="joint3" parent="link2" child="link3" xyz="0.024 0 0.128" axis="0 1 0" lower="-1.6" upper="1.6"/>
-  <xacro:arm_joint name="joint4" parent="link3" child="link4" xyz="0.124 0 0" axis="0 1 0" lower="-1.92" upper="2.5"/>
+  <xacro:arm_joint name="joint4" parent="link3" child="link4" xyz="0.124 0 0" axis="0 1 0" lower="-1.92" upper="2.21"/>
   <xacro:arm_joint name="joint5" parent="link4" child="link5" xyz="0.04 0 0" axis="1 0 0" lower="-2.8" upper="2.8"/>
   <xacro:arm_joint name="gripper_roll" parent="link5" child="gripper_roll_link" xyz="0.041 0 0" axis="1 0 0" lower="-0.7946" upper="0.9541"/>
   <!-- Arducam: 그리퍼 몸체에 장착 (2026-10-28 확인). UVC 드라이버 frame_id = arm_camera_optical_frame (광학 축: +z 앞 · +x 오른쪽 · +y 아래)

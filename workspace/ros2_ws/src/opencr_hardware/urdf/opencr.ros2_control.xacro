@@ -128,7 +128,7 @@
       <xacro:opencr_arm_joint name="joint1"       slot="0" lower="-3.14159" upper="3.14159"/>
       <xacro:opencr_arm_joint name="joint2"       slot="1" lower="-2.14"    upper="1.6"/>
       <xacro:opencr_arm_joint name="joint3"       slot="2" lower="-1.6"     upper="1.6"/>
-      <xacro:opencr_arm_joint name="joint4"       slot="3" lower="-1.92"    upper="2.5"/>
+      <xacro:opencr_arm_joint name="joint4"       slot="3" lower="-1.92"    upper="2.21"/>
       <xacro:opencr_arm_joint name="joint5"       slot="4" lower="-2.8"     upper="2.8"/>
       <xacro:opencr_arm_joint name="gripper_roll" slot="5" lower="-0.7946"  upper="0.9541"/>
 
