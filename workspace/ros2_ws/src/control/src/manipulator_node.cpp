@@ -4278,6 +4278,7 @@ private:
         }
         step_ = PickStep::TARGET_LOOK_WAIT;
         wait_since_ = now();
+        target_look_diag_.clear();
       });
   }
 
@@ -4294,6 +4295,16 @@ private:
       const rclcpp::Time since = std::max(wait_since_ + rclcpp::Duration::from_seconds(target_look_settle_),
         t - rclcpp::Duration::from_seconds(stale_timeout_));
       if (last_pucks_ && measuredAfter(last_pucks_->header.stamp, since)) {pucks = last_pucks_;}
+      // 2026-11-22 실물: 인식은 예상 자리 1.3 cm 안 퍽을 15 Hz 로 내는데 실패 -> 실패 메시지에 마지막으로 본 상태를 남김
+      if (!pucks) {
+        char d[160];
+        std::snprintf(d, sizeof(d), "no fresh /perception/pucks (last %s)", last_pucks_ ?
+          (std::to_string((t - rclcpp::Time(last_pucks_->header.stamp, RCL_ROS_TIME)).seconds()).substr(0, 6) + " s old").c_str() :
+          "never received");
+        target_look_diag_ = d;
+      } else if (pucks->pucks.empty()) {
+        target_look_diag_ = "fresh /perception/pucks but empty";
+      }
     }
     if (pucks && !pucks->pucks.empty()) {
       // 촬영 시각의 퍽 frame → 지금 팔 기준 · fixed_frame (측정 시각 TF 가 아직 없으면 최신)
@@ -4318,6 +4329,13 @@ private:
           geometry_msgs::msg::Pose a;
           tf2::doTransform(pk.pose, a, to_arm);
           const double d = std::hypot(a.position.x - target_look_expected_.x(), a.position.y - target_look_expected_.y());
+          {
+            char dg[200];
+            std::snprintf(dg, sizeof(dg), "seen tag %d camera %d at (%.3f, %.3f) in %s (from %s), %.3f m from expected%s",
+              pk.tag_id, pk.camera, a.position.x, a.position.y, base_frame_.c_str(), pucks->header.frame_id.c_str(), d,
+              (!any_camera && pk.camera != Puck::CAMERA_ARM) ? " [not arm camera, waiting arm_wait]" : "");
+            target_look_diag_ = dg;
+          }
           const bool better = !best || (pk.camera == Puck::CAMERA_ARM && best->camera != Puck::CAMERA_ARM) ||
             ((pk.camera == Puck::CAMERA_ARM) == (best->camera == Puck::CAMERA_ARM) && d < best_d);
           if (d <= target_look_match_ && better) {
@@ -4359,12 +4377,14 @@ private:
         }
       } catch (const tf2::TransformException & e) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "target_look: TF %s", e.what());
+        target_look_diag_ = std::string("TF ") + e.what();
       }
     }
     if (waited > target_look_settle_ + target_look_timeout_) {
-      char buf[200];
-      std::snprintf(buf, sizeof(buf), "target_look: no puck within %.3f m of expected (%.3f, %.3f) in %s for %.1f s",
-        target_look_match_, target_look_expected_.x(), target_look_expected_.y(), base_frame_.c_str(), target_look_timeout_);
+      char buf[480];
+      std::snprintf(buf, sizeof(buf), "target_look: no puck within %.3f m of expected (%.3f, %.3f) in %s for %.1f s | last: %s",
+        target_look_match_, target_look_expected_.x(), target_look_expected_.y(), base_frame_.c_str(), target_look_timeout_,
+        target_look_diag_.empty() ? "-" : target_look_diag_.c_str());
       finishSkill(false, buf);
     }
   }
@@ -4418,6 +4438,7 @@ private:
   Eigen::Vector3d lift_offset_{0.0, 0.0, 0.05};   // 이번 집기의 들기 변위 (beginPick 에서 정함)
   TargetLookParams target_look_;
   std::map<std::string, TargetLookParams> look_params_;   // box_look · barcode_look (#65)
+  std::string target_look_diag_;   // 실패 메시지용: 마지막 틱에 본 퍽 · 이유 (2026-11-22)
   double target_look_settle_{0.3}, target_look_arm_wait_{1.0}, target_look_timeout_{3.0}, target_look_match_{0.04};
   bool target_look_box_z_{true};
   double target_look_box_top_{0.07}, target_look_standing_dz_{0.030}, target_look_lying_dz_{0.015}, target_look_box_z_tol_{0.04};
