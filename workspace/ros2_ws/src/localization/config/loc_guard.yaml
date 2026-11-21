@@ -1,0 +1,40 @@
+# loc_guard 설정 — localization.launch.py 가 loc_guard:=shadow(기본) | active 일 때 씀(off 면 노드가 안 뜸). 값은 loc_guard.py 선언 기본값과 같음(11-21).
+# launch 가 덮어쓰는 값: mode(= loc_guard 인자), map(= loc_map), reinit_enabled(loc_monitor 가 켜져 있으면 false — /initialpose 이중 발행 막기).
+# ★ 실물에서 볼 것: 값은 11-15 · 11-16 실물 track 기록과 모의 기준. shadow 기록(/loc_guard/event, event_log)으로 튐 판정 · 거부 시간 · 보정량을 먼저 보고 active 로.
+loc_guard:
+  ros__parameters:
+    mode: shadow                # shadow = 판정 · 기록 · /loc_guard/pose 만 | active = map→odom 도 냄 (launch 가 덮어씀)
+    map: ''                     # 잔차 · 정합 지도 yaml (launch 가 loc_map 으로 덮어씀). AMCL 과 같은 지도여야 함
+    pose_topic: /amcl_pose
+    scan_topic: /scan_merged
+    map_frame: map
+    odom_frame: odom
+    base_frame: base_link
+    # 스캔 점
+    r_min: 0.15                 # [m]
+    r_max: 2.5                  # [m]
+    n_points: 180
+    min_points: 30              # 이보다 적으면 잔차 판정 안 함
+    # 튐 판정: AMCL 증분 − EKF odom 증분
+    jump_xy: 0.05               # [m] 넘으면 튐 후보 (loc_monitor LOST 문턱 0.10 보다 낮음)
+    jump_yaw_deg: 3.0           # [deg]
+    res_thr: 0.03               # [m] 튐 후보 AMCL 을 받아들이려면 잔차가 이 이하
+    res_margin: 0.005           # [m] … 그리고 예측 자세보다 이만큼 좋아야 함
+    warmup_s: 2.0               # [s] 시작 · /initialpose 뒤 그대로 통과(초기 수렴 중 급변은 정상)
+    max_reject_s: 2.0           # [s] hold(AMCL · 정합 둘 다 나쁨)만 이어진 시간이 이보다 길면 AMCL 을 따름(give_up). refine 성공 한 번이면 0 으로
+    max_refine_s: 10.0          # [s] refine(정합으로 거부)이 이만큼 이어지면 refine_long 경고 한 번(동작은 그대로)
+    # 다시 넣기 (/initialpose). launch 가 loc_monitor 켜짐이면 false 로 덮어씀
+    reinit_enabled: false
+    reinit_after_n: 10          # 연속 거부 n 번째에 /initialpose(보정 자세)
+    reinit_xy_sd: 0.05          # [m] /initialpose 공분산
+    reinit_yaw_sd_deg: 5.0      # [deg]
+    # 섞기: 발행 map→odom 을 목표 쪽으로 속도 제한해 옮김
+    blend_v: 0.15               # [m/s]
+    blend_w_deg: 15.0           # [deg/s]
+    still_scale: 3.0            # 멈춤 중엔 이 배수
+    # 발행 (active)
+    rate: 20.0                  # [Hz] map→odom
+    future_dt: 0.1              # [s] stamp 앞당김 (map_odom_relay · AMCL transform_tolerance 와 같은 방식)
+    scan_stale_s: 1.0           # [s] scan_topic 이 이보다 오래 안 오면 active 는 map→odom 발행 멈춤 + scan_stale 사건
+    scan_max_dt: 0.06           # [s] 자세와 스캔 시각 차가 이보다 크면 그 스캔은 판정에 안 씀
+    event_log: ''               # jsonl 경로 ('' · none = 안 씀)

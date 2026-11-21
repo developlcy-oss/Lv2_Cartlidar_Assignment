@@ -15,5 +15,6 @@ setup(name='localization', version='0.1.0', packages=['localization'],
           'carto_start = localization.carto_start:main',
           'map_odom_relay = localization.map_odom_relay:main',
           'loc_monitor = localization.loc_monitor:main',
+          'loc_guard = localization.loc_guard:main',
           'scan_body_mask = localization.scan_body_mask:main',
           'scan_merge = localization.scan_merge:main']})

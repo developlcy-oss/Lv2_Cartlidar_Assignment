@@ -7,6 +7,8 @@
 #     step = 구간마다 Enter 로 출발 (q = 끝)   init = 출발 자세를 /initialpose 로 한 번 (로봇을 출발 자리에 정확히 놓았을 때)
 #     구간 = 그 구간만 (예 0-0 = 첫 구간 signal → box1 만, 2-4)
 #   환경 변수: SAFETY=0 (안전 끔: collision_monitor · 라이다 장애물 층 · 돌아갈 길 planner, 기본 1) · NO_RECOVER=1 (되찾기 끔) · SIM_TURN=0.79,0.70 (시뮬만, 실물처럼 덜 돎) · RUN_TAG= · REV_MAX= · OFF_PATH= · PLAN= · PARAMS= · SIM_DOMAIN= · SIM_MAP=
+#             BOX_APPROACH=1|0|dry (11-21 상자 앞 5 cm 다가가기, 기본 1 · dry = 재기만) · BOX_APPROACH_AT=box1,L2 (그곳만, 빈 값 = 상자 9 곳) · BOX_APPROACH_LOOSE=1 (잡음 큰 라이다용 느슨한 판정)
+#             DEMO_BAG=0 (rosbag 기록 끔, 기본 1 → 기록 폴더/bag) · DEMO_BAG_PARTICLES=0 (/particle_cloud 빼기)
 # 멈추기: 이 터미널 Ctrl+C (Nav2 동작 취소 → 0) · 리모컨 1 (E-stop, 풀기 2+3) — 소프트웨어 정지, 물리 비상정지 아님
 # 기록: 이 폴더 runs/<월일_시각>_<실물|시뮬>_<speed>/ → 노트북 2026-11-12_기준주행/runs/ 로 복사하면 주행기록 HTML 에 Nav2 기록으로 보임
 set -u
@@ -14,6 +16,9 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 BELT="${BELT:-}"; TURN_MOTOR="${TURN_MOTOR:-}"   # 11-15: 필터의 벨트 기어비 · 꺾는 중 모터 상한 (빈 값 = 1.5 · 5.5 (11-18 arc_test), 예 BELT=2.0 TURN_MOTOR=2.6)
 PLAN_ENV="${PLAN:-}"; PLAN="${PLAN:-$HERE/demo_plan.json}"   # 11-15: 다른 계획 시험 (PLAN=… ./run_demo.sh sim slow) · PARAMS= 로 Nav2 설정 · SIM_DOMAIN= 로 시뮬 ROS_DOMAIN_ID
 SAFETY="${SAFETY:-1}"   # 11-19: 1 = params_demo_safety.yaml 덧씌우기 + planner_server (Detour) · collision_monitor (v2_filter 뒤) · 0 = 예전 그대로
+BOX_APPROACH="${BOX_APPROACH:-1}"; BOX_APPROACH_AT="${BOX_APPROACH_AT:-}"; BOX_APPROACH_LOOSE="${BOX_APPROACH_LOOSE:-0}"   # LOOSE=1 → --box-loose · 11-21: 상자 앞 다가가기 (1 = 켬 · 0 = 끔 · dry = /scan_front 로 재고 로그만) · 그곳만 (예 box1,L2)
+case "$BOX_APPROACH" in 1) BA=on; BA_TAG="" ;; 0) BA=off; BA_TAG=_접근끔 ;; dry) BA=dry; BA_TAG=_접근측정 ;; *) echo "BOX_APPROACH 는 1 · 0 · dry 중 하나 (지금 $BOX_APPROACH)"; exit 2 ;; esac
+DEMO_BAG="${DEMO_BAG:-1}"; DEMO_BAG_PARTICLES="${DEMO_BAG_PARTICLES:-1}"   # 11-21: rosbag 기록 (위치 튐 뒤 분석) · /particle_cloud 는 크면 0 으로 뺌
 SIM_TURN="${SIM_TURN:-}"   # 11-16: 시뮬만 — 실물처럼 덜 도는 로봇 (예 SIM_TURN=0.79,0.70 = 꺾기 79 % · 제자리 70 %, sim_turn_scale.py)
 MODE=""; SPEED=slow; STEP=""; INIT=""; LEGS=""
 for a in "$@"; do
@@ -22,7 +27,7 @@ for a in "$@"; do
     [0-9]*) LEGS=$a ;; *) echo "모르는 인자: $a"; exit 2 ;;
   esac
 done
-[ -n "$MODE" ] || { sed -n 2,9p "$0"; exit 2; }
+[ -n "$MODE" ] || { sed -n 2,10p "$0"; exit 2; }
 if [ "$SPEED" = full ]; then VF=0.30; VR=0.15; SW=0.5; else VF=0.20; VR=0.10; SW=0.4; fi
 if [ "$SPEED" = max ]; then   # 11-16: 주행만 최고 속도 — 규칙 v2 (제자리 0.5 · 후진 0.15 · 반경 0.20 · 꺾는 중 모터 3.0) 는 그대로, 직진만 빠르게
   VF=${MAX_VF:-0.45}; VR=0.15; SW=0.5; BELT=${BELT:-2.0}; TURN_MOTOR=${TURN_MOTOR:-5.5}; PARAMS=${PARAMS:-$HERE/params_demo_max.yaml}
@@ -35,7 +40,7 @@ set +u; source /opt/ros/lyrical/setup.bash; set -u
 for d in "$(cd "$HERE/../../.." 2>/dev/null && pwd)" "$HOME/Lv2_Cartlidar_Assignment" "$HOME/GIT/lv2_CartLidar/Lv2_Cartlidar_Assignment"; do   # 첫 후보 = 이 폴더가 든 저장소 (workspace/tools/drive_demo)
   [ -f "$d/workspace/ros2_ws/install/setup.bash" ] && { set +u; source "$d/workspace/ros2_ws/install/setup.bash"; set -u; REPO=$d; break; }
 done
-OUT="$HERE/runs/$(date +%m%d_%H%M)_$([ $MODE = real ] && echo 실물 || echo 시뮬)_$SPEED${BELT:+_벨트$BELT}${TURN_MOTOR:+_모터$TURN_MOTOR}${SIM_TURN:+_실물형회전}${LEGS:+_구간$LEGS}${RUN_TAG:+_$RUN_TAG}"   # 11-15: RUN_TAG= (같은 분에 여러 시뮬)
+OUT="$HERE/runs/$(date +%m%d_%H%M)_$([ $MODE = real ] && echo 실물 || echo 시뮬)_$SPEED${BELT:+_벨트$BELT}${TURN_MOTOR:+_모터$TURN_MOTOR}${SIM_TURN:+_실물형회전}${LEGS:+_구간$LEGS}$BA_TAG${RUN_TAG:+_$RUN_TAG}"   # 11-15: RUN_TAG= (같은 분에 여러 시뮬)
 mkdir -p "$OUT"
 LOG="$OUT/nav.log"
 ODOM=/odometry/filtered; SIMP=(); OUTT=cmd_vel_nav; SCAN=/scan_merged
@@ -57,10 +62,31 @@ PF=(--params-file "$OUT/params.yml")   # Nav2 서버 설정 (SAFETY=1 이면 saf
 if [ "$SAFETY" = 1 ]; then sed -e "s#__SCAN__#$SCAN#g" "$HERE/params_demo_safety.yaml" > "$OUT/safety.yml"; PF+=(--params-file "$OUT/safety.yml"); fi
 PIDS=()
 start() { setsid "$@" >> "$LOG" 2>&1 < /dev/null & PIDS+=($!); }
-cleanup() { for p in "${PIDS[@]}"; do kill -INT -- -"$p" 2>/dev/null; done; sleep 2; for p in "${PIDS[@]}"; do kill -KILL -- -"$p" 2>/dev/null; done; }
+BAG_PID=""
+stop_bag() {   # 11-21: ros2 bag record 는 SIGINT 로 닫아야 파일 끝 (mcap 요약 · metadata.yaml) 이 남음 → 최대 10 s 기다림
+  [ -n "$BAG_PID" ] || return 0
+  kill -INT -- -"$BAG_PID" 2>/dev/null
+  for k in $(seq 1 20); do kill -0 "$BAG_PID" 2>/dev/null || break; sleep 0.5; done
+  kill -KILL -- -"$BAG_PID" 2>/dev/null; BAG_PID=""
+}
+cleanup() { stop_bag; for p in "${PIDS[@]}"; do kill -INT -- -"$p" 2>/dev/null; done; sleep 2; for p in "${PIDS[@]}"; do kill -KILL -- -"$p" 2>/dev/null; done; }
 trap cleanup EXIT TERM
+if [ "$DEMO_BAG" = 1 ]; then   # 11-21: 기록 폴더/bag 에 rosbag (백그라운드, 로그 bag.log). 없는 토픽은 생기면 그때부터 기록
+  BT=(/amcl_pose /odometry/filtered /scan_merged /scan_front /tf /tf_static /loc_guard/pose /loc_guard/event /cmd_vel_raw)
+  [ "$DEMO_BAG_PARTICLES" = 0 ] || BT+=(/particle_cloud)
+  BOPT=(); BFMT=sqlite3
+  BH=$(ros2 bag record --help 2>&1)
+  [ $MODE = sim ] && { BT+=(/odom /scan /clock); grep -q -- "--use-sim-time" <<<"$BH" && BOPT+=(--use-sim-time); }   # 시뮬 = sim time 기준
+  if grep -q "mcap" <<<"$BH"; then BFMT=mcap; BOPT+=(-s mcap); grep -q zstd_fast <<<"$BH" && BOPT+=(--storage-preset-profile zstd_fast)   # mcap 은 청크 zstd 압축
+  else grep -q -- "--compression-mode" <<<"$BH" && BOPT+=(--compression-mode file --compression-format zstd); fi
+  grep -q -- "--max-bag-size" <<<"$BH" && BOPT+=(-b 1073741824)   # 1 GiB 마다 파일 나눔 (Jetson 디스크)
+  ENVSIG=(env --default-signal=INT); env --default-signal=INT true 2>/dev/null || ENVSIG=()   # & 로 띄운 프로세스는 SIGINT 무시로 시작 → 되살려야 stop_bag 의 SIGINT 가 먹음 (coreutils ≥ 8.31)
+  setsid "${ENVSIG[@]}" ros2 bag record -o "$OUT/bag" "${BOPT[@]}" --topics "${BT[@]}" > "$OUT/bag.log" 2>&1 < /dev/null & BAG_PID=$!
+fi
 
 echo "규칙 v2 시연 ($MODE · $SPEED: 전진 $VF · 후진 $VR m/s · 제자리 $SW rad/s) · 기록 $OUT" | tee -a "$LOG"
+echo "  상자 앞 다가가기: $([ $BA = on ] && echo '켬 (앞 끝 ↔ 상자 5 cm, 0.40 m 안 정지 띠 · HOLD 없음 — 리모컨 1 준비)' || { [ $BA = dry ] && echo '재기만 (dry, 안 움직임)' || echo '끔 (BOX_APPROACH=0)'; })${BOX_APPROACH_AT:+ · $BOX_APPROACH_AT 만}$([ "$BOX_APPROACH_LOOSE" = 1 ] && echo ' · 느슨한 판정')" | tee -a "$LOG"
+echo "  rosbag: $([ "$DEMO_BAG" = 1 ] && echo "$OUT/bag ($BFMT · 토픽 ${#BT[@]} 개$([ "$DEMO_BAG_PARTICLES" = 0 ] && echo ' · particle_cloud 뺌'))" || echo '끔 (DEMO_BAG=0)')" | tee -a "$LOG"
 NODES="'controller_server', 'behavior_server'"
 if [ $MODE = sim ]; then
   MAP="${SIM_MAP:-$REPO/workspace/ros2_ws/src/mission_planner/maps/map_amcl.yaml}"   # 11-15: SIM_MAP= 으로 다른 지도 (예 실측판)
@@ -84,9 +110,9 @@ start python3 "$HERE/v2_filter.py" --ros-args "${SIMP[@]}" -p out_topic:=$FOUT -
 start ros2 run nav2_lifecycle_manager lifecycle_manager --ros-args -r __node:=lifecycle_manager_demo "${SIMP[@]}" \
   -p autostart:=true -p bond_timeout:=0.0 -p node_names:="[$NODES]"
 
-{ echo "이름: 계획따라_$([ $MODE = real ] && echo 실물 || echo 시뮬)_$SPEED${BELT:+_벨트$BELT}${TURN_MOTOR:+_모터$TURN_MOTOR}${SIM_TURN:+_실물형회전}${LEGS:+_구간$LEGS}${RUN_TAG:+_$RUN_TAG}"; echo "시각: $(date '+%F %T')"
+{ echo "이름: 계획따라_$([ $MODE = real ] && echo 실물 || echo 시뮬)_$SPEED${BELT:+_벨트$BELT}${TURN_MOTOR:+_모터$TURN_MOTOR}${SIM_TURN:+_실물형회전}${LEGS:+_구간$LEGS}$BA_TAG${RUN_TAG:+_$RUN_TAG}"; echo "시각: $(date '+%F %T')"
   echo "경로: $(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['course'])" "$PLAN")"; echo "GUI=0"
-  echo "추가 인자: $([ $MODE = real ] && echo '실물 (AMCL · EKF)' || echo 'loopback 시뮬') · 계획 $(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['plan'])" "$PLAN") · RPP 전진 $VF · 후진 $VR · Spin · 규칙 v2 필터 (제자리 ≤ $SW · 벨트 ${BELT:-1.5} · 꺾는 중 모터 ≤ ${TURN_MOTOR:-5.5} · 이어진 후진 ≤ ${REV_MAX:-$([ $MODE = real ] && echo 0.50 || echo 0.40)} m)${PARAMS:+ · Nav2 설정 $(basename "$PARAMS")} · 안전 SAFETY=$SAFETY$([ "$SAFETY" = 1 ] && echo ' (collision_monitor · 라이다 장애물 층 · Detour)')${SIM_TURN:+ · 실물형 회전 (꺾기 × ${SIM_TURN%,*} · 제자리 × ${SIM_TURN#*,})}"
+  echo "추가 인자: $([ $MODE = real ] && echo '실물 (AMCL · EKF)' || echo 'loopback 시뮬') · 계획 $(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['plan'])" "$PLAN") · RPP 전진 $VF · 후진 $VR · Spin · 규칙 v2 필터 (제자리 ≤ $SW · 벨트 ${BELT:-1.5} · 꺾는 중 모터 ≤ ${TURN_MOTOR:-5.5} · 이어진 후진 ≤ ${REV_MAX:-$([ $MODE = real ] && echo 0.50 || echo 0.40)} m)${PARAMS:+ · Nav2 설정 $(basename "$PARAMS")} · 안전 SAFETY=$SAFETY$([ "$SAFETY" = 1 ] && echo ' (collision_monitor · 라이다 장애물 층 · Detour)')${SIM_TURN:+ · 실물형 회전 (꺾기 × ${SIM_TURN%,*} · 제자리 × ${SIM_TURN#*,})} · 상자 앞 다가가기 BOX_APPROACH=$BOX_APPROACH${BOX_APPROACH_AT:+ ($BOX_APPROACH_AT 만)}$([ "$BOX_APPROACH_LOOSE" = 1 ] && echo ' · 느슨한 판정 (BOX_APPROACH_LOOSE=1)') · rosbag DEMO_BAG=$DEMO_BAG"
   [ $MODE = real ] && echo "실물 벨트: ${HW_BELT:-2.0} (11-15 v7 44T → 22T, 다르면 HW_BELT=)"
   echo "저장소: Nav2 노드만 (시연 폴더 $(basename "$HERE"))"; } > "$OUT/settings.txt"
 
@@ -112,7 +138,8 @@ if [ $MODE = sim ]; then ensure_active map_server loopback_simulator controller_
   [ "$SAFETY" = 1 ] && echo "  … planner_server 는 /initialpose 뒤 map TF 가 생기면 lifecycle_manager 가 켬" | tee -a "$LOG"
 else ensure_active map_server controller_server behavior_server $([ "$SAFETY" = 1 ] && echo collision_monitor planner_server); fi
 # 11-19: --scan-topic = 정지 래치가 직접 보는 라이다 (실물 /scan_merged · 시뮬 /scan). SAFETY=0 이면 demo_follow 기본값 (/scan_merged)
-python3 "$HERE/demo_follow.py" --plan "$PLAN" --out "$OUT" $([ $MODE = sim ] && echo --sim) $STEP $INIT ${LEGS:+--legs "$LEGS"} ${OFF_PATH:+--off-path "$OFF_PATH"} ${NO_RECOVER:+--no-recover} $([ "$SAFETY" = 1 ] || echo --no-detour) $([ "$SAFETY" = 1 ] && echo --scan-topic $SCAN) 2>&1 | (trap '' INT; tee "$OUT/follow.log")   # 11-15: Ctrl+C 로 tee 가 먼저 죽으면 demo_follow 가 BrokenPipe 로 저장 못 함
+python3 "$HERE/demo_follow.py" --plan "$PLAN" --out "$OUT" $([ $MODE = sim ] && echo --sim) $STEP $INIT ${LEGS:+--legs "$LEGS"} ${OFF_PATH:+--off-path "$OFF_PATH"} ${NO_RECOVER:+--no-recover} $([ "$SAFETY" = 1 ] || echo --no-detour) $([ "$SAFETY" = 1 ] && echo --scan-topic $SCAN) --box-approach $BA ${BOX_APPROACH_AT:+--box-approach-at "$BOX_APPROACH_AT"} $([ "$BOX_APPROACH_LOOSE" = 1 ] && echo --box-loose) --odom-topic "$ODOM" 2>&1 | (trap '' INT; tee "$OUT/follow.log")   # 11-15: Ctrl+C 로 tee 가 먼저 죽으면 demo_follow 가 BrokenPipe 로 저장 못 함
 cleanup; trap - EXIT
 grep -h "잘림 횟수" "$LOG" | tail -1
+[ "$DEMO_BAG" = 1 ] && { [ -f "$OUT/bag/metadata.yaml" ] && echo "rosbag: $OUT/bag ($(du -sh "$OUT/bag" | cut -f1))" || echo "⚠ rosbag 이 깔끔히 안 닫힘 — $OUT/bag.log 확인 (ros2 bag reindex $OUT/bag 로 살릴 수 있음)"; }
 echo "기록: $OUT"
