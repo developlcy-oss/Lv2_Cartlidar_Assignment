@@ -629,6 +629,9 @@ private:
     rl_start_pose_ = declare_parameter<std::vector<double>>("toppick_rl.start_pose", {0.0, -0.462, 0.771, 0.476, 0.0});
     // 정책을 돌리는 시간 상한 (학습 에피소드 6 s). 넘으면 실패 → mission 이 target_look 부터 다시 (goal timeout 보다 먼저 끝냄)
     rl_max_duration_ = declare_parameter<double>("toppick_rl.max_duration", 12.0);
+    // 2026-11-21 실물: k9 (옆집기) 첫 시험에서 시작 자세 이동 · 누운 궤도로 카메라 브라켓 근접 -> 강화학습 집기를 끌 수 있게.
+    //   false 면 tcp_delta (집기) 정책을 올리지 않음 -> skill toppick_tilt = 고정 동작 (IK 접근 · 닫기 · 들기, beginPick)
+    rl_pick_enabled_ = declare_parameter<bool>("toppick_rl.enabled", true);
     // 2026-11-21 쥔 뒤 집게 고정 (grasp_detector.hpp GripLatch): 쥠이 이만큼 이어지면 정책 집게 출력을 무시하고 닫힘 유지. 0 = 끔
     rl_grip_latch_time_ = declare_parameter<double>("toppick_rl.grip_latch_time", 0.2);
 
@@ -843,6 +846,10 @@ private:
         continue;
       }
       const auto & spec = p->spec;
+      if (spec.action_kind == "tcp_delta" && !rl_pick_enabled_) {
+        RCLCPP_WARN(get_logger(), "skill '%s': toppick_rl.enabled false -> not loaded (toppick_tilt = fixed IK pick)", name.c_str());
+        continue;
+      }
       if (spec.action_kind == "tcp_delta") {   // 강화학습 집기: 관측 = toppick_obs 이름 · 크기, 모두 필수
         bool ok = spec.action_dim == 4;
         for (const auto & o : spec.observation) {
@@ -4531,6 +4538,7 @@ private:
   std::vector<double> rl_start_pose_;
   double rl_max_duration_{12.0};
   double rl_grip_latch_time_{0.2};
+  bool rl_pick_enabled_{true};
   bool correction_enabled_{true}, correction_required_{true};
   int correction_max_iter_{5};
   double offset_gain_{1.0}, lateral_tol_{0.005}, range_tol_{0.01}, target_range_{0.13};
