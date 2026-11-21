@@ -7,7 +7,7 @@ manipulator_node:
       # 관절 한계 = URDF robot.urdf.xacro = 펌웨어 config.h ARM_MIN/MAX_RAD (#83, 세 곳 같게 — test_config_limits 가 확인)
       #   펌웨어는 범위 밖 CMD 를 통째로 거부한다. 6 번째 gripper_roll = 그리퍼 개폐 (열림 -0.764 · 닫힘 0.923)
       lower_limits: [-3.14159, -2.14, -1.6, -1.92, -2.8, -0.7946]
-      upper_limits: [3.14159, 1.6, 1.6, 2.0, 2.8, 0.9541]
+      upper_limits: [3.14159, 1.6, 1.6, 2.5, 2.8, 0.9541]   # 2026-11-21 J4 2.0 -> 2.5 (수직 집게 칸 넣기, 펌웨어 · URDF 와 같게)
       max_joint_velocity: 0.8    # rad/s, 팔 관절 속도 기준 (2026-11-14 하나로): 이름 자세 · IK 이동 · 놓기 접근 · 팔레트 궤적 (pallet.speed) ·
                                  #   팔레트 진입 (pallet.prep_velocity) · 켜질 때 정리 (startup.max_joint_velocity) 와 시험 도구 (meas_session ·
                                  #   slot_teach · arm_free · arm_stow) 가 모두 이 값. 정밀 구간 (pallet.row3_hold_speed · 놓기 직선 · 강화학습 정책) 은 따로

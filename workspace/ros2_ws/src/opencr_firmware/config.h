@@ -101,7 +101,10 @@ static const uint8_t ARM_IDS[ARM_COUNT]     = {11, 12, 13, 16, 14, 15};
 //   슬라이더 명령은 monitor/gripper_map.py 로 1550 ~ 2650 안에서만 나감. 모터 한계도 1530 ~ 2670 (dxl_setup m 15)
 //   2026-10-27 사용자 "J1 범위를 -180 ~ +180 으로": J1 ±2.8 → ±3.14159 (모터 한계 0 ~ 4095 = 한 바퀴 전체). 배선 꼬임 · 차체 간섭은 확인 필요 ★
 static const float   ARM_MIN_RAD[ARM_COUNT] = {-3.14159f, -2.14f, -1.6f, -1.92f, -2.8f, -0.7946f};   // URDF 와 같게 ★
-static const float   ARM_MAX_RAD[ARM_COUNT] = { 3.14159f,  1.6f,  1.60f,  2.0f,  2.8f,  0.9541f};
+static const float   ARM_MAX_RAD[ARM_COUNT] = { 3.14159f,  1.6f,  1.60f,  2.5f,  2.8f,  0.9541f};
+//   2026-11-21 (사용자 "이 관절이랑 각도를 봐", 손으로 확인: 브라켓 안 닿음): J4 최대 2.0 -> 2.5 rad (143°). 수직 집게로 팔레트 칸에 넣을 때
+//   실물 1_3 손 맞춤 자리 (퍽 칸 바닥) 에서 이미 J4 113.9° (한계 114.6°), 칸 입구 (36 mm 위) 는 약 2.26 ~ 2.45 rad 필요.
+//   ★ 모터 ID 16 EEPROM Max Position Limit 도 3678 tick 이상으로 (dxl_setup: m 16 796 3678), 아니면 부팅 점검 실패
 //   모터 EEPROM Min/Max Position Limit 도 이 범위와 같게 (부팅 점검이 확인, tools/dxl_setup 의 m 명령)
 static const int8_t  ARM_DIR[ARM_COUNT]     = {+1, +1, +1, +1, +1, +1};   // 2026-10-26 J1~J5 손으로 확인 (URDF + 방향과 같음)
 //   2026-11-15 관절 1 반 바퀴: 새 관절 1 브라켓은 모터가 모델과 180° 돌아간 채 달림 (회전 방향은 같음).
