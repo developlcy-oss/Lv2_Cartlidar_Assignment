@@ -859,6 +859,7 @@ def main():
             if not node_unfold():
                 return
             q, g = a.show()
+            a.cmd = list(q)   # 2026-11-22: STOW 로 남으면 다음 이동이 팔을 STOW 로 다시 접음 (slot_teach 와 같은 문제)
         P(f"  STOW 자세: 팀 순서 (관절 3 -> 2 -> 4 -> 1 -> 5) 로 DRIVE 까지 폄 ({FOLD_VEL:g} rad/s)")
         try:
             fold(a, True)

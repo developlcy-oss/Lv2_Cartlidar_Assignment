@@ -203,6 +203,7 @@ def teach(names):
         if not m.node_unfold():
             sys.exit("STOW 에서 pose DRIVE 실패 -> 노드 로그 확인 뒤 다시")
         q, _ = a.show()
+        a.cmd = list(q)   # 2026-11-22 실물: 갱신 안 하면 a.cmd 가 STOW 로 남아 '집게 벌림' 이 팔을 STOW 자세로 다시 접음
     rec = load_rec()
     os.makedirs(OUT_DIR, exist_ok=True)
     try:
