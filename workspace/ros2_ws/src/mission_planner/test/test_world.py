@@ -1,18 +1,26 @@
 import math
+import os
 
-from mission_planner.arena import Solid
+from mission_planner.arena import LIDAR_Z_FRONT, LIDAR_Z_REAR, Solid, load_sdf
 from mission_planner.poses import HALF_W, REACH_TILT, REACH_TILT_MIN, START_BOXES, footprint_poly, turn_range, turned
 
 
 def test_maps(world):
     nav, amcl = world.nav, world.amcl
     assert not nav.blocked(0.734, 0.95) and not amcl.blocked(0.734, 0.95)        # 출발 구역
-    for b, (x, y) in START_BOXES.items():                                       # 박스 70 mm: 주행 지도엔 있음, AMCL 지도엔 없음 (스캔면 82 mm 아래)
+    for b, (x, y) in START_BOXES.items():                                       # 박스 70 mm: 주행 지도엔 있음, AMCL 지도엔 없음 (뒤 스캔면 74.75 mm 아래, 자리 날마다 바뀜)
         assert nav.blocked(x, y) and not amcl.blocked(x, y), b
     assert nav.blocked(2.202, 3.7) and not amcl.blocked(2.202, 3.7)            # L2 상자 (205, 2026-11-04 확정)
     assert not nav.blocked(2.202, 3.35)                                         # 예전 820 받침대 자리는 이제 빔
     assert nav.blocked(0.08, 0.95) and amcl.blocked(0.08, 0.95)                # 신호등 몸체 (스캔면 지남)
     assert amcl.blocked(1.101, 0.0) and nav.blocked(1.101, 0.0)                 # 남쪽 벽판
+
+
+def test_scan_heights():
+    """앞 (59.75 mm) · 뒤 (74.75 mm) 스캔면 중 한쪽만 지나는 고정 물체는 상자 (start_box · place_L) 뿐 -> map_amcl 을 뒤 높이로 만들어도 같다."""
+    assert LIDAR_Z_FRONT < 0.07 < LIDAR_Z_REAR                                  # 앞 라이다만 상자 (70 mm) 를 봄
+    only = {s.name.split("/")[0] for s in load_sdf(os.path.join(os.path.dirname(__file__), "..", "worlds", "dice_mission.sdf")) if (s.z0 <= LIDAR_Z_FRONT <= s.z1) != (s.z0 <= LIDAR_Z_REAR <= s.z1)}
+    assert only and all(n.startswith(("start_box_", "place_L")) for n in only), only
 
 
 def test_approaches(world):

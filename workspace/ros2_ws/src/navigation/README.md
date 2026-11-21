@@ -23,10 +23,11 @@ ros2 launch navigation navigation.launch.py use_composition:=false             #
 
 | 인자 | 바꾸는 곳 | 기본 (YAML) |
 |---|---|---|
-| `max_vx` [m/s] | MPPI `vx_max` · smoother `max_velocity[0]` | 0.2 |
-| `max_wz` [rad/s] | MPPI `wz_max` · behavior `max_rotational_vel` · smoother `max · min_velocity[2]` | 1.0 |
-| `rotate_wz` [rad/s] | RotationShim `rotate_to_heading_angular_vel` (≤ `max_wz`, `max_wz` 만 주면 그보다 크지 않게) | 0.8 |
+| `max_vx` [m/s] | MPPI `vx_max` · smoother `max_velocity[0]` | 0.26 (11-20, 전 0.2) |
+| `max_wz` [rad/s] | MPPI `wz_max` · behavior `max_rotational_vel` · smoother `max · min_velocity[2]` | 0.75 (11-20, 전 1.0) |
+| `rotate_wz` [rad/s] | RotationShim `rotate_to_heading_angular_vel` (≤ `max_wz`, `max_wz` 만 주면 그보다 크지 않게) | 0.75 (11-20, 전 0.8) |
 
+- 11-20 상향 이유: 병목이 Nav2 0.2 (하드웨어 0.45 의 44 %). 0.26 은 정지 거리 0.26·0.2 s + 0.26²/(2·1.5) = 0.075 m < 앞 정지 띠 0.12. 돌 때 바깥 바퀴 v + 0.2045·w ≤ 실측 0.425 m/s 라 vx 를 올리면 wz 를 내림 (0.26 + 0.2045·0.75 = 0.413). 상자 근접 감속은 drive_node align (0.15 · 0.08) 이 맡음. Gazebo 미션 (LOC=1, vx 0.26 · wz 0.8) DONE 420.2 s (0.2 때 477.7 s) · Nav2 실패 0. 2차 후보 0.32 (wz 0.5), 0.35 넘으면 정지 띠 · TFmini 정지 거리 다시 계산. Gazebo 는 바퀴 포화를 재현 못 하니 회전은 실물 확인.
 - 같은 한계가 4 노드 6 곳에 있어 YAML 을 고치면 함께 맞춰야 한다. 인자로 주면 launch 가 한 번에 덮어쓴다 (시작 때 로그 한 줄).
 - `bringup.launch.py` · `gazebo_sim.launch.py` 에 줘도 된다 (명령 줄 인자는 포함된 launch 까지 간다).
 - 실물 상한: diff_drive vx 0.34 (`opencr_hardware/config/drive_belt.yaml`) · wz **1.0** (`controllers_4wd.yaml`, 2026-11-12 2.0 → 1.0). 넘게 주면 알림만 내고, 실물에서는 바퀴 앞에서 잘린다.
@@ -104,7 +105,7 @@ ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose "{pose: 
 
 ```bash
 cd workspace/ros2_ws
-colcon build --symlink-install --base-paths src ../urdf_and_usd/waffle_4wd_description --packages-select waffle_4wd_description robot_interfaces mission_planner localization navigation control bringup   # control · bringup = EKF 설정 (use_ekf)
+colcon build --symlink-install --base-paths src ../urdf_and_usd/waffle_4wd_description --packages-select waffle_4wd_description robot_interfaces mission_planner localization navigation control bringup perception   # control · bringup = EKF 설정 (use_ekf), perception = /scan (use_scan)
 source install/setup.bash
 ros2 launch navigation gazebo_sim.launch.py               # 출발 자세로 Gazebo → 팔 주행 자세 → 5 s 뒤 Nav2 + AMCL
 ros2 launch navigation gazebo_sim.launch.py gui:=false    # 창 없이. nav:=false 면 Gazebo · 팔 자세만, x:= y:= yaw:= 로 다른 시작 자세
@@ -116,6 +117,10 @@ ros2 launch navigation gazebo_sim.launch.py gui:=false    # 창 없이. nav:=fal
   AMCL 이 한쪽으로 치우치다 미로 칸을 착각해 1 m 넘어갔다. `map:=` · `objects_map:=` 로 바꿀 수 있다.
 - Gazebo 팔 관절은 0 (영 자세) 으로 시작한다. 팀 기본 시작 자세는 주행 자세(`isaac/robot_params.json` `drive`)라서 launch 가 `/arm/<관절>/cmd_pos` 로 보낸다. 영 자세로 달리면 팔이 걸린다.
 - Gazebo 는 twist_mux · ros2_control 을 거치지 않는다(diff_drive 플러그인이 `/cmd_vel` 을 받음). 그래서 `cmd_vel_out:=/cmd_vel`.
+  drive_node 가 직접 내는 `/cmd_vel_drive` (박스 앞 후진 · navigate 전 전진 · 정렬) 는 twist_mux 가 있어야 바퀴에 간다 → 미션 시험은 `LOC=1 test/gazebo_mission.sh`
+  (twist_mux + `cmd_vel_watchdog`). `LOC=0` 이면 이 명령이 버려져 전진 · 후진이 0 mm (2026-11-19).
+- `/scan` (`use_scan`, 기본 true, 2026-11-19): 실물처럼 perception `scan_merger` (`lidar.yaml`) 가 `/scan_front` · `/scan_rear` 를 합쳐 `/scan` (base_link, 차체 상자 지움) 을 낸다.
+  drive_node 의 정렬 · 정책 주행 · 후진 확인 · navigate 전 전진 (`navigate.pullout`) 이 이것을 본다. 전에는 Gazebo 에 `/scan` 이 없어 이 확인들이 빠져 있었다. Nav2 · AMCL 은 `/scan_merged` 그대로.
 - odom (`use_ekf`, 기본 true, #151): 실물 bringup ⑥ 처럼 `odom_icr` + EKF (`bringup/config/ekf.yaml`, 바퀴 vx · vy + IMU yaw rate) 가
   `/odometry/filtered` 와 `odom → base_link` 를 낸다 (Gazebo diff_drive TF 는 `odom_tf:=false` 로 끔). Nav2 `odom_topic:=/odometry/filtered`.
   Gazebo 바퀴 odom 은 제자리 회전을 실제보다 21 ~ 24 % 크게 센다 (스키드 미끄러짐, 2026-11-13 참값 비교, 직진은 오차 없음) → 그대로 쓰면
@@ -146,11 +151,11 @@ behavior_server (spin · backup · wait) ──┴→ /nav2/cmd_vel_raw → velo
 | 노드 | 설정 | 비고 |
 |---|---|---|
 | `planner_server` | Smac 2D (0.01 지도를 0.02 로 줄여 계산), `allow_unknown: false` | 시작 때 `Inflation layer ... not set sufficiently` ERROR 는 Smac 2D 가 늘 내는 알림 |
-| `controller_server` | RotationShim (경로 방향과 45° 넘게 다르면 먼저 제자리 회전, 도착 뒤 목표 방향 회전) → MPPI(DiffDrive) | Nav2 1.4+ 는 MPPI 값을 `FollowPath.primary_controller` 아래에 둔다 |
+| `controller_server` | RotationShim (경로 방향과 55° 넘게 다르면 먼저 제자리 회전, 도착 뒤 목표 방향 회전) → MPPI(DiffDrive) | Nav2 1.4+ 는 MPPI 값을 `FollowPath.primary_controller` 아래에 둔다 |
 | | vx −0.1 ~ 0.2 ★ · wz ±1.0 ★ (launch 인자 `max_vx` · `max_wz` · `rotate_wz` 로 덮어씀) · 가속 1.5, 도착 xy 0.05 ★ · yaw 0.1 ★ | drive.yaml `navigate.xy_goal_tolerance` 도 0.05 (#114) |
 | `local_costmap` · `global_costmap` | 정적 층 2 장(`/map` 벽, `/map_objects` 라이다에 안 보이는 물체) + `/scan_merged` + inflation 0.30 ★ | footprint = B안 외곽(앞 0.1328 · 뒤 −0.2135 · 반폭 0.1676) ★ + 주행 자세 팔 (앞 0.25) |
 | `behavior_server` | spin · backup · wait (기본 BT 와 drive_node 가 쓰는 것) | 최소 회전 0.3 rad/s ★ |
-| `velocity_smoother` · `collision_monitor` | MPPI 와 같은 한계 / 차체가 1.2 s 안에 닿을 속도면 줄임 | |
+| `velocity_smoother` · `collision_monitor` | MPPI 와 같은 한계 / 차체가 1.2 s 안에 닿을 속도면 줄임 (FootprintApproach) + 속도별 정지 띠 (VelocityStop: 앞 V자 +0.12 · 뒤 +0.10 · 제자리 회전 띠 없음) | 정지 띠는 2026-11-19 추가. Gazebo 미션 7 회 중 6 회는 정지 0 번 (모두 DONE), 4 차 1 회만 HOME 복귀 중 정지 · 재개가 0.1 s 간격으로 반복 (복귀는 성공) |
 | `bt_navigator` | 기본 BT 복사본 `behavior_trees/navigate_to_pose_w_replanning_and_recovery.xml` (플래너 복구 조건에 목표 · 시작 칸 막힘 205 · 206 추가, #135) | 플러그인 이름(GridBased · FollowPath · general_goal_checker · progress_checker · PathHandler)을 바꾸지 말 것 |
 
 Gazebo 시험(2026-11-04)에서 기본값에서 바꾼 것과 이유:
@@ -164,6 +169,7 @@ Gazebo 시험(2026-11-04)에서 기본값에서 바꾼 것과 이유:
 | goal checker `xy_goal_tolerance` | 0.05 | 마지막 옆 2 ~ 3 cm 를 차동 구동으로 못 메워 실패 |
 | RotationShim | 추가 | 도착 근처에서 MPPI 가 돌다 밀려나(스키드 회전 중심 ≠ base_link) 다시 멈춤 |
 | 계획기 `downsample_costmap` | false | 0.025 지도를 0.05 로 줄여 거칠게 계획 |
+| RotationShim `angular_dist_threshold` | 0.96 (55°, 2026-11-19, 전 0.785) | 팔레트 집기 자리 (1.47, 0.31) 처럼 뒤 벽이 0.29 m 인 곳에서 42° 꺾인 경로에 제자리 회전 → 뒤 모서리가 벽 칸에 걸려 현재 자세가 충돌 판정 → MPPI · spin · backup 모두 거부 (미션 FAILED). drive_node `navigate.pullout` (뒤 /scan 0.33 m 안이면 Nav2 전에 곧게 전진, 최대 6 cm) 과 함께: 45° 그대로 pullout 만으로도 미션 DONE · Nav2 실패 0 (LOC=1). 기준 0.32 → 0.33 (2026-11-20): 0.32 는 전진이 0.1 ~ 2 cm 로 들쭉날쭉, 0.33 은 매번 3.1 cm (뒤 0.33 ~ 0.34 m), 미션 DONE 477.7 s · Nav2 실패 0 |
 | MPPI `PathAlignCritic` 무게 · `trajectory_point_step` | 28 · 2 (2026-11-12, 전 14 · 4) | 모서리를 Smac 경로보다 일찍 꺾어 기둥에 3 cm 안으로 붙고 궤적 검사기가 모든 궤적을 버려 멈춤 (북쪽 통로 3/5, B2:S → B6:W 3/3, 미션 Q1 FAILED) |
 
 결과 (Gazebo, SDF 지도, `mission_planner/config/approach_poses.yaml` 의 stage 12 곳 차례로): **12/12 성공**, 실패 · 복구 0 회, sim 204 s.

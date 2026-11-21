@@ -6,7 +6,7 @@
 #   odom_topic 은 실물 EKF (/odometry/filtered) 기준. Gazebo 는 launch 인자 odom_topic:=/odom 으로 덮어씀
 #   속도 한계 (MPPI vx_max · wz_max, RotationShim rotate_to_heading_angular_vel, behavior max_rotational_vel, smoother max · min_velocity) 는
 #   launch 인자 max_vx · max_wz · rotate_wz 로 함께 덮어쓸 수 있음 (navigation.launch.py). 여기 값은 인자를 비웠을 때의 기본값.
-#   실물 diff_drive 상한: vx 0.34 (drive_belt.yaml) · wz 1.0 (controllers_4wd.yaml, 11-12 벨트 때문에 2.0 → 1.0)
+#   실물 diff_drive 상한: vx 0.45 (drive_belt.yaml, 11-14) · wz 1.0 (controllers_4wd.yaml, 11-12 벨트 때문에 2.0 → 1.0)
 
 bt_navigator:
   ros__parameters:
@@ -57,9 +57,9 @@ controller_server:
     FollowPath:
       # RotationShim: 경로 방향 · 목표 방향과 차이가 크면 제자리 회전을 먼저 하고, 나머지는 MPPI (아래 값) 에 맡김
       plugin: "nav2_rotation_shim_controller::RotationShimController"
-      angular_dist_threshold: 0.785        # 경로 방향과 45° 넘게 다르면 먼저 제자리 회전
+      angular_dist_threshold: 0.96         # 경로 방향과 55° 넘게 다르면 먼저 제자리 회전 (45° 는 팔레트 집기 자리 (1.47, 0.31) 에서 뒤 벽에 걸려 MPPI·복구 모두 거부, Gazebo 11-19)
       forward_sampling_distance: 0.3       # ★ 경로 방향을 볼 앞 거리 (기본 0.5, 좁은 미로라 줄임)
-      rotate_to_heading_angular_vel: 0.8   # ★ 제자리 회전 속도 (≤ MPPI wz_max)
+      rotate_to_heading_angular_vel: 0.75  # ★ 제자리 회전 속도 (≤ MPPI wz_max) (11-20, 전 0.8)
       max_angular_accel: 2.0
       simulate_ahead_time: 1.0             # 회전 중 충돌 검사 시간
       rotate_to_goal_heading: true         # 도착 (xy 안) 뒤 목표 방향 회전은 shim 이 함 — MPPI 가 도착 근처에서 돌다 밀려나는 것 막음 (Gazebo 2026-11-04)      
@@ -74,9 +74,9 @@ controller_server:
         motion_model: "diff_drive"
         diff_drive:
           plugin: "mppi::DiffDriveMotionModel"
-        vx_max: 0.2                        # ★ 처음은 낮게 (diff_drive 0.34 · drive skill 0.3 m/s)
+        vx_max: 0.26                       # ★ 1차 +30 % (11-20, 전 0.2). 상자 근접 감속은 drive_node align (0.15 · 0.08). 정지 거리 0.26·0.2 s + 0.26²/(2·1.5) = 0.075 m < 앞 띠 0.12. 2차 0.32 (wz 0.5)
         vx_min: -0.1                       # ★ 좁은 곳에서 조금 후진 허용
-        wz_max: 1.0                        # ★ = 실물 diff_drive 상한 1.0 rad/s (모터 3.2, 벨트). 실물에서 낮출 때는 launch 인자 max_wz
+        wz_max: 0.75                       # ★ 바깥 바퀴 v + 0.2045·w = 0.26 + 0.153 = 0.413 < 실측 0.425 m/s (12.7 rad/s, 11-18 arc_test), 0.8 이면 여유 0.2 % 라 배터리 저하에 포화 (11-20, 전 1.0). 실물에서 낮출 때는 launch 인자 max_wz
         ax_max: 1.5                        # diff_drive linear.x.max_acceleration 과 같게
         ax_min: -1.5
         az_max: 2.0
@@ -258,7 +258,7 @@ behavior_server:
     robot_base_frame: base_link
     transform_tolerance: 0.1
     simulate_ahead_time: 2.0
-    max_rotational_vel: 1.0              # ★ = MPPI wz_max
+    max_rotational_vel: 0.75             # ★ = MPPI wz_max
     min_rotational_vel: 0.3              # ★ 모의에서 약 0.15 rad/s 아래 회전 명령은 거의 안 돎 (drive_rl README)
     rotational_acc_lim: 2.0
 
@@ -267,8 +267,8 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: false
     feedback: "OPEN_LOOP"
-    max_velocity: [0.2, 0.0, 1.0]        # ★ = MPPI vx_max · wz_max
-    min_velocity: [-0.1, 0.0, -1.0]
+    max_velocity: [0.26, 0.0, 0.75]      # ★ = MPPI vx_max · wz_max
+    min_velocity: [-0.1, 0.0, -0.75]
     max_accel: [1.5, 0.0, 2.0]           # diff_drive linear.x.max_acceleration 1.5
     max_decel: [-1.5, 0.0, -2.0]
     odom_topic: /odometry/filtered
@@ -288,7 +288,7 @@ collision_monitor:
     source_timeout: 1.0
     base_shift_correction: true
     stop_pub_timeout: 2.0
-    polygons: ["FootprintApproach"]
+    polygons: ["FootprintApproach", "VelocityStop"]   # 앞 polygon 부터 검사, 정지가 감속보다 우선
     FootprintApproach:                   # 차체 외곽이 time_before_collision 안에 닿을 속도면 줄임
       type: "polygon"
       action_type: "approach"
@@ -298,6 +298,38 @@ collision_monitor:
       min_points: 6
       visualize: false
       enabled: true
+    VelocityStop:                        # 진행 방향 앞 · 뒤 띠에 라이다 점 ≥ min_points 면 정지 (approach 가 못 막은 마지막 거리)
+      type: "velocity_polygon"
+      action_type: "stop"
+      holonomic: false
+      min_points: 4
+      visualize: false
+      enabled: true
+      # 앞 띠 = 차체 앞 외곽 (끝 0.25 · |y| ≤ 0.07, 모서리 0.1328 · 반폭 0.1676) 을 진행 방향으로 0.12 민 자리 (직진으로 쓸고 가는 곳, V자 8 점).
+      #   직사각형 (0.25 ~ 0.37 · ±0.17) 은 깎인 모서리 앞 빈 곳 (x 0.29 · y -0.15 근처) 에 기둥이 들어와 잘못 멈춤 (11-19 시연 시뮬 S0)
+      # 뒤 띠 = 뒤 끝 -0.2135 → -0.31, 폭 ±0.17 (뒤 외곽은 직선이라 직사각형 그대로)
+      # Nav2 목표 standoff ≥ 0.30 m (mission_planner poses.py STANDOFFS) 라 0.12 띠는 상자 앞 정차를 막지 않음. 최고 0.2 m/s 정지거리 ≈ 3.3 cm
+      # 속도 구간은 앞에서부터 처음 맞는 것을 씀. 맞는 구간이 없으면 직전 띠를 그대로 씀 (nav2 1.5 velocity_polygon.cpp)
+      #   → 제자리 회전 (|직진| < 0.02) 용 spin 구간을 빈 띠 (차체 중심 1 cm 사각형, 라이다 점 없음. 삼각형은 "at least three points" 오류) 로 둠: 기둥 옆 2 cm 꺾기를 막지 않게
+      velocity_polygons: ["forward", "backward", "spin"]
+      forward:
+        points: "[[0.1328, 0.1676], [0.2528, 0.1676], [0.37, 0.07], [0.37, -0.07], [0.2528, -0.1676], [0.1328, -0.1676], [0.25, -0.07], [0.25, 0.07]]"
+        linear_min: 0.02
+        linear_max: 1.0
+        theta_min: -2.0
+        theta_max: 2.0
+      backward:
+        points: "[[-0.2135, 0.17], [-0.31, 0.17], [-0.31, -0.17], [-0.2135, -0.17]]"
+        linear_min: -1.0
+        linear_max: -0.02
+        theta_min: -2.0
+        theta_max: 2.0
+      spin:
+        points: "[[0.0, 0.0], [0.01, 0.0], [0.01, 0.01], [0.0, 0.01]]"
+        linear_min: -0.02
+        linear_max: 0.02
+        theta_min: -2.0
+        theta_max: 2.0
     observation_sources: ["scan"]
     scan:
       type: "scan"

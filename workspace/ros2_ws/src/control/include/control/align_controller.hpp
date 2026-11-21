@@ -185,6 +185,19 @@ public:
     return n % 2 ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
   }
 
+  // 앞 막힘 판단용 (navigate 전 전진, control/pullout.hpp): max_age_s 안 측정이 모두 유효하면 가장 가까운 값.
+  //   없거나 무효가 섞이면 nullopt (실물 TFmini 무효 = +inf 는 0.10 m 안일 수도 있음). 퍼짐은 보지 않음 (모서리 · 뒤쪽 섞여도 가까운 쪽)
+  std::optional<double> nearest(double now) const
+  {
+    std::optional<double> m;
+    for (const auto & e : q_) {
+      if (now - e.first > c_.max_age_s) {continue;}
+      if (!std::isfinite(e.second)) {return std::nullopt;}
+      if (!m || e.second < *m) {m = e.second;}
+    }
+    return m;
+  }
+
 private:
   BoxRangeConfig c_;
   std::deque<std::pair<double, double>> q_;

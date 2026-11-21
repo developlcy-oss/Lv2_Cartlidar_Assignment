@@ -4,6 +4,7 @@
   ros2 launch navigation gazebo_sim.launch.py gui:=false         # 창 없이 (센서 렌더는 함)
   ros2 launch navigation gazebo_sim.launch.py nav:=false         # Gazebo · 팔 자세만 (Nav2 는 따로)
   ros2 launch navigation gazebo_sim.launch.py x:=1.8108 y:=0.95  # 다른 시작 자세 (AMCL 시작 자세도 같이 바뀜)
+  ros2 launch navigation gazebo_sim.launch.py use_scan:=false    # /scan (perception scan_merger) 없이
   ros2 launch navigation gazebo_sim.launch.py use_loc_monitor:=false  # loc_monitor 없이 (기본 켬, loc_map 은 같은 SDF 지도, #133 · #151)
   ros2 launch navigation gazebo_sim.launch.py map:=<localization share>/maps/slam_walls_001.yaml objects_map:=<...>/objects.yaml   # Isaac SLAM 지도로
 
@@ -57,6 +58,11 @@ def generate_launch_description():
            Node(package='robot_localization', executable='ekf_node', name='ekf_filter_node', output='screen',
                 parameters=[PathJoinSubstitution([FindPackageShare('bringup'), 'config', 'ekf.yaml']), sim],
                 condition=IfCondition(LC('use_ekf')))]
+    # 실물 perception scan_merger 와 같은 /scan (앞 · 뒤 LDS 합침, base_link, 차체 상자 self_box 지움, lidar.yaml 그대로).
+    # drive_node 의 먼 거리 정렬 · 정책 주행 · 후진 확인 · navigate 전 전진 (pullout) 이 /scan 을 본다. Nav2 · AMCL 은 /scan_merged (localization) 그대로
+    scan = Node(package='perception', executable='scan_merger', name='scan_merger', output='screen',
+                parameters=[PathJoinSubstitution([FindPackageShare('perception'), 'config', 'lidar.yaml']), sim],
+                condition=IfCondition(LC('use_scan')))
     return LaunchDescription([
         DeclareLaunchArgument('x', default_value='0.69365', description='시작 base_link x (발제 좌표) = AMCL 시작 자세'),
         DeclareLaunchArgument('y', default_value='0.950'),
@@ -76,8 +82,11 @@ def generate_launch_description():
                               description='loc_monitor (위치 잃음 감지 · 다시 찾기). 기본 켬: use_ekf 로 Gazebo 잔차 p95 0.024 < 문턱 0.034, Q1 LOC=1 LOST 0 (#151). 예전 바퀴 odom 은 LOST 잦아 끔 (#133)'),
         DeclareLaunchArgument('use_ekf', default_value='true',
                               description='실물처럼 odom_icr + EKF (IMU yaw rate) 가 odom TF · /odometry/filtered 를 냄. false = Gazebo 바퀴 odom 그대로 (회전 약 22 % 큼, #151)'),
+        DeclareLaunchArgument('use_scan', default_value='true',
+                              description='실물처럼 perception scan_merger 가 /scan 을 냄 (drive_node 정렬 · 전진 · 후진 확인용). false = /scan 없음 (예전)'),
         gazebo,
         *ekf,
+        scan,
         arm,
         RegisterEventHandler(OnProcessExit(target_action=arm, on_exit=[TimerAction(period=5.0, actions=[nav])])),
     ])

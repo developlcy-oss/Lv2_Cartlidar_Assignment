@@ -39,7 +39,7 @@ install(PROGRAMS scripts/rc100_joy.py DESTINATION lib/${PROJECT_NAME})
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
-  ament_add_gtest(test_protocol test/test_protocol.cpp test/test_estop_latch.cpp)
+  ament_add_gtest(test_protocol test/test_protocol.cpp test/test_estop_latch.cpp test/test_standby_hint.cpp)
   target_include_directories(test_protocol PRIVATE include)
   target_compile_definitions(test_protocol PRIVATE
     FIRMWARE_PROTOCOL_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../opencr_firmware/opencr_protocol.h"
@@ -86,6 +86,7 @@ if(BUILD_TESTING)
   ament_add_pytest_test(test_model_compare test/test_model_compare.py TIMEOUT 60
     ENV MODEL_COMPARE_JSON=${CMAKE_BINARY_DIR}/test_results/${PROJECT_NAME}/model_compare.json)
   ament_add_pytest_test(test_rc100_joy test/test_rc100_joy.py TIMEOUT 30)
+  ament_add_pytest_test(test_port_discovery test/test_port_discovery.py TIMEOUT 30)
 endif()
 
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)

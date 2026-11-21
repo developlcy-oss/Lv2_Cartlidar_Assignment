@@ -7,9 +7,13 @@
 #   통과 = 네 단계 모두 성공 (수정 전 drive_node 는 FINE 뒤 정지가 켜져 turn_p17 시간 초과)
 #   PLACE=1 (#160): 장소 L1 stage (빈 상자, 0.45 m) 에서 박스 접근 (box_only, 인식 결과 없음) 0.13 → navigate 출발 구역
 #                   (수정 전에는 퍽이 없어 COARSE · FINE 모두 "물체 놓침")
+#   CENTER=1 (11-20 상자 중앙 맞춤): 박스 1 남쪽 stage 를 로봇 왼쪽으로 CENTER_SHIFT (기본 0.04 m) 민 자리에서 출발 → FINE 0.13 →
+#                   /drive/align goal.center (center_box = SDF start_box_1 (1.468, 0.95, 0) 을 그 순간 odom 으로) → turn_p17 → turn_0 → navigate.
+#                   통과 = FINE · center 성공 + Gazebo 실제 옆 어긋남 < 1 cm · 요 < 1.5° · TFmini 0.13 ± 0.01 + turn_p17 성공 (result.json "center")
 #
 #   test/gazebo_box_park.sh [결과 폴더]     기본 /tmp/gazebo_box_park. 결과 폴더/result.json, 종료 코드 0 = 통과
 #   PLACE=1 test/gazebo_box_park.sh [결과 폴더]   장소 상자 시나리오 (기본 결과 폴더 /tmp/gazebo_box_park_place)
+#   CENTER=1 [CENTER_SHIFT=0.04] test/gazebo_box_park.sh [결과 폴더]   상자 중앙 맞춤 (기본 결과 폴더 /tmp/gazebo_box_park_center)
 #   test/gazebo_box_park.sh stop            시험 프로세스 정리
 #   CTL_WS=<작업공간> test/gazebo_box_park.sh   control 만 다른 작업공간 것으로 (수정 전 · 후 비교)
 # 먼저: source install/setup.bash (mission_planner · control · perception · navigation · localization · waffle_4wd_description · twist_mux)
@@ -34,7 +38,7 @@ stop_all() {
 }
 if [ "$1" = "stop" ]; then stop_all; exit 0; fi
 [ -n "$CTL_WS" ] && source "$CTL_WS/install/setup.bash"
-if [ -n "$PLACE" ]; then OUT="${1:-/tmp/gazebo_box_park_place}"; else OUT="${1:-/tmp/gazebo_box_park}"; fi
+if [ -n "$PLACE" ]; then OUT="${1:-/tmp/gazebo_box_park_place}"; elif [ -n "$CENTER" ]; then OUT="${1:-/tmp/gazebo_box_park_center}"; else OUT="${1:-/tmp/gazebo_box_park}"; fi
 export GZ_IP=127.0.0.1
 export ROS_AUTOMATIC_DISCOVERY_RANGE=${SIM_DISCOVERY_RANGE:-LOCALHOST}   # gazebo_mission.sh 와 같은 이유 (Nav2 lifecycle)
 rm -rf "$OUT"; mkdir -p "$OUT"
@@ -45,6 +49,12 @@ PER=$(ros2 pkg prefix perception)/share/perception/config
 X=1.468; Y=0.3147; YAW=1.5708   # approach_poses.yaml B1:S stage
 SCEN_ARGS=""
 if [ -n "$PLACE" ]; then X=2.9847; Y=0.95; YAW=0.0; SCEN_ARGS="--place"; fi   # approach_poses.yaml L1 stage (#160)
+if [ -n "$CENTER" ] && [ -z "$PLACE" ]; then
+  SHIFT=${CENTER_SHIFT:-0.04}
+  X=$(python3 -c "print(round(1.468 - $SHIFT, 4))")   # yaw 90° (+y 를 봄) 에서 로봇 왼쪽 = −x
+  SCEN_ARGS="--center --box 1.468,0.95,0"            # worlds/dice_mission.sdf start_box_1
+  echo "center shift = $SHIFT m (start x $X)" >> "$OUT/info.txt"
+fi
 
 cat > "$OUT/mux.yaml" <<'YAML'
 twist_mux:

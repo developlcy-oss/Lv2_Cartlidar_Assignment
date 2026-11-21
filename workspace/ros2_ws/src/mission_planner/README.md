@@ -29,7 +29,7 @@ python3 -m pytest test                               # 시험 19 개 (할당 6 �
 
 - 원본 `worlds/dice_mission.sdf` = `urdf_and_usd/waffle_4wd_description/worlds/dice_mission.sdf` 복사본 (발제 좌표 mm / 1000, 원점 = 왼쪽 아래 기둥 중심, +Y 위).
 - `map_nav`: 바닥 위 0 ~ 0.45 m 와 겹치는 충돌 형상 전부 (벽판 · 기둥 · 박스 70 mm · 장소 상자 · 신호등 · 바코드 받침). 0.025 m 칸.
-- `map_amcl`: LiDAR 스캔면 (바닥 위 0.0748 m = LDS-03 브라켓 v2 base_link z 0.0675 + 0.00725, #249) 을 지나는 것만. 박스 · 장소 상자 (0.07 m) 는 스캔에 안 보여 뺌 (틈 4.75 mm, 실물 확인 필요).
+- `map_amcl`: LiDAR 스캔면 (뒤: 바닥 위 0.0748 m = LDS-03 브라켓 v2 base_link z 0.0675 + 0.00725, #249) 을 지나는 것만. 앞 라이다는 2026-11-20 부터 1.5 cm 낮아 (0.0598 m) 상자 (0.07 m) 도 보지만, 두 높이 차이로 더 걸리는 것은 상자뿐이라 지도는 그대로 (`test_world.py::test_scan_heights`). 박스 · 장소 상자 (0.07 m) 는 스캔에 안 보여 뺌 (틈 4.75 mm, 실물 확인 필요).
 
 ## 접근 자세
 

@@ -2,6 +2,7 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <limits>
 
 #include "control/align_controller.hpp"
 
@@ -158,4 +159,146 @@ TEST(RearCamera, BlocksOnlyReverseWhenBlockedOrMissing)
   EXPECT_FALSE(rear_camera_blocks(0.05, true, true));            // 전진은 안 막음
   EXPECT_FALSE(rear_camera_blocks(0.0, true, true));             // 제자리 (회전) 는 안 막음
   EXPECT_FALSE(rear_camera_blocks(-0.05, false, true));          // 꺼져 있으면 안 봄
+}
+
+// ---------- 상자 중앙 맞춤 (box_center.hpp) ----------
+#include "control/box_center.hpp"
+
+TEST(BoxCenter, FacingYawPicksNearest90)
+{
+  EXPECT_NEAR(box_facing_yaw(0.1, 0.0), 0.0, 1e-9);
+  EXPECT_NEAR(box_facing_yaw(0.1, M_PI / 2), 0.0, 1e-9);       // 정사각형: 90° 돌린 요도 같은 법선
+  EXPECT_NEAR(box_facing_yaw(1.5, 0.05), M_PI / 2 + 0.05, 1e-9);
+  EXPECT_NEAR(std::fabs(box_facing_yaw(3.1, 0.0)), M_PI, 1e-9);
+}
+
+TEST(BoxCenter, ErrorSigns)
+{
+  // 상자 (0.4, 0) 요 0, 로봇 (0, 0.03) yaw 0.1 → 로봇이 중심선 왼쪽 3 cm, 법선 0 으로 오른쪽 회전 필요
+  const auto e = center_error(0.0, 0.03, 0.1, 0.4, 0.0, 0.0);
+  EXPECT_NEAR(e.lateral, 0.03, 1e-9);
+  EXPECT_NEAR(e.yaw_err, -0.1, 1e-9);
+  EXPECT_NEAR(e.depth, -0.4, 1e-9);
+  EXPECT_NEAR(e.heading, 0.0, 1e-9);
+  // 같은 배치를 90° 돌린 odom: 결과 같음
+  const auto r = center_error(-0.03, 0.0, M_PI / 2 + 0.1, 0.0, 0.4, M_PI / 2);
+  EXPECT_NEAR(r.lateral, 0.03, 1e-9);
+  EXPECT_NEAR(r.depth, -0.4, 1e-9);
+}
+
+TEST(BoxCenter, Decide)
+{
+  BoxCenterConfig c;
+  CenterError e;
+  e.depth = -0.4;
+  e.lateral = 0.005;
+  EXPECT_EQ(decide_center(e, c), CenterDecision::DONE);
+  e.lateral = -0.03;
+  EXPECT_EQ(decide_center(e, c), CenterDecision::SHIFT);
+  e.lateral = 0.12;
+  EXPECT_EQ(decide_center(e, c), CenterDecision::TOO_FAR);
+  e.lateral = 0.03;
+  e.depth = 0.05;
+  EXPECT_EQ(decide_center(e, c), CenterDecision::BEHIND);
+}
+
+TEST(BoxCenter, PlanGeometry)
+{
+  BoxCenterConfig c;
+  CenterError e;
+  e.lateral = 0.03;   // 왼쪽 → 오른쪽으로 0.03
+  const auto p = plan_shift(e, c);
+  EXPECT_LT(p.alpha, 0.0);
+  EXPECT_GE(p.back, c.back_min);
+  EXPECT_LE(p.back, c.back_max);
+  EXPECT_NEAR(p.fwd * std::cos(p.alpha), p.back, 1e-9);        // 깊이 되돌림
+  EXPECT_NEAR(p.fwd * std::sin(p.alpha), -0.03, 1e-9);         // 옆 이동
+  e.lateral = -0.08;
+  const auto q = plan_shift(e, c);
+  EXPECT_NEAR(q.back, c.back_max, 1e-9);                       // 상한에 걸림 → 각이 커짐
+  EXPECT_GT(q.alpha, c.max_alpha);
+}
+
+// 단순 차동 구동 적분으로 기동 폐루프: 끝나면 옆 어긋남 · 요 · 깊이가 돌아옴
+TEST(BoxCenter, ManeuverClosedLoop)
+{
+  BoxCenterConfig c;
+  const double bx = 0.40, by = 0.0, byaw = 0.0;
+  for (double y0 : {0.04, -0.025, 0.06}) {
+    double x = 0.0, y = y0, yaw = -0.08;   // FINE 이 퍽 쪽으로 돌아 비스듬히 끝난 상태
+    const auto e0 = center_error(x, y, yaw, bx, by, byaw);
+    ASSERT_EQ(decide_center(e0, c), CenterDecision::SHIFT);
+    ShiftManeuver m(c);
+    m.start(plan_shift(e0, c));
+    const double dt = 0.05;
+    double min_x = x;
+    int n = 0;
+    for (; n < 2000; ++n) {
+      const auto o = m.step(x, y, yaw);
+      if (o.done) {break;}
+      EXPECT_LE(std::fabs(o.v), c.speed + 1e-9);
+      EXPECT_LE(std::fabs(o.w), c.max_angular + 1e-9);
+      x += o.v * std::cos(yaw) * dt;
+      y += o.v * std::sin(yaw) * dt;
+      yaw += o.w * dt;
+      min_x = std::min(min_x, x);
+    }
+    ASSERT_LT(n, 2000);
+    const auto e1 = center_error(x, y, yaw, bx, by, byaw);
+    EXPECT_LT(std::fabs(e1.lateral), 0.006) << "y0 " << y0;
+    EXPECT_LT(std::fabs(e1.yaw_err), c.yaw_tol + 0.01);
+    EXPECT_NEAR(e1.depth, e0.depth, 0.01);                       // 깊이는 대체로 그대로
+    EXPECT_GE(min_x, -c.back_max - 0.01);                        // 후진은 back_max 안
+  }
+}
+
+TEST(BoxCenter, CutForwardSkipsToFinalTurn)
+{
+  BoxCenterConfig c;
+  CenterError e;
+  e.heading = 0.0;
+  e.lateral = 0.04;
+  ShiftManeuver m(c);
+  m.start(plan_shift(e, c));
+  double x = 0, y = 0, yaw = 0;
+  for (int i = 0; i < 2000 && !m.forward(); ++i) {
+    const auto o = m.step(x, y, yaw);
+    x += o.v * std::cos(yaw) * 0.05;
+    y += o.v * std::sin(yaw) * 0.05;
+    yaw += o.w * 0.05;
+  }
+  ASSERT_TRUE(m.forward());
+  m.cut_forward();
+  EXPECT_EQ(m.phase(), ShiftManeuver::Phase::TURN2);
+}
+
+TEST(BoxCenter, RearRoomLimitsBack)
+{
+  BoxCenterConfig c;
+  EXPECT_DOUBLE_EQ(rear_back_room(std::numeric_limits<double>::infinity(), 0.30, c), c.back_max);
+  EXPECT_NEAR(rear_back_room(0.40, 0.30, c), 0.10, 1e-9);
+  EXPECT_DOUBLE_EQ(rear_back_room(0.33, 0.30, c), 0.0);        // back_min 0.06 안 됨 → 기동 안 함
+  CenterError e;
+  e.lateral = -0.05;
+  const auto p = plan_shift(e, c, 0.08);
+  EXPECT_NEAR(p.back, 0.08, 1e-9);
+  EXPECT_NEAR(p.fwd * std::sin(p.alpha), 0.05, 1e-9);          // 후진을 줄여도 옆 이동량은 그대로 (각이 커짐)
+}
+
+TEST(BoxCenter, PuckCheck)
+{
+  BoxCenterConfig c;   // 6°
+  // 로봇 (0, 0) 법선 0, 상자 중심 (0.36, 0). 퍽이 중심선 왼쪽 2 cm (칸 하나 안) → 2.0° → 돌아도 됨
+  auto k = puck_check(0.0, 0.0, 0.33, 0.02, 0.36, 0.0, 0.0, c);
+  EXPECT_TRUE(k.rotate);
+  EXPECT_NEAR(k.lateral, 0.02, 1e-9);
+  EXPECT_GT(k.yaw_dev, 0.0);
+  // 오른쪽 6 cm (칸 하나 어긋남) → 10° 넘음 → 돌지 않음
+  k = puck_check(0.0, 0.0, 0.33, -0.06, 0.36, 0.0, 0.0, c);
+  EXPECT_FALSE(k.rotate);
+  EXPECT_NEAR(k.lateral, -0.06, 1e-9);
+  // 90° 돌린 odom 에서도 같은 판단
+  k = puck_check(0.0, 0.0, -0.02, 0.33, 0.0, 0.36, M_PI / 2, c);
+  EXPECT_TRUE(k.rotate);
+  EXPECT_NEAR(k.lateral, 0.02, 1e-9);
 }

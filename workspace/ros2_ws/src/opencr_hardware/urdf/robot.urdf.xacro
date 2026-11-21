@@ -85,7 +85,7 @@
        LDS-03 브라켓 v2 (2026-11-13 실물 확인, #249): 기준 모델 a1cea6e 와 같은 (±0.1318, 0, 0.0675). 이전 v1 (±0.1089, 0, 0.0755)
        실물 LDS-03 드라이버의 0° 는 기준 모델 laser_* 의 +x 와 반대 (2026-11-15 실물 상자 가림 · 점 보기 시험: 앞 174° · 뒤 165° 어긋남) → 실물만 yaw +π.
        Isaac 은 기준 모델 프레임 그대로 스캔을 만들므로 (waffle_bridge · sensors.json) 0 — imu_link 와 같은 방식 -->
-  <xacro:fixed_link name="laser_front"       parent="base_link" xyz="0.1318 0 0.0675" rpy="3.141593 0 ${pi if '$(arg backend)' == 'opencr' else 0.0}"/>
+  <xacro:fixed_link name="laser_front"       parent="base_link" xyz="0.1318 0 0.0525" rpy="3.141593 0 ${pi if '$(arg backend)' == 'opencr' else 0.0}"/>  <!-- 2026-11-20 앞만 1.5 cm 낮춤 (브라켓 v3, 기준 모델과 같음): 스캔면 바닥 위 59.75 mm → 상자 70 mm 를 봄. 뒤는 0.0675 (74.75 mm) 그대로 -->
   <xacro:fixed_link name="laser_rear"        parent="base_link" xyz="-0.1318 0 0.0675" rpy="3.141593 0 ${0.0 if '$(arg backend)' == 'opencr' else pi}"/>
   <!-- D435: realsense2_camera (camera_name top_camera_front · top_camera_rear) 의 TF 뿌리는 <camera_name>_link = 왼쪽 IR (깊이 원점).
        그 아래 광학 프레임은 드라이버가 공장 외부 보정값으로 낸다 (여기서 또 만들면 TF 부모가 둘이 된다).

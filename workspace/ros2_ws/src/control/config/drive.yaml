@@ -11,6 +11,16 @@ drive_node:
         speed: 0.08                # [m/s]
         max_m: 0.30                # FINE 자리 (TFmini 0.13) → 0.35 확인까지 약 0.22 m. 이만큼 가도 확인 못 하면 되돌리고 Nav2
         timeout_s: 8.0             # 막혀 기다린 시간 포함. 넘으면 navigate 실패 (mission 재시도)
+      pullout:                     # 뒤가 벽에 붙은 채 navigate → Nav2 전에 곧게 전진 (2026-11-19, control/pullout.hpp). 못 가도 실패 없이 Nav2
+                                   #   Gazebo: 팔레트 집기 자리 (1.47, 0.31) 뒤 벽 0.29 m 에서 Nav2 제자리 회전 → 뒤 모서리가 벽 칸에 걸려 MPPI · 복구 모두 거부
+        enabled: true
+        rear_clear_m: 0.33         # 뒤 /scan (± rear_half_angle) 가장 가까운 점이 이 안이면 전진 (뒤 모서리 회전 반지름 0.271 + padding + 칸)
+        rear_half_angle: 0.785     # 45° (모서리 방향 ±38° 포함, 옆 통로 벽은 덜 잡게)
+        front_clear_m: 0.35        # 앞 /scan (± scan.half_angle) 이 이 안이면 전진 안 함 (주행 자세 팔 앞 0.25 + 여유)
+        front_tfmini_m: 0.20       # TFmini 가 이 안이거나 값 없음이면 전진 안 함 (/scan 아래 상자 · 퍽)
+        speed: 0.05                # [m/s]
+        max_m: 0.06                # 최대 전진 [m]
+        timeout_s: 3.0
       # 위치 추정 상태로 목표 막기 (#121, include/control/loc_gate.hpp). loc_monitor (/localization/status) 가 없는 실행은 false
       #   (bringup 은 use_loc_gate 인자로 덮어씀, 기본 = use_loc_lock)
       loc_gate:
@@ -51,10 +61,42 @@ drive_node:
         park_release_m: 0.35       # = perception lidar.yaml obstacle_stop release_m
         park_release_count: 3      # = obstacle_stop release_count
         park_refresh_s: 20.0       # 정차 중 낮춘 값 다시 보내기 (< obstacle_stop approach_max_s 60 — 그 자동 복귀는 drive_node 가 죽었을 때만)
+      center:                      # 상자 중앙 맞춤 (2026-11-20, include/control/box_center.hpp). FINE (퍽 arm_offset → 회전) 이 끝나면
+                                   #   Arducam 상자 윗면 측정 (/perception/place_box/measure, 사전값 = TFmini 로 본 상자 중심) → 상자 법선 · 중심선 옆 어긋남 →
+                                   #   법선으로 회전 · 곧게 후진 · 비스듬 전진 · 법선으로 회전 → 법선 yaw + TFmini 유지. 계획기 FINE 자리 (상자 중심이 정면 box_x) 와 맞춤
+                                   #   측정 실패 · max_shift 초과 → 움직이지 않고 FINE 결과로 성공. 기동 중 뒤 막힘 · 끊김 · 시간 초과 → 기존 FINE 으로 되돌아감
+                                   #   false = 이전 동작 그대로 (goal.center 도 움직이지 않고 성공). ★ Gazebo · 실물 미시험
+                                   #   (11-20 흐름 변경) 측정은 mission center_box 단계가 팔 BOX_VIEW 로 하고 (ALIGN 자세에서는 상자 변이 화면 밖)
+                                   #   팔을 ALIGN 으로 되돌린 뒤 goal.center · center_box 로 넘김 → 여기서는 측정 없이 기동부터. 아래 measure_* · prior_* ·
+                                   #   max_iter (재측정) 는 auto_after_fine 일 때만 씀
+        enabled: true
+        auto_after_fine: false     # true = FINE 끝에 drive 가 스스로 measure_service 호출 (예전 방식, 팔이 ALIGN 이라 대개 "못 찾음")
+        measure_service: /perception/place_box/measure   # 팔 Arducam (ARM_ALIGN 켜짐). 앞 D435 로 하려면 /perception/place_box/measure_front
+        box_half: 0.1025           # [m] 상자 반 변 (perception arm.place_box.box / 2)
+        prior_delay_s: 0.3         # 사전값 발행 → 측정 요청 사이
+        measure_timeout_s: 12.0    # 측정 결과 기다림 (Jetson 팔 영상 3 장 × 약 3 s)
+        lateral_tolerance: 0.015   # [m] 기동 건너뛰는 문턱: 이 안이면 옆 이동 없이 법선 yaw 만 맞춤
+        max_shift: 0.08            # [m] 이보다 크면 측정을 믿지 않음
+        back_min: 0.06             # [m] 후진 거리 = |옆| / tan(max_alpha) 를 [back_min, back_max] 로
+        back_max: 0.15             #   뒤 /scan (scan.rear_stop) · 뒤 카메라가 막히면 포기 → 기존 FINE
+        max_alpha: 0.35            # [rad] 비스듬 전진 각 (약 20°, back_max 에 걸리면 커짐: 0.08 m → 28°)
+        speed: 0.05                # [m/s]
+        kp_yaw: 2.0
+        max_angular: 0.4
+        min_angular: 0.12          # ★ 실물 제자리 회전 시작 속도 (turn.min_angular 와 같이)
+        yaw_tolerance: 0.017       # [rad] 기동 회전 끝 (약 1°). 마지막 유지는 align.box_only.yaw_tolerance
+        forward_min_m: 0.12        # [m] 비스듬 전진 중 TFmini 가 이 안이면 전진 끝 (최소 측정 0.10 + 여유)
+        phase_timeout_s: 8.0       # 기동 단계 하나 (회전 · 후진 · 전진) 시간 상한
+        timeout_s: 45.0            # 중앙 맞춤 전체 (측정 포함, align.timeout_s 와 따로). 넘으면 기존 FINE
+        max_iter: 1                # 옆 이동 횟수. 2 면 이동 뒤 다시 재고 한 번 더 (측정 시간만큼 늘어남)
+        rear_half_angle: 0.785     # 후진 전 뒤 여유: 뒤 /scan ± 이 각 가장 가까운 점 − scan.rear_stop 까지만 후진 (pullout 처럼). back_min 안 되면 기동 안 함
+        final_puck: true           # 옆 이동을 했으면 마지막에 퍽 arm_offset → 회전 (전후 TFmini) 로 마무리. 퍽이 화면에 없으면 건너뜀
+        max_puck_yaw_dev_deg: 6.0  # 퍽 쪽 방향이 상자 법선에서 이보다 벌어지면 돌지 않고 경고 ("칸 어긋남?")
+        arm_target_topic: /perception/arm_target   # 돌기 전 퍽 위치 판단 (없으면 회전 중 각도로만 막음)
     scan:
       required: true               # 먼 거리 접근은 /scan 없으면 중지
       half_angle: 0.349            # ±20°
-      front_margin: 0.10           # 물체보다 0.1 m 이상 가까운 점 → 정지
+      front_margin: 0.18           # 물체 (퍽) 보다 이만큼 이상 가까운 점 → 정지. 11-20 앞 라이다 1.5 cm 낮춤 (스캔면 59.75 mm < 상자 70) 으로 상자 앞면이 보임: 퍽 거리 − 0.1025 (반변) → 0.10 이면 매번 거짓 '전방 장애물'. 0.18 = 반변 0.1025 + 퍽 0.04 + LDS 오차 0.02 + 여유 (전 0.10)
       rear_stop: 0.30
       rear_camera: true            # 후진 때 /perception/rear_obstacle (뒤 D435) 도 확인, 값 없음 = 막힘 (#84). bringup use_perception:=false 면 끔
     skill:

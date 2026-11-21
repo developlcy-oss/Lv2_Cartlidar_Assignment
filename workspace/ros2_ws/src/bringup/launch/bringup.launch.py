@@ -1,6 +1,7 @@
 # 퍽 운반 로봇 전체 실행 (Jetson 프로세스 ① ② ⑥ ⑦ ⑧)
 #
 #   ros2 launch bringup bringup.launch.py                        # 경기 (실물): 하드웨어 + 인식 + 위치 추정 + Nav2 + 계획기 + 미션
+#   ros2 launch bringup bringup.launch.py mode:=drive ...        # 주행 시연 로봇 쪽 (tools/drive_demo/README.md 단계 6): 팀 Nav2 · 계획기 · mission_node 없음
 #   ros2 launch bringup bringup.launch.py use_localization:=false use_nav2:=false   # 벤치 시험 (주행 없이 팔 · 인식)
 #   ros2 launch bringup bringup.launch.py use_survey:=false pucks_file:=<등록표.yaml>  # 측량 없이 미리 만든 등록표로 계획 (실물 단계 시험)
 #   ros2 launch bringup bringup.launch.py use_hardware:=false    # OpenCR 없이 (판단 · 제어 · 인식만)
@@ -26,6 +27,10 @@
 #     use_localization:=true — localization.launch.py (지도 · scan 합치기 · loc_monitor). use_loc_lock · use_loc_gate 기본도 이것을 따른다
 #     use_nav2:=true        — navigation/navigation.launch.py (Smac 2D · RotationShim + MPPI → /cmd_vel_nav) 를 use_localization:=false 로.
 #                            위치 추정은 위 localization 하나만 (둘 다 띄우면 /map · loc_monitor 가 두 번, #116). use_amcl_node 기본 = use_nav2
+#   mode:=mission (기본) | drive — 현재 모드를 /system/mode (std_msgs/String, reliable · transient_local, 1 Hz) 로 냄
+#     drive: use_nav2 · use_planner 를 false 로 덮어씀 (인자로 true 를 줘도), control_container 에서 mission_node 를 뺌
+#            (drive_node · manipulator_node (켤 때 팔을 주행 자세로) · tfmini 는 그대로). use_amcl_node 기본 = use_localization
+#            tools/drive_demo/run_demo.sh real 은 /system/mode 가 mission 이면 거부함
 #     지도: 기본 = 발제 도면 SDF 지도 mission_planner/maps (map · loc_map = map_amcl, objects_map = map_nav). 실물 · Isaac · Gazebo 공통.
 #           localization 기본 SLAM 지도 (slam_walls*, Isaac 미로) 는 SDF 와 7 ~ 15 cm 다름 (#116). 바꿀 때는 map:= objects_map:= loc_map:= 를 함께
 #           (AMCL 과 loc_monitor 는 같은 지도로). localization:=carto 면 carto_state 와 같은 세계의 지도를 줄 것
@@ -45,7 +50,8 @@
 import os
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler, TimerAction
+from launch.actions import (DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler,
+                            SetLaunchConfiguration, TimerAction)
 from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
@@ -89,35 +95,34 @@ def generate_launch_description():
             pucks = os.path.join(log_dir, 'pucks_survey.yaml')
         return log_dir, pucks
 
+    def run_mode(context):
+        mode = LaunchConfiguration('mode').perform(context)
+        if mode not in ('mission', 'drive'):
+            raise RuntimeError(f'mode 는 mission 또는 drive: {mode}')
+        return mode
+
+    # mode 확인 · drive 면 팀 Nav2 · 계획기 끔 · /system/mode 발행 (늦게 붙는 구독자도 받게 transient_local, 계속 1 Hz)
+    def mode_setup(context):
+        mode = run_mode(context)
+        acts = []
+        if mode == 'drive':   # 인자로 true 를 줘도 끔. use_amcl_node 기본은 선언 때 이미 use_localization 으로 계산됨
+            acts += [SetLaunchConfiguration('use_nav2', 'false'), SetLaunchConfiguration('use_planner', 'false')]
+        acts.append(ExecuteProcess(name='system_mode', output='log', cmd=[
+            'ros2', 'topic', 'pub', '--qos-reliability', 'reliable', '--qos-durability', 'transient_local', '-r', '1',
+            '/system/mode', 'std_msgs/msg/String', f'{{data: {mode}}}']))
+        return acts
+
     def control_container(context):
+        mission = run_mode(context) == 'mission'   # drive: mission_node 를 띄우지 않음 (미션 파라미터도 만들지 않음)
         source = LaunchConfiguration('mission_source').perform(context)
         if source not in ('tag', 'plan'):
             raise RuntimeError(f'mission_source 는 tag 또는 plan: {source}')
-        # geometry: 차체 기하 base.* (front_offset · icr_x) 를 drive 와 같은 파일에서 (mission 비스듬히 서기 · 시작 박스, 값 한 곳)
-        mission_params = [geometry, PathJoinSubstitution([mis, 'config', 'mission.yaml'])]
-        if source == 'plan':   # mission_bringup.launch.py source:=plan 과 같은 덧씌우기 + 측량 결과 경로 = 계획기 pucks_file
-            log_dir, pucks = log_paths(context)
-            survey = LaunchConfiguration('use_survey').perform(context).lower() == 'true'
-            if not survey and not LaunchConfiguration('pucks_file').perform(context):
-                # 측량을 끄면 계획기가 등록표를 그대로 씀 → 기본 <log_dir>/pucks_survey.yaml (지난 미션 결과) 를 모르고 쓰지 않게
-                raise RuntimeError('use_survey:=false 면 pucks_file:=<미리 만든 등록표.yaml> 을 꼭 줄 것 '
-                                   '(형식 mission_planner/config/problem_q1_example.yaml)')
-            mission_params += [PathJoinSubstitution([mis, 'config', 'mission_plan.yaml']),
-                               {'survey.pucks_out': pucks, 'log_dir': log_dir, 'survey.enabled': survey}]
-        else:                  # 옛 태그 미션표 (태그 → 단계 · 위치표). plan 모드는 쓰지 않음
-            mission_params.append(PathJoinSubstitution([mis, 'config', 'mission_table.yaml']))
-        # 시작 전 준비 확인 (R3): 띄운 것만 확인 목록에 넣음 (빈 목록은 넘기지 않음 — 빈 배열은 타입을 몰라 파라미터 오류)
-        on = lambda name: LaunchConfiguration(name).perform(context).lower() == 'true'
-        ready = {'ready.localization': on('use_localization')}
-        if on('use_hardware'):   # base_bringup.launch.py spawner 와 같은 목록 (IMU 는 실물만, gripper_controller 는 bringup 에서 안 씀)
-            ready['ready.controllers'] = ['joint_state_broadcaster', 'diff_drive_controller', 'arm_controller'] + \
-                ([] if on('sim') else ['imu_sensor_broadcaster'])
-        if on('use_nav2'):
-            ready['ready.lifecycle_managers'] = ['lifecycle_manager_navigation']
-        mission_params.append(ready)
-        groups = [
-            ('mission', [ComposableNode(package='mission', plugin='mission::MissionNode', name='mission_node',
-                                        parameters=mission_params + [diag, sim], extra_arguments=ipc)]),
+        if mission:
+            groups = [('mission', [ComposableNode(package='mission', plugin='mission::MissionNode', name='mission_node',
+                                                  parameters=mission_params(context, source) + [diag, sim], extra_arguments=ipc)])]
+        else:
+            groups = []
+        groups += [
             ('drive', [ComposableNode(package='control', plugin='control::DriveNode', name='drive_node',
                                       parameters=[geometry, PathJoinSubstitution([ctl, 'config', 'drive.yaml']), skill, rear_camera,
                                                   loc_gate, sim],
@@ -136,9 +141,37 @@ def generate_launch_description():
         container = lambda name, nodes: ComposableNodeContainer(
             name=name, namespace='', package='rclcpp_components', executable='component_container_mt', output='screen',
             composable_node_descriptions=nodes)
-        if on('split_control'):   # 측정용 (#265): 노드 묶음마다 프로세스 하나 → top · tegrastats 로 노드별 CPU
+        if LaunchConfiguration('split_control').perform(context).lower() == 'true':   # 측정용 (#265): 노드 묶음마다 프로세스 하나 → top · tegrastats 로 노드별 CPU
             return [container(f'control_{g}', nodes) for g, nodes in groups]
         return [container('control_container', [n for _, nodes in groups for n in nodes])]
+
+    def mission_params(context, source):
+        # geometry: 차체 기하 base.* (front_offset · icr_x) 를 drive 와 같은 파일에서 (mission 비스듬히 서기 · 시작 박스, 값 한 곳)
+        mission_params = [geometry, PathJoinSubstitution([mis, 'config', 'mission.yaml'])]
+        if source == 'plan':   # mission_bringup.launch.py source:=plan 과 같은 덧씌우기 + 측량 결과 경로 = 계획기 pucks_file
+            log_dir, pucks = log_paths(context)
+            survey = LaunchConfiguration('use_survey').perform(context).lower() == 'true'
+            if not survey and not LaunchConfiguration('pucks_file').perform(context):
+                # 측량을 끄면 계획기가 등록표를 그대로 씀 → 기본 <log_dir>/pucks_survey.yaml (지난 미션 결과) 를 모르고 쓰지 않게
+                raise RuntimeError('use_survey:=false 면 pucks_file:=<미리 만든 등록표.yaml> 을 꼭 줄 것 '
+                                   '(형식 mission_planner/config/problem_q1_example.yaml)')
+            mission_params += [PathJoinSubstitution([mis, 'config', 'mission_plan.yaml']),
+                               {'survey.pucks_out': pucks, 'log_dir': log_dir, 'survey.enabled': survey,
+                                # 출발 상자 재기 (#226): 앞 D435 로 잰 상자로 집기 줄을 바꿈. skill_enabled (ONNX) 와 같이 켤 것 (2026-11-20)
+                                'start_box.enabled': LaunchConfiguration('start_box').perform(context).lower() == 'true'}]
+        else:                  # 옛 태그 미션표 (태그 → 단계 · 위치표). plan 모드는 쓰지 않음
+            mission_params.append(PathJoinSubstitution([mis, 'config', 'mission_table.yaml']))
+        # 시작 전 준비 확인 (R3): 띄운 것만 확인 목록에 넣음 (빈 목록은 넘기지 않음 — 빈 배열은 타입을 몰라 파라미터 오류)
+        on = lambda name: LaunchConfiguration(name).perform(context).lower() == 'true'
+        # 팔 정리 (manipulator 가 켜진 뒤 STOW 로 모음, /manipulator/startup_done): manipulator_node 는 bringup 이 늘 띄움
+        ready = {'ready.localization': on('use_localization'), 'ready.arm_startup': True}
+        if on('use_hardware'):   # base_bringup.launch.py spawner 와 같은 목록 (IMU 는 실물만, gripper_controller 는 bringup 에서 안 씀)
+            ready['ready.controllers'] = ['joint_state_broadcaster', 'diff_drive_controller', 'arm_controller'] + \
+                ([] if on('sim') else ['imu_sensor_broadcaster'])
+        if on('use_nav2'):
+            ready['ready.lifecycle_managers'] = ['lifecycle_manager_navigation']
+        mission_params.append(ready)
+        return mission_params
 
     def planner(context):   # 계획기: mission 과 같은 등록표, 기록은 <log_dir>/planner (mission 이 plan 성공 뒤 에피소드 폴더로 복사)
         if LaunchConfiguration('use_planner').perform(context).lower() != 'true':
@@ -198,6 +231,9 @@ def generate_launch_description():
         return [gate, RegisterEventHandler(OnProcessExit(target_action=gate, on_exit=heavy))]
 
     return LaunchDescription([
+        # mode 는 use_amcl_node 기본값 (PythonExpression) 이 읽으므로 맨 앞에 선언
+        DeclareLaunchArgument('mode', default_value='mission',
+                              description='mission (경기, 기본) | drive (주행 시연 로봇 쪽: 팀 Nav2 · 계획기 · mission_node 없음). /system/mode 로 발행'),
         DeclareLaunchArgument('use_hardware', default_value='true', description='① ② OpenCR · 컨트롤러 · twist_mux · 조이스틱'),
         # 2026-11-12 sim 은 diag_timeout 기본값 (PythonExpression) 이 읽으므로 그보다 먼저 선언 (sim:= 안 주면 'launch configuration sim does not exist')
         DeclareLaunchArgument('sim', default_value='false',
@@ -235,6 +271,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_nav2', default_value='true',
                               description='navigation.launch.py (Nav2, use_localization:=false 로). 위치 추정은 use_localization 하나. '
                                           '기본 true = 경기 (2026-11-14, 이전 false)'),
+        DeclareLaunchArgument('start_box', default_value='false',
+                              description='plan 모드 출발 상자 재기 (mission start_box.enabled, #226). true 면 skill_enabled:=true 도 (ONNX 빌드). '
+                                          '2026-11-20: 실물 정확도 (콘솔 모드 5) 를 본 뒤 켬'),
         DeclareLaunchArgument('use_survey', default_value='true',
                               description='plan 모드 퍽 측량 (mission survey.enabled). false = pucks_file 의 미리 만든 등록표로 계획 '
                                           '(측량 자세 #154 를 정하기 전 실물 단계 시험). false 면 pucks_file 필수'),
@@ -244,8 +283,11 @@ def generate_launch_description():
                               description='/map_objects (costmap: 벽 + 라이다에 안 보이는 상자 · 받침대): 발제 도면 SDF 지도'),
         DeclareLaunchArgument('loc_map', default_value=LaunchConfiguration('map'),
                               description='loc_monitor 잔차 · 탐색 지도 (기본 = map). AMCL 과 같은 지도여야 거짓 LOST 가 없음'),
-        DeclareLaunchArgument('use_amcl_node', default_value=LaunchConfiguration('use_nav2'),
-                              description='AMCL 노드를 localization 쪽에서 띄움. 기본 = use_nav2 (Nav2 의 map → odom)'),
+        DeclareLaunchArgument('use_amcl_node',
+                              default_value=PythonExpression(["'", LaunchConfiguration('use_localization'), "' if '",
+                                                              LaunchConfiguration('mode'), "' == 'drive' else '",
+                                                              LaunchConfiguration('use_nav2'), "'"]),
+                              description='AMCL 노드를 localization 쪽에서 띄움. 기본 = use_nav2 (Nav2 의 map → odom), mode:=drive 면 use_localization'),
         DeclareLaunchArgument('use_loc_lock', default_value=LaunchConfiguration('use_localization'),
                               description='twist_mux 위치 잃음 lock (/localization/lock, #93). 기본 = use_localization'),
         DeclareLaunchArgument('use_loc_gate', default_value=LaunchConfiguration('use_loc_lock'),
@@ -256,8 +298,10 @@ def generate_launch_description():
                               description='카메라 · 라이다 드라이버 (sensors.launch.py). 기본: 실물 true · sim:=true 면 false'),
         DeclareLaunchArgument('front_serial', default_value='261822072247', description='앞 D435 시리얼 (sensors.launch.py 와 같게), 빈 값 = 아무 장치'),
         DeclareLaunchArgument('rear_serial', default_value='261822079801', description='뒤 D435 시리얼, 빈 값 = 아무 장치'),
-        DeclareLaunchArgument('ports', default_value='/dev/ttyACM0,/dev/ttyACM1',
-                              description='두 OpenCR 후보 포트 (역할은 프로토콜 응답으로 판별)'),
+        DeclareLaunchArgument('ports', default_value='auto',
+                              description='두 OpenCR 포트. auto = /dev/ttyACM* 중 OpenCR 2 개를 찾아 씀 (보드 리셋으로 번호가 바뀌어도 됨, '
+                                          '2 개가 아니면 찾은 목록과 함께 중단). 직접: ports:=/dev/ttyACM2,/dev/ttyACM3 (순서 무관, 역할은 STATE.role). '
+                                          'RC-100 리모컨을 쓸 때는 rc100:=true 필수 — 없으면 리모컨 리셋 (2+3) 이 E-stop 을 못 풂'),
         DeclareLaunchArgument('drive', default_value='belt', description='구동: belt (증속벨트) | direct (직결)'),
         DeclareLaunchArgument('skill_enabled', default_value='false',
                               description='정책 실행 — ONNX Runtime 빌드에서만 true (없으면 거절 → 미션 fallback)'),
@@ -267,6 +311,7 @@ def generate_launch_description():
         DeclareLaunchArgument('stage_timeout', default_value='90', description='/joint_states 를 기다릴 최대 [s]. 넘으면 그래도 띄움'),
         DeclareLaunchArgument('nav2_delay', default_value='10.0', description='무거운 묶음 시작 뒤 Nav2 를 띄울 때까지 [s] (bt_navigator 활성화 실패 #276)'),
         DeclareLaunchArgument('use_sim_time', default_value='false', description='시뮬레이션 시계(/clock) 사용 — 모든 노드에 전달'),
+        OpaqueFunction(function=mode_setup),   # 아래 모든 것보다 먼저 (drive 면 use_nav2 · use_planner = false)
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(PathJoinSubstitution([hw, 'launch', 'base_bringup.launch.py'])),

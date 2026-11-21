@@ -22,7 +22,7 @@ URDF 는 `opencr_hardware/urdf/robot.urdf.xacro`. 시뮬레이션 참고본 (`~/
 | `odom` → `base_link` | — | **ekf 만** (diff_drive `enable_odom_tf: false`) | perception · manipulator (`fixed_frame`) | |
 | `base_footprint` | base_link | robot_state_publisher (URDF) | perception 찾기 · 바코드 (`base_frame`) | |
 | `imu_link` | base_link (0.0095, 0, 0.0202), rpy 0 | URDF | imu_sensor_broadcaster · ekf | 아래 OpenCR 보드를 바로 놓음 (2026-11-02 확인, 이전 roll π 는 틀림). Isaac 브리지 `IMU_RPY` 도 rpy 0 (2026-11-03) |
-| `laser_front` · `laser_rear` | base_link (±0.1318, 0, 0.0675), roll π. yaw: 실물 앞 π · 뒤 0, Isaac 앞 0 · 뒤 π | URDF | LiDAR 드라이버 frame_id · slam_toolbox | 뒤집어 장착 반영 (2026-11-02). 실물 yaw 는 드라이버 0° 가 기준 모델 +x 와 반대라 +π (2026-11-15 실물 상자 가림 시험) |
+| `laser_front` · `laser_rear` | base_link 앞 (0.1318, 0, **0.0525**) · 뒤 (−0.1318, 0, 0.0675), roll π (2026-11-20 앞만 1.5 cm 낮춤 = 스캔면 바닥 위 59.75 mm, 상자 70 mm 를 봄). yaw: 실물 앞 π · 뒤 0, Isaac 앞 0 · 뒤 π | URDF | LiDAR 드라이버 frame_id · slam_toolbox | 뒤집어 장착 반영 (2026-11-02). 실물 yaw 는 드라이버 0° 가 기준 모델 +x 와 반대라 +π (2026-11-15 실물 상자 가림 시험) |
 | `top_camera_front_link` · `top_camera_rear_link` | base_link (앞 (−0.0481, +0.0250, 0.4836) · 뒤 (−0.2079, −0.0250, 0.4836)), pitch 0.6144 rad | URDF | realsense2_camera TF 뿌리 (왼쪽 IR = 깊이 원점) | C 적용 (2026-11-02) |
 | `top_camera_*_link` → `top_camera_*_color_optical_frame` | top_camera_*_link | realsense2_camera (실물) · Isaac 브리지 `/tf_static` (모의) | perception D435 · rear_obstacle | URDF 는 만들지 않음 (부모가 둘이 되지 않게) |
 | `arm_base_link` → `link1` ~ `gripper_roll_link` | base_link (0.096, 0, 0.1135) — joint2 축이 기준 모델 자리 | URDF + /joint_states | manipulator (`arm_base_frame`) | |

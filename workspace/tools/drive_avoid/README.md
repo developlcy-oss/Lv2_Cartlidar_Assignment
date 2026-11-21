@@ -136,7 +136,7 @@ python3 turn_speed/calc.py   # → data.json · 회전속도_비교.html (페이
 
 ## 시뮬과 실물이 다른 점 · 할 일 ★
 
-- 시뮬 라이다 스캔면 (바닥 위 7.5 cm) 은 7 cm 퍽 상자를 못 봐서 시험 상자는 10 cm 높이. 실물 라이다는 7 cm 상자 · L 을 봤음 (위 실물 SLAM).
+- 시뮬 라이다 스캔면 (바닥 위 7.5 cm) 은 7 cm 퍽 상자를 못 봐서 시험 상자는 10 cm 높이. (2026-11-20 부터 앞 라이다만 1.5 cm 낮춰 5.98 cm — 앞 라이다는 시뮬에서도 7 cm 상자를 봄, 뒤는 7.48 cm 그대로) 실물 라이다는 7 cm 상자 · L 을 봤음 (위 실물 SLAM).
 - Gazebo 고정 모델은 set_pose 로 안 옮겨짐 → `scenario.py --move-boxes` 는 지우고 다시 만듦.
 - 최고 속도 (max) 는 노트북 바탕화면 `2026-11-14_규칙v2계획/demo_real` 의 params_demo_max.yaml · v2_filter.py 를 씀 (`SPEED=max`). ★ 저장소 `../drive_demo` 와 같은 내용인지 옮기기 전에 맞출 것.
 - 알려진 물체 지도: 시뮬은 길 모음 실측 자리. 실물은 상자 자리가 날마다 다름 → 실물 SLAM 지도 (`real_map/maze_real_aligned`) 또는 그날 실측으로 만들어야 하고,

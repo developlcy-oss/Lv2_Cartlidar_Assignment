@@ -4,8 +4,10 @@
 원점 = 왼쪽 아래 기둥 중심, +X 오른쪽, +Y 위, 바닥 Z = 0). 충돌 상자 (box · cylinder) 를 그대로 바닥에 투영한다.
 
   map_nav   주행 계획용: 바닥 위 높이 [0, nav_z_max] 와 겹치는 모든 것 (벽판 · 기둥 · 박스 70 mm · 중앙 받침대 · 신호등 · 바코드 받침)
-  map_amcl  AMCL 용: LiDAR 스캔면 (바닥 위 lidar_z, LDS-03 브라켓 v2 base_link z 0.0675 + 0.00725 = 0.0748 m, #249) 을 지나는 것만.
-            박스 · 받침대 (높이 0.07) 는 스캔면 아래라 LiDAR 에 안 보임 -> AMCL 지도에 넣으면 없는 벽을 찾다가 위치가 틀어진다.
+  map_amcl  AMCL 용: LiDAR 스캔면을 지나는 고정 물체만. 스캔면은 앞 · 뒤가 다르다 (2026-11-20 앞만 1.5 cm 낮춤, 브라켓 v3):
+            앞 LIDAR_Z_FRONT 0.0598 m (base_link z 0.0525 + 0.00725) · 뒤 LIDAR_Z_REAR 0.0748 m (0.0675 + 0.00725, #249).
+            지도는 뒤 높이 (LIDAR_Z) 로 만든다. 두 높이 사이에 걸리는 것은 박스 · 장소 상자 (높이 0.07) 뿐 (SDF 확인) 인데,
+            상자는 날마다 자리가 달라 일부러 뺀다 (앞 라이다에는 보이지만 지도에 넣으면 옮겨진 날 없는 벽을 찾다가 위치가 틀어진다).
 """
 from __future__ import annotations
 
@@ -16,7 +18,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
-LIDAR_Z = 0.0675 + 0.00725  # [m] 바닥 위 스캔면 = LDS-03 브라켓 v2 base_link z + base_link 바닥 위 높이 (바퀴 R 0.0335, #249)
+LIDAR_Z_FRONT = 0.0525 + 0.00725  # [m] 앞 LDS-03 스캔면 바닥 위 = base_link z (브라켓 v3, 2026-11-20) + base_link 바닥 위 높이 (바퀴 R 0.0335)
+LIDAR_Z_REAR = 0.0675 + 0.00725   # [m] 뒤 LDS-03 스캔면 바닥 위 (브라켓 v2, #249)
+LIDAR_Z = LIDAR_Z_REAR            # [m] map_amcl 기준 높이 (앞 높이에서만 더 보이는 것 = 상자, 일부러 뺌 — 위 설명)
 ARENA_W, ARENA_H = 4.464, 6.364  # 발제 경기장 (mm 4464 x 6364), 원점 = 왼쪽 아래 기둥 중심
 
 

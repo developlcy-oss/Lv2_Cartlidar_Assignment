@@ -317,12 +317,22 @@ TEST(RobotDescription, ArmStandbyRangeInsideFirmwareRange)
     EXPECT_GE(mn[k], tick(fw_min[k]) - 1e-9) << "칸 " << k << " 대기 자세 최소가 펌웨어 범위 밖 (" << tick(fw_min[k]) << " tick)";
     EXPECT_LE(mx[k], tick(fw_max[k]) + 1e-9) << "칸 " << k << " 대기 자세 최대가 펌웨어 범위 밖 (" << tick(fw_max[k]) << " tick)";
   }
+  // 범위 밖 여유: 있으면 0 ~ 700 tick (61.5°, 2026-11-21 620). 켜질 때 정리 (manipulator.yaml startup.auto_stow_max 1.05 rad = 684 tick, 가운데 기준) 보다 작아야
+  //   하드웨어가 켠 팔을 노드가 STOW 로 모음 (반대면 토크만 켜고 노드는 거부)
+  ASSERT_EQ(hw.hardware_parameters.count("arm_standby_margin_tick"), 1u);
+  const int margin = std::stoi(hw.hardware_parameters.at("arm_standby_margin_tick"));
+  EXPECT_GE(margin, 0);
+  EXPECT_LE(margin, 700);
+  for (int k = 0; k < 4; ++k) {   // J1 ~ J4: 가운데에서 범위 반폭 + 여유 = 노드 auto_stow_max 안
+    EXPECT_LE((mx[k] - mn[k]) / 2.0 + margin, 1.05 * 4096.0 / (2.0 * M_PI)) << "칸 " << k;
+  }
   // Isaac · mock 은 이 플러그인이 아니므로 넣지 않음 (모르는 인자)
   for (const std::string backend : {"mock", "isaac"}) {
     ASSERT_TRUE(expand_xacro(src, urdf, "backend:=" + backend)) << urdf;
     const auto other = parse_one(urdf);
     EXPECT_EQ(other.hardware_parameters.count("arm_standby_min_tick"), 0u) << backend;
     EXPECT_EQ(other.hardware_parameters.count("arm_standby_max_tick"), 0u) << backend;
+    EXPECT_EQ(other.hardware_parameters.count("arm_standby_margin_tick"), 0u) << backend;
   }
 }
 

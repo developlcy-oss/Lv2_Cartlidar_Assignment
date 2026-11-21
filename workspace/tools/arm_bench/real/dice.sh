@@ -149,12 +149,17 @@ say(){ echo "[dice] $*" | tee -a "$LOG"; }
 run(){ # $* = arm_cmd 하위 명령 (unload 3 1 / place x y z / place_cell L m1 p1 / transit)
   say "-> $*"
   [ "$DRY" = 1 ] && return 0
-  local k
-  for k in 1 2 3 4 5 6 7 8 9; do   # 노드가 시작 정리 (STOW -> DRIVE) 중이면 거부 -> 10 s 뒤 다시 (최대 90 s)
+  local k unfolded=0
+  for k in 1 2 3 4 5 6 7 8 9; do   # 노드가 켜질 때 정리 중이면 거부 -> 10 s 뒤 다시 (최대 90 s)
     local before; before=$(wc -l < "$LOG")
     ARM_TIMEOUT="$TIMEOUT" "$ARM_CMD" "$MODE" "$@" >> "$LOG" 2>&1 && return 0
     tail -n +"$((before + 1))" "$LOG" | grep -q "Goal was rejected" || return 1
-    say "  거부됨 (팔이 시작 자세로 펴는 중이거나 다른 스킬 중) -> 10 s 뒤 다시 ($k/9)"; sleep 10
+    if [ "$MODE" = real ] && [ $unfolded = 0 ]; then   # 2026-11-18: 브링업 뒤 팔이 STOW 에 머묾, STOW 에서 스킬 거절 -> 먼저 폄
+      say "  거부됨 -> 팔이 STOW 일 수 있어 pose DRIVE 먼저 (노드 단계 펴기)"
+      ARM_TIMEOUT="$TIMEOUT" "$ARM_CMD" real pose DRIVE >> "$LOG" 2>&1 || say "  pose DRIVE 실패"
+      unfolded=1; continue
+    fi
+    say "  거부됨 (켜질 때 정리 중이거나 다른 스킬 중) -> 10 s 뒤 다시 ($k/9)"; sleep 10
   done
   return 1
 }

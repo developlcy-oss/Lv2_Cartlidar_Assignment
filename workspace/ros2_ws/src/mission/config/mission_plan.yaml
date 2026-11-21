@@ -13,6 +13,7 @@ mission_node:
       survey_view: 30.0          # 조사 자세 한 곳 (팔 자세 + settle_s)
       check_marker: 10.0         # 놓기 전 장소 태그 확인
       measure_box: 15.0          # 장소 상자 재기 (팔 자세 + 재기 약 1.5 s)
+      center_box: 90.0           # 상자 중앙 맞춤 = 팔 자세 2 번 (10 s) + settle 0.5 + 재기 12 + drive align.center.timeout_s 45 + 여유 12.5
     observe:
       # 바코드 읽기 (#65): manipulator barcode_look skill 이 observe.barcode_point 를 팔 카메라로 거의 수평으로 봄.
       #   출발 자세에서 라벨까지 J1 0.60 m 라 카메라 약 0.3 m 가 가장 가까움 (인지: 0.3 m 에서 읽음). 이름 자세를 쓰려면 그 이름으로
@@ -55,6 +56,18 @@ mission_node:
       settle_s: 0.5              # 팔 자세 · 모드 뒤 재기 전 기다림
       max_shift: 0.10            # [m] 잰 중심이 지도 칸 중심에서 이보다 멀면 잘못 잰 것으로 봄
       required: false            # true = 못 재면 단계 실패 (재시도), false = 기록하고 지도 좌표로 놓음
+    # 상자 중앙 맞춤 (2026-11-20, include/mission/center_box.hpp): 퍽을 집는 approach 바로 뒤에 center_box 단계를 붙임.
+    #   FINE (팔 ALIGN, 퍽 arm_offset → 회전) 은 상자 앞면과 비스듬 · 옆으로 어긋난 채 끝날 수 있어, 팔을 BOX_VIEW 로 올려 상자 윗면을 재고
+    #   (ALIGN 자세에서는 상자 변이 화면 밖) 팔을 ALIGN 으로 되돌린 뒤 drive /drive/align goal.center 로 넘김 → 회전 · 후진 · 비스듬 전진 · 회전 ·
+    #   법선 + TFmini · (옮겼으면) 퍽 마무리 (법선에서 6° 넘으면 돌지 않음, drive align.center.*). 못 재면 움직이지 않고 계속.
+    #   false = 이전 흐름 그대로 (단계를 붙이지 않음). ★ Gazebo · 실물 미시험. 장소 상자 (approach_box) 는 measure_box 가 잰 상자로 놓으므로 안 붙임
+    approach:
+      center:
+        enabled: true
+        arm_pose: BOX_VIEW       # = place_box.arm_pose (perception place_box 가 만들어진 자세)
+        mode: READ_TAG           # 팔 카메라를 켜는 모드 (perception 은 READ_TAG 또는 ARM_ALIGN 일 때만 잼)
+        settle_s: 0.5
+        measure_timeout_s: 12.0  # 팔 영상 3 장 (Jetson 약 3 s 씩) = drive align.center.measure_timeout_s 와 같게
     # 비스듬히 서기 (place_box 를 켰을 때만): 상자가 돌아 있어도 차체 축이 상자 중심을 지나게 서서 팔로 봄.
     #   켜면 measure_box 가 그 장소 approach_box 앞 (대기 자리) 으로 옮겨 붙음: 앞 D435 재기 (/perception/place_box/measure_front) →
     #   제자리 회전 (/drive/navigate) → 축을 따라 보기 자리까지 align BOX → box_look (place_look) → 기존 팔 재기. 뒤 approach_box · 놓기는 그대로.
