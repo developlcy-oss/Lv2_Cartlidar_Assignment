@@ -6,6 +6,8 @@
 
     python3 ~/vertical_lift_check.py            1_3 (기록된 칸)
     python3 ~/vertical_lift_check.py 1_3 48     48 mm 까지 (기본 42)
+    python3 ~/vertical_lift_check.py 1_3 --model   손 맞춤 기록 대신 수직 궤적 파일 (관절 영점 보정 모델, #355) 의 칸 바닥 자세에서
+    (2026-11-22 실물: 11-21 1_3 수직 손 맞춤 자세는 1_3 이 아니라 1_3 과 관절 1 사이 -> 그 기록은 못 씀)
 
 순서: 지금 자세 -> (높은 자세 · 관절 1 회전) -> 맞춘 자세 60 mm 위 -> 맞춘 자세 (퍽 쥔 자리) -> 6 mm 씩 위로, 매번 Enter.
 칸에 퍽을 넣어 두면 실제로 퍽을 쥐었다 들어 올리며 확인 (집게는 벌린 채로 움직이고, 바닥에서 쥘지 물어봄).
@@ -20,18 +22,27 @@ sys.path.insert(0, os.path.expanduser("~/Lv2_Cartlidar_Assignment/workspace/tool
 import meas_session as m  # noqa: E402
 
 REC = os.environ.get("TEACH_REC", os.path.expanduser("~/실측/slot_teach_vertical.json"))
+TRAJ = os.environ.get("TEACH_TRAJ", os.path.expanduser(
+    "~/Lv2_Cartlidar_Assignment/workspace/ros2_ws/src/control/config/pallet_place_traj_vertical.json"))
 OPEN = -0.30      # 약 47 mm
 CLOSE = 0.923
 J4_STOP = math.radians(128.0)   # 11-21 · 11-22 실물에서 관절 4 가 멈춘 자리
 
 
 def main():
-    slot = sys.argv[1] if len(sys.argv) > 1 else "1_3"
-    top_mm = float(sys.argv[2]) if len(sys.argv) > 2 else 42.0
-    rec = json.load(open(REC, encoding="utf-8"))
-    if slot not in rec:
-        sys.exit(f"{REC} 에 {slot} 기록 없음 (있는 칸: {list(rec)})")
-    q0 = list(rec[slot]["q_meas"][:5])
+    model = "--model" in sys.argv
+    av = [x for x in sys.argv[1:] if not x.startswith("--")]
+    slot = av[0] if av else "1_3"
+    top_mm = float(av[1]) if len(av) > 1 else 42.0
+    if model:
+        t = {f"{s['row']}_{s['index']}": s for s in json.load(open(TRAJ, encoding="utf-8"))["slots"]}
+        q0 = list(next(g for g in t[slot]["segments"] if g["name"] == "place")["q"][-1][:5])
+        m.P(f"칸 바닥 자세 = {os.path.basename(TRAJ)} {slot} place 끝 (보정 모델 계산)")
+    else:
+        rec = json.load(open(REC, encoding="utf-8"))
+        if slot not in rec:
+            sys.exit(f"{REC} 에 {slot} 기록 없음 (있는 칸: {list(rec)})")
+        q0 = list(rec[slot]["q_meas"][:5])
     a = m.Arm()
     q, _ = a.show()
     if q[1] < -1.9:
