@@ -1292,6 +1292,23 @@ private:
     return best;
   }
 
+  // moveTool 과 같은 규칙 (cartesian_step 간격 IK, 경유점 사이 관절 변화 max_waypoint_joint_step 이하) 으로
+  //   from -> to 직선이 풀리는지 (보내지 않고 계산만). 실물은 처짐 · 측정값 seed 로 계획보다 조금 더 튀므로
+  //   (11-22: 계획 0.223 -> 실물 0.234 rad) 상한의 80 % 로 봄
+  bool straightPathOk(const Eigen::Vector3d & from, const Eigen::Vector3d & to, double pitch, std::vector<double> seed) const
+  {
+    const int n = std::max(1, static_cast<int>(std::ceil((to - from).norm() / cartesian_step_)));
+    for (int i = 1; i <= n; ++i) {
+      const auto q = solveArm(from + (to - from) * (static_cast<double>(i) / n), pitch, seed);
+      if (!q) {return false;}
+      for (size_t j = 0; j < 5; ++j) {
+        if (std::abs((*q)[j] - seed[j]) > 0.8 * max_waypoint_joint_step_) {return false;}
+      }
+      seed = *q;
+    }
+    return true;
+  }
+
   // 취소 요청을 받은 작업은 새 명령을 내지 않는다 (마무리는 onTick)
   bool jobCanceling() const
   {
@@ -2102,8 +2119,11 @@ private:
           Eigen::Vector3d(grasp + Eigen::Vector3d::UnitZ() * h - radial * toppick_approach_inward_) :
           Eigen::Vector3d(grasp - ArmIK::approachDirection(yaw, pitch) * approach);
         auto q = solveArm(pre, pitch, *current);
+        // 2026-11-22 실물: J4 한계 2.5 뒤 먼 퍽 (J1 축 0.21 m) 의 0.08 m 접근이 풀리지만 팔 끝 범위 가장자리라
+        //   직선으로 내려가는 첫 경유점에서 관절이 0.23 rad 튐 (moveTool 이 abort) -> 고를 때 직선 경로까지 확인
         if (q && solveArm(grasp, pitch, *q) &&
-          solveArm(grasp + lift_offset_, pitch, *q))
+          solveArm(grasp + lift_offset_, pitch, *q) &&
+          straightPathOk(pre, grasp, pitch, *q))
         {
           q_pre = q;
           pitch_ = pitch;
