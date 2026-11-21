@@ -2,7 +2,7 @@
 # mission_planner/config/amcl.yaml(**삭제됨**)에서 출발해 Isaac 모의 녹화 재생으로 맞춘 값. 그 파일과 다른 점:
 #   robot_model_type OmniMotionModel · alpha5 0.1 — 4 륜 스키드 차체는 회전 중심이 base_link 뒤(모의 x −0.0658 m)라 제자리 회전 때
 #     base_link 가 옆으로 움직이는데, 차동 모델은 이 옆 이동을 표현하지 못해 옆 방향 오차가 커졌다(옴니 모델로 위치 RMSE 약 절반).
-#   update_min_d · update_min_a 0 — 매 스캔 갱신(정밀 정렬 구간에서도 따라오게).
+#   update_min_d 0.02 · update_min_a 0.035 · resample_interval 2 · sigma_hit 0.05 — 2026-11-21 바꿈(아래 '11-21 변경').
 #   laser_likelihood_max_dist 2.0.
 #   scan_topic /scan_merged — 이 패키지의 scan_merge(차체 가림 지운 앞 · 뒤 스캔을 움직임 보정해 합침, frame base_link).
 #   map_topic /map — 실물 bringup · Gazebo 기본은 도면 SDF 지도 mission_planner/maps/map_amcl (0.025 m, #163).
@@ -10,9 +10,12 @@
 #   초기 자세 = 출발 구역 가운데 (0.69365, 0.95, π) (base_link). launch 인자 start_x/y/yaw 로 덮어씀.
 # 2026-11-12 Gazebo (SDF 지도, 12 목표): AMCL 오차 평균 1.6 ~ 1.8 cm · 최대 4.2 ~ 4.3 cm. CPU 는 노트북 한 코어의 약 6 % (scan 노드 · loc_monitor 보다 가벼움).
 # ★ 실물에서 볼 것 (값은 모의 기준):
-#   - sigma_hit 0.03 · alpha* — 모의 잡음 · 미끄럼 기준. 실물 LDS-03 잡음 · 경기장 시공 오차 · 바닥 미끄럼이 더 크면 rosbag 재생으로 다시 맞춤.
-#   - update_min_* 0 — 멈춘 동안에도 매 스캔 다시 뽑음 → 실물 잡음에서 입자가 한 점에 몰리는지 (/particle_cloud) 확인.
-#     몰리면 후보 update_min_d 0.02 · update_min_a 0.035 (Gazebo 에서 정확도 차이 없음 확인, 멈춘 동안 /amcl_pose 를 안 내도 loc_monitor 는 map→odom TF 로 판단, #129).
+#   - alpha* — 모의 미끄럼 기준. 실물 바닥 미끄럼이 더 크면 rosbag 재생으로 다시 맞춤. sigma_hit 0.05 도 실물 rosbag 으로 다시 볼 것.
+#   - 멈춘 동안 /amcl_pose 가 안 나와도 loc_monitor 는 map→odom TF 시각으로 살아 있음을 판단(#129). /particle_cloud 가 한 점에 몰리는지 계속 확인.
+# ★ 11-21 변경 (실물 시연 track.csv 분석): 11-16 멈추기 직전 37 cm 튐, 멈춘 동안 12 cm 흘러감, 11-15 18 cm 스파이크.
+#   원인 추정 = 멈춘 동안에도 매 스캔 갱신 · 매번 다시 뽑기(update_min_* 0 · resample_interval 1) → 입자 다양성 붕괴, sigma_hit 0.03 이 실물 잡음에 너무 뾰족함.
+#   update_min_d 0 → 0.02 · update_min_a 0 → 0.035 (멈추면 갱신 안 함, Gazebo 정확도 차이 없음 확인 #129) · resample_interval 1 → 2 · sigma_hit 0.03 → 0.05.
+#   되돌리기: 예전 값으로 바꾸거나 amcl_params:= 로 다른 파일. 튐 감시 · 보정은 loc_guard(config/loc_guard.yaml, 기본 shadow = 기록만).
 #   - laser_min_range 0.12 · laser_max_range 8.0 ↔ LDS-03 실제 range_min · range_max (/scan_front 에서 읽기).
 amcl:
   ros__parameters:
@@ -29,9 +32,9 @@ amcl:
     max_particles: 3000
     pf_err: 0.02
     pf_z: 0.99
-    resample_interval: 1
-    update_min_d: 0.0
-    update_min_a: 0.0
+    resample_interval: 2       # 11-21: 1 → 2
+    update_min_d: 0.02         # 11-21: 0 → 0.02 m
+    update_min_a: 0.035        # 11-21: 0 → 0.035 rad (2°)
     recovery_alpha_slow: 0.0
     recovery_alpha_fast: 0.0
     alpha1: 0.25
@@ -43,7 +46,7 @@ amcl:
     laser_min_range: 0.12
     laser_max_range: 8.0
     max_beams: 120
-    sigma_hit: 0.03
+    sigma_hit: 0.05            # 11-21: 0.03 → 0.05
     z_hit: 0.85
     z_rand: 0.15
     z_max: 0.0

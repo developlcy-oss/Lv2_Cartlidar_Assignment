@@ -13,9 +13,10 @@
 
 | 파일 | 하는 일 |
 |---|---|
-| `run_demo.sh` | 시연 한 회차: 시연 Nav2 노드 · 규칙 v2 필터를 띄우고 active 확인 → 계획을 따라감 → 기록 → 끝나면 끔 (`real` · `sim`, `RUN_TAG=` 이름표, `NO_RECOVER=1` 되찾기 끔, `SIM_TURN=` 실물형 시뮬) |
+| `run_demo.sh` | 시연 한 회차: 시연 Nav2 노드 · 규칙 v2 필터를 띄우고 active 확인 → 계획을 따라감 → 기록 → 끝나면 끔 (`real` · `sim`, `RUN_TAG=` 이름표, `NO_RECOVER=1` 되찾기 끔, `SIM_TURN=` 실물형 시뮬, `BOX_APPROACH=1\|0\|dry` 상자 앞 다가가기, `DEMO_BAG=0` rosbag 끔) |
 | `demo_follow.py` | 계획의 조각 (전진 · 후진 · 제자리) 을 Nav2 에 차례로 보냄 · 출발 확인 · 경로 이탈 멈춤 (10 cm) · 방향 맞추기 거부 시 건너뛰기 · **되찾기** (조각 실패 → 위치 다시 찾기 → 왔던 길 ≤ 0.30 m → 다시, 최대 2 번) · 기록 (`track_live.csv`) |
 | `box_quiet.py` · `test_box_quiet.py` | 11-20 상자 정지점 0.40 m 안 판정 (demo_follow 가 import — **`demo_follow.py` 와 같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_quiet.py` |
+| `box_face.py` · `test_box_face.py` | 11-21 `/scan_front` 로 상자 앞면 재기 (선분 맞춤 · 길이 205 ± 25 mm, demo_follow 가 import — **같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_face.py` |
 | `v2_filter.py` | Nav2 속도를 규칙 v2 로 자름 (제자리 ≤ 90° 실제 각도 · 이어진 후진 ≤ 0.40 m (실물 0.50) · 반경 ≥ 0.20 · 꺾는 중 모터 상한) |
 | `sim_turn_scale.py` | 시뮬만: 실물처럼 덜 도는 로봇 흉내 (회전 명령을 꺾기 · 제자리 비율로 줄임, `SIM_TURN=0.79,0.70`) |
 | `scan_rotate.py` | LDS-03 두 대 드라이버 (URDF 에 라이다 보정이 없을 때만 180° 돌림, 자동) |
@@ -173,6 +174,7 @@ ros2 launch bringup bringup.launch.py mode:=drive use_hardware:=false use_sensor
 - `mode:=drive` 가 팀 Nav2 · 계획기를 끄고 AMCL 을 켭니다 (예전의 `use_nav2:=false use_planner:=false use_amcl_node:=true` 를 대신함). 아래 "주행 모드 / 미션 모드" 참고.
 - ⚠ **켜질 때 팔이 대기 → 주행 자세로 펴집니다** (J3 → J2 → J4 → J1 → J5). 손을 빼고, 리모컨 1 준비. 계산상 틈이 거의 없는 곳이 있어 지켜봅니다.
 - 10 ~ 30 초 걸립니다.
+- 위치 보호 `loc_guard` 는 이 bringup 인자 `loc_guard:=off|shadow|active` (기본 `shadow`) 로 켜고 끕니다. 자세한 것은 `workspace/ros2_ws/src/localization/README.md` 를 봅니다.
 
 ### 단계 7 — J4: 위치 감시 끄기 · 점검
 
@@ -206,9 +208,12 @@ cd ~/demo_v2 && ./check_jetson.sh
 ./run_demo.sh real slow step init 0-0     # 첫 구간만
 ./run_demo.sh real slow step 1-9          # 나머지, 구간마다 Enter
 ./run_demo.sh real slow step init         # 처음부터 끝까지 구간마다 Enter
+BOX_APPROACH=dry ./run_demo.sh real slow step init 0-0   # 상자 앞 다가가기는 재기만 (안 움직임)
+BOX_APPROACH_AT=box1 ./run_demo.sh real slow step init 0-0   # box1 에서만 다가가기
 ```
 - `run_demo.sh` 가 하는 일: 시연 Nav2 노드 (controller_server · behavior_server) 와 규칙 v2 필터를 띄우고 **active 인지 확인 (아니면 켬)** → `demo_follow.py` 가 계획을 따라감 → 끝나면 모두 끔.
 - `slow` = 전진 0.20 · 후진 0.10 m/s · 제자리 0.4 rad/s (`full` = 0.30 · 0.15 · 0.5). `step` = 구간마다 Enter. `init` = 출발 자세를 AMCL 에 알림. `4-9` = 그 구간만.
+- 환경 변수 `BOX_APPROACH` (기본 `1`) = 상자 정지점에서 앞 끝 ↔ 상자 5 cm 까지 다가감. `0` = 끔 · `dry` = 재고 로그만. `BOX_APPROACH_AT=box1,L2` = 그곳만 (빈 값 = 9 곳 전부). 아래 "상자 앞 다가가기".
 - 시작 때 `✓ map_server active` · `✓ controller_server active` · `✓ behavior_server active` 가 나와야 합니다.
 - **출발 확인:** `지금 위치 … 출발과 x cm · AMCL σ …` → RViz 에서 빨간 점이 벽과 겹치면 `y` + Enter. 출발과 3 cm 넘게 다르면 로봇을 다시 놓습니다.
 - **정지점마다 팔 동작:** `▶ … Enter 출발` 이 나와 있는 동안 팔 동작을 하고 Enter.
@@ -248,8 +253,25 @@ cd ~/demo_v2 && ./check_jetson.sh
 | `Failed to make progress` | E-stop (2 + 3) · 리모컨 방향 버튼 · 필터 잘림 (`nav.log` 의 `v2_filter 잘림 횟수`) |
 | `✗ Sn …: 정지점 어긋남 5 ~ 8 cm` | 실물이 덜 꺾어서 생김. 다음 구간은 그대로 감 (실패 아님으로 봐도 됨) |
 | 제자리 회전에서 멈칫 · 덜 돎 | 벨트 v7 토크 → 리모컨 1 → 기록을 제어 담당에게 |
+| `⚠ 상자 앞 다가가기 안 함: 상자 못 찾음` | 앞 라이다 스캔면이 상자 높이에 안 걸림 → 라이다 높이 (바닥 위 약 60 mm) · URDF `laser_front` z (0.0525) 확인. `ros2 topic echo /scan_front --once` 에 상자 쪽 거리가 나오는지 |
+| `✓ 상자 앞 틈` 이 줄자와 다름 (1 cm 넘게) | `base_link` → `laser_front` TF (x · yaw) 또는 라이다 거리 바이어스 → 아래 "실물 보정" |
+| 다가가다 멈칫 · 덜 감 | v2_filter 의 정지 앞 감속 · 잘림 (`nav.log` 의 `v2_filter 잘림 횟수`) → 기록을 제어 담당에게. 그 자리는 `BOX_APPROACH_AT=` 에서 빼고 진행 |
 
-기록: Jetson `~/demo_v2/runs/<월일_시각>_실물_…/` — `follow.log` (화면) · `nav.log` (Nav2 · 필터) · `track_live.csv` (0.1 s 마다 위치 · 명령, Ctrl+C 로 끊겨도 남음) · `track.csv` · `course_result.json`.
+기록: Jetson `~/demo_v2/runs/<월일_시각>_실물_…/` — `follow.log` (화면) · `nav.log` (Nav2 · 필터) · `track_live.csv` (0.1 s 마다 위치 · 명령, Ctrl+C 로 끊겨도 남음) · `track.csv` · `course_result.json` · `bag/` (rosbag, 아래).
+
+#### rosbag 자동 기록 (11-21 추가)
+
+- `run_demo.sh` 가 실행마다 기록 폴더 안 `bag/` 에 `ros2 bag record` 를 함께 띄웁니다 (로그 `bag.log`). 형식은 mcap (되면 zstd 압축), 안 되면 기본값입니다. 1 GiB 마다 파일을 나눕니다.
+- 토픽: `/amcl_pose` · `/odometry/filtered` · `/scan_merged` · `/scan_front` · `/tf` · `/tf_static` · `/particle_cloud` · `/loc_guard/pose` · `/loc_guard/event` · `/cmd_vel_raw`. 시뮬은 `/odom` · `/scan` · `/clock` 을 더하고 sim time 으로 기록합니다.
+- 끝날 때 (끝 · Ctrl+C) SIGINT 로 닫습니다. 끝에 `rosbag: …/bag (크기)` 가 나오면 된 것입니다. `⚠ rosbag 이 깔끔히 안 닫힘` 이면 `ros2 bag reindex <bag 폴더>` 로 살립니다.
+- 끄기: `DEMO_BAG=0 ./run_demo.sh …`. `/particle_cloud` 만 빼기 (크기가 클 때): `DEMO_BAG_PARTICLES=0`.
+- 노트북으로 가져와 재생:
+```bash
+scp -r <사용자@Jetson>:~/demo_v2/runs/<기록 폴더> 2026-11-12_기준주행/runs/
+ros2 bag info  2026-11-12_기준주행/runs/<기록 폴더>/bag
+ros2 bag play  2026-11-12_기준주행/runs/<기록 폴더>/bag --clock     # RViz 는 use_sim_time:=true
+```
+- 위치가 튈 때 비교할 토픽: `/amcl_pose` (AMCL 그대로) ↔ `/loc_guard/pose` (위치 보호를 거친 값) ↔ `/odometry/filtered` (EKF, 튀지 않는 기준). 튄 순간은 `/loc_guard/event` 와 `/particle_cloud` 퍼짐으로 봅니다.
 
 ### 주행 모드 / 미션 모드
 
@@ -294,6 +316,72 @@ bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
   - 경로 이탈 멈춤 (10 cm)
   - 리모컨
 - 시연 base_bringup 은 `obstacle_lock:=false` 라 **TFmini 비상 정지가 없습니다**. 상자 앞 0.40 m 안에 사람이나 물건이 들어와도 로봇이 멈추지 않으니 리모컨을 손에 들고 지켜봅니다.
+
+#### 상자 앞 다가가기 (11-21 추가, 실물 미시험)
+
+**무엇을 하나** — 상자 구간 (`box1` ~ `box6`, `L1` ~ `L3`, S0 ~ S8) 의 정지점에서 상판 앞 끝 (`base_link` x 0.1328) 과 상자 앞면 사이를 **5 cm** 로 맞춥니다.
+
+1. 마지막 전진 조각을 정지점 **0.30 m** 앞에서 끊습니다 (재는 자리). 마지막이 전진이 아니면 도착한 뒤 최대 **0.35 m** 곧게 후진합니다.
+2. 그 자리에서 원본 `/scan_front` 3 ~ 5 장으로 상자 앞면을 잽니다. 선분을 맞추고, 길이가 205 ± 25 mm 인지 보고, 두 끝점 가운데를 씁니다.
+3. 상자 앞 **0.15 m** 자리로 가면서 옆과 각도를 맞춥니다 (돌기 → 전진 → 앞면 법선으로 돌기).
+4. 다시 잽니다. 마지막은 오도메트리로 곧게 다가가 틈 5 cm 에 섭니다. 속도는 0.05 m/s 이하입니다.
+
+- 마지막을 라이다로 안 보는 까닭: LDS-03 최소 거리가 0.12 m 이고 라이다가 앞 끝과 거의 같은 자리라, 5 cm 에서는 상자가 안 보입니다.
+- `/scan_merged` 를 안 쓰는 까닭: 차체 마스크 (x ≤ 0.285) 가 가까운 상자를 지웁니다.
+- 정지점 어긋남 판정 (5 cm) 은 다가가기 **전** 값으로 합니다.
+
+**켜기 · 끄기** — 기본은 켬입니다.
+
+| 환경 변수 | 값 | `demo_follow.py` 인자 |
+|---|---|---|
+| `BOX_APPROACH` | `1` 켬 (기본) · `0` 끔 · `dry` 재고 로그만 | `--box-approach on\|off\|dry` |
+| `BOX_APPROACH_AT` | `box1,L2` = 그곳만 · 빈 값 = 9 곳 전부 | `--box-approach-at box1,L2` |
+| `BOX_APPROACH_LOOSE` | `1` 느슨한 판정 · `0` 기본 | `--box-loose` |
+| – | 목표 틈 (기본 0.05 m) | `--box-gap 0.05` |
+| (자동) | 회전 · 거리에 쓰는 오도메트리 (실물 `/odometry/filtered` · 시뮬 `/odom`) | `--odom-topic` |
+
+- `BOX_APPROACH_LOOSE=1` 은 실물 dry 로그의 실패 이유에 찍히는 `RMS x mm` 가 늘 7 mm 를 넘을 때 켭니다 (라이다 잡음 약 1 cm). 대신 상자 옆 2 cm 틈에 놓인 퍽은 상자와 구분하지 못합니다.
+- 재는 라이다는 `/scan_front` 고정입니다 (`--box-scan-topic`, 넘기지 않음).
+
+- 기록 폴더 이름 끝에 `_접근끔` (0) · `_접근측정` (dry) 이 붙습니다. `settings.txt` 의 "추가 인자" 에도 적힙니다.
+- step 모드에서는 움직이기 전에 `▶ … Enter 실행 · s 건너뛰기` 를 묻습니다.
+
+**화면에 보이는 것**
+```
+    · 상자 정면 재기: 틈 24.3 cm · 옆 +1.8 cm · 기울기 −2.1° (점 42 개)
+    ✓ 상자 앞 틈 5.2 cm · 옆 +0.3 cm
+```
+- 구간 요약 줄 끝에 ` · 상자 앞 틈 5.2 cm (보정 4.3 cm)` 가 붙습니다. `course_result.json` 의 구간마다 `approach` 에 틈 · 옆 · 기울기를 적습니다.
+
+| `approach` 키 | 뜻 |
+|---|---|
+| `mode` · `target` | on / dry · 목적지 (예 `box1`) |
+| `how` | `끊기` (마지막 전진을 끊음) · `후진` (도착 뒤 후진) |
+| `status` · `why` | `done` · `fallback` (재기 실패 → 기존 동작) · `skip` (step 에서 s) · `dry` · 그 이유 |
+| `pre` | 다가가기 전 자세 (어긋남 판정에 쓰는 값) |
+| `before` · `mid` · `after` | 첫 재기 · 0.15 m 자리에서 다시 재기 · 끝 — 각각 `gap_cm` · `lat_cm` · `yaw_deg` |
+| `plan` · `back_m` | 기동 계획 (돌기 · 전진 · 돌기) · 후진한 거리 [m] |
+
+**안 움직이는 경우** — 아래면 움직이지 않고 `⚠ 상자 앞 다가가기 안 함: <이유> — 계획 정지점 그대로` 한 줄을 남깁니다. 그다음은 기존 동작 (남은 조각 · 정지점 방향 맞추기) 대로 갑니다. 구간 실패가 아닙니다.
+- 상자를 못 찾음 · 앞면 길이가 205 ± 25 mm 밖 · 기울기 25° 넘음 · 옆 6 cm 넘음 · 시간 초과
+
+**남은 위험**
+- 계획 정지점과 실제 상자가 10 cm 넘게 다르면 상자를 못 찾고 기존 동작으로 갑니다.
+- 회전은 오도메트리로 닫습니다. 5 cm 에서는 라이다로 다시 잴 수 없으니 끝 자세는 줄자로 확인합니다.
+
+⚠ **안전**
+- 상자 정지점 0.40 m 안에서는 정지 띠 · HOLD 가 꺼지고 TFmini 비상 정지도 없습니다 (위 "상자 앞에서 정지 띠 · HOLD 끄기"). 다가가는 동안 상자 앞에 손을 넣지 않습니다.
+- 리모컨 담당은 **리모컨 1** 에 손을 얹고 지켜봅니다. 시작 전에 리모컨 전원 · 블루투스 LED 를 확인합니다.
+
+**처음 시험 순서**
+1. 로봇을 출발 자리에 놓고 `BOX_APPROACH=dry ./run_demo.sh real slow step init 0-0`. box1 앞에서 `· 상자 정면 재기` 가 찍히면 로봇을 그대로 둔 채 앞 끝 ↔ 상자 틈 · 옆을 줄자로 재어 비교합니다 (±1 cm 안).
+2. 상자를 치우고 다시 dry → `⚠ … 상자 못 찾음` 이 나오는지 봅니다.
+3. `BOX_APPROACH_AT=box1 ./run_demo.sh real slow step init 0-0` 로 한 곳만 실제로 다가갑니다. 멈춘 뒤 틈을 줄자로 잽니다.
+4. 9 곳 `slow step` → `max step` → `max`.
+
+**실물 보정** — 상자를 앞 라이다 정면 25 ~ 30 cm 에 두고 dry 로 잽니다.
+- 기울기가 0° 에서 벗어나면 `laser_front` yaw, 틈이 줄자와 계속 같은 만큼 다르면 거리 바이어스입니다. 값을 제어 담당에게 알립니다.
+- `ros2 topic echo /scan_front --once | grep range_min` 으로 최소 거리 (0.12 m 쯤) 를 확인합니다.
 
 #### 반경 넓힌 계획 `demo_plan_wide.json` (11-19 추가, 실물 미시험)
 
