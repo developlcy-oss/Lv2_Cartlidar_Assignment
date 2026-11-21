@@ -629,6 +629,8 @@ private:
     rl_start_pose_ = declare_parameter<std::vector<double>>("toppick_rl.start_pose", {0.0, -0.462, 0.771, 0.476, 0.0});
     // 정책을 돌리는 시간 상한 (학습 에피소드 6 s). 넘으면 실패 → mission 이 target_look 부터 다시 (goal timeout 보다 먼저 끝냄)
     rl_max_duration_ = declare_parameter<double>("toppick_rl.max_duration", 12.0);
+    // 2026-11-21 쥔 뒤 집게 고정 (grasp_detector.hpp GripLatch): 쥠이 이만큼 이어지면 정책 집게 출력을 무시하고 닫힘 유지. 0 = 끔
+    rl_grip_latch_time_ = declare_parameter<double>("toppick_rl.grip_latch_time", 0.2);
 
     // 누운 직육면체 세워 놓기 (lie_upright, lieupright.hpp). 값은 Isaac lieupright_env_cfg (WaffleLieUprightB7 = r2g2) 와 같게
     lie_enabled_ = declare_parameter<bool>("lie_upright.enabled", true);
@@ -1016,6 +1018,7 @@ private:
       throw std::invalid_argument("toppick_rl.start_pose must be [joint1..joint5] (model values) or empty");
     }
     requirePositive("toppick_rl.max_duration", rl_max_duration_);
+    requireNonNegative("toppick_rl.grip_latch_time", rl_grip_latch_time_);
     if (target_look_.view_angles.empty() || target_look_.distances.empty()) {
       throw std::invalid_argument("target_look.view_angles_deg and target_look.distances must not be empty");
     }
@@ -2775,6 +2778,7 @@ private:
       return false;
     }
     TopPickRun r;
+    r.latch = GripLatch(rl_grip_latch_time_);
     r.puck = *target;
     r.is_box = rl_default_box_;
     double self_d = rl_self_match_, nb_d = rl_nb_match_;
@@ -2869,7 +2873,15 @@ private:
       const double c = std::clamp(ik_signs_[k] * tgt[k] + ik_offsets_[k], lower_[k], upper_[k]);
       cmd[k] = std::clamp(c, (*skill_last_cmd_)[k] - max_step, (*skill_last_cmd_)[k] + max_step);
     }
-    const double grip = std::clamp(rl_grip_.toRad(a[3] > 0.f ? rl_open_m_ : tcp_active_.closed_m),
+    // 쥔 뒤 집게 고정: 손가락이 쥔 범위 + 막힘 (gripperHolding) 이 grip_latch_time 이어지면 정책 집게 출력 대신 닫힘 유지
+    const bool was_latched = r.latch.latched();
+    const bool latched = r.latch.update(
+      s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && gripperHolding().value_or(false), 1.0 / skill_rate_);
+    if (latched && !was_latched) {
+      RCLCPP_INFO(get_logger(), "toppick_rl: grasp latched (finger %.4f m = %.3f rad) -> gripper held closed", s.finger_m, q[5]);
+    }
+    const bool close = latched || a[3] <= 0.f;
+    const double grip = std::clamp(rl_grip_.toRad(close ? tcp_active_.closed_m : rl_open_m_),
       std::min(gripper_open_, gripper_close_), std::max(gripper_open_, gripper_close_));
     cmd[5] = std::clamp(grip, lower_[5], upper_[5]);
     gripper_cmd_ = cmd[5];
@@ -2888,7 +2900,7 @@ private:
     const double lift = diff_ik_.forward(s.q).tcp.z() - (puck_b.z() + rl_grasp_dz_);
     // 손가락 범위만 보면 정책 닫기 값 (closed_m −0.0075) 자체가 범위 안이라 빈손도 통과 (11-12 실물: 빈손 success) →
     //   위치 쥠 판정 (gripperHolding: 마지막 닫기 명령보다 덜 닫힌 채 막힘) 도 함께 (#201)
-    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && a[3] <= 0.f &&
+    const bool held = s.finger_m > rl_grasp_lo_ && s.finger_m < rl_grasp_hi_ && lift > rl_success_lift_ && close &&
       gripperHolding().value_or(false);
     r.hold = held ? r.hold + 1.0 / skill_rate_ : 0.0;
     if (r.hold >= rl_success_hold_) {
@@ -4477,6 +4489,7 @@ private:
     rclcpp::Time t_prev{0, 0, RCL_ROS_TIME};
     double hold{0.0};                                // 성공 조건 유지 시간 (s)
     rclcpp::Time t_start{0, 0, RCL_ROS_TIME};        // 정책 시작 (시작 자세 도착) 시각
+    GripLatch latch;                                 // 쥔 뒤 집게 고정 (toppick_rl.grip_latch_time)
   };
   std::set<std::string> tcp_skills_;
   struct TcpPolicyCfg   // 정책마다 다른 값 (<이름>.obs_ref_pose · neighbor_absent · start_pose · closed_m)
@@ -4517,6 +4530,7 @@ private:
   bool rl_default_box_{false};
   std::vector<double> rl_start_pose_;
   double rl_max_duration_{12.0};
+  double rl_grip_latch_time_{0.2};
   bool correction_enabled_{true}, correction_required_{true};
   int correction_max_iter_{5};
   double offset_gain_{1.0}, lateral_tol_{0.005}, range_tol_{0.01}, target_range_{0.13};

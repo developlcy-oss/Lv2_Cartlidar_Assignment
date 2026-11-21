@@ -68,3 +68,22 @@ TEST(GraspDetector, ShortGlitchDoesNotFlip)
   h.reset();
   EXPECT_FALSE(h.grasped());
 }
+
+TEST(GraspDetector, GripLatchHoldsAfterContinuousGrasp)
+{
+  control::GripLatch l(0.2);
+  const double dt = 1.0 / 30.0;
+  for (int k = 0; k < 5; ++k) {EXPECT_FALSE(l.update(true, dt));}   // 0.167 s
+  EXPECT_FALSE(l.update(false, dt));                                // 끊기면 다시 0 부터
+  for (int k = 0; k < 5; ++k) {EXPECT_FALSE(l.update(true, dt));}
+  EXPECT_TRUE(l.update(true, dt));                                  // 6 번 연속 = 0.2 s
+  EXPECT_TRUE(l.update(false, dt));                                 // 고정 뒤에는 벌림 쪽 측정이 와도 유지
+  l.reset();
+  EXPECT_FALSE(l.latched());
+}
+
+TEST(GraspDetector, GripLatchOffWhenZero)
+{
+  control::GripLatch l(0.0);
+  for (int k = 0; k < 100; ++k) {EXPECT_FALSE(l.update(true, 0.1));}
+}
