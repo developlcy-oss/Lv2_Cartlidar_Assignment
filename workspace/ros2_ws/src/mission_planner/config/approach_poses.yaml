@@ -14,12 +14,12 @@ B1:S:
   - 1.5708
   stage:
   - 1.468
-  - 0.3147
+  - 0.3747
   - 1.5708
-  standoff: 0.4
+  standoff: 0.34
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.13
   stage_rotate: true
   box: 1
   side: S
@@ -46,7 +46,7 @@ B1:S:
 B1:N:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 1.468
   - 1.3125
@@ -59,7 +59,7 @@ B1:N:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 1
   side: N
   inline: false
@@ -81,6 +81,84 @@ B1:N:
   turn_range_deg:
   - 0.0
   - 0.0
+B1:W:
+  kind: box
+  ok: false
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
+  final:
+  - 1.1055
+  - 0.95
+  - -0.0
+  stage:
+  - 0.7827
+  - 0.95
+  - -0.0
+  standoff: 0.45
+  alt: true
+  gap: 0.1272
+  final_clearance: 0.0
+  stage_clearance: 0.165
+  stage_rotate: false
+  box: 1
+  side: W
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: 0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: 0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - 0.0
+  - 0.0
+B1:E:
+  kind: box
+  ok: true
+  note: ''
+  final:
+  - 1.8305
+  - 0.95
+  - -3.1416
+  stage:
+  - 2.1533
+  - 0.95
+  - -3.1416
+  standoff: 0.45
+  alt: true
+  gap: 0.1272
+  final_clearance: 0.125
+  stage_clearance: 0.165
+  stage_rotate: true
+  box: 1
+  side: E
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: -0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: -0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - -45.0
+  - 45.0
 B2:S:
   kind: box
   ok: true
@@ -154,6 +232,80 @@ B2:N:
   turn_range_deg:
   - 0.0
   - 0.0
+B2:W:
+  kind: box
+  ok: false
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
+  final:
+  - 3.3075
+  - 3.152
+  - -0.0
+  stage:
+  - 2.9847
+  - 3.152
+  - -0.0
+  standoff: 0.45
+  alt: true
+  gap: 0.1272
+  final_clearance: 0.0
+  stage_clearance: 0.165
+  stage_rotate: false
+  box: 2
+  side: W
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: 0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: 0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - 0.0
+  - 0.0
+B2:E:
+  kind: box
+  ok: false
+  note: stage 외곽이 막힘 (standoff 를 줄여도)
+  final:
+  - 4.0325
+  - 3.152
+  - -3.1416
+  stage:
+  - 4.2053
+  - 3.152
+  - -3.1416
+  standoff: 0.3
+  alt: true
+  box: 2
+  side: E
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: -0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: -0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - -45.0
+  - 45.0
 B3:S:
   kind: box
   ok: true
@@ -203,12 +355,12 @@ B3:N:
   - -1.5708
   stage:
   - 2.936
-  - 5.9893
+  - 6.0393
   - -1.5708
-  standoff: 0.4
+  standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.135
   stage_rotate: true
   box: 3
   side: N
@@ -232,6 +384,76 @@ B3:N:
   - -45.0
   - 45.0
   turn_clearance: 0.08
+B3:W:
+  kind: box
+  ok: false
+  note: stage 외곽이 막힘 (standoff 를 줄여도)
+  final:
+  - 2.5735
+  - 5.354
+  - -0.0
+  stage:
+  - 2.4007
+  - 5.354
+  - -0.0
+  standoff: 0.3
+  alt: true
+  box: 3
+  side: W
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: 0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: 0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - 0.0
+  - 0.0
+B3:E:
+  kind: box
+  ok: false
+  note: stage 외곽이 막힘 (standoff 를 줄여도)
+  final:
+  - 3.2985
+  - 5.354
+  - -3.1416
+  stage:
+  - 3.4713
+  - 5.354
+  - -3.1416
+  standoff: 0.3
+  alt: true
+  box: 3
+  side: E
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: -0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: -0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B4:S:
   kind: box
   ok: true
@@ -281,12 +503,12 @@ B4:N:
   - -1.5708
   stage:
   - 0.734
-  - 5.9893
+  - 6.0393
   - -1.5708
-  standoff: 0.4
+  standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.135
   stage_rotate: true
   box: 4
   side: N
@@ -310,10 +532,84 @@ B4:N:
   - -45.0
   - 45.0
   turn_clearance: 0.08
+B4:W:
+  kind: box
+  ok: false
+  note: stage 외곽이 막힘 (standoff 를 줄여도)
+  final:
+  - 0.3715
+  - 5.354
+  - -0.0
+  stage:
+  - 0.1987
+  - 5.354
+  - -0.0
+  standoff: 0.3
+  alt: true
+  box: 4
+  side: W
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: 0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: 0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - -45.0
+  - 45.0
+B4:E:
+  kind: box
+  ok: false
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
+  final:
+  - 1.0965
+  - 5.354
+  - -3.1416
+  stage:
+  - 1.4193
+  - 5.354
+  - -3.1416
+  standoff: 0.45
+  alt: true
+  gap: 0.1272
+  final_clearance: 0.0
+  stage_clearance: 0.165
+  stage_rotate: false
+  box: 4
+  side: E
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: -0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: -0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B5:S:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 2.202
   - 4.9915
@@ -326,7 +622,7 @@ B5:S:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 5
   side: S
   inline: false
@@ -358,12 +654,12 @@ B5:N:
   - -1.5708
   stage:
   - 2.202
-  - 5.9893
+  - 6.0393
   - -1.5708
-  standoff: 0.4
+  standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.135
   stage_rotate: true
   box: 5
   side: N
@@ -387,6 +683,80 @@ B5:N:
   - -45.0
   - 45.0
   turn_clearance: 0.08
+B5:W:
+  kind: box
+  ok: true
+  note: ''
+  final:
+  - 1.8395
+  - 5.354
+  - -0.0
+  stage:
+  - 1.5167
+  - 5.354
+  - -0.0
+  standoff: 0.45
+  alt: true
+  gap: 0.1272
+  final_clearance: 0.125
+  stage_clearance: 0.165
+  stage_rotate: true
+  box: 5
+  side: W
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: 0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: 0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - -45.0
+  - 45.0
+B5:E:
+  kind: box
+  ok: false
+  note: stage 외곽이 막힘 (standoff 를 줄여도)
+  final:
+  - 2.5645
+  - 5.354
+  - -3.1416
+  stage:
+  - 2.7373
+  - 5.354
+  - -3.1416
+  standoff: 0.3
+  alt: true
+  box: 5
+  side: E
+  inline: true
+  geom:
+    j1_x: 0.096
+    center_x: -0.04035
+    box_x: 0.3625
+  pucks:
+    -1:
+      dist: 0.3065
+      fwd: 0.3065
+      lat: -0.0
+      turn_deg: 0.0
+    1:
+      dist: 0.2265
+      fwd: 0.2265
+      lat: -0.0
+      turn_deg: 0.0
+  turn_range_deg:
+  - 0.0
+  - 0.0
 B6:S:
   kind: box
   ok: false
@@ -424,7 +794,7 @@ B6:S:
 B6:N:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 3.67
   - 4.2485
@@ -437,7 +807,7 @@ B6:N:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 6
   side: N
   inline: false

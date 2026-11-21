@@ -49,6 +49,16 @@ class World:
         for a in self.approaches.values():
             if a.kind == "box" and a.ok:
                 (self.alt_opts if a.extra.get("alt") else self.box_opts).setdefault(a.extra["box"], []).append(a.key)
+        # 제자리 회전이 되는 접근 먼저 (2026-11-20 검토 B 승인): 박스마다 box_opts 안 stage_rotate=True 만 남기고,
+        #   하나도 없으면 alt_opts 의 True 를 box_opts 로 올림 (둘 다 없으면 그대로). ok 는 건드리지 않음 (ok = 집기 가능 여부)
+        for b in sorted(set(self.box_opts) | set(self.alt_opts)):
+            rot = [k for k in self.box_opts.get(b, []) if self.approaches[k].extra.get("stage_rotate")]
+            alt_rot = [k for k in self.alt_opts.get(b, []) if self.approaches[k].extra.get("stage_rotate")]
+            if rot:
+                self.box_opts[b] = rot
+            elif alt_rot:
+                self.box_opts[b] = alt_rot
+                self.alt_opts[b] = [k for k in self.alt_opts[b] if k not in alt_rot]
         missing = [b for b in range(1, 7) if b not in self.box_opts]
         if missing:
             raise MissionError(f"접근 자세가 없는 박스 {missing}")

@@ -156,7 +156,9 @@ def generate_launch_description():
                 raise RuntimeError('use_survey:=false 면 pucks_file:=<미리 만든 등록표.yaml> 을 꼭 줄 것 '
                                    '(형식 mission_planner/config/problem_q1_example.yaml)')
             mission_params += [PathJoinSubstitution([mis, 'config', 'mission_plan.yaml']),
-                               {'survey.pucks_out': pucks, 'log_dir': log_dir, 'survey.enabled': survey}]
+                               {'survey.pucks_out': pucks, 'log_dir': log_dir, 'survey.enabled': survey,
+                                # 출발 상자 재기 (#226): 앞 D435 로 잰 상자로 집기 줄을 바꿈. skill_enabled (ONNX) 와 같이 켤 것 (2026-11-20)
+                                'start_box.enabled': LaunchConfiguration('start_box').perform(context).lower() == 'true'}]
         else:                  # 옛 태그 미션표 (태그 → 단계 · 위치표). plan 모드는 쓰지 않음
             mission_params.append(PathJoinSubstitution([mis, 'config', 'mission_table.yaml']))
         # 시작 전 준비 확인 (R3): 띄운 것만 확인 목록에 넣음 (빈 목록은 넘기지 않음 — 빈 배열은 타입을 몰라 파라미터 오류)
@@ -269,6 +271,9 @@ def generate_launch_description():
         DeclareLaunchArgument('use_nav2', default_value='true',
                               description='navigation.launch.py (Nav2, use_localization:=false 로). 위치 추정은 use_localization 하나. '
                                           '기본 true = 경기 (2026-11-14, 이전 false)'),
+        DeclareLaunchArgument('start_box', default_value='false',
+                              description='plan 모드 출발 상자 재기 (mission start_box.enabled, #226). true 면 skill_enabled:=true 도 (ONNX 빌드). '
+                                          '2026-11-20: 실물 정확도 (콘솔 모드 5) 를 본 뒤 켬'),
         DeclareLaunchArgument('use_survey', default_value='true',
                               description='plan 모드 퍽 측량 (mission survey.enabled). false = pucks_file 의 미리 만든 등록표로 계획 '
                                           '(측량 자세 #154 를 정하기 전 실물 단계 시험). false 면 pucks_file 필수'),
