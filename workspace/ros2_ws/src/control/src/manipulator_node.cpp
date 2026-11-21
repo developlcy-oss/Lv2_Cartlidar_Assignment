@@ -307,7 +307,7 @@ private:
     joint_names_ = declare_parameter<std::vector<std::string>>("arm.joint_names", {"joint1", "joint2", "joint3", "joint4", "joint5", "gripper_roll"});
     // 관절 한계 = URDF (opencr_hardware/urdf/robot.urdf.xacro) = 펌웨어 config.h ARM_MIN/MAX_RAD (#83). 6 번째 = 그리퍼 개폐
     lower_ = declare_parameter<std::vector<double>>("arm.lower_limits",{-3.14159, -2.14, -1.6, -1.92, -2.8, -0.7946});
-    upper_ = declare_parameter<std::vector<double>>("arm.upper_limits",{3.14159, 1.6, 1.6, 2.5, 2.8, 0.9541});
+    upper_ = declare_parameter<std::vector<double>>("arm.upper_limits",{3.14159, 1.6, 1.6, 2.21, 2.8, 0.9541});
     // 팔 관절 속도 기준 [rad/s] (2026-11-14): 이름 자세 · IK 이동 · 놓기 접근 · 팔레트 칸 궤적 · 팔레트 진입 · 켜질 때 정리가 모두 이 값.
     //   시험 도구 (tools/arm_bench/real: meas_session · slot_teach · arm_free · arm_stow) 도 manipulator.yaml 의 이 값을 읽음
     max_joint_vel_ = declare_parameter<double>("arm.max_joint_velocity", 0.8);
