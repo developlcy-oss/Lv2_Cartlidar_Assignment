@@ -6,6 +6,7 @@
 
     python3 ~/vertical_lift_check.py            1_3 (기록된 칸)
     python3 ~/vertical_lift_check.py 1_3 48     48 mm 까지 (기본 42)
+    python3 ~/vertical_lift_check.py 1_3 --model --adjust   바닥 자세에서 퍽 정가운데까지 조금씩 옮기고 ok -> 손끝 차이 mm 기록
     python3 ~/vertical_lift_check.py 1_3 --model   손 맞춤 기록 대신 수직 궤적 파일 (관절 영점 보정 모델, #355) 의 칸 바닥 자세에서
     (2026-11-22 실물: 11-21 1_3 수직 손 맞춤 자세는 1_3 이 아니라 1_3 과 관절 1 사이 -> 그 기록은 못 씀)
 
@@ -57,6 +58,25 @@ def main():
             sys.exit("맞춘 자세 60 mm 위를 못 풂")
         a.move(above, OPEN, label=f"{slot} 맞춘 자세 60 mm 위 (집게 벌림)")
         a.move(q0, OPEN, label=f"{slot} 맞춘 자세 (퍽 쥐는 자리)")
+        if "--adjust" in sys.argv:   # 2026-11-22: 눈 대신 숫자로 — 퍽 정가운데까지 조금씩 옮기고 ok -> 손끝 차이 (mm) 기록
+            m.P("  퍽이 두 손가락 정가운데 · 손가락 가운데가 퍽 윗면보다 20 mm 아래가 되게 '멀리 2' · '왼 1' · '아래 2' 등으로 맞추고 ok")
+            qm = m.jog(a, q0, f"{slot} 바닥")
+            if qm is not None:
+                p0, _ = m.fk(list(q0) + [0.0] * (5 - len(q0)))
+                p1, _ = m.fk(list(qm) + [0.0] * (5 - len(qm)))
+                d = [(b - c) * 1000 for b, c in zip(p1, p0)]
+                yaw = q0[0]
+                rad = d[0] * math.cos(yaw) + d[1] * math.sin(yaw)
+                tan = -d[0] * math.sin(yaw) + d[1] * math.cos(yaw)
+                out = os.path.expanduser("~/실측/vertical_adjust.json")
+                try:
+                    rec_a = json.load(open(out, encoding="utf-8"))
+                except (OSError, ValueError):
+                    rec_a = {}
+                rec_a[slot] = {"q_model": q0, "q_meas": qm, "d_mm_base": d, "radial_mm": rad, "tangential_mm": tan, "z_mm": d[2]}
+                json.dump(rec_a, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+                m.P(f"[기록] {slot} 손끝 차이: 바깥 (J1 반대) {rad:+.1f} mm · 옆 (J1 기준 반시계 +) {tan:+.1f} mm · 위 {d[2]:+.1f} mm -> {out}")
+                q0 = list(qm)
         if m.ask("여기서 퍽을 쥘까? (y = 쥐고 들어 올리며 잼 / n = 빈손으로 잼)") == "y":
             a.move(a.cmd, CLOSE, confirm=False, T=1.5, label="쥐기")
         rows = []
