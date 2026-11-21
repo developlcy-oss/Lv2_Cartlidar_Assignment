@@ -1292,6 +1292,23 @@ private:
     return best;
   }
 
+  // moveTool 과 같은 규칙 (cartesian_step 간격 IK, 경유점 사이 관절 변화 max_waypoint_joint_step 이하) 으로
+  //   from -> to 직선이 풀리는지 (보내지 않고 계산만). 실물은 처짐 · 측정값 seed 로 계획보다 조금 더 튀므로
+  //   (11-22: 계획 0.223 -> 실물 0.234 rad) 상한의 80 % 로 봄
+  bool straightPathOk(const Eigen::Vector3d & from, const Eigen::Vector3d & to, double pitch, std::vector<double> seed) const
+  {
+    const int n = std::max(1, static_cast<int>(std::ceil((to - from).norm() / cartesian_step_)));
+    for (int i = 1; i <= n; ++i) {
+      const auto q = solveArm(from + (to - from) * (static_cast<double>(i) / n), pitch, seed);
+      if (!q) {return false;}
+      for (size_t j = 0; j < 5; ++j) {
+        if (std::abs((*q)[j] - seed[j]) > 0.8 * max_waypoint_joint_step_) {return false;}
+      }
+      seed = *q;
+    }
+    return true;
+  }
+
   // 취소 요청을 받은 작업은 새 명령을 내지 않는다 (마무리는 onTick)
   bool jobCanceling() const
   {
@@ -2102,8 +2119,11 @@ private:
           Eigen::Vector3d(grasp + Eigen::Vector3d::UnitZ() * h - radial * toppick_approach_inward_) :
           Eigen::Vector3d(grasp - ArmIK::approachDirection(yaw, pitch) * approach);
         auto q = solveArm(pre, pitch, *current);
+        // 2026-11-22 실물: J4 한계 2.5 뒤 먼 퍽 (J1 축 0.21 m) 의 0.08 m 접근이 풀리지만 팔 끝 범위 가장자리라
+        //   직선으로 내려가는 첫 경유점에서 관절이 0.23 rad 튐 (moveTool 이 abort) -> 고를 때 직선 경로까지 확인
         if (q && solveArm(grasp, pitch, *q) &&
-          solveArm(grasp + lift_offset_, pitch, *q))
+          solveArm(grasp + lift_offset_, pitch, *q) &&
+          straightPathOk(pre, grasp, pitch, *q))
         {
           q_pre = q;
           pitch_ = pitch;
@@ -4278,6 +4298,7 @@ private:
         }
         step_ = PickStep::TARGET_LOOK_WAIT;
         wait_since_ = now();
+        target_look_diag_.clear();
       });
   }
 
@@ -4294,6 +4315,16 @@ private:
       const rclcpp::Time since = std::max(wait_since_ + rclcpp::Duration::from_seconds(target_look_settle_),
         t - rclcpp::Duration::from_seconds(stale_timeout_));
       if (last_pucks_ && measuredAfter(last_pucks_->header.stamp, since)) {pucks = last_pucks_;}
+      // 2026-11-22 실물: 인식은 예상 자리 1.3 cm 안 퍽을 15 Hz 로 내는데 실패 -> 실패 메시지에 마지막으로 본 상태를 남김
+      if (!pucks) {
+        char d[160];
+        std::snprintf(d, sizeof(d), "no fresh /perception/pucks (last %s)", last_pucks_ ?
+          (std::to_string((t - rclcpp::Time(last_pucks_->header.stamp, RCL_ROS_TIME)).seconds()).substr(0, 6) + " s old").c_str() :
+          "never received");
+        target_look_diag_ = d;
+      } else if (pucks->pucks.empty()) {
+        target_look_diag_ = "fresh /perception/pucks but empty";
+      }
     }
     if (pucks && !pucks->pucks.empty()) {
       // 촬영 시각의 퍽 frame → 지금 팔 기준 · fixed_frame (측정 시각 TF 가 아직 없으면 최신)
@@ -4318,6 +4349,13 @@ private:
           geometry_msgs::msg::Pose a;
           tf2::doTransform(pk.pose, a, to_arm);
           const double d = std::hypot(a.position.x - target_look_expected_.x(), a.position.y - target_look_expected_.y());
+          {
+            char dg[200];
+            std::snprintf(dg, sizeof(dg), "seen tag %d camera %d at (%.3f, %.3f) in %s (from %s), %.3f m from expected%s",
+              pk.tag_id, pk.camera, a.position.x, a.position.y, base_frame_.c_str(), pucks->header.frame_id.c_str(), d,
+              (!any_camera && pk.camera != Puck::CAMERA_ARM) ? " [not arm camera, waiting arm_wait]" : "");
+            target_look_diag_ = dg;
+          }
           const bool better = !best || (pk.camera == Puck::CAMERA_ARM && best->camera != Puck::CAMERA_ARM) ||
             ((pk.camera == Puck::CAMERA_ARM) == (best->camera == Puck::CAMERA_ARM) && d < best_d);
           if (d <= target_look_match_ && better) {
@@ -4359,12 +4397,14 @@ private:
         }
       } catch (const tf2::TransformException & e) {
         RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 1000, "target_look: TF %s", e.what());
+        target_look_diag_ = std::string("TF ") + e.what();
       }
     }
     if (waited > target_look_settle_ + target_look_timeout_) {
-      char buf[200];
-      std::snprintf(buf, sizeof(buf), "target_look: no puck within %.3f m of expected (%.3f, %.3f) in %s for %.1f s",
-        target_look_match_, target_look_expected_.x(), target_look_expected_.y(), base_frame_.c_str(), target_look_timeout_);
+      char buf[480];
+      std::snprintf(buf, sizeof(buf), "target_look: no puck within %.3f m of expected (%.3f, %.3f) in %s for %.1f s | last: %s",
+        target_look_match_, target_look_expected_.x(), target_look_expected_.y(), base_frame_.c_str(), target_look_timeout_,
+        target_look_diag_.empty() ? "-" : target_look_diag_.c_str());
       finishSkill(false, buf);
     }
   }
@@ -4418,6 +4458,7 @@ private:
   Eigen::Vector3d lift_offset_{0.0, 0.0, 0.05};   // 이번 집기의 들기 변위 (beginPick 에서 정함)
   TargetLookParams target_look_;
   std::map<std::string, TargetLookParams> look_params_;   // box_look · barcode_look (#65)
+  std::string target_look_diag_;   // 실패 메시지용: 마지막 틱에 본 퍽 · 이유 (2026-11-22)
   double target_look_settle_{0.3}, target_look_arm_wait_{1.0}, target_look_timeout_{3.0}, target_look_match_{0.04};
   bool target_look_box_z_{true};
   double target_look_box_top_{0.07}, target_look_standing_dz_{0.030}, target_look_lying_dz_{0.015}, target_look_box_z_tol_{0.04};
