@@ -48,12 +48,13 @@ ZH = 0.230  # [m] 이동 높이 (퍽 바닥, base_link). 칸 퍽 윗면 최대 0
 STEP = 0.005
 STEP_DOWN = 0.002
 ENTER_GAP = 0.006  # [m] 수직 판: 집게를 다 세우는 높이 = 칸 벽 윗면 + 이만큼 (퍽 바닥)
+JOFF = np.zeros(5)  # 파일 관절값 = 모델 + JOFF (--joint_offsets). 검사표 FK 는 빼고 계산
 PUCK_AXIS_D = None  # 수직 판 (--puck_axis): 퍽 바닥 = TCP + 집게 축 x 이 값. None = 퍽 세운 채 (45° 판)
 
 
 def bottom_path(q):
     """관절 -> 쥔 퍽 바닥 가운데 (base_link). 45° 집게: TCP = 퍽 바닥 + (GRASP_DZ + PUCK_H / 2) 수직 위."""
-    p, R = _ARM.tcp(np.asarray(q, dtype=float))
+    p, R = _ARM.tcp(np.asarray(q, dtype=float) - JOFF)
     if PUCK_AXIS_D is not None:
         return p + R[:, 0] * PUCK_AXIS_D, R
     return p - np.array([0.0, 0.0, PT.GRASP_DZ + PT.PUCK_H / 2]), R
@@ -105,12 +106,16 @@ def main():
     ap.add_argument("--hand_dz", type=float, default=None, help="[m] --puck_axis 일 때 TCP = 퍽 중심 + 집게 축 따라 이만큼 (기본 PT.GRASP_DZ)")
     ap.add_argument("--taught", default=None, help="칸 손 맞춤 기록 (pallet_slot_teach.json): 칸 목표 = 맞춘 관절의 모델 FK 퍽 바닥")
     ap.add_argument("--enter_tilt_deg", type=float, default=None, help="[°] 칸 입구부터 바닥까지 집게 기울기 (없으면 --tilt_deg 그대로, 높이에 따라 바꾸지 않음)")
+    ap.add_argument("--joint_offsets", default=None,
+                    help="관절 영점 보정 'j1,j2,j3,j4,j5' [rad]: 파일 관절값 = 모델 + 이 값 (노드 pallet.apply_joint_offsets false 그대로 명령). "
+                         "2026-11-22: 11-14 45° 손 맞춤 10 칸으로 맞춘 값 J2 −29.04° · J4 +22.89° (오차 50 -> 3 mm)")
     ap.add_argument("--vertical", action="store_true", help="수직 집기 판 기본값 묶음 (위 설명)")
     a = ap.parse_args()
     if a.vertical:
         a.puck_axis = True
         a.hand_dz = 0.010 if a.hand_dz is None else a.hand_dz
         a.enter_tilt_deg = 5.0 if a.enter_tilt_deg is None else a.enter_tilt_deg
+        a.joint_offsets = a.joint_offsets or "0,-0.50685,-0.00192,0.39951,0"
         if a.out == OUT:
             a.out = os.path.join(HERE, "pallet_place_traj_vertical.json")
         if a.control == CONTROL:
@@ -121,10 +126,14 @@ def main():
     src = json.load(open(a.src, encoding="utf-8"))
     arm = _ARM
     j1 = arm.j1
-    global PUCK_AXIS_D
+    global PUCK_AXIS_D, JOFF
     d_model = PT.GRASP_DZ + PT.PUCK_H / 2   # ik_down 이 퍽 바닥에서 수직 위로 더하는 TCP 높이
     d_axis = (PT.GRASP_DZ if a.hand_dz is None else a.hand_dz) + PT.PUCK_H / 2
     PUCK_AXIS_D = d_axis if a.puck_axis else None
+    joff = np.array([float(v) for v in a.joint_offsets.split(",")]) if a.joint_offsets else np.zeros(5)
+    # 모델 관절 한계는 명령 (= 모델 + 보정) 기준으로 지켜야 함 -> 모델 쪽 한계를 보정만큼 옮김
+    arm.lo, arm.hi = arm.lo - joff, arm.hi - joff
+    JOFF = joff
     taught = json.load(open(a.taught, encoding="utf-8"))["slots"] if a.taught else {}
 
     def at(r, yaw, z):
@@ -189,19 +198,19 @@ def main():
         segs = []
 
         def seg(name, grip, sol):
-            segs.append(dict(name=name, gripper=grip, q=[[round(float(v), 5) for v in x[0]] for x in sol],
+            segs.append(dict(name=name, gripper=grip, q=[[round(float(v + o), 5) for v, o in zip(x[0], joff)] for x in sol],
                              max_err_mm=round(max(x[1] for x in sol) * 1000, 2), max_tilt_deg=round(math.degrees(max(x[2] for x in sol)), 2)))
 
         rot = [([th, *q_front[1:4], 0.0], 0.0, 0.0) for th in PT.lin(0.0, yaw, 0.05)]
         seg("rotate", "hold", rot)
         seg("carry", "hold", ([(q_piv, 0.0, 0.0)] if np.abs(np.array(carry[0][0]) - q_piv).max() > 0.02 else []) + carry)
         seg("place", "hold", down)
-        segs.append(dict(name="release", gripper="open", q=[[round(float(v), 5) for v in q_pl]], max_err_mm=0.0, max_tilt_deg=0.0))
+        segs.append(dict(name="release", gripper="open", q=[[round(float(v + o), 5) for v, o in zip(q_pl, joff)]], max_err_mm=0.0, max_tilt_deg=0.0))
         seg("retract", "open", down[::-1][1:])
         seg("return", "open", carry[::-1][1:] + [(q_piv, 0.0, 0.0)])
         seg("rotate_back", "open", rot[::-1][1:])
         allq = np.array([x for sg in segs for x in sg["q"]])
-        margin = float(min((allq - arm.lo).min(), (arm.hi - allq).min()))
+        margin = float(min((allq - (arm.lo + joff)).min(), ((arm.hi + joff) - allq).min()))
         em = max(sg["max_err_mm"] for sg in segs)
         tm = max(sg["max_tilt_deg"] for sg in segs)
         worst["err"], worst["tilt"], worst["margin"] = max(worst["err"], em), max(worst["tilt"], tm), min(worst["margin"], margin)
@@ -210,7 +219,7 @@ def main():
         print(f"{s['row']}열 {s['index']} 반경 {r * 1000:5.1f} mm J1 {math.degrees(yaw):+7.1f}° | 경유점 rotate {len(rot)} carry {len(segs[1]['q'])} place {len(down)}"
               f" | 오차 최대 {em:.2f} mm 집게 각 오차 최대 {tm:.2f}° | 관절 한계 여유 {margin:+.3f} rad")
         o = {k: v for k, v in s.items() if k not in ("segments", "direct_path")}
-        o.update(tilt_deg=a.tilt_deg, enter_tilt_deg=tilt_in, q_front=[round(float(v), 5) for v in q_front], joint_margin_rad=round(margin, 4), segments=segs, direct_path=True)
+        o.update(tilt_deg=a.tilt_deg, enter_tilt_deg=tilt_in, q_front=[round(float(v + o), 5) for v, o in zip(q_front, joff)], joint_margin_rad=round(margin, 4), segments=segs, direct_path=True)
         out.append(o)
     doc = {k: v for k, v in src.items() if k != "slots"}
     doc["note"] = ((f"2026-11-21 수직 집기 판 (--tilt_deg {a.tilt_deg} --enter_tilt_deg {a.enter_tilt_deg} --puck_axis --hand_dz {a.hand_dz}"
@@ -218,7 +227,7 @@ def main():
                    f"rotate = 퍽 바닥 높이 {a.zh:.3f} · 반경 {PIVOT_R} 에서 J1 만, carry = 같은 높이로 칸 반경까지 직선, place = 칸 축 수직 직선 (2 mm). "
                    "segments 형식은 pallet_traj.py 판과 같음 (gripper hold = 쥔 채, open = 벌림, 경유점 사이는 관절 공간 직선). "
                    "TCP = gripper_roll_link + (0.14, 0, 0) = 퍽 중심 + 0.015, joint5 0, base_link 좌표 [m] · 관절 [rad]. 칸 순서 · 좌표 = pallet_slots.yaml v5.")
-    doc["transit"] = dict(src["transit"], r=PIVOT_R, puck_bottom_z=a.zh, q_front_tilt=[round(float(v), 5) for v in q_front], tilt_deg=a.tilt_deg)
+    doc["transit"] = dict(src["transit"], r=PIVOT_R, puck_bottom_z=a.zh, q_front_tilt=[round(float(v + o), 5) for v, o in zip(q_front, joff)], tilt_deg=a.tilt_deg)
     doc["max_err_mm"], doc["max_tilt_deg"] = round(worst["err"], 3), round(worst["tilt"], 3)
     doc["slots"] = out
     for path in [a.out] + ([a.control] if a.control else []):
