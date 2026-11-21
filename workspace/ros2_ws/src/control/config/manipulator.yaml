@@ -354,6 +354,13 @@ manipulator_node:
       clearance: 0.001           # 놓을 때 퍽 바닥과 윗면 틈 (m). 2026-11-15 5 cm 정지 Isaac 512 대 2 -> 1 mm (차이 작음, 시뮬 판과 같게)
       approach_distance: 0.04    # 놓기 전 집게 축 반대로 (m)
       retreat_distance: 0.04     # 놓은 뒤 빠지기 (m)
+      # 2026-11-21 실물 dice --bench (상자 앞 끝 5 cm): 45° 로 바로 놓으면 집게가 상자를 넘어 퍽이 공중에서 떨어지거나 (먼 칸) 상자를 누름 (가운데 칸)
+      #   -> 놓는 자리보다 press_height 위에서 멈춘 뒤 수직으로 press_speed 로 내려가고, 퍽이 닿으면 (관절이 계획에서 press_contact_error
+      #   넘게 뒤처짐) 그 자리에서 벌림 -> 수직으로 올라 빠짐 (include/control/place_press.hpp). 0 = 예전처럼 바로 놓기
+      press_height: 0.025        # m, 놓는 자리 위 멈춤 높이 (2 ~ 3 cm)
+      press_speed: 0.005         # m/s, 수직으로 눌러 내려가는 속도 (첫 실물 시험이라 느리게, 2.5 cm = 5 s)
+      press_settle: 0.3          # s, 위에서 멈춘 뒤 누르기 전 머묾
+      press_contact_error: 0.03  # rad, 관절 2 ~ 4 가 누르기 시작 때보다 이만큼 더 뒤처진 주기가 3 번 연속이면 닿음 (그동안 처짐 적분은 쉼)
       # 2026-11-11 Isaac 주사위 연속 놓기 2048 대 (IsaacLab .../manipulator/dice_place_check.py): 판 전체 33.6 % -> 90.0 %
       release_position: 0.0798   # rad, 놓을 때 벌림 = pallet.release_position (36.4 mm). 끝까지 (−0.764, 81.6 mm) 면 먼저 놓은 옆 퍽을 밂 (칸 간격 60 mm)
       # 2026-11-11 꺼내기 -> 놓기 연결 (dice_place_check.py --unload): 놓기도 처짐 보정 스트리밍 (sag) 하면 판 전체 2.8 % -> 93.1 % (216 대) · 95.8 % (2048 대).
@@ -361,6 +368,10 @@ manipulator_node:
       sag: true                  # 놓기 (place_*) 도 처짐 보정 스트리밍 (sag.enabled 일 때), 꺼내기 끝 bias 이어 씀
       # 2026-11-15 정지 거리 5 ~ 6 cm (상자 가운데 J1 0.189 m) Isaac 꺼내기 -> 주사위 놓기 512 대, 판정 = 칸 중심 10 mm + 퍽 사이 간격 설계 ±4 mm (균일):
       #   12.7 cm 때 값 (바깥 0 · 0, 옆 1.8) 87.5 % -> 바깥 −0.2 · −0.89, 옆 0 -> 95.7 % -> 꺼낸 칸별 보정 (source_offset_mm) 97.5 % (넘어짐 0, 간격 95 % 2.9 mm)
+      # 2026-11-21 실물 dice --bench: 놓인 퍽이 계획보다 J1 바깥으로 5 ~ 10 cm (집게가 상자를 넘음). 원인 (영점 · 상자 자리 가정) 확인 전이라
+      #   기본값은 그대로 두고 책상 시험에서만 상자 좌표를 당긴다: dice.sh real - <눈> --bench --cell0 "0.2353 0.0 0.0633" (가운데 칸 −5 cm).
+      #   이 값은 켤 때만 읽음 (실행 중 ros2 param set 은 안 먹음)
+      #   (−50 을 기본값에 넣으면 미션 가까운 칸이 J3 한계 0.1 rad 앞 · 손목이 차체 쪽, 0.1465 m 칸은 IK 실패 — 검토 2026-11-21)
       radial_offset_mm: -0.2     # ★ J1 바깥 보정 (가운데 칸 J1 0.2665 m 기준, 실측 뒤 고침)
       radial_offset_slope_mm: -0.89   # ★ 칸 (60 mm) 멀어질 때마다 (5 cm 정지에서 가까운 줄이 J1 쪽으로 2.5 ~ 3.6 mm 덜 감)
       lateral_offset_mm: 0.0     # ★ 놓는 점을 로봇 왼쪽으로. 2026-11-12 1.8 (12.7 cm 정지) -> 5 cm 정지는 0 (1.8 이면 모든 칸 왼 +1.8 mm)

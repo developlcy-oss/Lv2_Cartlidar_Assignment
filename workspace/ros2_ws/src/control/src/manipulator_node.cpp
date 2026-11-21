@@ -95,6 +95,7 @@
 #include "control/arm_ik.hpp"
 #include "control/grasp_detector.hpp"
 #include "control/min_jerk.hpp"
+#include "control/place_press.hpp"
 #include "control/place_teach.hpp"
 #include "control/puck_height.hpp"
 #include "control/sag_comp.hpp"
@@ -492,6 +493,11 @@ private:
     place_clearance_ = declare_parameter<double>("place.clearance", 0.002);
     place_approach_ = declare_parameter<double>("place.approach_distance", 0.04);
     place_retreat_ = declare_parameter<double>("place.retreat_distance", 0.04);
+    // 2026-11-21 실물: 놓는 자리 바로 위에서 멈춘 뒤 수직으로 천천히 눌러 놓기 (place_press.hpp). 0 = 예전처럼 45° 직선으로 바로 놓기
+    place_press_height_ = declare_parameter<double>("place.press_height", 0.0);          // m, 놓는 자리보다 이만큼 위에서 멈춤
+    place_press_speed_ = declare_parameter<double>("place.press_speed", 0.005);          // m/s, 거기서 수직으로 내려가는 속도
+    place_press_settle_ = declare_parameter<double>("place.press_settle", 0.3);          // s, 멈춘 뒤 누르기 전 머묾 (닿음 판정 전 가라앉힘)
+    place_press_contact_ = declare_parameter<double>("place.press_contact_error", 0.03);  // rad, 누르는 중 관절 2 ~ 4 가 시작 때보다 이만큼 더 뒤처지면 (3 주기 연속) 닿음
     // 2026-11-11 Isaac 주사위 연속 놓기 (dice_place_check.py, 2048 대): 끝까지 벌리면 (81.6 mm) 먼저 놓은 옆 퍽을 밀고,
     //   퍽 쥔 팔 처짐으로 J1 쪽으로 3 ~ 10 mm 덜 감 -> 놓을 때 벌림 폭 · J1 바깥 보정 (판 전체 33.6 % -> 90.0 %)
     place_release_ = declare_parameter<double>("place.release_position", gripper_open_);   // rad, 기본 = 끝까지 (이전 동작)
@@ -1046,6 +1052,10 @@ private:
     requireNonNegative("place.clearance", place_clearance_);
     requirePositive("place.approach_distance", place_approach_);
     requirePositive("place.retreat_distance", place_retreat_);
+    requireNonNegative("place.press_height", place_press_height_);
+    requirePositive("place.press_speed", place_press_speed_);
+    requireNonNegative("place.press_settle", place_press_settle_);
+    requirePositive("place.press_contact_error", place_press_contact_);
     requirePositive("arm_base_height", arm_base_height_);
     requireNonNegative("gripper.max_effort", gripper_effort_);
     requirePositive("tf_cache_time", get_parameter("tf_cache_time").as_double());
@@ -3747,6 +3757,8 @@ private:
     tl.moveThrough(qout, out_speed, out_grip, 0.02);
     sag_tl_ = tl;
     sag_int_ = SagIntegrator(sag_ki_, sag_bias_max_);
+    press_t0_.reset();   // 앞 놓기의 누르는 구간이 팔레트 스트림에 남지 않게
+    press_freeze_.reset();
     sag_load_ = load;
     sag_done_msg_ = load ? "loaded" : "unloaded";
     sag_fail_msg_.clear();
@@ -3787,13 +3799,28 @@ private:
       meas[j] = (*cur)[j];
       if (std::abs(p.q[j] - meas[j]) > err) {err = std::abs(p.q[j] - meas[j]); err_j = j;}
     }
+    // 2026-11-21 누르는 구간 (place.press_*): 퍽이 상자에 닿아 팔이 멈추면 (관절 2 ~ 4 가 누르기 시작 때보다 계획에서 더 뒤처짐,
+    //   연속 몇 주기) 더 누르지 않고 그 자리에서 놓음 (빠지는 경유점 중 닿은 높이 아래 점은 버림).
+    //   누르기 시작부터 벌림 · 머묾 끝까지 적분은 쉼 (닿아서 생긴 차이를 처짐으로 쌓으면 더 세게 누름)
+    if (press_t0_ && t >= *press_t0_ && t <= press_t1_ && press_contact_.update(p.q, meas, place_press_contact_)) {
+      const double depth = pressDepth(t, *press_t0_, press_t1_, place_press_height_);
+      RCLCPP_INFO(get_logger(), "place: press contact after %.1f mm of %.0f (joints 2-4 %.3f rad behind) -> release here",
+        depth * 1000.0, place_press_height_ * 1000.0, press_contact_.deviation(p.q, meas));
+      press_t0_.reset();
+      sag_tl_ = releaseFrom(meas, press_hold_, place_release_, gripper_move_time_, pallet_dwell_,
+        trimRetreat(press_after_, place_press_height_ - depth), max_joint_vel_);
+      sag_start_ = t_now;
+      press_freeze_ = {0.0, gripper_move_time_ + pallet_dwell_};
+      return;
+    }
+    const bool freeze = press_freeze_ && t >= press_freeze_->first && t <= press_freeze_->second;
     if (err > sag_max_error_) {
       char buf[160];
       std::snprintf(buf, sizeof(buf), "pallet: joint%zu %.3f rad off plan at %.1f s (blocked?)", err_j + 1, err, t);
       finishSkill(false, buf);
       return;
     }
-    sag_int_.update(p.q, meas, dt);
+    if (!freeze) {sag_int_.update(p.q, meas, dt);}
     // 컨트롤러는 한 점을 horizon 에 걸쳐 따라가므로 horizon 앞의 계획을 낸다 (안 그러면 움직이는 동안 속도 × horizon 만큼
     // 늘 뒤처지고, 적분이 그 뒤처짐까지 처짐으로 쌓아 칸 앞에서 지나침. mock 팔: 0.8 rad/s 에서 bias 0.055 rad)
     const auto ahead = sag_tl_->at(t + sag_horizon_);
@@ -3840,6 +3867,8 @@ private:
       sag_end_plan_ = sag_tl_->points().back().q;   // 다음 놓기 스트림이 이 bias 를 이어 씀
       sag_end_bias_ = b;
       sag_tl_.reset();
+      press_t0_.reset();
+      press_freeze_.reset();
       stream_active_ = false;   // 성공: 마지막 점 (계획 끝 + 처짐 bias) 유지 — 측정 자세로 내리면 bias 만큼 처짐
       finishSkill(true, sag_done_msg_);
     }
@@ -3952,10 +3981,16 @@ private:
     }
     pitch_ = place_pitch_;
     const Eigen::Vector3d dir = ArmIK::approachDirection(std::atan2(tip.y(), tip.x()), pitch_);
-    const Eigen::Vector3d pre = tip - dir * place_approach_;
-    const Eigen::Vector3d back = tip - dir * place_retreat_;
+    // press_height > 0 (처짐 보정 스트리밍일 때만): 접근 · 빠짐을 tip 이 아니라 그 위 above 기준으로 → above 에서 수직으로 눌러 놓음
+    const double press_h = stream ? place_press_height_ : 0.0;
+    if (place_press_height_ > 0.0 && !stream) {
+      RCLCPP_WARN(get_logger(), "place.press_height: needs sag streaming (sag.enabled · place.sag) -> place without press");
+    }
+    const Eigen::Vector3d above = tip + Eigen::Vector3d(0.0, 0.0, press_h);
+    const Eigen::Vector3d pre = above - dir * place_approach_;
+    const Eigen::Vector3d back = above - dir * place_retreat_;
     const auto q_pre = solveArm(pre, pitch_, *current);
-    if (!q_pre || !solveArm(tip, pitch_, *q_pre) || !solveArm(back, pitch_, *q_pre)) {
+    if (!q_pre || !solveArm(tip, pitch_, *q_pre) || !solveArm(above, pitch_, *q_pre) || !solveArm(back, pitch_, *q_pre)) {
       char buf[160];
       std::snprintf(buf, sizeof(buf), "place: IK no solution for cell (%.3f, %.3f, %.3f) in %s, J1 distance %.3f m",
         tip.x(), tip.y(), tip.z(), base_frame_.c_str(), std::hypot(tip.x(), tip.y()));
@@ -3977,7 +4012,7 @@ private:
         finishSkill(false, "place: IK no solution for taught-corrected approach");
         return;
       }
-      runPlaceStream(*current, *q_pre_t, pre, tip, back);
+      runPlaceStream(*current, *q_pre_t, pre, above, tip, back);
       return;
     }
     sendArm(*q_pre, trajDuration(*current, *q_pre, min_duration_),
@@ -4003,9 +4038,11 @@ private:
   //   퍽이 윗면을 누르고 넘어짐 (Isaac dice_place_check.py --unload: 꺼내기 → 놓기 판 전체 2.8 %, 이걸로 --place_sag ki).
   //   꺼내기 스트림이 끝 자세 (계획 + bias) 를 그대로 유지 중이면 그 bias 를 이어 쓰고, 아니면 sag.settle_time 먼저 맞춤.
   //   시간표: pre (max_joint_vel) → tip 직선 (moveTool 규칙) → 벌림 (gripper.move_time) → 머묾 (pallet.place_dwell) → back 직선 → transit
+  //   2026-11-21 above ≠ tip (place.press_height): pre → above 직선 → 머묾 (press_settle) → tip 수직 (press_speed, 닿으면 그 자리에서 놓음,
+  //   palletStreamTick) → 벌림 → 머묾 → above 수직 → back 직선 → transit
   void runPlaceStream(
     const std::vector<double> & current, const std::vector<double> & q_pre,
-    const Eigen::Vector3d & pre, const Eigen::Vector3d & tip, const Eigen::Vector3d & back)
+    const Eigen::Vector3d & pre, const Eigen::Vector3d & above, const Eigen::Vector3d & tip, const Eigen::Vector3d & back)
   {
     auto arm5 = [](const std::vector<double> & q) {Arm5 a{}; for (size_t j = 0; j < 5; ++j) {a[j] = q[j];} return a;};
     const double hold = gripper_close_;
@@ -4028,10 +4065,12 @@ private:
     JointTimeline & tl = *tlo;
     tl.moveThrough({arm5(q_pre)}, max_joint_vel_, hold, min_duration_);
     std::vector<double> seed = q_pre;
-    auto line = [&](const Eigen::Vector3d & a, const Eigen::Vector3d & b, double grip) -> bool {
+    std::vector<TimedWaypoint> after;   // 벌린 뒤 빠지는 경유점 (누르다 닿으면 그 자리에서 이어 씀)
+    auto line = [&](const Eigen::Vector3d & a, const Eigen::Vector3d & b, double grip, double speed,
+        std::vector<TimedWaypoint> * out, bool rise = false) -> bool {
         const double length = (b - a).norm();
         const int n = std::max(1, static_cast<int>(std::ceil(length / cartesian_step_)));
-        const double segment_min_time = (length / n) / cartesian_speed_;
+        const double segment_min_time = (length / n) / speed;
         for (int i = 1; i <= n; ++i) {
           const Eigen::Vector3d p = a + (b - a) * (static_cast<double>(i) / n);
           const auto q = solveArm(placeTeachTarget(p), pitch_, seed);   // 2026-11-17 손 맞춤 보정 (꺼져 있으면 p 그대로)
@@ -4040,21 +4079,52 @@ private:
           for (size_t j = 0; j < 5; ++j) {max_delta = std::max(max_delta, std::abs((*q)[j] - seed[j]));}
           if (max_delta > max_waypoint_joint_step_) {return false;}
           tl.moveTo(arm5(*q), std::max(segment_min_time, max_delta / max_joint_vel_), grip);
+          if (out) {out->push_back({arm5(*q), segment_min_time, rise ? p.z() - tip.z() : -1.0});}
           seed = *q;
         }
         return true;
       };
-    if (!line(pre, tip, hold)) {
+    const bool press = (above - tip).norm() > 1e-6;
+    press_t0_.reset();
+    press_freeze_.reset();
+    press_contact_.reset();
+    if (press) {
+      if (!line(pre, above, hold, cartesian_speed_, nullptr)) {
+        finishSkill(false, "place: IK on straight path to above tip");
+        return;
+      }
+      tl.hold(place_press_settle_, hold);           // 위에서 멈춤 (가라앉힘)
+      press_t0_ = tl.duration();
+      if (!line(above, tip, hold, place_press_speed_, nullptr)) {
+        finishSkill(false, "place: IK on press path down to tip");
+        return;
+      }
+      press_t1_ = tl.duration();
+    } else if (!line(pre, tip, hold, cartesian_speed_, nullptr)) {
       finishSkill(false, "place: IK on straight path to tip");
       return;
     }
     tl.hold(gripper_move_time_, place_release_);   // 벌림
     tl.hold(pallet_dwell_, place_release_);        // 머묾
-    if (!line(tip, back, place_release_)) {
+    if (press) {press_freeze_ = {*press_t0_, tl.duration()};}   // 누르기 시작 ~ 벌림 · 머묾 끝: 적분 쉼
+    if (press && !line(tip, above, place_release_, cartesian_speed_, &after, true)) {   // 수직으로 올라 퍽에서 손가락을 뺌
+      finishSkill(false, "place: IK on straight path up from tip");
+      return;
+    }
+    if (!line(press ? above : tip, back, place_release_, cartesian_speed_, &after)) {
       finishSkill(false, "place: IK on straight path back");
       return;
     }
-    if (transit_tilt_.size() == 5) {tl.moveThrough({arm5(transit_tilt_)}, max_joint_vel_, place_release_, min_duration_);}
+    if (transit_tilt_.size() == 5) {
+      tl.moveThrough({arm5(transit_tilt_)}, max_joint_vel_, place_release_, min_duration_);
+      after.push_back({arm5(transit_tilt_), min_duration_});
+    }
+    press_after_ = after;
+    press_hold_ = hold;
+    if (press) {
+      RCLCPP_INFO(get_logger(), "place: press from %.0f mm above at %.0f mm/s (contact %.3f rad)",
+        place_press_height_ * 1000.0, place_press_speed_ * 1000.0, place_press_contact_);
+    }
     sag_tl_ = tl;
     sag_int_ = integ;
     sag_check_t_.reset();
@@ -4362,6 +4432,13 @@ private:
   std::map<std::string, std::pair<double, double>> place_cells_;      // "L1/-1,0" → (x, y)
   double place_pitch_{-M_PI_4}, place_surface_height_{0.070}, puck_half_height_{0.030}, place_clearance_{0.002};
   double place_approach_{0.04}, place_retreat_{0.04}, arm_base_height_{0.120};
+  double place_press_height_{0.0}, place_press_speed_{0.005}, place_press_settle_{0.3}, place_press_contact_{0.03};
+  std::optional<double> press_t0_;                 // 누르는 구간 시작 시각 (시간표 기준, 없으면 누르지 않음)
+  double press_t1_{0.0};                           // 누르는 구간 끝 (= tip 도착)
+  std::optional<std::pair<double, double>> press_freeze_;   // 처짐 적분을 쉬는 시간표 구간 (누르기 시작 ~ 벌림 · 머묾 끝)
+  PressContact press_contact_;                     // 닿음 판정 (시작 때 값 · 연속 주기)
+  std::vector<TimedWaypoint> press_after_;         // 벌린 뒤 빠지는 경유점 (닿은 자리에서 이어 씀)
+  double press_hold_{0.0};                         // 누르는 동안 그리퍼 값 (쥠)
   double place_release_{0.0}, place_radial_a_{0.0}, place_radial_b_{0.0};
   std::map<std::string, std::pair<double, double>> place_src_off_;   // place.source_offset_mm: 칸 "열_칸" -> (앞, 왼) mm
   // 2026-11-17 상자 놓기 손 맞춤 보정 (place.teach.*)
