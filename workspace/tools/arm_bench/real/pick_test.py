@@ -16,6 +16,11 @@
   칸 위치 = 노드 궤적 (control/config/pallet_place_traj.json, #293 실측 칸 맞춤). 설치본이 실측 (pallet_slot_teach.json) 과 다르면 경고.
   노드가 거부하면 먼저 pose DRIVE (팔이 STOW 면 노드가 폄, 2026-11-18) 뒤, 그래도 거부면 10 s 뒤 다시 (dice.sh 와 같음). 마지막 줄 'RESULT ok|pick_fail|load_fail|no_puck|no_slot <칸>' (load.sh 가 읽음), 종료 코드 0 = 성공.
 
+2026-11-21 (실물: 처음 자세에서 퍽이 화면 밖이면 그대로 no_puck): 처음 자세에서 FIRST_WAIT 초 안에 퍽이 없으면 노드 스킬
+  target_look:base_link:x:y:z 로 찾는 점 (SEARCH, 가까운 줄 -> 먼 줄, 가운데 -> 좌우) 을 차례로 내려다보며 찾고, 찾으면 그 자리에서 이어 감.
+  --no_search  예전처럼 움직이지 않고 기다리기만 · --search "x,y x,y ..."  찾는 점 (base_link m) · --search_z 0.09  내려다볼 높이 (상자 위 퍽 가운데)
+  인식은 READ_TAG (퍽 윗면 tag36h11 0~11, 16 mm) 라 태그 없는 퍽은 움직여도 못 찾음.
+
 기록: ~/실측/pick_<MMDD_HHMMSS>/  arm.mp4 (팔 카메라 10 fps, 640x360) · joints.csv (관절 1~5 도 · 집게 rad) · log.txt
 가져오기 (PC): scp -r cart11@cart11.local:~/실측/pick_* <PC 폴더>/
 """
@@ -53,6 +58,7 @@ def P(s):
 class Recorder:
     def __init__(self, node):
         self.vw, self.n_img, self.pucks = None, 0, []
+        self.lock, self.closed = threading.Lock(), False   # 콜백 스레드의 write 와 끝의 release 가 겹치면 Segmentation fault (2026-11-21)
         self.jf = open(os.path.join(OUT, "joints.csv"), "w", newline="")
         self.jw = csv.writer(self.jf)
         self.jw.writerow(["t"] + [f"{k}_deg" for k in NAMES[:5]] + ["gripper_rad"])
@@ -67,21 +73,26 @@ class Recorder:
         a = np.frombuffer(m.data, np.uint8).reshape(m.height, m.width, -1)
         a = cv2.resize(a, (640, 360))
         cv2.putText(a, f"{time.time() - T0:5.1f}s", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 255), 2)
-        if self.vw is None:
-            self.vw = cv2.VideoWriter(os.path.join(OUT, "arm.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), 10, (640, 360))
-        self.vw.write(a)
+        with self.lock:
+            if self.closed:
+                return
+            if self.vw is None:
+                self.vw = cv2.VideoWriter(os.path.join(OUT, "arm.mp4"), cv2.VideoWriter_fourcc(*"mp4v"), 10, (640, 360))
+            self.vw.write(a)
 
     def on_js(self, m):
-        if "joint1" not in m.name:
+        if "joint1" not in m.name or self.closed:
             return
         d = dict(zip(m.name, m.position))
         self.jw.writerow([f"{time.time() - T0:.3f}"] + [f"{math.degrees(d.get(k, float('nan'))):.2f}" for k in NAMES[:5]]
                          + [f"{d.get('gripper_roll', float('nan')):.3f}"])
 
     def close(self):
-        if self.vw is not None:
-            self.vw.release()
-        self.jf.close()
+        with self.lock:
+            self.closed = True
+            if self.vw is not None:
+                self.vw.release()
+            self.jf.close()
 
 
 def unfold():
@@ -113,6 +124,7 @@ def run(args):
 def parse():
     """--load <열> <칸> | --load auto · --occupied · --removed · --recheck · 나머지 = 메모."""
     global OCC, REMOVED
+    global SEARCH, SEARCH_Z
     av, load, recheck, memo = sys.argv[1:], None, False, []
     i = 0
     while i < len(av):
@@ -129,6 +141,15 @@ def parse():
         elif av[i] == "--recheck":
             recheck = True
             i += 1
+        elif av[i] == "--no_search":
+            SEARCH = []
+            i += 1
+        elif av[i] == "--search" and i + 1 < len(av):
+            SEARCH = [tuple(float(v) for v in t.split(",")) for t in av[i + 1].split()]
+            i += 2
+        elif av[i] == "--search_z" and i + 1 < len(av):
+            SEARCH_Z = float(av[i + 1])
+            i += 2
         else:
             memo.append(av[i])
             i += 1
@@ -136,6 +157,12 @@ def parse():
 
 
 J1_X = 0.096  # base_link 에서 관절 1 축 x (manipulator.yaml ik · 팀 URDF)
+FIRST_WAIT = 4.0    # 처음 자세에서 퍽을 기다리는 시간 (s), 없으면 찾기
+SEARCH_WAIT = 2.0   # 찾는 점마다 내려다본 뒤 기다리는 시간 (s)
+# 찾는 점 (base_link x 앞 · y 왼, m): 가까운 줄 -> 먼 줄, 가운데 -> 좌우. 책상 상자 (앞 끝 5 cm, 가운데 0.2853) 와 그 앞 바닥을 덮음
+SEARCH = [(0.25, 0.0), (0.25, 0.10), (0.25, -0.10), (0.33, 0.0), (0.33, 0.10), (0.33, -0.10),
+          (0.41, 0.0), (0.41, 0.12), (0.41, -0.12)]
+SEARCH_Z = 0.09     # 내려다볼 높이 (m): 상자 윗면 0.0633 + 퍽 반 높이 0.03
 OCC = set()
 REMOVED = {(int(a), int(b)) for a, _, b in (t.partition("_") for t in os.environ.get("PALLET_REMOVED", "").split())}
 WS = os.path.expanduser("~/Lv2_Cartlidar_Assignment/workspace/ros2_ws")
@@ -206,6 +233,14 @@ def look_and_read(rec, p, wait=3.0):
     return [(q.pose.position.x, q.pose.position.y, q.pose.position.z) for q in arr[-1].pucks] if arr else []
 
 
+def wait_pucks(rec, wait):
+    """wait 초 안에 들어온 마지막 퍽 목록 (없으면 [])."""
+    t = time.time()
+    while time.time() - t < wait and not (rec.pucks and rec.pucks[-1].pucks):
+        time.sleep(0.1)
+    return list(rec.pucks[-1].pucks) if rec.pucks and rec.pucks[-1].pucks else []
+
+
 def main():
     load, recheck, memo = parse()
     P(f"집기 시험 {OUT}  넣기 {load}  다시 잼 {recheck}  차 있는 칸 {sorted(OCC)}  메모: {memo}")
@@ -221,13 +256,25 @@ def main():
     th.start()
     try:
         run(["service", "call", "/perception/set_mode", "robot_interfaces/srv/SetPerceptionMode", "{mode: 4}"])
-        t = time.time()
-        while time.time() - t < 12 and not (rec.pucks and rec.pucks[-1].pucks):
-            time.sleep(0.1)
-        if not (rec.pucks and rec.pucks[-1].pucks):
-            P("!! /perception/pucks 에 퍽이 없음 (팔 카메라 화면에 퍽이 보이는지 확인)")
+        all_pk = wait_pucks(rec, FIRST_WAIT if SEARCH else 12.0)
+        if not all_pk and SEARCH:
+            P(f"지금 자세에서 퍽 없음 -> 팔로 찾기 ({len(SEARCH)} 곳, 높이 {SEARCH_Z:.3f} m)")
+            for k, (sx, sy) in enumerate(SEARCH):
+                P(f"  찾기 {k + 1}/{len(SEARCH)}: ({sx:.2f}, {sy:+.2f})")
+                rec.pucks.clear()
+                # target_look 은 예상 점 4 cm 안에 퍽이 없으면 '실패' 로 끝나지만 팔은 그 점을 내려다본 채라, 화면의 다른 퍽도 씀.
+                #   자세를 못 구한 점 (관절 한계) 은 팔이 안 움직이니 그 경우도 그냥 기다렸다 다음 점
+                run(["action", "send_goal", "/manipulator/execute_skill", "robot_interfaces/action/ExecuteSkill",
+                     f"{{policy: 'target_look:base_link:{sx:.3f}:{sy:.3f}:{SEARCH_Z:.3f}', timeout: 30.0}}"])
+                all_pk = wait_pucks(rec, SEARCH_WAIT)
+                if all_pk:
+                    P(f"    퍽 {len(all_pk)} 개 찾음")
+                    break
+            if not all_pk:
+                unfold()
+        if not all_pk:
+            P("!! /perception/pucks 에 퍽이 없음 (팔 카메라 화면 · 퍽 윗면 태그 tag36h11 16 mm 확인)")
             return 2
-        all_pk = rec.pucks[-1].pucks
         pk = min(all_pk, key=lambda q: math.hypot(q.pose.position.x - J1_X, q.pose.position.y))  # 가까운 퍽부터 (mission 과 같음)
         p = pk.pose.position
         P(f"인식한 퍽 {len(all_pk)} 개, 집을 퍽 (J1 에 가장 가까움, base_link): x {p.x:.3f} y {p.y:.3f} z {p.z:.3f}  tag {pk.tag_id} shape {pk.shape}"
