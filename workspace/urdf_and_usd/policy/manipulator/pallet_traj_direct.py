@@ -110,6 +110,11 @@ def main():
                     help="관절 영점 보정 'j1,j2,j3,j4,j5' [rad]: 파일 관절값 = 모델 + 이 값 (노드 pallet.apply_joint_offsets false 그대로 명령). "
                          "2026-11-22: 11-14 45° 손 맞춤 10 칸으로 맞춘 값 J2 −29.04° · J4 +22.89° (오차 50 -> 3 mm)")
     ap.add_argument("--radial_mm", type=float, default=0.0, help="[mm] 칸 목표를 J1 에서 먼 쪽으로 (2026-11-22 실물 1_3: 보정 모델이 3 mm 덜 감)")
+    ap.add_argument("--shift_mm", default=None,
+                    help="'바깥,옆,위' [mm] 칸 목표 이동 (바깥 = J1 반대, 옆 = J1 기준 반시계 +). --radial_mm 대신. "
+                         "2026-11-22 실물 1_3 (vertical_lift_check --adjust, 집게 10°, 퍽 쥠 0.736): 보정 모델 목표에서 손끝 바깥 +9.1 · 옆 −3.2 · 위 −4.0 mm. "
+                         "그 목표는 퍽 바닥이 칸 축 (+3 mm) 이라 손끝이 축에서 0.040 x sin 10° = 6.9 mm 안쪽 -> 서 있는 퍽 가운데 (축) 기준 모델 오차 = "
+                         "바깥 9.1 + 3 − 6.9 = 5.2 · 옆 −3.2 · 위 −4.0 -> 5.2,-3.2,-4.0")
     ap.add_argument("--enter_gap", type=float, default=None, help="[m] 집게를 다 세우는 높이 = 칸 벽 윗면 + 이 값 (기본 ENTER_GAP)")
     ap.add_argument("--j4_max", type=float, default=None,
                     help="[rad] 관절 4 명령 상한 (2026-11-22 실물: 약 2.24 rad (128.4°) 에서 기구적으로 막힘 -> 2.21)")
@@ -122,7 +127,7 @@ def main():
         a.hand_dz = 0.010 if a.hand_dz is None else a.hand_dz
         a.enter_tilt_deg = 5.0 if a.enter_tilt_deg is None else a.enter_tilt_deg
         a.joint_offsets = a.joint_offsets or "0,-0.50685,-0.00192,0.39951,0"
-        a.radial_mm = a.radial_mm or 3.0
+        a.shift_mm = a.shift_mm or "5.2,-3.2,-4.0"
         a.enter_gap = 0.002 if a.enter_gap is None else a.enter_gap
         a.j4_max = 2.21 if a.j4_max is None else a.j4_max
         if a.out == OUT:
@@ -171,7 +176,11 @@ def main():
             s.update(x_nominal=s["x"], y_nominal=s["y"], floor_z_nominal=s["floor_z"], x=round(float(b[0]), 5), y=round(float(b[1]), 5),
                      floor_z=round(float(b[2]), 5), wall_top_z=round(float(s["wall_top_z"] + b[2] - s["floor_z"]), 5), taught_target=True)
         yaw = math.atan2(s["y"] - j1[1], s["x"] - j1[0])
-        r = math.hypot(s["x"] - j1[0], s["y"] - j1[1]) + a.radial_mm / 1000.0
+        sh = [float(v) / 1000.0 for v in a.shift_mm.split(",")] if a.shift_mm else [a.radial_mm / 1000.0, 0.0, 0.0]
+        r = math.hypot(s["x"] - j1[0], s["y"] - j1[1]) + sh[0]
+        yaw += sh[1] / r                       # 옆 (반시계 +) = 칸 축을 J1 둘레로 조금 돌림
+        s["floor_z"] += sh[2]
+        s["wall_top_z"] += sh[2]
         z_p = s["floor_z"] + PT.PLACE_GAP
         z_in = s["wall_top_z"] + (ENTER_GAP if a.enter_gap is None else a.enter_gap)
         ok = lambda e_, t_: e_ < 1e-3 and t_ < math.radians(1.0)
