@@ -9,8 +9,9 @@ import math
 import random
 import sys
 
-from box_face import (BOX_SIDE, FRONT_OFFSET, LASER_FRONT_TF, FaceResult, average_faces, find_box_face,
-                      plan_approach, scan_to_base, turn_clear)
+from box_face import (BOX_SIDE, FRONT_OFFSET, LASER_FRONT_TF, S_CFG, FaceResult, average_faces, find_box_face,
+                      plan_approach, plan_s_curve, plan_s_curve_face, scan_to_base, turn_clear, turn_clearance,
+                      turn_intrusion)
 
 ANGLE_MIN = -math.pi
 ANGLE_INC = math.radians(1.0)
@@ -443,6 +444,169 @@ def test_turn_clear():
     assert turn_clear(near, -20 * DEG) is False
     assert turn_clear(far, 20 * DEG) is True
     assert turn_clear(far, -20 * DEG) is True
+
+
+# ---------------------------------------------------------------- 12. 넓은 창 · 고르기 (11-21 실물 0/36 대응)
+def test_expect_off_13cm_found():
+    """상자가 예상 위치에서 13 cm (옆 · 앞) 어긋나도 찾음 (예전 ±0.10 창은 점 0 개)"""
+    for dx, dy in ((0.13, 0.0), (0.0, 0.13), (0.09, -0.09)):
+        pts = to_pts(make_scan(box_segments(0.25 + dx, lateral=dy)))
+        f = find_box_face(pts, expect=(FRONT_OFFSET + 0.25, 0.0, 0.0))
+        assert f.ok, (dx, dy, f.why)
+        assert abs(f.gap - (0.25 + dx)) <= 0.005 and abs(f.lateral - dy) <= 0.005, (dx, dy, f.gap, f.lateral)
+        old = find_box_face(pts, expect=(FRONT_OFFSET + 0.25, 0.0, 0.0), cfg={"expect_win": 0.10, "fit_margin": 0.0})
+        if max(abs(dx), abs(dy)) >= 0.13:
+            assert not old.ok, (dx, dy, "예전 창이면 못 찾아야 함 (재현)")
+
+
+def test_expect_none_offset_box():
+    for gap, lat, yaw in ((0.40, 0.15, 0.0), (0.30, -0.20, 8 * DEG), (0.45, 0.0, -10 * DEG)):
+        f = find_box_face(to_pts(make_scan(box_segments(gap, lateral=lat, yaw=yaw))), expect=None)
+        assert f.ok, (gap, lat, f.why)
+        assert abs(f.gap - _expect_gap(gap, lat, yaw)) <= 0.006, (gap, lat, f.gap)
+        assert abs(f.lateral - _expect_lat(gap, lat, yaw)) <= 0.006, (gap, lat, f.lateral)
+
+
+def test_wall_clipped_by_window_not_box():
+    """벽 끝이 창 안에 있어도 (창 경계에서 잘려 0.205 처럼 보일 수 있는 조각) 상자로 안 봄"""
+    for y0 in (0.05, 0.15, 0.25, -0.20):
+        wall = [((0.45, y0), (0.45, y0 + 2.0))] if y0 > 0 else [((0.45, y0), (0.45, y0 - 2.0))]
+        for ex in (None, (0.45, 0.0, 0.0), (0.45, 0.15, 0.0)):
+            f = find_box_face(to_pts(make_scan(wall)), expect=ex)
+            assert not f.ok, (y0, ex, f.why, f.length)
+
+
+def test_box_beside_wall_corner():
+    """벽 (뒤) + 상자 + 옆 벽이 있어도 상자 앞면"""
+    segs = box_segments(0.30, lateral=0.05) + wall_segment(FRONT_OFFSET + 0.30 + BOX_SIDE + 0.2) + \
+        [((0.10, -0.25), (1.5, -0.25))]
+    f = find_box_face(to_pts(make_scan(segs)), expect=None)
+    assert f.ok, f.why
+    assert abs(f.gap - 0.30) <= 0.005 and abs(f.lateral - 0.05) <= 0.005, (f.gap, f.lateral)
+
+
+def test_two_boxes_pick_front():
+    """창 안에 상자 두 개면 정면 (expect 없으면 |y| 작은 것, 있으면 expect 가까운 것)"""
+    segs = box_segments(0.30, lateral=0.02) + box_segments(0.30, lateral=0.27)
+    f = find_box_face(to_pts(make_scan(segs)), expect=None)
+    assert f.ok and abs(f.lateral - 0.02) <= 0.005, (f.why, f.lateral)
+    assert "후보 2" in f.why, f.why
+    f = find_box_face(to_pts(make_scan(segs)), expect=(FRONT_OFFSET + 0.30, 0.20, 0.0))
+    assert f.ok and abs(f.lateral - 0.27) <= 0.005, (f.why, f.lateral)
+
+
+def test_outside_window_reason():
+    f = find_box_face(to_pts(make_scan(box_segments(0.30, lateral=0.0))), expect=(FRONT_OFFSET + 0.30, 0.28, 0.0))
+    assert not f.ok and "창 밖" in f.why, f.why
+
+
+def test_expect_none_far_rejected():
+    """expect 없으면 앞면 중점 x ≤ x_max (0.65) 만 — 먼 다른 물체를 상자로 잡지 않게 (bag 1800 box1 0.76 m)"""
+    f = find_box_face(to_pts(make_scan(box_segments(0.63))), expect=None)
+    assert not f.ok and "창 밖" in f.why, f.why
+
+
+def test_replay_cdr_laserscan():
+    """replay_ap 의 sqlite 대비 CDR 해석기 — rclpy 가 있으면 직렬화한 LaserScan 과 맞춰 봄 (없으면 건너뜀)"""
+    try:
+        from rclpy.serialization import serialize_message
+        from sensor_msgs.msg import LaserScan
+    except ImportError:
+        return
+    import replay_ap
+    m = LaserScan()
+    m.header.frame_id = "laser_front"
+    m.angle_min, m.angle_increment, m.range_min, m.range_max = -3.14, 0.0175, 0.12, 8.0
+    m.ranges = [0.5, float("inf"), 1.25]
+    frame, amin, ainc, rmin, rmax, rr = replay_ap.cdr_laserscan(serialize_message(m))
+    assert frame == "laser_front" and abs(amin + 3.14) < 1e-6 and abs(ainc - 0.0175) < 1e-6 and abs(rmin - 0.12) < 1e-6 and abs(rmax - 8.0) < 1e-6
+    assert rr[0] == 0.5 and math.isinf(rr[1]) and rr[2] == 1.25
+
+
+# ---------------------------------------------------------------- 13. S 자 보정 (plan_s_curve)
+def test_turn_intrusion_formula_and_clearance():
+    rho, phi = 0.260, math.radians(40.2)
+    for a_deg in (5, 10, 20, 25, 28, 30):
+        a = a_deg * DEG
+        dx = turn_intrusion(a)
+        assert abs(dx - (rho * math.cos(phi - a) - 0.1986)) <= 0.0015, (a_deg, dx)
+        assert abs(turn_clearance(face_at(0.20), a) - (0.20 - dx)) <= 0.0005, a_deg
+        assert abs(turn_intrusion(-a) - dx) < 1e-12
+    assert abs(turn_intrusion(20 * DEG) - 0.046) <= 0.001 and abs(turn_intrusion(28 * DEG) - 0.055) <= 0.001
+
+
+def _check_s(e, g, yaw=0.0, gap_target=0.05, **kw):
+    p = plan_s_curve(e, g, yaw, gap_target, **kw)
+    assert p.ok, (e, g, yaw, p.why)
+    face = plan_face = FaceResult(True, "", 0, 0, yaw, BOX_SIDE, 0)
+    n = (math.cos(yaw), math.sin(yaw))
+    t = (-n[1], n[0])
+    plan_face.cx = n[0] * (g + FRONT_OFFSET) + t[0] * e
+    plan_face.cy = n[1] * (g + FRONT_OFFSET) + t[1] * e
+    x, y, th = integrate(p.steps)
+    tx, ty, tth = _target(plan_face, gap_target, 0.0)
+    assert math.hypot(x - tx, y - ty) <= 0.001, (e, g, yaw, p.steps, (x, y), (tx, ty))
+    assert abs(wrap(th - tth)) <= 0.1 * DEG, (e, g, yaw, math.degrees(th))
+    # 회전마다 앞 모서리 여유 (독립 적분으로 자세를 따라가며 turn_clearance)
+    px = py = pth = 0.0
+    for kind, v in p.steps:
+        if kind == "turn":
+            assert turn_clearance(face, v, (px, py, pth)) >= S_CFG["margin"] - 1e-6, (e, g, p.steps)
+            assert abs(v) <= S_CFG["alpha_max_back"] + abs(yaw) + 1e-9
+        px, py, pth = _step(px, py, pth, kind, v)
+    return p
+
+
+def _step(x, y, th, kind, v, icr_x=ICR_X_ROBOT):
+    if kind == "turn":
+        ix, iy = x + icr_x * math.cos(th), y + icr_x * math.sin(th)
+        th += v
+        return ix - icr_x * math.cos(th), iy - icr_x * math.sin(th), th
+    return x + v * math.cos(th), y + v * math.sin(th), th
+
+
+def test_s_no_back_at_020():
+    """주행 모드: 틈 0.20 · |e| ≤ (0.20 − Δx(25°) − 0.02)·tan25° ≈ 5.9 cm 는 후진 없이"""
+    for e in (0.01, -0.03, 0.05, -0.058):
+        p = _check_s(e, 0.20)
+        assert p.back == 0.0 and not any(k == "drive" and v < 0 for k, v in p.steps), (e, p.why)
+        assert p.alpha * e > 0
+        assert len([k for k, _ in p.steps if k == "turn"]) == 2, p.steps   # 정렬 + α 를 한 번에
+
+
+def test_s_with_yaw():
+    for yaw_deg in (-8, 5, 12):
+        _check_s(0.03, 0.22, yaw_deg * DEG)
+        _check_s(-0.04, 0.22, yaw_deg * DEG)
+
+
+def test_s_needs_back():
+    p = _check_s(0.07, 0.20)
+    assert p.back >= S_CFG["d_min"] - 1e-9 and p.back <= S_CFG["d_max"], p.why
+    p = _check_s(0.03, 0.07)
+    assert p.back > 0, p.why
+    assert p.steps[0][0] == "turn" and p.steps[1] == ("drive", -p.back) or p.steps[0] == ("drive", -p.back), p.steps
+
+
+def test_s_small_e_straight():
+    p = _check_s(0.003, 0.20, 3 * DEG)
+    assert p.forward == 0.0 and p.back == 0.0 and len(p.steps) == 2, p.steps
+
+
+def test_s_rejects():
+    assert not plan_s_curve(0.10, 0.20).ok                   # |e| > e_max
+    assert not plan_s_curve(0.02, 0.20, 30 * DEG).ok         # 기울기
+    p = plan_s_curve(0.07, 0.06, back_room=0.03)             # 뒤 여유 없음
+    assert not p.ok and "후진" in p.why, p.why
+    assert not plan_s_curve_face(FaceResult(False, "x")).ok
+
+
+def test_s_face_wrapper_matches():
+    f = face_of(box_segments(0.20, lateral=0.03, yaw=4 * DEG))
+    assert f.ok, f.why
+    p = plan_s_curve_face(f)
+    q = plan_s_curve(f.lateral, f.gap, f.yaw_err)
+    assert p.ok and p.steps == q.steps, (p.why, q.why)
 
 
 # ---------------------------------------------------------------- 직접 실행

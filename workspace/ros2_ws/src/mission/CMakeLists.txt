@@ -26,10 +26,11 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(yaml_cpp_vendor REQUIRED)   # 퍽 측량 완료 파일 · revisit 응답 (JSON) 읽기
 find_package(yaml-cpp REQUIRED)
 find_package(ament_index_cpp REQUIRED)   # survey 조사 자세 = mission_planner approach_poses.yaml
+find_package(control REQUIRED)          # center_box 반복 판단 = control/box_center.hpp decide_loop (헤더만, 11-21)
 
 # --- MissionNode (공유 라이브러리 + component 등록, ⑨ mission_container) ---
 add_library(mission_component SHARED src/mission_node.cpp)
-target_include_directories(mission_component PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(mission_component PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include ${control_INCLUDE_DIRS})
 target_link_libraries(mission_component PUBLIC
   rclcpp::rclcpp
   rclcpp_action::rclcpp_action

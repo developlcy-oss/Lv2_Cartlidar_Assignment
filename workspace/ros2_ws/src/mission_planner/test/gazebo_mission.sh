@@ -10,11 +10,13 @@
 #   LOC=1 test/gazebo_mission.sh           loc_monitor 를 실물처럼 (#151): use_loc_monitor + twist_mux (drive 50 · nav 10,
 #                                          잠금 /localization/lock 20) + drive loc_gate. 사건 기록 결과 폴더/loc_events.jsonl
 #                                          + cmd_vel_watchdog.py (명령 0.2 s 없으면 0, 실물 펌웨어처럼)
+#   SIM_TURN=0.79,0.70 test/gazebo_mission.sh   실물형 회전 (꺾기 × 0.79 · 제자리 × 0.70, gazebo_sim.launch.py sim_turn:=, 2026-11-21).
+#                                          LOC=1 이면 watchdog 출력을 /cmd_vel_turn 으로 돌려 scale 노드를 거치게 함
 # 먼저: source install/setup.bash, colcon build (mission_planner · mission · control · navigation · localization · waffle_4wd_description, navigation README 참고)
 #       LOC=1 은 twist_mux 도
 # 시각: 모든 로그 시각은 시뮬레이션 시각 (Gazebo 는 실시간의 약 0.5 ~ 0.66 배)
 set +u
-PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim|lib/twist_mux/twist_mux|loc_monitor|cmd_vel_watchdog|ekf_node|odom_icr'
+PAT='gz-sim-main|gz sim|gazebo_sim.launch|navigation.launch|localization.launch|nav2_|/amcl|lifecycle_manager|map_server|scan_merge|scan_body_mask|parameter_bridge|robot_state_publisher|tfmini_scan_to_range|camera_info_fix|lib/control/drive|mission/mission_node|planner.launch|mission_planner_node|mock_robot.py|collision_monitor|velocity_smoother|ros_gz_sim|lib/twist_mux/twist_mux|loc_monitor|cmd_vel_watchdog|ekf_node|odom_icr|sim_turn_scale'
 stop_all() {
   for sig in INT TERM KILL; do
     pids=$(pgrep -f "$PAT" | grep -vx "$$")
@@ -47,6 +49,12 @@ drive_node:
         enabled: $LOC_GATE         # loc_monitor 를 띄울 때만 (#121)
 YAML
 SIM="-p use_sim_time:=true"
+WD_REMAP=""
+if [ -n "${SIM_TURN:-}" ]; then
+  GZ_ARGS="sim_turn:=$SIM_TURN $GZ_ARGS"
+  WD_REMAP="-r /cmd_vel:=/cmd_vel_turn"   # LOC=1: watchdog 가 /cmd_vel 로 내는 마지막 노드 → scale 노드 입력으로
+  echo "[gz_mission] 실물형 회전 SIM_TURN=$SIM_TURN"
+fi
 if [ "${LOC:-0}" = 1 ]; then
   GZ_ARGS="use_loc_monitor:=true cmd_vel_out:=/cmd_vel_nav loc_event_log:=$OUT/loc_events.jsonl $GZ_ARGS"
   # 실물 twist_mux (opencr_hardware/config/twist_mux.yaml) 중 Gazebo 에 있는 것만: e_stop · obstacle 잠금은 내는 노드가 없어 뺌
@@ -63,7 +71,7 @@ twist_mux:
 YAML
   ros2 run twist_mux twist_mux --ros-args --params-file "$OUT/mux.yaml" -r cmd_vel_out:=/cmd_vel_mux > "$OUT/mux.log" 2>&1 &
   # 실물 펌웨어 명령 시간 초과 (200 ms) 흉내: Gazebo DiffDrive 는 잠금 중에도 마지막 명령으로 계속 달림
-  python3 "$HERE/cmd_vel_watchdog.py" --ros-args -p use_sim_time:=true > "$OUT/watchdog.log" 2>&1 &
+  python3 "$HERE/cmd_vel_watchdog.py" --ros-args -p use_sim_time:=true $WD_REMAP > "$OUT/watchdog.log" 2>&1 &
 else
   GZ_ARGS="use_loc_monitor:=false $GZ_ARGS"   # gazebo_sim 기본은 loc_monitor 켬 (#151) — LOC=0 은 예전처럼 없이
 fi

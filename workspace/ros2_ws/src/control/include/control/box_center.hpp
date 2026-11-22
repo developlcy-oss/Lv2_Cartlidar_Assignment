@@ -31,8 +31,17 @@ struct BoxCenterConfig
   double hold_max_ang = 0.15;    // 직진 중 방향 보정 상한
   int settle_cycles = 3;         // 회전 끝 판정 연속 주기
   int max_iter = 1;              // 측정 → 옆 이동 반복 횟수 (2 이상이면 이동 뒤 다시 잼)
-  bool final_puck = true;        // 옆 이동을 했으면 마지막에 퍽 arm_offset 으로 회전 (전후 TFmini) 마무리
+  bool final_puck = false;       // 옆 이동을 했으면 마지막에 퍽 arm_offset 으로 회전 (전후 TFmini) 마무리
+                                 //   (11-21 사용자 결정: 중앙 = 상자 면 중심 → 기본 끔. 켜면 6° 돌아 그리퍼가 약 2.6 cm 옆으로 감)
   double max_puck_yaw_dev = 0.105;   // [rad] 퍽 쪽 방향이 상자 법선에서 이보다 벌어지면 돌지 않고 경고만 (약 6°)
+  // (11-21) 회전 중 앞 모서리 침범 · S 자 (후진 없음) · 각 상한
+  double alpha_hard = 0.52;      // [rad] 뒤 여유가 모자라면 각을 이것까지 키워 다시 계획 (약 30°)
+  double alpha_min = 0.10;       // [rad] S 자 (후진 없음) 각 하한 — 작을수록 깊이를 많이 씀
+  double corner_margin = 0.02;   // [m] 회전 중 앞 모서리 ↔ 상자 앞면 평면 여유
+  bool s_curve = true;           // 앞 틈이 넉넉하면 후진 없이 S 자 (TURN1 → 비스듬 전진 → TURN2)
+  double front_x = 0.1328;       // [m] base_link → 상판 앞 끝 x
+  double corner_y = 0.1676;      // [m] 상판 앞 모서리 |y|
+  double icr_x = -0.0658;        // [m] 제자리 회전 중심 x (robot_geometry.yaml base.icr_x)
 };
 
 inline double bc_wrap(double a) {return std::atan2(std::sin(a), std::cos(a));}
@@ -96,6 +105,158 @@ inline ShiftPlan plan_shift(const CenterError & e, const BoxCenterConfig & c, do
   p.alpha = std::atan2(shift, p.back);
   p.fwd = std::hypot(p.back, shift);
   return p;
+}
+
+// ---------- (11-21) 회전 중 앞 모서리 침범 ----------
+// 모서리 (front_x, ±corner_y) 가 ICR (icr_x, 0) 둘레로 |alpha| 돌 때 처음 앞 끝 평면보다 앞으로 나오는 최대 거리 [m] (≥ 0).
+//   ρ = hypot(front_x − icr_x, corner_y), φ = atan2(corner_y, front_x − icr_x), Δx = ρ·cos(φ − |α|) − (front_x − icr_x)
+//   (|α| ≥ φ 면 ρ − (front_x − icr_x)). 기본 기하: ρ 0.260, φ 40.2° → 20° 4.6 cm · 25° 5.2 cm · 28° 5.5 cm.
+//   비스듬 자세 (법선에서 α) 로 곧게 가는 동안 · TURN2 시작에서도 같은 Δx 가 상자 면 쪽으로 나와 있음 (평면 기준, 보수적)
+inline double corner_intrusion(double alpha, double icr_x = -0.0658, double front_x = 0.1328, double corner_y = 0.1676)
+{
+  const double x0 = front_x - icr_x;
+  const double rho = std::hypot(x0, corner_y), phi = std::atan2(corner_y, x0);
+  const double a = std::fabs(alpha);
+  return (a >= phi ? rho : rho * std::cos(phi - a)) - x0;
+}
+inline double corner_intrusion(double alpha, const BoxCenterConfig & c)
+{
+  return corner_intrusion(alpha, c.icr_x, c.front_x, c.corner_y);
+}
+
+// 옆 이동 계획 (앞 틈 g0 · 뒤 여유 rear_room 반영). 끝 자세 옆 = −lateral, 깊이는 같거나 (BACK) 줄거나 (S 자, end_gap < g0)
+//   ICR 오프셋은 TURN1 (+α) · TURN2 (−α) 에서 상쇄되므로 끝 자세에 영향 없음 (test_align ICR 상쇄 시험) — 회전 중 모서리에만 씀.
+//   S 자 (s_curve): 후진 0, 전진 f = |s|/sinα, 깊이 소모 |s|/tanα. 조건 g0 − |s|/tanα ≥ Δx(α) + margin (TURN2 · 비스듬 전진 끝)
+//     α 는 max_alpha 부터 alpha_min 까지 줄여 가며 처음 되는 각 (큰 각 = 직진 짧음 = yaw 오차에 덜 민감)
+//   BACK: α = max_alpha 부터 alpha_hard 까지 키워 가며 d = |s|/tanα + δ, δ = max(0, Δx(α) + margin − g0)
+//     (δ = 끝에 상자에서 더 떨어져 있을 거리 — 모서리 때문에 다 못 들어감, 남는 거리는 HOLD (법선 + TFmini) 가 메움)
+//     d ≥ back_min (늘면 δ 도 늚), d ≤ min(back_max, rear_room). TURN1 조건 g0 + d ≥ Δx + margin 은 d ≥ δ 로 자동
+struct MovePlan
+{
+  bool ok = false;
+  const char * reason = "";   // 실패 사유 코드: none · corner · rear_room · back_max
+  ShiftPlan p;
+  bool s_curve = false;
+  double extra_gap = 0.0;     // δ: 끝 자세 틈 − g0 (S 자면 음수 = 깊이 소모)
+  double min_gap = 0.0;       // 기동 중 차체 앞 끝 (모서리 침범 뺀) ↔ 상자 면 최소 예상 틈 [m]
+  double need_back = 0.0;     // BACK 실패 때 필요했던 최소 후진 [m] (로그용)
+};
+
+inline MovePlan plan_center_move(const CenterError & e, const BoxCenterConfig & c, double g0, double rear_room)
+{
+  MovePlan m;
+  m.p.heading = e.heading;
+  const double shift = -e.lateral, as = std::fabs(shift), sg = shift >= 0.0 ? 1.0 : -1.0;
+  if (as < 1e-4) {m.reason = "none"; return m;}
+  if (!(g0 >= corner_intrusion(e.yaw_err, c) + c.corner_margin - 1e-9)) {m.reason = "corner"; return m;}   // TURN0 (법선으로)
+  const double step = 0.0175;   // 1°
+  if (c.s_curve) {
+    for (double a = std::max(c.max_alpha, c.alpha_min); a >= c.alpha_min - 1e-9; a -= step) {
+      const double used = as / std::tan(a);
+      const double need = corner_intrusion(a, c) + c.corner_margin;
+      if (g0 - used >= need) {
+        m.ok = true; m.s_curve = true;
+        m.p.back = 0.0; m.p.alpha = sg * a; m.p.fwd = as / std::sin(a);
+        m.extra_gap = -used; m.min_gap = g0 - used - corner_intrusion(a, c);
+        return m;
+      }
+    }
+  }
+  const double back_cap = std::min(c.back_max, rear_room);
+  double best_need = 1e9;
+  for (double a = c.max_alpha; a <= std::max(c.max_alpha, c.alpha_hard) + 1e-9; a += step) {
+    const double dx = corner_intrusion(a, c);
+    double delta = std::max(0.0, dx + c.corner_margin - g0);
+    double d = as / std::tan(a) + delta;
+    if (d < c.back_min) {delta += c.back_min - d; d = c.back_min;}
+    best_need = std::min(best_need, d);
+    if (d <= back_cap + 1e-9) {
+      m.ok = true;
+      m.p.back = d; m.p.alpha = sg * a; m.p.fwd = (d - delta) / std::cos(a);
+      m.extra_gap = delta; m.min_gap = std::min(g0 + d, g0 + delta) - dx;
+      return m;
+    }
+  }
+  m.need_back = best_need;
+  m.reason = rear_room < c.back_max ? "rear_room" : "back_max";
+  return m;
+}
+
+// ---------- (11-21) 반복 판단 · 센서 결합 (mission center_box 루프가 씀, drive 는 결과만 돌려줌) ----------
+struct LoopConfig
+{
+  double done_lateral = 0.005;       // [m]
+  double done_yaw = 0.01745;         // [rad] 1°
+  double final_warn_lateral = 0.010; // [m] 반복을 다 써도 이 안이면 경고와 함께 끝
+  double max_shift = 0.08;           // [m] 넘으면 측정을 믿지 않음
+  int max_iter = 3;                  // K_max (기동 횟수)
+};
+
+enum class LoopDecision { DONE, SHIFT, FINAL_WARN, FAIL };
+
+struct LoopVerdict
+{
+  LoopDecision d = LoopDecision::FAIL;
+  const char * why = "";   // done · shift · yaw · iter_max · max_shift · disagree · no_measure
+};
+
+// e = 옆 오차 [m] (+ = 로봇이 중심선 왼쪽), psi = 법선 − 로봇 yaw, k = 이미 한 기동 수, disagree = 센서 불일치
+inline LoopVerdict decide_loop(double e, double psi, int k, const LoopConfig & c, bool disagree = false)
+{
+  if (!std::isfinite(e) || !std::isfinite(psi)) {return {LoopDecision::FAIL, "no_measure"};}
+  if (disagree) {return {LoopDecision::FAIL, "disagree"};}
+  const double ae = std::fabs(e);
+  if (ae > c.max_shift) {return {LoopDecision::FAIL, "max_shift"};}
+  if (ae <= c.done_lateral && std::fabs(psi) <= c.done_yaw) {return {LoopDecision::DONE, "done"};}
+  if (k >= c.max_iter) {
+    return ae <= c.final_warn_lateral ? LoopVerdict{LoopDecision::FINAL_WARN, "iter_max"} : LoopVerdict{LoopDecision::FAIL, "iter_max"};
+  }
+  return {LoopDecision::SHIFT, ae <= c.done_lateral ? "yaw" : "shift"};
+}
+
+// 한 센서의 측정 (lateral = 로봇 옆 + 왼쪽, yaw = 법선 − 로봇 yaw, gap = 차체 앞 끝 → 상자 면)
+struct SideMeas
+{
+  bool ok = false;
+  double lateral = 0.0, yaw = 0.0, gap = 0.0;
+};
+
+struct FuseConfig
+{
+  double w_cam_yaw = 0.93;          // Arducam σ≈0.4° · 라이다 5 장 σ≈1.5° 분산 가중
+  double disagree = 0.02;           // [m] 옆 차이가 이보다 크면 불일치
+  double yaw_disagree = 0.07;       // [rad] 4° 넘게 다르면 라이다 요를 섞지 않음
+  double lidar_min_gap = 0.15;      // [m] 라이다 틈이 이보다 작으면 라이다를 쓰지 않음 (range_min 0.12)
+};
+
+struct Fused
+{
+  bool ok = false;
+  double lateral = 0.0, yaw = 0.0, gap = 0.0;
+  bool disagree = false;
+  bool lidar_used = false;
+  const char * src = "none";   // cam · cam+lidar · lidar · none
+};
+
+// 옆은 Arducam 만 (라이다는 교차확인), 요는 분산 가중, 틈은 라이다 우선. Arducam 이 없으면 라이다만 (주행 모드)
+inline Fused fuse_measure(const SideMeas & cam, const SideMeas & lid, const FuseConfig & c = {})
+{
+  Fused f;
+  const bool lid_ok = lid.ok && lid.gap >= c.lidar_min_gap;
+  if (cam.ok) {
+    f.ok = true; f.lateral = cam.lateral; f.yaw = cam.yaw; f.gap = cam.gap; f.src = "cam";
+    if (lid_ok) {
+      f.lidar_used = true; f.src = "cam+lidar"; f.gap = lid.gap;
+      f.disagree = std::fabs(lid.lateral - cam.lateral) > c.disagree;
+      const double dy = bc_wrap(lid.yaw - cam.yaw);
+      if (std::fabs(dy) <= c.yaw_disagree) {f.yaw = bc_wrap(cam.yaw + (1.0 - c.w_cam_yaw) * dy);}
+    }
+    return f;
+  }
+  if (lid_ok) {
+    f.ok = true; f.lateral = lid.lateral; f.yaw = lid.yaw; f.gap = lid.gap; f.lidar_used = true; f.src = "lidar";
+  }
+  return f;
 }
 
 // 뒤 /scan 가장 가까운 점 rear_min (pullout.hpp rear_min_range) 에서 rear_stop 을 남기고 후진할 수 있는 거리.

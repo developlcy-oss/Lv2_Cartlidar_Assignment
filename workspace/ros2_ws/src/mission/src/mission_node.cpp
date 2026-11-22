@@ -84,10 +84,11 @@
 //     결정마다 mission_log "oblique" 줄
 //   approach_view <L>             (oblique 전용, 자동으로만 붙음) 주행 자세 → align BOX, 목표 = 보기 자리 TFmini 거리
 //   시작 박스 집기 (start_box.enabled, include/mission/start_box.hpp, #226) — 켜면:
-//   center_box <거리>             (자동으로만 붙음, approach.center.enabled) 퍽을 집는 approach 바로 뒤 (include/mission/center_box.hpp):
-//                                 팔 place_box.arm_pose (BOX_VIEW) → approach.center.mode → settle → /perception/place_box/measure (팔) →
-//                                 팔 align.arm_pose (ALIGN) → kFineMode → /drive/align goal.center (잰 상자) = 옆 이동 · 법선 · 퍽 마무리.
-//                                 측정 실패 · 믿기 어려운 값은 움직이지 않고 계속 (실패 아님). 단계 실패 · 시간 초과는 앞 approach 부터 다시
+//   center_box <거리>             (자동으로만 붙음, approach.center.enabled) 퍽을 집는 approach 바로 뒤 (include/mission/center_box.hpp, 11-21 반복 폐루프):
+//                                 팔 place_box.arm_pose (BOX_VIEW, 루프 동안 유지) → [approach.center.mode → settle → /perception/place_box/measure (팔)
+//                                 → 옆 e · 요 psi → control decide_loop → SHIFT 면 kFineMode → /drive/align goal.center (잰 상자) → 다시 재기] 최대
+//                                 approach.center.max_iter 번 → 팔 align.arm_pose (ALIGN) 한 번. 5 mm · 1° 안이면 끝, 반복을 다 써도 10 mm 안이면 경고.
+//                                 측정 실패 · 믿기 어려운 값 · drive 건너뜀은 움직이지 않고 계속 (실패 아님). 단계 실패 · 시간 초과는 앞 approach 부터 다시
 //   measure_start <B<n>:<면>>     (자동으로만 붙음) 시작 박스 goto (approach_poses.yaml kind box 의 stage) 뒤 approach 앞, 그 접근에
 //                                 target_look 이 있을 때: SEARCH_FRONT + /perception/place_box/prior (final + box_x 앞) →
 //                                 /perception/place_box/measure_front → status ok (camera front) + 상자 (odom 중심 · 요).
@@ -160,6 +161,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_msgs/msg/string.hpp"
+#include "std_srvs/srv/empty.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "tf2/utils.hpp"
 #include "yaml-cpp/yaml.h"
@@ -169,6 +171,7 @@
 #include "mission/readiness.hpp"
 #include "mission/boot_notice.hpp"
 #include "mission/center_box.hpp"
+#include "control/box_center.hpp"   // decide_loop (반복 판단 규칙은 control 한 곳, 헤더만)
 #include "tf2_ros/buffer.hpp"
 #include "tf2_ros/transform_listener.hpp"
 
@@ -288,6 +291,9 @@ public:
     pick_client_ = rclcpp_action::create_client<Pick>(this, "/manipulator/pick", mission_cb_group_);
     arm_skill_client_ =
       rclcpp_action::create_client<ExecuteSkill>(this, "/manipulator/execute_skill", mission_cb_group_);
+    if (!nomotion_service_.empty() && nomotion_count_ > 0) {   // 주행 재시도 전 AMCL nomotion
+      nomotion_client_ = create_client<std_srvs::srv::Empty>(nomotion_service_, rclcpp::ServicesQoS(), mission_cb_group_);
+    }
     if (center_enabled_) {   // 상자 중앙 맞춤: 팔 Arducam 상자 재기 (place_box 와 같은 서비스)
       place_box_client_ = create_client<Trigger>("/perception/place_box/measure", rclcpp::ServicesQoS(), mission_cb_group_);
     }
@@ -466,6 +472,15 @@ private:
     // 재시도를 다 쓴 단계 (R1, plan 모드 계획 단계만): 집기 실패 퍽만 건너뜀 · 그 밖은 HOME 복귀 뒤 FAILED
     skip_puck_ = declare_parameter<bool>("on_fail.skip_puck", true);
     return_home_ = declare_parameter<bool>("on_fail.return_home", true);
+    // 이동 실패 (그곳에 서는 단계: goto · 접근 · 상자 재기 · 중앙 맞춤, 손이 빈 채) -> 그곳만 건너뜀 (11-21, give_up.hpp nav_skip).
+    //   연속 max_consecutive_nav_skip 곳째 실패면 건너뛰지 않고 return_home
+    skip_nav_ = declare_parameter<bool>("on_fail.skip_nav", true);
+    max_consec_nav_skip_ = declare_parameter<int>("on_fail.max_consecutive_nav_skip", 2);
+    // 주행 재시도 전 AMCL 다시 찾기 (11-21, review_arch ①, demo_follow relocalize): std_srvs/Empty 를 interval 마다 count 번 (비동기).
+    //   빈 문자열 = 끔. retry_delay 가 count × interval 보다 짧으면 그만큼 늘림
+    nomotion_service_ = declare_parameter<std::string>("localization.nomotion_service", "/request_nomotion_update");
+    nomotion_count_ = declare_parameter<int>("localization.nomotion_count", 5);
+    nomotion_interval_ = declare_parameter<double>("localization.nomotion_interval", 0.2);
     // 시작 전 준비 확인 (R3). 비우면 그 항목을 보지 않음 (mock · 단독 실행). 실물 · 시뮬레이션은 bringup 이 채움
     ready_controllers_ = declare_parameter<std::vector<std::string>>("ready.controllers", std::vector<std::string>{});
     ready_managers_ = declare_parameter<std::vector<std::string>>("ready.lifecycle_managers", std::vector<std::string>{});
@@ -595,10 +610,28 @@ private:
     center_mode_text_ = declare_parameter<std::string>("approach.center.mode", place_box_mode_text_);
     center_settle_ = declare_parameter<double>("approach.center.settle_s", place_box_settle_);
     center_measure_timeout_ = declare_parameter<double>("approach.center.measure_timeout_s", 12.0);
-    // 기본 90 s = 팔 자세 2 번 (10 s) + settle 0.5 + 측정 12 + drive align.center.timeout_s 45 + 여유 12.5
-    timeout_["center_box"] = declare_parameter<double>("timeout.center_box", center_box_timeout(10.0, 0.5, 12.0, 45.0, 12.5));
-    if (center_enabled_ && (!parseModeNames(center_mode_text_) || !(center_settle_ >= 0.0) || !(center_measure_timeout_ > 0.0))) {
-      throw std::invalid_argument("approach.center: mode names joined by '+', settle_s >= 0, measure_timeout_s > 0");
+    // 반복 폐루프 (11-21): 판단 규칙 = control/box_center.hpp decide_loop, 값은 여기 (drive align.center 와 같게)
+    ctr_loop_.max_iter = declare_parameter<int>("approach.center.max_iter", 3);
+    ctr_loop_.done_lateral = declare_parameter<double>("approach.center.done_lateral", 0.005);
+    ctr_loop_.done_yaw = declare_parameter<double>("approach.center.done_yaw_deg", 1.0) * M_PI / 180.0;
+    ctr_loop_.final_warn_lateral = declare_parameter<double>("approach.center.final_warn_lateral", 0.010);
+    ctr_loop_.max_shift = declare_parameter<double>("approach.center.max_shift", 0.08);
+    ctr_disagree_ = declare_parameter<double>("approach.center.sensor_disagree", 0.02);
+    ctr_keep_view_ = declare_parameter<bool>("approach.center.keep_view_during_move", true);
+    ctr_pose_s_ = declare_parameter<double>("approach.center.arm_pose_s", 10.0);
+    ctr_drive_s_ = declare_parameter<double>("approach.center.drive_timeout_s", 45.0);
+    {
+      // 단계 시간 = 팔 자세 2 번 + 첫 재기 + 반복마다 (drive + 재기 [+ 팔 ALIGN ↔ BOX_VIEW 왕복]) + 여유 12.5
+      const double per_drive = ctr_drive_s_ + (ctr_keep_view_ ? 0.0 : 2.0 * ctr_pose_s_);
+      timeout_["center_box"] = declare_parameter<double>("timeout.center_box",
+        center_box_timeout(ctr_pose_s_, center_settle_, center_measure_timeout_, per_drive, ctr_loop_.max_iter, 12.5));
+    }
+    if (center_enabled_ && (!parseModeNames(center_mode_text_) || !(center_settle_ >= 0.0) || !(center_measure_timeout_ > 0.0) ||
+      ctr_loop_.max_iter < 0 || !(ctr_loop_.done_lateral >= 0.0) || !(ctr_loop_.final_warn_lateral >= ctr_loop_.done_lateral) ||
+      !(ctr_loop_.max_shift > 0.0) || !(ctr_pose_s_ > 0.0) || !(ctr_drive_s_ > 0.0)))
+    {
+      throw std::invalid_argument("approach.center: mode names joined by '+', settle_s >= 0, measure_timeout_s > 0, max_iter >= 0, "
+              "final_warn_lateral >= done_lateral >= 0, max_shift > 0, arm_pose_s · drive_timeout_s > 0");
     }
     RCLCPP_INFO(get_logger(), "approach.center (상자 중앙 맞춤): %s", center_enabled_ ? "켬" : "끔");
     // 비스듬히 서기 (oblique.*): 꺼져 있으면 지금 흐름 그대로
@@ -762,6 +795,9 @@ private:
       }
     }
     if (max_retries_ < 0) {throw std::invalid_argument("max_retries must be >= 0");}
+    if (max_consec_nav_skip_ < 0 || nomotion_count_ < 0 || !std::isfinite(nomotion_interval_) || nomotion_interval_ < 0.0) {
+      throw std::invalid_argument("on_fail.max_consecutive_nav_skip >= 0, localization.nomotion_count >= 0 · nomotion_interval >= 0");
+    }
     if (!std::isfinite(retry_delay_) || retry_delay_ < 0.0) {
       throw std::invalid_argument("retry_delay must be >= 0");
     }
@@ -1193,6 +1229,7 @@ private:
     }
     if (run_ != Run::RUNNING) {return;}
 
+    tickRelocalize();
     if (retry_pending_ && now() >= retry_at_) {
       retry_pending_ = false;
       enterStep(retry_idx_);
@@ -1488,6 +1525,8 @@ private:
     skipped_slots_.clear();
     skipped_.clear();
     abort_reason_.clear();
+    nav_fail_streak_ = 0;
+    reloc_left_ = 0;
     run_ = Run::RUNNING;
     reason_.clear();
     RCLCPP_INFO(get_logger(), "mission start (%s)", plan_mode_ ? "plan" : "tag");
@@ -1580,6 +1619,10 @@ private:
       drive_done_ = true;
       ctr_requested_ = false;
       ctr_box_.reset();
+      ctr_iter_ = 0;
+      ctr_lidar_lat_ = std::nan("");
+      ctr_stage_ = CtrStage::VIEW;
+      ctr_log_.clear();
       sendArmPose(center_arm_pose_);
     } else if (s.type == "approach" || s.type == "approach_box" || s.type == "approach_view") {
       if (s.type == "approach" && needsCenter(idx)) {   // 퍽을 집는 접근: FINE 뒤 상자 중앙 맞춤 단계를 붙임 (approach 는 그대로 진행)
@@ -1749,21 +1792,22 @@ private:
           break;
       }
     } else if (s.type == "center_box") {
-      switch (phase_) {
-        case 1:  // BOX_VIEW 완료 → 팔 카메라 모드 → settle 뒤 재기 (tickCenterMeasure)
-          setModeThen(*parseModeNames(center_mode_text_), [this]() {beginWatch();});
+      switch (ctr_stage_) {
+        case CtrStage::VIEW:       // BOX_VIEW 완료 (처음 · keep_view 꺼짐이면 drive 뒤) → 재기
+          startCenterMeasure();
           break;
-        case 2:  // ALIGN 으로 되돌림 완료 → 잰 상자가 있으면 정밀 모드로 drive 중앙 맞춤, 없으면 끝 (FINE 결과 그대로)
-          if (ctr_box_) {
-            setModeThen(kFineMode, [this]() {sendCenterAlign();});
-          } else {
-            recordStartRef();
-            stepSucceeded();
-          }
+        case CtrStage::TO_ALIGN:   // (keep_view 꺼짐) drive 전 ALIGN 완료 → drive
+          ctr_stage_ = CtrStage::DRIVE;
+          setModeThen(kFineMode, [this]() {sendCenterAlign();});
           break;
-        default:  // drive 중앙 맞춤 완료
-          recordStartRef();   // 옮겼으면 turn 기준 yaw 를 새 자리로
+        case CtrStage::DRIVE:      // drive 중앙 맞춤 goal 성공 → 결과 보고 다시 재기 또는 끝
+          onCenterDrive();
+          break;
+        case CtrStage::FINAL:      // 끝 ALIGN 완료
+          recordStartRef();        // 옮겼으면 turn 기준 yaw 를 새 자리로
           stepSucceeded();
+          break;
+        default:
           break;
       }
     } else if (s.type == "approach_box") {
@@ -1791,6 +1835,7 @@ private:
   void stepSucceeded()
   {
     retry_count_.erase(step_idx_);
+    if (nav_fail_streak_ > 0 && !is_positioning_step(steps_[step_idx_].text)) {nav_fail_streak_ = 0;}   // 그곳 일을 함
     if (step_idx_ + 1 < steps_.size()) {
       enterStep(step_idx_ + 1);
       return;
@@ -2367,10 +2412,19 @@ private:
     return approach_needs_center(texts, idx);
   }
 
-  // ② settle → measure → 결과 (status ok + 상자). 실패 · 시간 초과면 잰 상자 없이 ③ (팔 ALIGN) 으로
+  // ② 재기 시작: 팔 카메라 모드 → settle 뒤 measure (tickCenterMeasure)
+  void startCenterMeasure()
+  {
+    ctr_stage_ = CtrStage::MEASURE;
+    ctr_requested_ = false;
+    ctr_box_.reset();
+    setModeThen(*parseModeNames(center_mode_text_), [this]() {beginWatch();});
+  }
+
+  // settle → measure → 결과 (status ok + 상자). 실패 · 시간 초과면 잰 상자 없이 판단 (no_measure → 끝)
   void tickCenterMeasure()
   {
-    if (!watching_ || ctr_box_) {return;}
+    if (!watching_ || ctr_stage_ != CtrStage::MEASURE) {return;}
     if (!ctr_requested_) {
       if ((now() - view_since_).seconds() < center_settle_) {return;}
       ctr_requested_ = true;
@@ -2399,23 +2453,104 @@ private:
     centerMeasureDone(*pose, "");
   }
 
-  // 잰 상자 (없으면 why) 를 기록하고 ③ 팔 ALIGN 으로 되돌림
+  // ③ 잰 상자 → 옆 e · 요 psi (base_link) → decide_loop. SHIFT 면 ④ drive, 아니면 ⑤ 끝
   void centerMeasureDone(const std::optional<geometry_msgs::msg::PoseStamped> & pose, const std::string & why)
   {
     watching_ = false;
     ctr_box_ = pose;
+    double e = std::nan(""), psi = std::nan("");
+    std::string err = why;
     if (pose) {
-      std::ostringstream o;
-      o << std::fixed << std::setprecision(4) << "\"event\": \"measure\", \"ok\": true, \"frame\": \"" << pose->header.frame_id
-        << "\", \"center\": [" << pose->pose.position.x << ", " << pose->pose.position.y << "], \"yaw_deg\": "
-        << tf2::getYaw(pose->pose.orientation) * 180.0 / M_PI;
-      logEvent("center_box", o.str());
-      RCLCPP_INFO(get_logger(), "center_box: 상자 (%s %.3f, %.3f) → 팔 %s 뒤 drive 중앙 맞춤", pose->header.frame_id.c_str(),
-        pose->pose.position.x, pose->pose.position.y, align_arm_pose_.c_str());
-    } else {
-      RCLCPP_WARN(get_logger(), "center_box: 상자 못 잼 -> 중앙 맞춤 없이 FINE 결과로 계속: %s", why.c_str());
-      logEvent("center_box", "\"event\": \"measure\", \"ok\": false, \"why\": \"" + escape(why) + "\"");
+      if (const auto T = lookupTf(base_frame_, pose->header.frame_id, builtin_interfaces::msg::Time())) {
+        tf2::Transform P;
+        tf2::fromMsg(pose->pose, P);
+        const tf2::Transform B = *T * P;
+        const CenterErr ce = center_error(B.getOrigin().x(), B.getOrigin().y(), tf2::getYaw(B.getRotation()));
+        if (ce.depth > 0.0) {
+          e = ce.lateral;
+          psi = ce.yaw;
+        } else {
+          err = "상자가 로봇 뒤 (depth " + std::to_string(ce.depth) + ")";
+        }
+      } else {
+        err = "TF " + base_frame_ + " <- " + pose->header.frame_id;
+      }
     }
+    const bool disagree = ctr_iter_ > 0 && lidar_disagrees(ctr_lidar_lat_, e, ctr_disagree_);
+    const auto v = control::decide_loop(e, psi, ctr_iter_, ctr_loop_, disagree);
+    std::ostringstream o;
+    o << std::fixed << std::setprecision(4) << "\"event\": \"measure\", \"iter\": " << ctr_iter_ << ", \"ok\": "
+      << (std::isfinite(e) ? "true" : "false");
+    if (pose) {
+      o << ", \"frame\": \"" << pose->header.frame_id << "\", \"center\": [" << pose->pose.position.x << ", "
+        << pose->pose.position.y << "], \"yaw_deg\": " << tf2::getYaw(pose->pose.orientation) * 180.0 / M_PI;
+    }
+    if (std::isfinite(e)) {o << ", \"lateral\": " << e << ", \"psi_deg\": " << psi * 180.0 / M_PI;}
+    if (std::isfinite(ctr_lidar_lat_)) {o << ", \"lidar_lateral\": " << ctr_lidar_lat_;}
+    o << ", \"decision\": \"" << v.why << "\"";
+    if (!err.empty()) {o << ", \"why\": \"" << escape(err) << "\"";}
+    logEvent("center_box", o.str());
+    if (std::isfinite(e)) {
+      ctr_log_ += (ctr_log_.empty() ? "" : " → ") + std::to_string(static_cast<int>(std::lround(e * 1000.0))) + " mm";
+    }
+
+    if (v.d == control::LoopDecision::SHIFT) {
+      RCLCPP_INFO(get_logger(), "center_box [%d/%d]: 옆 %+.1f mm · 요 %+.2f° → drive 중앙 맞춤", ctr_iter_ + 1, ctr_loop_.max_iter,
+        e * 1000.0, psi * 180.0 / M_PI);
+      if (ctr_keep_view_) {
+        ctr_stage_ = CtrStage::DRIVE;
+        setModeThen(kFineMode, [this]() {sendCenterAlign();});
+      } else {
+        ctr_stage_ = CtrStage::TO_ALIGN;
+        sendArmPose(align_arm_pose_);
+      }
+      return;
+    }
+    if (v.d == control::LoopDecision::DONE) {
+      RCLCPP_INFO(get_logger(), "center_box: 중앙 맞음 (옆 %+.1f mm · 요 %+.2f°, drive %d 번)", e * 1000.0, psi * 180.0 / M_PI,
+        ctr_iter_);
+    } else if (v.d == control::LoopDecision::FINAL_WARN) {
+      RCLCPP_WARN(get_logger(), "center_box: 반복 %d 번을 다 씀, 옆 %+.1f mm (≤ %.0f mm) · 요 %+.2f° 로 끝 (경고)", ctr_iter_,
+        e * 1000.0, ctr_loop_.final_warn_lateral * 1000.0, psi * 180.0 / M_PI);
+    } else {
+      RCLCPP_WARN(get_logger(), "center_box: 더 옮기지 않고 계속 (%s%s%s, drive %d 번)", v.why, err.empty() ? "" : " — ",
+        err.c_str(), ctr_iter_);
+    }
+    finishCenter(v.why);
+  }
+
+  // ④ drive goal 성공 뒤: MOVED 면 다시 재기 (keep_view 꺼짐이면 BOX_VIEW 로 먼저), 그 밖 (DONE · SKIPPED · FALLBACK) 은 끝
+  void onCenterDrive()
+  {
+    const int st = ctr_res_status_;
+    if (st == AlignBase::Result::CENTER_MOVED) {
+      if (ctr_keep_view_) {
+        startCenterMeasure();
+      } else {
+        ctr_stage_ = CtrStage::VIEW;
+        sendArmPose(center_arm_pose_);
+      }
+      return;
+    }
+    const std::string why = st == AlignBase::Result::CENTER_DONE ? "drive_done" :
+      st == AlignBase::Result::CENTER_SKIPPED ? "drive_skip:" + ctr_res_reason_ :
+      st == AlignBase::Result::CENTER_FALLBACK ? "drive_fallback:" + ctr_res_reason_ : "drive_status_" + std::to_string(st);
+    RCLCPP_WARN(get_logger(), "center_box: drive 가 옮기지 않음 (%s) -> 끝", why.c_str());
+    finishCenter(why);
+  }
+
+  // ⑤ 팔 ALIGN 으로 한 번 되돌리고 끝 (이미 ALIGN 이면 바로)
+  void finishCenter(const std::string & why)
+  {
+    logEvent("center_box", "\"event\": \"end\", \"why\": \"" + escape(why) + "\", \"drives\": " + std::to_string(ctr_iter_) +
+      ", \"lateral_mm\": \"" + escape(ctr_log_) + "\"");
+    if (!ctr_keep_view_ && ctr_stage_ == CtrStage::DRIVE) {   // keep_view 꺼짐: drive 뒤라 이미 ALIGN
+      ctr_stage_ = CtrStage::FINAL;
+      recordStartRef();
+      stepSucceeded();
+      return;
+    }
+    ctr_stage_ = CtrStage::FINAL;
     sendArmPose(align_arm_pose_);
   }
 
@@ -3207,9 +3342,42 @@ private:
       for (const auto & st : steps_) {texts.push_back(st.text);}
       if (const auto look = retry_look(texts, failed)) {target = *look;}
     }
+    double delay = retry_delay_;
+    if (s.type == "goto" || s.type == "navigate") {delay = std::max(delay, startRelocalize(reason));}
     RCLCPP_INFO(get_logger(), "retry %d/%d -> [%zu] %s in %.1fs", count, max_retries_, target,
-      steps_[target].text.c_str(), retry_delay_);
-    scheduleRetry(target);
+      steps_[target].text.c_str(), delay);
+    scheduleRetry(target, delay);
+  }
+
+  // 주행 재시도 전 AMCL 다시 찾기 (localization.nomotion_*): 첫 호출은 바로, 나머지는 tickRelocalize 가 interval 마다.
+  //   결과를 기다리지 않음 (콜백 안에서 기다리지 않는다). 돌려주는 값 = 다 부르는 데 드는 시간 (재시도 대기 하한)
+  double startRelocalize(const std::string & why)
+  {
+    if (!nomotion_client_) {return 0.0;}
+    if (!nomotion_client_->service_is_ready()) {
+      RCLCPP_WARN(get_logger(), "relocalize: %s 없음 -> 건너뜀", nomotion_service_.c_str());
+      logEvent("relocalize", "\"ok\": false, \"why\": \"" + escape(nomotion_service_) + " not ready\"");
+      return 0.0;
+    }
+    reloc_left_ = nomotion_count_;
+    reloc_sent_ = 0;
+    reloc_next_ = now();
+    RCLCPP_INFO(get_logger(), "relocalize: %s × %d (%.1f s 간격) 뒤 재시도", nomotion_service_.c_str(), nomotion_count_,
+      nomotion_interval_);
+    logEvent("relocalize", "\"ok\": true, \"service\": \"" + escape(nomotion_service_) + "\", \"count\": " +
+      std::to_string(nomotion_count_) + ", \"reason\": \"" + escape(why) + "\"");
+    tickRelocalize();
+    return nomotion_count_ * nomotion_interval_;
+  }
+
+  void tickRelocalize()
+  {
+    if (reloc_left_ <= 0 || !nomotion_client_ || now() < reloc_next_) {return;}
+    --reloc_left_;
+    ++reloc_sent_;
+    reloc_next_ = now() + rclcpp::Duration::from_seconds(nomotion_interval_);
+    nomotion_client_->async_send_request(std::make_shared<std_srvs::srv::Empty::Request>(),
+      [](rclcpp::Client<std_srvs::srv::Empty>::SharedFuture) {});
   }
 
   // manipulator skill 이름이 prefix 로 시작하는지 ("toppick_tilt" · "target_look:")
@@ -3253,6 +3421,16 @@ private:
           return;
         }
       }
+      if (skip_nav_) {
+        if (const auto nk = nav_skip(texts, failed)) {
+          if (nav_skip_allowed(nav_fail_streak_ + 1, max_consec_nav_skip_)) {
+            skipNav(failed, *nk, why);
+            return;
+          }
+          RCLCPP_ERROR(get_logger(), "[%zu] 이동 실패 연속 %d 곳 (on_fail.max_consecutive_nav_skip %d) -> 건너뛰지 않음",
+            failed, nav_fail_streak_ + 1, max_consec_nav_skip_);
+        }
+      }
       if (return_home_) {
         abort_reason_ = why;
         RCLCPP_ERROR(get_logger(), "[%zu] %s -> HOME 복귀 뒤 FAILED", failed, why.c_str());
@@ -3269,6 +3447,44 @@ private:
     finish(Run::FAILED, why);
   }
 
+  // 이동 실패 -> 그곳만 건너뜀 (on_fail.skip_nav): 실을 칸은 빈 칸 (뒤 꺼내기 · 놓기도 건너뜀), 꺼낼 칸의 퍽은 팔레트에 남음,
+  //   그곳 verify 는 하지 않음 (마지막 verify 였으면 ID 판정은 지금까지 본 장소로 남김)
+  void skipNav(size_t failed, const NavSkip & nk, const std::string & why)
+  {
+    ++nav_fail_streak_;
+    size_t place_i = failed;
+    while (place_i > 0 && !is_nav_step(steps_[place_i].text)) {--place_i;}
+    const std::string where = steps_[place_i].text;
+    std::string what;
+    for (const auto & sl : nk.pick_slots) {
+      skipped_slots_.insert(sl);
+      skipped_.push_back("pick " + sl);
+      what += (what.empty() ? "" : ", ") + std::string("pick ") + sl;
+    }
+    for (const auto & sl : nk.place_slots) {
+      skipped_.push_back("place " + sl);
+      what += (what.empty() ? "" : ", ") + std::string("place ") + sl;
+    }
+    for (const auto & L : nk.verifies) {
+      skipped_.push_back("verify " + L);
+      what += (what.empty() ? "" : ", ") + std::string("verify ") + L;
+    }
+    if (what.empty()) {skipped_.push_back("nav [" + std::to_string(place_i) + "]");}
+    RCLCPP_ERROR(get_logger(), "[%zu] %s -> 이곳 (%s) 건너뜀 (%s), 연속 %d 곳째 → [%zu] 부터", failed, why.c_str(), where.c_str(),
+      what.empty() ? "할 일 없음" : what.c_str(), nav_fail_streak_, nk.resume);
+    logEvent("skip", "\"what\": \"nav\", \"where\": \"" + escape(where) + "\", \"skipped\": \"" + escape(what) +
+      "\", \"streak\": " + std::to_string(nav_fail_streak_) + ", \"reason\": \"" + escape(why) + "\"");
+    if (!nk.verifies.empty() && verify_record_ids_ && !verify_records_.empty()) {
+      bool later = false;
+      for (size_t i = nk.resume; i < steps_.size(); ++i) {
+        if (steps_[i].type == "verify") {later = true; break;}
+      }
+      if (!later) {logIdJudgement();}   // 판정만 남김 (건너뛴 곳은 기록 없음 = 누락으로 나옴)
+    }
+    retry_count_.clear();
+    enterStep(nk.resume);   // resume <= home
+  }
+
   // 건너뛴 것 "skipped: pick 1_2, place 3_0" (없으면 빈 문자열)
   std::string skippedText(bool sep) const
   {
@@ -3278,10 +3494,10 @@ private:
     return out;
   }
 
-  void scheduleRetry(size_t idx)
+  void scheduleRetry(size_t idx, double delay = -1.0)
   {
     retry_idx_ = idx;
-    retry_at_ = now() + rclcpp::Duration::from_seconds(retry_delay_);
+    retry_at_ = now() + rclcpp::Duration::from_seconds(delay >= 0.0 ? delay : retry_delay_);
     retry_pending_ = true;
   }
 
@@ -3293,6 +3509,7 @@ private:
     ++stage_id_;
     watching_ = false;
     stopVerifyRecord();
+    reloc_left_ = 0;
     if (retry_pending_) {
       step_idx_ = retry_idx_;  // 재시도 대기 중이었으면 그 단계부터 재개
       retry_pending_ = false;
@@ -3490,14 +3707,38 @@ private:
     goal.tolerance = static_cast<float>(align_tolerance_);
     goal.center = true;
     goal.center_box = *ctr_box_;
+    goal.center_iter = ctr_iter_;
+    ++ctr_iter_;   // decide_loop k = 보낸 drive goal 수
+    ctr_res_status_ = AlignBase::Result::CENTER_NONE;
+    ctr_res_reason_.clear();
+    ctr_lidar_lat_ = std::nan("");
     sendGoal<AlignBase>(align_client_, goal, align_goal_, "/drive/align(CENTER)", driveReport(),
       [this](const AlignBase::Result & r, std::string & msg) {
         msg = r.message;
-        RCLCPP_INFO(get_logger(), "center_box: drive %s — %s", r.success ? "성공" : "실패", r.message.c_str());
-        logEvent("center_box", "\"event\": \"drive\", \"ok\": " + std::string(r.success ? "true" : "false") +
-          ", \"message\": \"" + escape(r.message) + "\"");
+        ctr_res_status_ = r.center_status;
+        ctr_res_reason_ = r.center_reason;
+        ctr_lidar_lat_ = r.lidar_lateral;   // 다음 재기와 교차확인 (NaN = 못 잼)
+        RCLCPP_INFO(get_logger(), "center_box: drive %s (status %d %s) — %s", r.success ? "성공" : "실패", r.center_status,
+          r.center_reason.c_str(), r.message.c_str());
+        std::ostringstream o;
+        o << std::fixed << std::setprecision(4) << "\"event\": \"drive\", \"iter\": " << (ctr_iter_ - 1) << ", \"ok\": "
+          << (r.success ? "true" : "false") << ", \"status\": " << int(r.center_status) << ", \"reason\": \""
+          << escape(r.center_reason) << "\", \"lateral\": " << jsonNum(r.center_lateral) << ", \"yaw_err_deg\": "
+          << jsonNum(r.center_yaw_err * 180.0 / M_PI) << ", \"shift_planned\": " << jsonNum(r.shift_planned)
+          << ", \"lidar_gap\": " << jsonNum(r.lidar_gap) << ", \"lidar_lateral\": " << jsonNum(r.lidar_lateral)
+          << ", \"lidar_yaw_deg\": " << jsonNum(r.lidar_yaw * 180.0 / M_PI) << ", \"message\": \"" << escape(r.message) << "\"";
+        logEvent("center_box", o.str());
         return r.success;
       });
+  }
+
+  // JSON 숫자 (NaN · inf 는 null)
+  static std::string jsonNum(double v)
+  {
+    if (!std::isfinite(v)) {return "null";}
+    std::ostringstream o;
+    o << std::fixed << std::setprecision(4) << v;
+    return o.str();
   }
 
   void sendArmPose(const std::string & pose_name)
@@ -3600,6 +3841,16 @@ private:
   bool center_enabled_{false}, ctr_requested_{false};
   std::string center_arm_pose_{"BOX_VIEW"}, center_mode_text_{"READ_TAG"};
   double center_settle_{0.5}, center_measure_timeout_{12.0};
+  // 반복 폐루프 (11-21)
+  enum class CtrStage { VIEW, MEASURE, TO_ALIGN, DRIVE, FINAL };
+  CtrStage ctr_stage_{CtrStage::VIEW};
+  control::LoopConfig ctr_loop_;
+  int ctr_iter_{0};                       // 보낸 drive goal 수 (decide_loop k)
+  double ctr_lidar_lat_{std::nan("")};    // 직전 drive 결과 라이다 옆 (교차확인)
+  double ctr_disagree_{0.02}, ctr_pose_s_{10.0}, ctr_drive_s_{45.0};
+  bool ctr_keep_view_{true};
+  int ctr_res_status_{0};
+  std::string ctr_res_reason_, ctr_log_;
   rclcpp::Time ctr_request_t_{0, 0, RCL_ROS_TIME};
   std::optional<geometry_msgs::msg::PoseStamped> ctr_box_;   // 이번 center_box 에서 잰 상자 (perception frame)
   std::string place_box_arm_pose_, place_box_mode_text_;
@@ -3727,7 +3978,14 @@ private:
   std::optional<std::array<double, 3>> wait_pose0_;          // wait 처음 자세 (map)
   bool dice_pending_{false};
   // 재시도 소진 처리 (R1)
-  bool skip_puck_{true}, return_home_{true};
+  bool skip_puck_{true}, return_home_{true}, skip_nav_{true};
+  int max_consec_nav_skip_{2}, nav_fail_streak_{0};   // 이동 실패로 건너뛴 곳 연속 수 (그곳 일을 하나라도 하면 0)
+  // 주행 재시도 전 AMCL nomotion (localization.nomotion_*)
+  std::string nomotion_service_;
+  int nomotion_count_{5}, reloc_left_{0}, reloc_sent_{0};
+  double nomotion_interval_{0.2};
+  rclcpp::Client<std_srvs::srv::Empty>::SharedPtr nomotion_client_;
+  rclcpp::Time reloc_next_{0, 0, RCL_ROS_TIME};
   std::set<std::string> skipped_slots_;     // 집기를 건너뛴 팔레트 칸 "열_칸"
   std::vector<std::string> skipped_;        // 건너뛴 것 (끝 reason)
   std::string abort_reason_;                // HOME 복귀 중이면 처음 실패 원인

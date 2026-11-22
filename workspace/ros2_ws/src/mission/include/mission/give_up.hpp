@@ -108,6 +108,70 @@ inline size_t after_unload(const std::vector<std::string> & texts, size_t idx)
   return idx + 1;
 }
 
+// ---- 이동 실패 시 그곳만 건너뛰기 (on_fail.skip_nav, 11-21, review_arch ②) ----
+// 한 "곳" = goto · navigate 하나부터 다음 goto · navigate 앞까지 (그 자리에서 하는 접근 · 집기 · 놓기 · verify)
+inline bool is_nav_step(const std::string & text)
+{
+  const auto t = step_tokens(text);
+  return !t.empty() && (t[0] == "goto" || t[0] == "navigate");
+}
+
+// 그곳에 서기 위한 단계 (손은 비어 있음): 주행 · 접근 · 상자 재기 · 중앙 맞춤.
+//   check_marker 는 첫 pallet_unload 뒤 (퍽을 쥠) 라 넣지 않음
+inline bool is_positioning_step(const std::string & text)
+{
+  const auto t = step_tokens(text);
+  if (t.empty()) {return false;}
+  const std::string & k = t[0];
+  return k == "goto" || k == "navigate" || k == "approach" || k == "approach_box" || k == "approach_view" ||
+         k == "center_box" || k == "measure_start" || k == "measure_box";
+}
+
+struct NavSkip
+{
+  size_t resume{0};                       // 다음 goto · navigate (복귀 줄일 수 있음)
+  std::vector<std::string> pick_slots;    // 그곳에서 실을 칸 -> 빈 칸 (뒤의 그 칸 꺼내기 · 놓기도 건너뜀)
+  std::vector<std::string> place_slots;   // 그곳에서 꺼내 놓을 칸 -> 퍽은 팔레트에 남음
+  std::vector<std::string> verifies;      // 건너뛰는 verify 의 장소 (L1 …)
+};
+
+// failed 가 그곳에 서는 단계 (is_positioning_step) 이고, 그곳의 goto 와 failed 사이에 팔 · 집기 단계가 없으면
+//   (손이 비어 있음) 다음 goto · navigate 까지 건너뛸 범위. 그 밖 · 뒤에 goto 가 없으면 (복귀 줄 자체) nullopt
+inline std::optional<NavSkip> nav_skip(const std::vector<std::string> & texts, size_t failed)
+{
+  if (failed >= texts.size() || !is_positioning_step(texts[failed])) {return std::nullopt;}
+  if (!is_nav_step(texts[failed])) {
+    // 같은 곳의 goto 까지 거슬러 가며 팔 · 집기 단계가 끼었는지 본다
+    bool found = false;
+    for (size_t i = failed; i-- > 0;) {
+      if (is_nav_step(texts[i])) {found = true; break;}
+      if (!is_positioning_step(texts[i])) {return std::nullopt;}
+    }
+    if (!found) {return std::nullopt;}
+  }
+  NavSkip s;
+  for (size_t i = failed + 1; i < texts.size(); ++i) {
+    if (is_nav_step(texts[i])) {
+      s.resume = i;
+      return s;
+    }
+    const std::string load = pallet_slot(texts[i], "load");
+    if (!load.empty()) {s.pick_slots.push_back(load);}
+    const std::string unload = pallet_slot(texts[i], "unload");
+    if (!unload.empty()) {s.place_slots.push_back(unload);}
+    const auto t = step_tokens(texts[i]);
+    if (t.size() >= 2 && t[0] == "verify") {s.verifies.push_back(t[1]);}
+  }
+  return std::nullopt;
+}
+
+// 연속 이동 실패 (이번 것 포함) consecutive 곳째: max 에 이르면 건너뛰지 않고 복귀.
+//   max 2 = 한 곳은 건너뛰고 연속 둘째 실패에서 HOME 복귀. max <= 1 = 건너뛰지 않음
+inline bool nav_skip_allowed(int consecutive, int max_consecutive)
+{
+  return consecutive >= 1 && consecutive < max_consecutive;
+}
+
 // 복귀 줄: 맨 끝 wait 바로 앞 goto (계획기 return). 없으면 nullopt (계획 전 · tag 모드)
 inline std::optional<size_t> home_index(const std::vector<std::string> & texts)
 {

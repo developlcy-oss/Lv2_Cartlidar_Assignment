@@ -7,6 +7,8 @@ drive_node:
       xy_goal_tolerance: 0.05      # 이 안의 목표는 nav2 spin 으로. navigation/config/nav2_params.yaml goal checker xy_goal_tolerance 와 같게
                                    # (Gazebo 2026-11-04: 0.025 면 마지막 옆 2 ~ 3 cm 를 못 메워 실패, #114). 정밀 위치는 align COARSE · FINE
       spin_time_allowance: 15.0
+      spin_nocheck_deg: 3.0        # (11-22) 이 각 이하의 작은 spin 은, 라이다로 차체 외곽 둘레 여유가 충분할 때만 Nav2 충돌검사 끔 (상자 앞 Collision Ahead 대책). 0 = 끔
+      spin_nocheck_clear: 0.03     # (11-22) 외곽 ↔ 스캔 점 거리 ≥ (모서리 쓸림 ρ·각 + 이 값) 이어야 끔 [m]. /scan 없음·오래됨이면 안 끔
       backoff:                     # 박스 앞 정차 중 navigate → Nav2 전에 곧게 후진 (#157). 뒤 /scan (scan.rear_stop) · 뒤 카메라가 막히면 멈춰 기다림
         speed: 0.08                # [m/s]
         max_m: 0.30                # FINE 자리 (TFmini 0.13) → 0.35 확인까지 약 0.22 m. 이만큼 가도 확인 못 하면 되돌리고 Nav2
@@ -75,22 +77,40 @@ drive_node:
         box_half: 0.1025           # [m] 상자 반 변 (perception arm.place_box.box / 2)
         prior_delay_s: 0.3         # 사전값 발행 → 측정 요청 사이
         measure_timeout_s: 12.0    # 측정 결과 기다림 (Jetson 팔 영상 3 장 × 약 3 s)
-        lateral_tolerance: 0.015   # [m] 기동 건너뛰는 문턱: 이 안이면 옆 이동 없이 법선 yaw 만 맞춤
+        lateral_tolerance: 0.005   # [m] 기동 건너뛰는 문턱: 이 안이면 옆 이동 없이 법선 yaw 만 맞춤 (11-21: 0.015 → 0.005 = mission done_lateral,
+                                   #   반복 판단은 mission decide_loop — 5 mm 아래 기동은 정밀도보다 작아 의미 없음)
         max_shift: 0.08            # [m] 이보다 크면 측정을 믿지 않음
-        back_min: 0.06             # [m] 후진 거리 = |옆| / tan(max_alpha) 를 [back_min, back_max] 로
+        back_min: 0.04             # [m] 후진 거리 = |옆| / tan(α) + 모서리 몫 δ 를 [back_min, back_max] 로 (11-21: 0.06 → 0.04)
         back_max: 0.15             #   뒤 /scan (scan.rear_stop) · 뒤 카메라가 막히면 포기 → 기존 FINE
-        max_alpha: 0.35            # [rad] 비스듬 전진 각 (약 20°, back_max 에 걸리면 커짐: 0.08 m → 28°)
+        max_alpha: 0.436           # [rad] 비스듬 전진 각 (25°, 11-21: 0.35 → 0.436 — 직진이 짧아 끝 yaw 오차에 덜 민감, 모서리 침범 5.2 cm)
+        alpha_hard: 0.52           # [rad] 뒤 여유가 모자라면 각을 이것까지 키워 다시 계획 (30°, 모서리 침범 5.8 cm)
+        alpha_min: 0.10            # [rad] S 자 (후진 없음) 각 하한
+        s_curve: true              # 앞 틈 ≥ |옆|/tanα + 모서리 침범 + corner_margin 이면 후진 없이 S 자 (FINE 자리 틈 0.13 → |옆| ≤ 약 2.7 cm)
+        corner_margin: 0.02        # [m] 회전 · 비스듬 자세에서 앞 모서리 (0.1328, ±0.1676) ↔ 상자 앞면 평면 여유 (box_center.hpp corner_intrusion)
+        corner_y: 0.1676           # [m] 상판 앞 모서리 |y| (drive_demo box_face.FRONT_CORNERS)
+        forward_cut_slack: 0.02    # [m] 비스듬 전진 중 TFmini < 계획 끝 틈 − 이 값이면 일찍 끝냄 (하한 forward_min_m)
+        lidar_topic: /scan_front   # 상자 앞면 라이다 (원본. /scan_merged 는 차체 마스크 x ≤ 0.285 가 상자를 지움). "" = 안 씀
+        lidar_scans: 5             # 최근 장 수 (중앙값)
+        lidar_min_ok: 4            # 이 수 이상 맞춰져야 ok (box_face.py AVG_LOOSE)
+        lidar_max_age_s: 1.0
+        lidar_min_gap: 0.15        # [m] 라이다 틈이 이보다 작으면 섞지 않음 (LDS-03 range_min 0.12 ≈ 라이다 x 0.1318 − 앞 끝)
+        lidar_tf: [0.1318, 0.0, -1.0, 0.0, 0.0, 1.0]   # TF 가 없을 때 laser_front → base_link (tx, ty, r00, r01, r10, r11), roll π
+        sensor_disagree: 0.02      # [m] Arducam 옆 ↔ 라이다 옆 차이가 이보다 크면 불일치
+        disagree_skip: true        # 불일치면 움직이지 않고 center_reason "disagree" (mission 이 다시 잼)
+        fuse_w_arducam_yaw: 0.93   # 요 결합 가중 (Arducam σ≈0.4° · 라이다 5 장 σ≈1.5°)
         speed: 0.05                # [m/s]
         kp_yaw: 2.0
         max_angular: 0.4
         min_angular: 0.12          # ★ 실물 제자리 회전 시작 속도 (turn.min_angular 와 같이)
         yaw_tolerance: 0.017       # [rad] 기동 회전 끝 (약 1°). 마지막 유지는 align.box_only.yaw_tolerance
-        forward_min_m: 0.12        # [m] 비스듬 전진 중 TFmini 가 이 안이면 전진 끝 (최소 측정 0.10 + 여유)
+        forward_min_m: 0.10        # [m] 비스듬 전진 끊는 TFmini 하한 (최소 측정). 11-21: 0.12 → 0.10 — S 자는 계획상 0.13 보다 가까워짐
         phase_timeout_s: 8.0       # 기동 단계 하나 (회전 · 후진 · 전진) 시간 상한
-        timeout_s: 45.0            # 중앙 맞춤 전체 (측정 포함, align.timeout_s 와 따로). 넘으면 기존 FINE
+        timeout_s: 45.0            # goal 하나 (기동 1 회 + 유지) 시간 상한, align.timeout_s 와 따로. 넘으면 기존 FINE
+                                   #   (11-21) 반복 (K_max 3, 전체 90 s) 은 mission center_box 가 goal.center 를 여러 번 보내며 셈
         max_iter: 1                # 옆 이동 횟수. 2 면 이동 뒤 다시 재고 한 번 더 (측정 시간만큼 늘어남)
         rear_half_angle: 0.785     # 후진 전 뒤 여유: 뒤 /scan ± 이 각 가장 가까운 점 − scan.rear_stop 까지만 후진 (pullout 처럼). back_min 안 되면 기동 안 함
-        final_puck: true           # 옆 이동을 했으면 마지막에 퍽 arm_offset → 회전 (전후 TFmini) 로 마무리. 퍽이 화면에 없으면 건너뜀
+        final_puck: false          # 옆 이동을 했으면 마지막에 퍽 arm_offset → 회전 (전후 TFmini) 로 마무리. 퍽이 화면에 없으면 건너뜀
+                                   #   (11-21 사용자 결정: 중앙 = 상자 면 중심 → 끔. 켜면 최대 6° 돌아 그리퍼 약 2.6 cm 옆으로)
         max_puck_yaw_dev_deg: 6.0  # 퍽 쪽 방향이 상자 법선에서 이보다 벌어지면 돌지 않고 경고 ("칸 어긋남?")
         arm_target_topic: /perception/arm_target   # 돌기 전 퍽 위치 판단 (없으면 회전 중 각도로만 막음)
     scan:

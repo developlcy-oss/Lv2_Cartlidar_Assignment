@@ -28,8 +28,15 @@ FRONT_CORNERS = ((0.1328, 0.1676), (0.1328, -0.1676))   # 상판 앞 모서리 b
 
 # find_box_face 기본값 (cfg dict 로 일부만 바꿀 수 있음)
 FACE_CFG = {
-    "x_min": 0.14, "x_max": 0.60, "y_abs": 0.30,   # 기본 창 (base_link)
-    "expect_win": 0.10,       # expect 가 있으면 그 주변 ± 이 거리만 (법선 방향 ±win, 접선 방향 ±(BOX_SIDE/2 + win))
+    "x_min": 0.14, "x_max": 0.65, "y_abs": 0.35,   # expect 없을 때 창: 앞면 중점 (cx, cy) 이 이 안 (base_link). 11-21: y 0.30 → 0.35 넓힘
+                              #   x_max 0.80 이면 bag 재생에서 0.76 m 의 다른 물체를 상자로 잡음 (1800 box1) → 0.65
+    "expect_win": 0.20,       # expect 가 있으면 앞면 중점이 그 주변 ± 이 거리 안 (법선 · 접선 방향 각각).
+                              #   11-21 실물 상자가 계획보다 ~13 cm 어긋나 ±0.10 창에 점 0 개 → 0/36. ±0.20 으로 넓힘
+    "fit_margin": 0.15,       # 선분 맞춤은 창보다 이만큼 (접선 방향은 + BOX_SIDE/2) 넓은 영역의 점으로 →
+                              #   창 경계에서 잘린 벽 조각이 0.205 m 로 보여 상자로 오인되는 일 없음
+                              #   (중점이 창 안인 벽 조각은 반 길이 ≥ margin → 길이 ≥ 0.30 → "너무 김")
+    "seg_per_cluster": 3,
+    "refine_adapt": 4.0,      # 재수집 폭 = min(refine_thr, max(ransac_thr, k · RANSAC inlier RMS)). 0 이면 끔 (예전 동작)     # 군집마다 RANSAC 선분 최대 수 (벽 + 옆면 + 앞면이 한 군집일 때)
     "angle_inc": math.radians(1.0),   # 스캔 각 간격 Δθ (군집 문턱 · 끝점 양자화 보정)
     "laser_xy": (0.1318, 0.0),        # 라이다 위치 (거리 r 계산용)
     "clu_min": 0.03, "clu_k": 3.0,    # 군집 끊기: 이웃 간격 > max(clu_min, clu_k·r·Δθ)
@@ -57,7 +64,7 @@ FACE_CFG = {
 #     → 더 줄이려면 장수를 늘리거나 가까이서 다시 재야 함 (문턱으로 골라내도 가우스 잡음이면 정확도는 안 좋아짐).
 #   refine_thr 0.04 (4σ): 끝점 · 한가운데 점이 덜 빠짐 (2 cm 면 기울기 sd 1.4 → 2.1° 로 나빠짐).
 #   AVG: 중앙값 ±2 cm · ±4° 밖 측정만 빼고 4 장 이상 남아야 ok (쌍별 방식은 5 장 중 한 쌍만 벗어나도 실패라 σ 1 cm 에서 40 % 실패).
-FACE_CFG_LOOSE = {"rms_max": 0.015, "run_min": 0.025, "refine_thr": 0.04}
+FACE_CFG_LOOSE = {"rms_max": 0.015, "run_min": 0.025, "refine_thr": 0.04, "refine_adapt": 0.0}   # 11-21: σ 1 cm 에선 적응 재수집 끔 (조정 당시 동작)
 AVG_LOOSE = {"spread_mode": "median", "spread_xy": 0.04, "spread_yaw": math.radians(8.0), "min_ok": 4}
 
 # plan_approach 기본 상한 (cfg dict 로 바꿀 수 있음)
@@ -209,6 +216,13 @@ def _expect_xyyaw(expect):
     return float(e[0]), float(e[1]), (float(e[2]) if len(e) > 2 else 0.0)
 
 
+def _in_expect_frame(x, y, ex):
+    """expect (cx, cy, yaw) 기준 (법선 방향 along, 접선 방향 side)"""
+    ecx, ecy, eyaw = ex
+    dx, dy = x - ecx, y - ecy
+    return dx * math.cos(eyaw) + dy * math.sin(eyaw), -dx * math.sin(eyaw) + dy * math.cos(eyaw)
+
+
 def _segment(inl, lx, ly, dth, quant):
     """inlier 점 → (cx, cy, nyaw, length, 끝점 2 개, 끝점 laser 거리 2 개)"""
     mx, my, phi = _pca_line(inl)
@@ -247,26 +261,27 @@ def _occluded(end, r_end, allpts, lx, ly, dth, dr, inl_set):
 # ---------------------------------------------------------------- 상자 앞면 찾기
 
 def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
-    """base_link 점 목록에서 상자 앞면 선분을 찾음. expect = (cx, cy[, nyaw]) 또는 FaceResult (그 주변만 봄)"""
+    """base_link 점 목록에서 상자 앞면 선분을 찾음.
+    expect = (cx, cy[, nyaw]) 또는 FaceResult → 앞면 중점이 그 주변 ±expect_win 안인 것만,
+    expect = None → 앞면 중점이 x ≤ x_max · |y| ≤ y_abs 안인 것만 (예상 위치 없이 정면 탐색).
+    후보 (길이 0.205 ± len_tol · 기울기 ≤ yaw_max · RMS) 가 여럿이면 길이 오차 + 정면 (또는 expect) 거리 점수가 작은 것"""
     c = {**FACE_CFG, **(cfg or {})}
     lx, ly = c["laser_xy"]
     dth = c["angle_inc"]
-    # 1. 창 거르기
+    # 1. 맞춤 영역 거르기 (선택 창 + fit_margin). 선택 창은 5 단계에서 앞면 중점에만 적용
     ex = _expect_xyyaw(expect)
+    mg = c["fit_margin"]
     win = []
     for p in pts:
         x, y = float(p[0]), float(p[1])
-        if not (math.isfinite(x) and math.isfinite(y)):
+        if not (math.isfinite(x) and math.isfinite(y)) or x < c["x_min"]:
             continue
         if ex is None:
-            if c["x_min"] <= x <= c["x_max"] and abs(y) <= c["y_abs"]:
+            if x <= c["x_max"] + mg and abs(y) <= c["y_abs"] + BOX_SIDE / 2 + mg:
                 win.append((x, y))
         else:
-            ecx, ecy, eyaw = ex
-            dx, dy = x - ecx, y - ecy
-            along = dx * math.cos(eyaw) + dy * math.sin(eyaw)
-            side = -dx * math.sin(eyaw) + dy * math.cos(eyaw)
-            if abs(along) <= c["expect_win"] and abs(side) <= BOX_SIDE / 2 + c["expect_win"]:
+            along, side = _in_expect_frame(x, y, ex)
+            if abs(along) <= c["expect_win"] + mg and abs(side) <= c["expect_win"] + BOX_SIDE / 2 + mg:
                 win.append((x, y))
     if len(win) < c["min_inliers"]:
         return FaceResult(False, f"상자 못 찾음 (창 안 점 {len(win)} 개) · RMS - · 점 {len(win)} 개", n_pts=len(win))
@@ -282,10 +297,10 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
         cur.append(b)
     clusters.append(cur)
     # 3 ~ 4. 군집마다 선분 (L 자 모서리면 첫 선분 inlier 를 빼고 한 번 더)
-    cands, fails = [], []
+    cands, fails, outside = [], [], []
     for cl in clusters:
         rest = cl
-        for _ in range(2):
+        for _ in range(c["seg_per_cluster"]):
             if len(rest) < c["min_inliers"]:
                 break
             idx = _ransac(rest, c["ransac_thr"], c["ransac_max_src"])
@@ -295,7 +310,10 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
             if len(inl) < c["min_ransac"]:
                 fails.append((len(inl), f"선분 점 {len(inl)} 개 < {c['min_ransac']} (RANSAC)", _rms(inl) if len(inl) >= 2 else None))
                 continue
-            inl = _refine(inl, win, c["refine_thr"], c["run_min"], c["run_k"], lx, ly, dth)
+            thr_r = c["refine_thr"]
+            if c["refine_adapt"] > 0 and len(inl) >= 3:   # 잡음 작으면 다시 모으는 폭도 좁힘 → 옆면 (L 자 모서리) 점이 끝에 붙어 길이 · 중점이 밀리는 것 막음
+                thr_r = min(thr_r, max(c["ransac_thr"], c["refine_adapt"] * _rms(inl)))
+            inl = _refine(inl, win, thr_r, c["run_min"], c["run_k"], lx, ly, dth)
             if len(inl) < c["min_inliers"]:
                 fails.append((len(inl), f"선분 점 {len(inl)} 개 < {c['min_inliers']}", _rms(inl) if len(inl) >= 2 else None))
                 continue
@@ -320,11 +338,24 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
             if rms > c["rms_max"]:
                 fails.append((len(inl), f"직선 잔차 RMS {rms * 1000:.1f} mm > {c['rms_max'] * 1000:.1f} mm", rms))
                 continue
-            dist = math.hypot(cx, cy)
-            score = abs(length - c["len_nom"]) / c["len_tol"] + dist / c["x_max"]
+            # 선택 창 (앞면 중점) · 점수: 길이가 0.205 에 가깝고 정면 (expect 있으면 expect) 에 가까울수록 작음
+            if ex is None:
+                inside = cx <= c["x_max"] and abs(cy) <= c["y_abs"]
+                score = abs(length - c["len_nom"]) / c["len_tol"] + abs(cy) / c["y_abs"] + 0.5 * cx / c["x_max"]
+            else:
+                along, side = _in_expect_frame(cx, cy, ex)
+                inside = abs(along) <= c["expect_win"] and abs(side) <= c["expect_win"]
+                score = abs(length - c["len_nom"]) / c["len_tol"] + math.hypot(along, side) / c["expect_win"]
+            if not inside:
+                outside.append((cx, cy))
+                continue
             cands.append((score, FaceResult(True, "", cx, cy, nyaw, length, len(inl), rms=rms)))
     # 5. 고르기
     if not cands:
+        if outside:
+            ox, oy = min(outside, key=lambda q: abs(q[1]))
+            return FaceResult(False, f"상자면 모양 선분 {len(outside)} 개가 창 밖 (가장 정면 ({ox:.3f}, {oy:+.3f})) · RMS - · 점 0 개 (창 {len(win)} 개)",
+                              n_pts=0)
         if fails:
             fails.sort(key=lambda t: -t[0])
             n, msg, rms = fails[0]
@@ -335,7 +366,8 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
                           n_pts=len(win))
     cands.sort(key=lambda t: t[0])
     f = _fill(cands[0][1])
-    f.why = f"상자면 길이 {f.length:.3f} m · 점 {f.n_pts} 개 · RMS {f.rms * 1000:.1f} mm · 후보 {len(cands)} 개"
+    f.why = f"상자면 길이 {f.length:.3f} m · 점 {f.n_pts} 개 · RMS {f.rms * 1000:.1f} mm · 후보 {len(cands)} 개" + \
+        (f" (창 밖 {len(outside)} 개)" if outside else "")
     return f
 
 
@@ -509,3 +541,174 @@ def simulate(steps, icr_x=ICR_X):
         else:
             pose = (pose[0] + math.cos(pose[2]) * v, pose[1] + math.sin(pose[2]) * v, pose[2])
     return pose
+
+
+# ---------------------------------------------------------------- S 자 옆 보정 (11-21, 라이다만)
+#   review_center.md 2 절: 법선 정렬 → (후진 d) → +α 회전 → 전진 f → −α 회전 → 곧게 전진.
+#   ICR 둘레로 +α / −α 를 돌면 ICR 오프셋은 끝 자세에 영향 없음 → 옆 이동 = f·sinα, 깊이 소모 = f·cosα.
+#   회전 중 앞 모서리 침범 Δx(α) = ρ·cos(φ−α) − ρ·cosφ (ρ = 0.260, φ = 40.2°, ρ·cosφ = 0.1986) — turn_clearance 와 같은 기하.
+#   주행 모드 (틈 0.20 정도) 는 후진 없이 남은 깊이 안에서 옮김. 모자라면 후진 d 를 더함 (α 는 ≤ alpha_max_back 까지 키워 봄).
+
+S_CFG = {
+    "alpha_max": math.radians(25.0),       # 후진 없는 S 자 최대 각
+    "alpha_max_back": math.radians(30.0),  # 후진 쓸 때 최대 각 (뒤 여유 부족하면 여기까지 키움)
+    "alpha_min": math.radians(5.0),        # 이보다 작은 각은 안 씀 (f 가 너무 길어짐)
+    "alpha_step": math.radians(0.5),
+    "margin": 0.02,                        # 회전 중 앞 모서리 ↔ 상자면 평면 최소 여유 [m] (틈 조건 g ≥ Δx + 0.02)
+    "e_tol": 0.005,                        # |옆 오차| ≤ 이 값이면 S 자 없이 정렬 + 곧게
+    "e_max": 0.08,                         # |옆 오차| > 이 값이면 계획 안 함 (재측정 · FAIL_SAFE)
+    "d_min": 0.04, "d_max": 0.15,          # 후진 쓸 때 범위 [m]
+    "yaw_max": math.radians(25.0),         # 정렬 회전 상한
+    "icr_x": ICR_X,
+}
+
+
+def turn_intrusion(alpha, icr_x=ICR_X, corners=FRONT_CORNERS):
+    """정렬 자세에서 |alpha| 만큼 ICR 둘레로 돌 때 앞 모서리가 처음 앞 끝 선보다 앞으로 나오는 최대 거리 Δx [m] (≥ 0).
+    기본 기하: ρ = 0.260, φ = 40.2° → Δx = ρ·cos(φ − |α|) − 0.1986 (|α| ≤ φ). turn_clearance(정렬 면, α) = g − Δx 와 같음"""
+    a = abs(alpha)
+    worst = 0.0
+    for cx_, cy_ in corners:
+        vx, vy = cx_ - icr_x, abs(cy_)
+        rho, phi = math.hypot(vx, vy), math.atan2(vy, vx)
+        peak = rho if a >= phi else rho * math.cos(phi - a)   # cos 이 최대인 각 (φ) 을 지나면 ρ
+        worst = max(worst, peak - vx)
+    return worst
+
+
+@dataclass
+class SPlan:
+    ok: bool
+    why: str
+    back: float = 0.0          # 후진 d [m] (≥ 0)
+    alpha: float = 0.0         # S 자 각 [rad], + = 왼쪽으로 옮김
+    forward: float = 0.0       # S 자 비스듬 전진 f [m]
+    final: float = 0.0         # 마지막 곧은 전진 [m] (gap_target 까지)
+    align: float = 0.0         # 처음 정렬 회전 [rad] (후진 없으면 첫 회전 = align + alpha 로 합침)
+    steps: list = None         # plan_approach 와 같은 형식 [("turn", rad) · ("drive", m)] — 이 순서대로 실행
+    min_clear: float = 0.0     # 회전마다 turn_clearance 최솟값 [m]
+    end_gap: float = 0.0       # 실행 뒤 예상 틈 [m]
+    end_lat: float = 0.0       # 실행 뒤 예상 옆 오차 [m]
+
+
+def _face_from_err(e, g, yaw):
+    """옆 e (= FaceResult.lateral) · 틈 g (= gap) · 면 yaw (= yaw_err = nyaw) → 그 면의 FaceResult (base_link)"""
+    n = (math.cos(yaw), math.sin(yaw))
+    t = (-n[1], n[0])
+    d = g + FRONT_OFFSET
+    f = FaceResult(True, "e·g·yaw", n[0] * d + t[0] * e, n[1] * d + t[1] * e, yaw, BOX_SIDE, 0)
+    return _fill(f)
+
+
+def _err_at(face, pose):
+    """측정 base_link 기준 자세 pose 에서 본 (틈, 옆 오차, yaw 오차) — _fill 과 같은 정의"""
+    x, y, th = pose
+    dx, dy = face.cx - x, face.cy - y
+    c, s = math.cos(th), math.sin(th)
+    cx, cy = c * dx + s * dy, -s * dx + c * dy
+    ny = wrap(face.nyaw - th)
+    cn, sn = math.cos(ny), math.sin(ny)
+    return cn * cx + sn * cy - FRONT_OFFSET, -sn * cx + cn * cy, ny
+
+
+def _run_steps(face, steps, icr_x):
+    """steps 실행 → (끝 자세, 회전마다 turn_clearance 최솟값)"""
+    pose, worst = (0.0, 0.0, 0.0), math.inf
+    for kind, v in steps:
+        if kind == "turn":
+            worst = min(worst, turn_clearance(face, v, pose, {"icr_x": icr_x}))
+            ix, iy = _pose_mul(pose, icr_x, 0.0)
+            th = pose[2] + v
+            pose = (ix - math.cos(th) * icr_x, iy - math.sin(th) * icr_x, th)
+        else:
+            pose = (pose[0] + math.cos(pose[2]) * v, pose[1] + math.sin(pose[2]) * v, pose[2])
+    return pose, worst
+
+
+def plan_s_curve(e, g, yaw=0.0, gap_target=0.05, back_room=None, cfg=None) -> SPlan:
+    """옆 오차 e (+ = 상자 중앙이 왼쪽, FaceResult.lateral) · 틈 g (FaceResult.gap) · 면 yaw (FaceResult.yaw_err) →
+    S 자 보정 계획 SPlan. 실행 뒤 상판 앞 끝 ↔ 상자면 gap_target, 상자 중심선 위, 법선 방향.
+    순서: 후진 없음 → [돌기 yaw+α] [전진 f] [돌기 −α] [전진 final]
+          후진 있음 → [돌기 yaw] [후진 d] [돌기 α] [전진 f] [돌기 −α] [전진 final]
+    back_room = 뒤 여유 [m] (None 이면 d_max 만). 회전 안전은 turn_clearance ≥ margin 으로 모의 확인 (ICR 둘레)."""
+    c = {**S_CFG, **(cfg or {})}
+    icr = c["icr_x"]
+    face = _face_from_err(e, g, yaw)
+    if abs(yaw) > c["yaw_max"]:
+        return SPlan(False, f"면 기울기 {math.degrees(yaw):+.1f}° > {math.degrees(c['yaw_max']):.0f}°")
+    if abs(e) > c["e_max"]:
+        return SPlan(False, f"옆 오차 {e * 100:+.1f} cm > {c['e_max'] * 100:.0f} cm (다시 재기)")
+
+    def finish(pre, back, alpha, f, align):
+        """pre 단계 뒤 남은 틈으로 마지막 곧은 전진을 붙여 검사"""
+        pose, _ = _run_steps(face, pre, icr)
+        g1, _, _ = _err_at(face, pose)
+        fin = g1 - gap_target
+        steps = [s for s in pre + [("drive", fin)] if not (s[0] == "turn" and abs(s[1]) < 1e-6)
+                 and not (s[0] == "drive" and abs(s[1]) < 1e-4)]
+        pose, worst = _run_steps(face, steps, icr)
+        ge, le, _ = _err_at(face, pose)
+        return SPlan(fin >= -1e-4 and worst >= c["margin"], "", back, alpha, f, fin, align, steps,
+                     worst if worst != math.inf else g, ge, le)
+
+    # 0. 옆 오차 작으면 정렬 + 곧게
+    if abs(e) <= c["e_tol"]:
+        p = finish([("turn", yaw)], 0.0, 0.0, 0.0, yaw)
+        p.why = f"옆 {e * 100:+.1f} cm ≤ {c['e_tol'] * 100:.1f} cm → 정렬 {math.degrees(yaw):+.1f}° · 곧게 {p.final:.3f} m"
+        if not p.ok:
+            p.why = f"정렬 회전 {math.degrees(yaw):+.1f}° 때 모서리 여유 {p.min_clear * 100:.1f} cm < {c['margin'] * 100:.0f} cm"
+        return p
+
+    sg = 1.0 if e > 0 else -1.0
+    # 정렬 뒤 (ICR 둘레) 옆 · 틈 — 정렬 회전이 base_link 를 조금 옮김
+    pose_al, _ = _run_steps(face, [("turn", yaw)], icr)
+    g_al, e_al, _ = _err_at(face, pose_al)
+
+    def s_steps(alpha, back):
+        f = abs(e_al) / math.sin(alpha)
+        if back > 0:
+            pre = [("turn", yaw), ("drive", -back), ("turn", sg * alpha), ("drive", f), ("turn", -sg * alpha)]
+        else:
+            pre = [("turn", yaw + sg * alpha), ("drive", f), ("turn", -sg * alpha)]
+        return pre, f
+
+    # 1. 후진 없는 S 자: 가장 큰 α (≤ alpha_max) 부터
+    n = int(round((c["alpha_max"] - c["alpha_min"]) / c["alpha_step"]))
+    for k in range(n + 1):
+        a = c["alpha_max"] - k * c["alpha_step"]
+        pre, f = s_steps(a, 0.0)
+        p = finish(pre, 0.0, sg * a, f, yaw)
+        if p.ok:
+            p.why = (f"S 자 (후진 없음) α {math.degrees(p.alpha):+.1f}° · 비스듬 {f:.3f} m · 곧게 {p.final:.3f} m · "
+                     f"모서리 여유 {p.min_clear * 100:.1f} cm")
+            return p
+    # 2. 후진 S 자: α 를 alpha_max_back 까지 보며 필요한 d 가 가장 작은 것
+    room = c["d_max"] if back_room is None else min(c["d_max"], back_room)
+    best = None
+    n = int(round((c["alpha_max_back"] - c["alpha_min"]) / c["alpha_step"]))
+    for k in range(n + 1):
+        a = c["alpha_min"] + k * c["alpha_step"]
+        need = abs(e_al) / math.tan(a) + turn_intrusion(a, icr) + c["margin"] - g_al
+        d = max(c["d_min"], need + 1e-3)
+        if d > room:
+            continue
+        pre, f = s_steps(a, d)
+        p = finish(pre, d, sg * a, f, yaw)
+        if p.ok and (best is None or d < best.back - 1e-9 or (abs(d - best.back) < 1e-9 and a > abs(best.alpha))):
+            best = p
+    if best is not None:
+        best.why = (f"S 자 (후진 {best.back:.3f} m) α {math.degrees(best.alpha):+.1f}° · 비스듬 {best.forward:.3f} m · "
+                    f"곧게 {best.final:.3f} m · 모서리 여유 {best.min_clear * 100:.1f} cm")
+        return best
+    a = c["alpha_max_back"]
+    need = abs(e_al) / math.tan(a) + turn_intrusion(a, icr) + c["margin"] - g_al
+    return SPlan(False, f"옆 {e * 100:+.1f} cm 못 옮김: 틈 {g:.3f} m 에서 α {math.degrees(a):.0f}° 라도 후진 {need:.3f} m 필요 "
+                        f"> 여유 {room:.3f} m")
+
+
+def plan_s_curve_face(face, gap_target=0.05, back_room=None, cfg=None) -> SPlan:
+    """FaceResult 로 plan_s_curve (e = lateral, g = gap, yaw = yaw_err)"""
+    if face is None or not face.ok:
+        return SPlan(False, "상자면 측정 실패: " + (face.why if face is not None else "없음"))
+    _fill(face)
+    return plan_s_curve(face.lateral, face.gap, face.yaw_err, gap_target, back_room, cfg)

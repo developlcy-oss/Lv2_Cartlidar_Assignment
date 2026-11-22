@@ -1,10 +1,16 @@
-// 상자 중앙 맞춤 단계 (approach.center.*, 2026-11-20) — ROS 의존 없음 → 단위 시험 (test_center_box.cpp)
+// 상자 중앙 맞춤 단계 (approach.center.*, 2026-11-20 · 11-21 반복 폐루프) — ROS 의존 없음 → 단위 시험 (test_center_box.cpp)
 //   approach (COARSE → 팔 ALIGN → FINE) 뒤에 자동으로 center_box <거리> 를 붙임 (그 접근에서 퍽을 집을 때만):
-//   ① 팔 place_box.arm_pose (BOX_VIEW, 상자 윗면 위) → ② approach.center.mode → settle → /perception/place_box/measure (팔 Arducam)
-//   ③ 팔 align.arm_pose (ALIGN) 로 되돌림 → ④ kFineMode 켜고 /drive/align goal.center (잰 상자 중심 · 요) → drive 가 옆 이동 · 법선 · 퍽 마무리
-//   측정 실패면 ③ 뒤 바로 끝 (FINE 결과 그대로, 실패 아님). drive 실패 (옮긴 뒤 FINE 도 못 맞춤) 는 단계 실패 → 앞 approach 부터 다시
+//   ① 팔 place_box.arm_pose (BOX_VIEW, 상자 윗면 위) — 루프 동안 그대로 둠 (ALIGN ↔ BOX_VIEW 왕복 3 ~ 5 s 를 아낌)
+//   ② approach.center.mode → settle → /perception/place_box/measure (팔 Arducam) → 잰 상자로 옆 e · 요 psi (center_error)
+//   ③ 판단 (control/box_center.hpp decide_loop, k = 지금까지 보낸 drive goal 수):
+//        DONE (|e| ≤ 5 mm · |psi| ≤ 1°) · FINAL_WARN (k = max_iter, |e| ≤ 10 mm, 경고) · FAIL (못 잼 · max_shift · 라이다 불일치 · 반복 다 씀) → ⑤
+//        SHIFT → ④
+//   ④ kFineMode 켜고 /drive/align goal.center (잰 상자, center_iter k) → 결과 center_status:
+//        MOVED → ② 다시 재기 · DONE (drive 허용 안이라 안 움직임) · SKIPPED · FALLBACK → 사유 기록 뒤 ⑤
+//   ⑤ 팔 align.arm_pose (ALIGN) 로 한 번 되돌리고 끝 (실패 아님). drive goal 실패 (옮긴 뒤 FINE 도 못 맞춤) · 시간 초과는 단계 실패 → 앞 approach 부터 다시
 #pragma once
 
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -44,10 +50,41 @@ inline bool place_box_status_ok(const std::string & status)
   return status.find("\"ok\": true") != std::string::npos;
 }
 
-// center_box 단계 시간 상한 [s] = 팔 자세 2 번 + 모드 · settle + 측정 + drive 중앙 맞춤 (align.center.timeout_s) + 여유
-inline double center_box_timeout(double pose_s, double settle_s, double measure_s, double drive_center_s, double margin_s)
+// center_box 단계 시간 상한 [s] = 팔 자세 2 번 (BOX_VIEW · 끝 ALIGN) + 첫 settle · 재기 + 반복마다 (drive 중앙 맞춤 + settle · 재기) + 여유
+//   반복 = approach.center.max_iter (drive goal 최대 수). 모드 전환 (서비스) 은 여유에 넣음
+inline double center_box_timeout(double pose_s, double settle_s, double measure_s, double drive_center_s, int iters,
+  double margin_s)
 {
-  return 2.0 * pose_s + settle_s + measure_s + drive_center_s + margin_s;
+  const int k = iters < 0 ? 0 : iters;
+  return 2.0 * pose_s + settle_s + measure_s + k * (drive_center_s + settle_s + measure_s) + margin_s;
+}
+
+// 잰 상자 (base_link 로 옮긴 윗면 중심 bx, by · 요 box_yaw) → 로봇의 옆 오차 · 요 오차 (control/box_center.hpp 와 같은 부호)
+//   법선 = 상자 요 + n·90° 중 로봇 yaw (0) 에 가장 가까운 것 → psi = 법선 − 로봇 yaw ∈ [−45°, 45°]
+//   e = 상자 중심선 (중심을 지나 psi 방향) 에서 로봇 (원점) 의 옆 거리, + = 로봇이 중심선 왼쪽
+struct CenterErr
+{
+  double lateral = 0.0;   // e [m]
+  double yaw = 0.0;       // psi [rad]
+  double depth = 0.0;     // 중심선을 따라 로봇 → 상자 중심 [m] (> 0 = 상자가 앞)
+};
+inline CenterErr center_error(double bx, double by, double box_yaw)
+{
+  const double q = M_PI / 2.0;
+  double psi = std::remainder(box_yaw, q);   // [−45°, 45°]
+  if (!std::isfinite(psi)) {psi = 0.0;}
+  CenterErr e;
+  e.yaw = psi;
+  e.lateral = -by * std::cos(psi) + bx * std::sin(psi);
+  e.depth = bx * std::cos(psi) + by * std::sin(psi);
+  return e;
+}
+
+// drive 가 돌려준 라이다 옆 (끝 자세, NaN = 못 잼) 과 Arducam 옆 e 가 limit 넘게 다르면 true (교차확인)
+inline bool lidar_disagrees(double lidar_lateral, double cam_lateral, double limit)
+{
+  return std::isfinite(lidar_lateral) && std::isfinite(cam_lateral) && limit > 0.0 &&
+         std::fabs(lidar_lateral - cam_lateral) > limit;
 }
 
 }  // namespace mission

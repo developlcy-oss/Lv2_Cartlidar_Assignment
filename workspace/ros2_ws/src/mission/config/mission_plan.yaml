@@ -13,7 +13,9 @@ mission_node:
       survey_view: 30.0          # 조사 자세 한 곳 (팔 자세 + settle_s)
       check_marker: 10.0         # 놓기 전 장소 태그 확인
       measure_box: 15.0          # 장소 상자 재기 (팔 자세 + 재기 약 1.5 s)
-      center_box: 90.0           # 상자 중앙 맞춤 = 팔 자세 2 번 (10 s) + settle 0.5 + 재기 12 + drive align.center.timeout_s 45 + 여유 12.5
+      # center_box: 상자 중앙 맞춤 반복 (11-21) — 쓰지 않으면 approach.center.* 로 계산:
+      #   팔 2 × arm_pose_s 10 + (settle 0.8 + 재기 12) + max_iter 3 × (drive_timeout_s 45 + settle 0.8 + 재기 12) + 여유 12.5 = 218.7 s
+      #   (보통은 1 회 약 28 s · 3 회 약 58 s, review_center 4 절. 상한일 뿐)
     observe:
       # 바코드 읽기 (#65): manipulator barcode_look skill 이 observe.barcode_point 를 팔 카메라로 거의 수평으로 봄.
       #   출발 자세에서 라벨까지 J1 0.60 m 라 카메라 약 0.3 m 가 가장 가까움 (인지: 0.3 m 에서 읽음). 이름 자세를 쓰려면 그 이름으로
@@ -66,8 +68,20 @@ mission_node:
         enabled: true
         arm_pose: BOX_VIEW       # = place_box.arm_pose (perception place_box 가 만들어진 자세)
         mode: READ_TAG           # 팔 카메라를 켜는 모드 (perception 은 READ_TAG 또는 ARM_ALIGN 일 때만 잼)
-        settle_s: 0.5
+        settle_s: 0.8            # 팔 자세 · drive 기동 뒤 재기 전 기다림 (11-21: 0.5 → 0.8, 팔 떨림 · 차체 멈춤)
         measure_timeout_s: 12.0  # 팔 영상 3 장 (Jetson 약 3 s 씩) = drive align.center.measure_timeout_s 와 같게
+        # (11-21) 반복 폐루프: BOX_VIEW 그대로 [재기 → decide_loop → drive goal.center] 최대 max_iter 번 → 끝에 ALIGN 한 번.
+        #   판단 규칙 = control/box_center.hpp decide_loop, 값은 drive.yaml align.center 와 같게 둘 것
+        max_iter: 3              # drive 중앙 맞춤 goal 최대 수 (0 = 재기만 하고 기록)
+        done_lateral: 0.005      # [m] 옆 이만큼 · 요 done_yaw_deg 안이면 끝
+        done_yaw_deg: 1.0
+        final_warn_lateral: 0.010   # [m] 반복을 다 써도 이 안이면 경고와 함께 끝 (넘어도 실패 아님 · FINE 결과로 계속, 기록)
+        max_shift: 0.08          # [m] 잰 옆 오차가 이보다 크면 측정을 믿지 않고 움직이지 않음
+        sensor_disagree: 0.02    # [m] drive 결과 라이다 옆 (/scan_front, 틈 ≥ 0.15 일 때만) 과 Arducam 옆이 이보다 다르면 멈춤
+        keep_view_during_move: true   # ★ drive 기동 (후진 · 회전 · 비스듬 전진) 중 팔 BOX_VIEW 유지. 실물에서 상자 · 무게중심 확인 전이면 false
+                                      #   (false = 기동마다 ALIGN ↔ BOX_VIEW 왕복, 반복당 +3 ~ 5 s)
+        arm_pose_s: 10.0         # 단계 시간 계산용 팔 자세 한 번 상한
+        drive_timeout_s: 45.0    # 단계 시간 계산용 drive 한 번 상한 (= drive align.center.timeout_s)
     # 비스듬히 서기 (place_box 를 켰을 때만): 상자가 돌아 있어도 차체 축이 상자 중심을 지나게 서서 팔로 봄.
     #   켜면 measure_box 가 그 장소 approach_box 앞 (대기 자리) 으로 옮겨 붙음: 앞 D435 재기 (/perception/place_box/measure_front) →
     #   제자리 회전 (/drive/navigate) → 축을 따라 보기 자리까지 align BOX → box_look (place_look) → 기존 팔 재기. 뒤 approach_box · 놓기는 그대로.
@@ -110,7 +124,7 @@ mission_node:
       boxes: [1, 2, 3, 4, 5, 6]
       # 박스마다 조사 자세 = 계획기 접근 자세표 (mission_planner approach_poses.yaml) 의 B<box>:<side> stage 를 시작할 때 읽음
       #   (좌표를 여기 복사하지 않음 → 자세표만 고치면 됨). 박스와 같은 순서로 면 S · N · W · E
-      sides: ["S", "S", "S", "S", "N", "W"]   # 따옴표 필수: YAML 은 N 을 bool (no) 로 읽어 rcl 이 섞인 배열로 거부함
+      sides: ["S", "S", "S", "S", "W", "W"]   # 따옴표 필수: YAML 은 N 을 bool (no) 로 읽어 rcl 이 섞인 배열로 거부함
       poses_file: ""             # 빈 문자열 = <mission_planner share>/config/approach_poses.yaml
       # poses: [x, y, yaw, ...]  # 자세표 대신 직접 줄 때만 (박스마다 3 개)
       approach_distance: 0.13    # 조사 자세 뒤 정밀 접근 (FINE, TFmini 하한 0.13). 0 = 접근 없이 봄

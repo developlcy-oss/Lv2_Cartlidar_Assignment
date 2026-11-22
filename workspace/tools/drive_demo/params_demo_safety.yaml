@@ -3,6 +3,8 @@
 #   local_costmap: 라이다 장애물 층 추가 (plugins 목록만 바꿈, static_layer · inflation_layer 설정은 앞 파일 것이 그대로 남음)
 #   planner_server: 막힌 조각을 돌아갈 길 (Detour, 전진만 Hybrid-A*) — demo_follow.py 가 compute_path_to_pose (planner_id Detour) 로 부름
 #   collision_monitor: v2_filter → cmd_vel_cm_in → (감속 · 정지) → 실물 cmd_vel_nav / 시뮬 cmd_vel (cmd_vel_out_topic 은 run_demo.sh 가 -p 로)
+#   11-21: collision_monitor 소스 = box_scan_guard.py 가 지금 구간 상자 점만 지운 /scan_guard (← __SCAN__) + /scan_front_guard
+#     (상자 구간에서만 앞 라이다 원본 — /scan_merged 는 차체 앞 3.5 cm 안을 지워 못 봄). costmap 은 __SCAN__ 그대로
 
 local_costmap:
   local_costmap:
@@ -150,8 +152,12 @@ collision_monitor:
         linear_max: 0.02
         theta_min: -2.0
         theta_max: 2.0
-    observation_sources: ["scan"]
+    observation_sources: ["scan", "front_guard"]
     scan:
       type: "scan"
-      topic: __SCAN__
+      topic: /scan_guard
+      enabled: true
+    front_guard:                             # 11-21 상자 구간에서만 점이 있음 (그 밖은 모두 inf 로 늘 옴 — 소스 시간 초과 없음)
+      type: "scan"
+      topic: /scan_front_guard
       enabled: true

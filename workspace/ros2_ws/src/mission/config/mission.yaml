@@ -34,6 +34,11 @@ mission_node:
       skip_puck: true            # 집기 (turn · target_look · toppick_tilt) 실패 -> 그 퍽만 건너뜀, 칸은 빈 칸 (그 칸 꺼내기 · 놓기도 안 함).
                                  #   빈손 pallet_load (운반 중 떨어뜨림, 2026-11-16) 도 집기 실패로: 재시도는 target_look 부터, 다 쓰면 그 퍽만 건너뜀
                                  #   pallet_unload 실패 -> 바로 뒤 place 만 건너뜀. 끝나면 DONE (reason = skipped: …), verify 는 실패로 기록
+      skip_nav: true             # (11-21) 이동 실패 = 그곳에 서는 단계 (goto · approach · approach_box · center_box · measure_start · measure_box,
+                                 #   그곳 goto 뒤 팔 · 집기 전이라 손이 빔) -> 그곳만 건너뜀: 실을 칸은 빈 칸 (뒤 꺼내기 · 놓기도 건너뜀),
+                                 #   꺼낼 칸의 퍽은 팔레트에 남음, 그곳 verify 안 함. 다음 goto 부터. 복귀 줄 (goto HOME) 실패는 그대로 FAILED
+      max_consecutive_nav_skip: 2   # 연속 이동 실패가 이 곳 수에 이르면 건너뛰지 않고 return_home (2 = 한 곳만 건너뜀, 연속 둘째에서 복귀).
+                                 #   그곳 일 (팔 skill · pick · verify) 을 하나라도 마치면 연속 수 0
       return_home: true          # 그 밖 (주행 · 정렬 · pallet_load · place) -> 계획기 복귀 줄 (goto HOME · wait) 로 가서 복귀 뒤 FAILED
 
     # 시작 전 준비 확인 (R3): 1 s 마다 시작 단계별 (1 안전 · 2 컨트롤러 · 3 노드 서버 · 4 위치 추정 · 5 Nav2) 상태를 모아
@@ -88,6 +93,12 @@ mission_node:
     localization:
       status_topic: /localization/status
       max_lost_s: 90.0           # ★ 실물에서 위치를 다시 찾는 데 걸리는 시간 보고 조정
+      # (11-21) goto · navigate 재시도 전 AMCL 다시 찾기 (demo_follow relocalize 이식): 이 서비스 (std_srvs/Empty) 를
+      #   nomotion_interval 마다 nomotion_count 번 비동기로 부름 (결과를 기다리지 않음). 재시도 대기는 max(retry_delay, count × interval).
+      #   빈 문자열 · count 0 = 끔. 서비스가 없으면 (AMCL 안 띄움 · loc_guard active) 기록만 하고 그대로 재시도
+      nomotion_service: /request_nomotion_update
+      nomotion_count: 5
+      nomotion_interval: 0.2     # [s] 5 × 0.2 = 1.0 s = retry_delay 안
 
     # ---- plan 모드 (주사위 기억 로봇 발제 v5) — bringup mission_source · mission_bringup source 기본 (plan) 이면 mission_plan.yaml 이 덮어씀 ----
     mission_source: tag          # tag = 옛 미션표 mission_table.yaml (태그 → 단계), plan = observe → plan (mission_planner_node 가 단계를 줌)

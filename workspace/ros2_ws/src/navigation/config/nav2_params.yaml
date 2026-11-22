@@ -257,8 +257,11 @@ behavior_server:
     global_frame: map
     robot_base_frame: base_link
     transform_tolerance: 0.1
+    # 충돌 검사 미리보기 (2026-11-21 확인, Nav2 lyrical spin.cpp · drive_on_heading.hpp): Spin 은 "이미 돈 각" 만큼 (≤ 속도 × 이 값) 만 앞을 봄
+    #   (시작 순간엔 검사 안 함), BackUp 은 남은 거리까지만. 그래서 작은 Spin (+3° 등) 의 "Collision Ahead" 는 이 값이 아니라
+    #   지금 외곽 (+ footprint_padding 0.01, 팔 앞 x 0.25) 이 이미 치명 칸에 닿았다는 뜻 — 줄여도 안 고쳐짐. 상자 앞에서는 drive backoff (#157) 가 먼저 물러남.
     simulate_ahead_time: 2.0
-    max_rotational_vel: 0.75             # ★ = MPPI wz_max
+    max_rotational_vel: 0.75             # ★ = MPPI wz_max. 실물 bringup 은 launch max_wz 기본 0.5 로 덮어씀 (2026-11-21)
     min_rotational_vel: 0.3              # ★ 모의에서 약 0.15 rad/s 아래 회전 명령은 거의 안 돎 (drive_rl README)
     rotational_acc_lim: 2.0
 

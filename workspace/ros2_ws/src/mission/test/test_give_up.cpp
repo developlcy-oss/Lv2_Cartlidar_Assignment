@@ -141,3 +141,92 @@ TEST(Readiness, FormatAndMissing)
   EXPECT_TRUE(all_ready(ok));
   EXPECT_NE(format_ready(ok).find("READY 1/1"), std::string::npos);
 }
+
+// ---- 이동 실패 시 그곳만 건너뛰기 (nav_skip, 11-21) ----
+TEST(GiveUp, NavSkipBoxGoto)
+{
+  const auto t = plan();
+  const auto nk = nav_skip(t, 0);   // 시작 박스 goto 실패 -> 두 퍽 집기 묶음 건너뜀, 장소 goto 부터
+  ASSERT_TRUE(nk.has_value());
+  EXPECT_EQ(nk->resume, 10u);
+  EXPECT_EQ(nk->pick_slots, (std::vector<std::string>{"1_2", "3_0"}));
+  EXPECT_TRUE(nk->place_slots.empty());
+  EXPECT_TRUE(nk->verifies.empty());
+}
+
+TEST(GiveUp, NavSkipPlaceGotoAndApproach)
+{
+  const auto t = plan();
+  for (size_t f : {10u, 11u}) {   // 장소 goto · approach_box 실패 -> 놓기 둘 · verify 건너뛰고 복귀 줄
+    const auto nk = nav_skip(t, f);
+    ASSERT_TRUE(nk.has_value()) << f;
+    EXPECT_EQ(nk->resume, 17u);
+    EXPECT_TRUE(nk->pick_slots.empty());
+    EXPECT_EQ(nk->place_slots, (std::vector<std::string>{"1_2", "3_0"}));
+    EXPECT_EQ(nk->verifies, (std::vector<std::string>{"L1"}));
+  }
+}
+
+TEST(GiveUp, NavSkipApproachAndInsertedSteps)
+{
+  // 접근 · 자동으로 붙는 measure_start · center_box 도 그곳에 서는 단계 (손이 빔)
+  const std::vector<std::string> t = {
+    "goto 0.5 1.2 0", "measure_start B1:S", "approach 0.13", "center_box 0.13",
+    "skill manipulator target_look:base_footprint:0.2:0.03:0.100 40", "skill manipulator toppick_tilt 40",
+    "skill manipulator pallet_load_1_2_tilt 40", "goto 1.5 0.5 1.57", "approach_box 0.13", "measure_box L1",
+    "skill manipulator pallet_unload_1_2_tilt 40", "skill manipulator place_L1_0_0_tilt 40", "goto 0.69365 0.95 3.1416", "wait 3"};
+  for (size_t f : {1u, 2u, 3u}) {
+    const auto nk = nav_skip(t, f);
+    ASSERT_TRUE(nk.has_value()) << f;
+    EXPECT_EQ(nk->resume, 7u);
+    EXPECT_EQ(nk->pick_slots, (std::vector<std::string>{"1_2"}));
+  }
+  for (size_t f : {8u, 9u}) {
+    const auto nk = nav_skip(t, f);
+    ASSERT_TRUE(nk.has_value()) << f;
+    EXPECT_EQ(nk->resume, 12u);
+    EXPECT_EQ(nk->place_slots, (std::vector<std::string>{"1_2"}));
+  }
+}
+
+TEST(GiveUp, NavSkipNotWhenHandMayHoldPuck)
+{
+  const auto t = plan();
+  // 팔 · 집기 단계 실패는 nav_skip 대상 아님 (pick_skip · return_home 이 맡음)
+  for (size_t f : {2u, 3u, 4u, 5u, 6u, 12u, 13u, 16u}) {EXPECT_FALSE(nav_skip(t, f).has_value()) << f;}
+  // 복귀 줄 goto (뒤에 goto 없음) · 범위 밖
+  EXPECT_FALSE(nav_skip(t, 17).has_value());
+  EXPECT_FALSE(nav_skip(t, 18).has_value());
+  EXPECT_FALSE(nav_skip(t, 99).has_value());
+  // 같은 곳에서 퍽을 다룬 뒤의 접근 실패 (손에 퍽이 있을 수 있음) -> 건너뛰지 않음
+  const std::vector<std::string> t2 = {
+    "goto 1 1 0", "approach_box 0.13", "skill manipulator pallet_unload_1_2_tilt 40", "approach_box 0.13",
+    "goto 2 2 0", "wait 3"};
+  EXPECT_FALSE(nav_skip(t2, 3).has_value());
+  EXPECT_TRUE(nav_skip(t2, 1).has_value());
+  // goto 없이 시작하는 접근 (tag 모드 등)
+  EXPECT_FALSE(nav_skip({"approach 0.13", "pick", "goto 1 1 0"}, 0).has_value());
+}
+
+TEST(GiveUp, NavSkipNavigateStep)
+{
+  const std::vector<std::string> t = {"navigate box_a", "approach 0.15", "pick", "navigate home", "wait 3"};
+  const auto nk = nav_skip(t, 0);
+  ASSERT_TRUE(nk.has_value());
+  EXPECT_EQ(nk->resume, 3u);
+  EXPECT_TRUE(is_nav_step("navigate home"));
+  EXPECT_FALSE(is_nav_step("approach 0.13"));
+  EXPECT_TRUE(is_positioning_step("center_box 0.13"));
+  EXPECT_FALSE(is_positioning_step("check_marker L1"));
+}
+
+TEST(GiveUp, NavSkipAllowedStreak)
+{
+  // max 2: 첫 실패는 건너뜀, 연속 둘째는 복귀
+  EXPECT_TRUE(nav_skip_allowed(1, 2));
+  EXPECT_FALSE(nav_skip_allowed(2, 2));
+  EXPECT_TRUE(nav_skip_allowed(2, 3));
+  EXPECT_FALSE(nav_skip_allowed(1, 1));   // 1 이하 = 건너뛰지 않음
+  EXPECT_FALSE(nav_skip_allowed(1, 0));
+  EXPECT_FALSE(nav_skip_allowed(0, 2));
+}
