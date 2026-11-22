@@ -108,8 +108,8 @@ def test_stop_pose_gap_and_center(name):
 
 
 def test_stop_pose_directions():
-    assert bq.stop_pose("box1") == pytest.approx([1.468, 0.6077, math.pi / 2], abs=1e-4)   # 손그림: 남쪽에서
-    assert bq.stop_pose("L2") == pytest.approx([2.5443, 3.70, math.pi], abs=1e-4)          # 손그림: 동쪽 면
+    assert bq.stop_pose("box1") == pytest.approx([1.45, 0.7377, math.pi / 2], abs=1e-4)    # 손그림: 남쪽에서 (11-22 줄자 실측 상자 (1.45, 1.08))
+    assert bq.stop_pose("L2") == pytest.approx([2.5523, 3.72, math.pi], abs=1e-4)          # 손그림: 동쪽 면 (실측 (2.21, 3.72))
     assert bq.stop_pose("A1") is None and bq.face_center("A1", 0.0) is None
 
 

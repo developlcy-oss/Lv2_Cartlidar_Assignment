@@ -47,11 +47,12 @@ def test_fixed_slots_same_as_table(world):
 
 def test_tight_pair_neighbor_behind(world):
     """두 퍽이 지도 X 로 붙음 (틈 10 mm): 남 · 북 면에서는 옆 퍽이 닫는 방향 옆 -> ±X 면이 열린 박스 (B1 E · B5 W · B6 W) 는
-    그 면으로 옆 퍽을 뒤에 두고, 못 맞추는 박스 (B2 · B3 · B4 = 남 · 북만) 는 경고"""
+    그 면으로 옆 퍽을 뒤에 두고, 못 맞추는 박스 (B2 · B3 = 남 · 북만) 는 경고.
+    2026-11-22 줄자 실측 좌표: box4 가 동쪽으로 10.6 cm 옮겨져 B4:W 가 열림 -> box4 는 더 이상 위험 아님 (이전 {2, 3, 4})"""
     pr = with_xy(PROB, lambda bx, sd: (0.02 * sd, 0.035))   # 중심 거리 40 mm, 박스 중심에서 40 mm
     pl = plan(world, pr)
     risky = {int(w.split()[1].rstrip(":")) for w in pl["warnings"] if w.startswith("박스 ") and "실패 위험" in w}
-    assert risky == {2, 3, 4}
+    assert risky == {2, 3}
     seen = set()
     for s in picks(pl):
         first = s["box"] not in seen

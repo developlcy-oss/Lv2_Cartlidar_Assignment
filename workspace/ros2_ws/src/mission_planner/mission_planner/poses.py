@@ -32,19 +32,20 @@ FINE_DISTANCE = 0.13  # [m] drive FINE 정렬 목표 = 렌즈 -> 면 (TFmini 최
 FINE_GAP = FINE_DISTANCE - (FRONT - LENS_X)  # 0.1272: 그 자리의 앞 끝 -> 면
 CENTER_X = (FRONT + REAR) / 2  # -0.04035
 
-START_BOXES = {  # 발제 07 쪽 시작 박스 중심 (m), 205 x 205 x 70
-    1: (1.468, 0.950), 2: (3.670, 3.152), 3: (2.936, 5.354),
-    4: (0.734, 5.354), 5: (2.202, 5.354), 6: (3.670, 3.886),
+START_BOXES = {  # 시작 박스 중심 (m), 205 x 205 x 70. 2026-11-22 줄자 실측 (발제 07 쪽 값은 PUB_START_BOXES)
+    1: (1.45, 1.08), 2: (3.65, 3.17), 3: (2.93, 5.45),
+    4: (0.84, 5.38), 5: (2.25, 5.38), 6: (3.76, 3.8),
 }
+PUB_START_BOXES = {1: (1.468, 0.950), 2: (3.670, 3.152), 3: (2.936, 5.354), 4: (0.734, 5.354), 5: (2.202, 5.354), 6: (3.670, 3.886)}
 BOX_HALF = 0.1025
 PUCK_DX = 0.040  # 박스 위 퍽 2 개 = 중심 X +-40 mm, Y 0
-PLACES = {  # 장소 격자 중심, 접근할 면 (바깥 법선 방향), 면까지 거리
-    "L1": dict(center=(3.670, 0.950), face_dir=(-1.0, 0.0), face_dist=0.1025, tag=12, gap=FINE_GAP),
+PLACES = {  # 장소 격자 중심 (2026-11-22 줄자 실측, 발제 L1 (3.670, 0.950) · L2 (2.202, 3.700) · L3 (3.670, 5.354)), 접근할 면 (바깥 법선 방향), 면까지 거리
+    "L1": dict(center=(3.72, 1.01), face_dir=(-1.0, 0.0), face_dist=0.1025, tag=12, gap=FINE_GAP),
     # L2: 2026-11-04 확정 L1 · L3 과 같은 205 상자 (이전 820 받침대). 2026-11-21 사용자 결정: 동쪽 면 접근 (yaw 180°, 손그림 · 주행 모드와 같음).
     #   태그판 ID13 은 북쪽 면 (y 3.803) 에 있어 이 자리에서는 앞 · 팔 카메라에 안 보임 -> verify check_marker 는 seen=false 로 기록될 수 있고
     #   marker.check_before_place 는 L2 에서 켜면 안 됨 (지금 false). 칸 J1 거리는 정사각 상자 · 3 x 3 대칭이라 북쪽과 같음 (0.206 ~ 0.332).
-    "L2": dict(center=(2.202, 3.700), face_dir=(1.0, 0.0), face_dist=0.1025, tag=13, gap=FINE_GAP),
-    "L3": dict(center=(3.670, 5.354), face_dir=(0.0, -1.0), face_dist=0.1025, tag=14, gap=FINE_GAP),
+    "L2": dict(center=(2.21, 3.72), face_dir=(1.0, 0.0), face_dist=0.1025, tag=13, gap=FINE_GAP),
+    "L3": dict(center=(3.7, 5.35), face_dir=(0.0, -1.0), face_dist=0.1025, tag=14, gap=FINE_GAP),
 }
 OBSERVE = (0.734, 0.950)  # 출발 · 관측 · 복귀 (로봇 중심), -X 를 봄
 START_ZONE_HALF = 0.30

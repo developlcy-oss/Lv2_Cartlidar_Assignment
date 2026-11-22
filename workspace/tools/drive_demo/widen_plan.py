@@ -487,9 +487,9 @@ def restop(d):
         m = re.match(r'(\s*- \{stop: )(\w+)(, x: )[-\d.]+(, y: )[-\d.]+(, face: )[-\d.]+(\}.*)', ln)
         if m and m.group(2) in bq.BOX_STOPS:
             x, y, th = bq.stop_pose(m.group(2))
-            ln = f"{m.group(1)}{m.group(2)}{m.group(3)}{x:.4f}{m.group(4)}{y:.4f}{m.group(5)}{math.degrees(th):.1f}}}   # 11-21 발제 상자 {bq.BOXES[m.group(2)]} 면 중앙, 앞 끝 ↔ 면 {bq.STOP_GAP * 100:.1f} cm"
+            ln = f"{m.group(1)}{m.group(2)}{m.group(3)}{x:.4f}{m.group(4)}{y:.4f}{m.group(5)}{math.degrees(th):.1f}}}   # 11-22 줄자 실측 상자 {bq.BOXES[m.group(2)]} 면 중앙, 앞 끝 ↔ 면 {bq.STOP_GAP * 100:.1f} cm"
         lines.append(ln)
-    d['course_text'] = '\n'.join(lines).replace('# 정지점 = course_v1_L2_실측.yaml (상자 실측)', '# 정지점 = 11-21 발제 상자 좌표 (box_quiet.stop_pose, 이전 course_v1_L2_실측.yaml)')
+    d['course_text'] = '\n'.join(lines).replace('# 정지점 = course_v1_L2_실측.yaml (상자 실측)', '# 정지점 = 11-22 줄자 실측 상자 좌표 (box_quiet.stop_pose, 이전 course_v1_L2_실측.yaml)')
     d['plan'] = d['plan'].replace('7cm_실측L', '발제10.7cm')
     d['course'] = d['plan'].split('_끝')[0] + '.yaml'
 
