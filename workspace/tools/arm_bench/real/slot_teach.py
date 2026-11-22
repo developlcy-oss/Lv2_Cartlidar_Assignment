@@ -26,16 +26,18 @@ import os
 import sys
 
 REPO = os.environ.get("TEAM_WS", os.path.expanduser("~/Lv2_Cartlidar_Assignment/workspace"))
-TRAJ = os.path.join(REPO, "ros2_ws/src/control/config/pallet_place_traj.json")
+# 2026-11-21 수직 집기 판: TEACH_TRAJ=<config>/pallet_place_traj_vertical.json TEACH_ORIG=~/pallet_place_traj_vertical_orig.json
+#   TEACH_REC=~/실측/slot_teach_vertical.json TEACH_TAUGHT=~/pallet_place_traj_vertical_taught.json (45° 판 기록과 섞이지 않게)
+TRAJ = os.environ.get("TEACH_TRAJ", os.path.join(REPO, "ros2_ws/src/control/config/pallet_place_traj.json"))
 YAML = os.path.join(REPO, "ros2_ws/src/control/config/manipulator.yaml")
 OUT_DIR = os.environ.get("TEACH_OUT", os.path.expanduser("~/실측"))
-REC = os.path.join(OUT_DIR, "slot_teach.json")
+REC = os.environ.get("TEACH_REC", os.path.join(OUT_DIR, "slot_teach.json"))
 BOX_REC = os.path.join(OUT_DIR, "box_teach.json")
 BOX_TAUGHT = os.environ.get("TEACH_BOX_OUT", os.path.expanduser("~/place_box_teach.json"))   # 노드 place.teach.file 로 넣을 파일
 BOX_CELL0 = (0.2853, 0.0, 0.0633)   # 2026-11-15 상자 = 로봇 앞 끝 0.1328 + 5 cm + 반 변 0.1025 (예전 12.72 cm 는 0.3625), --cx 로 바꿈. 책상 시험 가운데 칸 (dice.sh --bench 와 같음): 놓을 윗면 높이 = base_link z
 BOX_PITCH = 0.06
 BOX_ORDER = ["-1,1", "1,1", "-1,0", "0,0", "1,0", "-1,-1", "0,-1", "1,-1", "0,1"]
-ORIG = os.path.expanduser("~/pallet_place_traj_orig.json")   # 노드 궤적을 바꾸기 전 원본 (--make 는 늘 이걸 기준으로)
+ORIG = os.environ.get("TEACH_ORIG", os.path.expanduser("~/pallet_place_traj_orig.json"))   # 노드 궤적을 바꾸기 전 원본 (--make 는 늘 이걸 기준으로)
 TAUGHT = os.environ.get("TEACH_TAUGHT", os.path.expanduser("~/pallet_place_traj_taught.json"))
 ORDER = ["1_3", "1_0", "1_2", "1_1", "2_2", "2_0", "2_3", "2_1", "3_1", "3_0"]   # 계획기 꺼내기 차례 (앞 열부터)
 
@@ -180,7 +182,7 @@ def make():
     for k in ORDER:
         print(f"  {k}: {used.get(k)}")
     print("\n노드에 넣기 (원본은 백업 · 되돌리기는 git checkout):")
-    print(f"  cp {TRAJ} ~/pallet_place_traj_orig.json && cp {TAUGHT} {TRAJ}")
+    print(f"  cp {TRAJ} {ORIG} && cp {TAUGHT} {TRAJ}")
     print("  -> 브링업 다시 띄우기 (노드가 시작할 때 읽음). 되돌리기: "
           f"cd {REPO} && git checkout ros2_ws/src/control/config/pallet_place_traj.json")
 
@@ -188,8 +190,9 @@ def make():
 def teach(names):
     sys.path.insert(0, os.path.join(REPO, "tools/arm_bench/real"))
     import meas_session as m                   # Arm (arm_controller 액션) · jog · fk 그대로
-    _, slots = load_traj()
+    doc, slots = load_traj()
     off = offsets()
+    vertical = any("enter_tilt_deg" in s for s in doc["slots"])
     bad = [k for k in names if k not in slots]
     if bad:
         sys.exit(f"없는 칸 {bad} (팔레트 v5: {' '.join(ORDER)})")
@@ -200,6 +203,7 @@ def teach(names):
         if not m.node_unfold():
             sys.exit("STOW 에서 pose DRIVE 실패 -> 노드 로그 확인 뒤 다시")
         q, _ = a.show()
+        a.cmd = list(q)   # 2026-11-22 실물: 갱신 안 하면 a.cmd 가 STOW 로 남아 '집게 벌림' 이 팔을 STOW 자세로 다시 접음
     rec = load_rec()
     os.makedirs(OUT_DIR, exist_ok=True)
     try:
@@ -209,14 +213,23 @@ def teach(names):
             above = [v + o for v, o in zip(pl[0][:5], off)]       # 노드가 보내는 칸 위 (모델 + 보정)
             grasp = [v + o for v, o in zip(pl[-1][:5], off)]      # 노드가 보내는 쥐는 자리
             m.P(f"\n[{k}] {s['shape']} 칸 — 이 칸에만 퍽을 넣었는지 확인. 칸 위 (노드 값) 로 감")
+            if vertical:
+                m.P(f"  수직 판 맞춤 기준: 퍽이 두 손가락 정가운데, 손가락 가운데가 퍽 중심보다 10 mm 위 (toppick 쥐는 높이), "
+                    f"집게 {s.get('enter_tilt_deg', 5):.0f}° (거의 수직) 그대로")
             if m.ask("시작? (y = 시작 / s = 건너뜀)") != "y":
                 continue
             a.move(a.cmd, grip_for_mm(TEACH_OPEN_MM), label=f"집게 {TEACH_OPEN_MM:.0f} mm 벌림")
             if not a.move(above, label=f"{k} 칸 위 (노드 값)"):
                 continue
-            m.P("  노드 쥐는 자리로 내릴까? (퍽 바로 위면 '아래' 로 직접 내려도 됨)")
-            if m.ask("내림? (y / n)") == "y":
-                a.move(grasp, label=f"{k} 쥐는 자리 (노드 값)")
+            if vertical:   # 2026-11-22 실물: 수직 판 노드 쥐는 자리가 모델 오차로 칸 벽 · 바닥을 누를 수 있음 -> 30 mm 위에서 멈춤
+                m.P("  노드 쥐는 자리 30 mm 위로 내릴까? (거기서 '아래' · '멀리' 등으로 맞춤)")
+                hi, err = m.cart_step(grasp, [0.0, 0.0, 0.03])
+                if m.ask("내림? (y / n)") == "y":
+                    a.move(hi if err < 1.0 else above, label=f"{k} 쥐는 자리 30 mm 위 (노드 값)" if err < 1.0 else "30 mm 위 못 풂 -> 칸 위 그대로")
+            else:
+                m.P("  노드 쥐는 자리로 내릴까? (퍽 바로 위면 '아래' 로 직접 내려도 됨)")
+                if m.ask("내림? (y / n)") == "y":
+                    a.move(grasp, label=f"{k} 쥐는 자리 (노드 값)")
             qm = m.jog(a, above, f"{k} 칸 위")
             if qm is not None:
                 delta = [x - y for x, y in zip(qm, grasp)]

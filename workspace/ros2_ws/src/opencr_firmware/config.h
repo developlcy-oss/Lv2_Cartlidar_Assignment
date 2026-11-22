@@ -101,7 +101,10 @@ static const uint8_t ARM_IDS[ARM_COUNT]     = {11, 12, 13, 16, 14, 15};
 //   슬라이더 명령은 monitor/gripper_map.py 로 1550 ~ 2650 안에서만 나감. 모터 한계도 1530 ~ 2670 (dxl_setup m 15)
 //   2026-10-27 사용자 "J1 범위를 -180 ~ +180 으로": J1 ±2.8 → ±3.14159 (모터 한계 0 ~ 4095 = 한 바퀴 전체). 배선 꼬임 · 차체 간섭은 확인 필요 ★
 static const float   ARM_MIN_RAD[ARM_COUNT] = {-3.14159f, -2.14f, -1.6f, -1.92f, -2.8f, -0.7946f};   // URDF 와 같게 ★
-static const float   ARM_MAX_RAD[ARM_COUNT] = { 3.14159f,  1.6f,  1.60f,  2.0f,  2.8f,  0.9541f};
+static const float   ARM_MAX_RAD[ARM_COUNT] = { 3.14159f,  1.6f,  1.60f,  2.5f,  2.8f,  0.9541f};
+//   2026-11-21 (사용자 "이 관절이랑 각도를 봐", 손으로 확인: 브라켓 안 닿음): J4 최대 2.0 -> 2.5 rad (143°). 수직 집게로 팔레트 칸에 넣을 때
+//   실물 1_3 손 맞춤 자리 (퍽 칸 바닥) 에서 이미 J4 113.9° (한계 114.6°), 칸 입구 (36 mm 위) 는 약 2.26 ~ 2.45 rad 필요.
+//   ★ 모터 ID 16 EEPROM Max Position Limit 도 3678 tick 이상으로 (dxl_setup: m 16 796 3678), 아니면 부팅 점검 실패
 //   모터 EEPROM Min/Max Position Limit 도 이 범위와 같게 (부팅 점검이 확인, tools/dxl_setup 의 m 명령)
 static const int8_t  ARM_DIR[ARM_COUNT]     = {+1, +1, +1, +1, +1, +1};   // 2026-10-26 J1~J5 손으로 확인 (URDF + 방향과 같음)
 //   2026-11-15 관절 1 반 바퀴: 새 관절 1 브라켓은 모터가 모델과 180° 돌아간 채 달림 (회전 방향은 같음).
@@ -152,11 +155,13 @@ static_assert(HOLD_STALL_TICKS < ESTOP_KEEP_GOAL_TICKS, "목표를 유지한 관
 //   → 목표 = 현재 + GRIP_SQUEEZE_TICKS (목표 쪽) 로 고정 (쥐기). 호스트 목표가 그 자리보다 덜 가는 쪽 (보통 열기) 이면 풀고 따른다.
 //   ESTOP · 토크 OFF 요청 HOLD 에서도 그리퍼 목표가 현재에서 GRIP_STALL_TICKS 안이면 (쥐는 중) 그대로 둔다 (퍽을 놓치지 않음).
 //   그리퍼 위치 P 800 기준 1 tick ≈ PWM 6.25: 쥐는 힘 33 tick ≈ PWM 206 (23 %), 막힘 문턱 45 tick ≈ 281 (32 %) — 오래 미는 힘의 상한.
+//   2026-11-21 실물: 45° 집게가 손가락 끝 두 점으로 약하게 쥐어 옮기는 동안 퍽이 손 안에서 돌아 칸에 누워 들어감 (직육면체는 앞 칸에 걸림)
+//   -> 쥐는 힘 33 -> 55 tick (≈ PWM 344, 39 %, EEPROM PWM Limit 400 안), 막힘 문턱 45 -> 70 (쥐는 힘보다 커야 함). ★ 넣기까지 온도 · MOTOR_HW 확인
 #define GRIP_SLOT 5                                 // 그리퍼 개폐 = 팔 6 번째 칸 (ID 15)
-static const int32_t  GRIP_STALL_TICKS    = 45;     // 이보다 큰 목표 - 현재 가 이어지면 막힘 후보 ★
+static const int32_t  GRIP_STALL_TICKS    = 70;     // 이보다 큰 목표 - 현재 가 이어지면 막힘 후보 ★
 static const int32_t  GRIP_PROGRESS_TICKS = 8;      // GRIP_STALL_MS 안에 이만큼도 못 움직이면 막힘 (빈 손 이동은 수십 tick 씩 움직임)
 static const uint32_t GRIP_STALL_MS       = 300;    // 막힘 판정 시간 ★
-static const int32_t  GRIP_SQUEEZE_TICKS  = 33;     // 막힌 자리에서 더 닫는 양 = 쥐는 힘 (슬라이더 기본값과 같음, 사용자 실측으로 확정 ★)
+static const int32_t  GRIP_SQUEEZE_TICKS  = 55;     // 막힌 자리에서 더 닫는 양 = 쥐는 힘 (예전 33 = 슬라이더 기본값, 2026-11-21 55 ★)
 static const int32_t  GRIP_PWM_LIMIT_MAX  = 400;    // 부팅 점검: 그리퍼 모터 EEPROM PWM Limit (공장값 885) 가 이보다 크면 FAULT
 static_assert(GRIP_SQUEEZE_TICKS < GRIP_STALL_TICKS, "쥐는 중 (오차 = 쥐는 힘) 을 다시 막힘으로 보지 않게");
 static_assert(GRIP_SLOT < ARM_COUNT, "그리퍼 칸은 팔 칸 안");

@@ -22,7 +22,7 @@ const TargetLookParams kTargetLook{};
 constexpr double kAimZ = 0.13 - 0.12025;
 // manipulator.yaml lower/upper_limits (joint1~5) = URDF
 constexpr std::array<double, 5> kLo{-3.14159, -2.14, -1.6, -1.92, -2.8};
-constexpr std::array<double, 5> kHi{3.14159, 1.6, 1.6, 2.0, 2.8};
+constexpr std::array<double, 5> kHi{3.14159, 1.6, 1.6, 2.21, 2.8};
 
 double rayDistance(const Eigen::Vector3d & cam, const Eigen::Vector3d & axis, const Eigen::Vector3d & p)
 {

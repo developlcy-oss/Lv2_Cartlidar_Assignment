@@ -37,7 +37,7 @@ struct ArmDiffIKParams
   double lead_max{0.25};         // [rad] 관절 목표가 측정값보다 앞설 수 있는 한계 (target_lead_max)
   double tilt_deg{45.0};         // 기울임 모드 집게 기울기
   std::array<double, 5> lower{-3.14159, -2.14, -1.6, -1.92, -2.8};   // URDF 한계 (Isaac soft limit = URDF)
-  std::array<double, 5> upper{3.14159, 1.6, 1.6, 2.0, 2.8};
+  std::array<double, 5> upper{3.14159, 1.6, 1.6, 2.21, 2.8};
 };
 
 using Joints5 = std::array<double, 5>;

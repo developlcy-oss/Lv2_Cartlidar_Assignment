@@ -5377,7 +5377,7 @@
     <parent link="link4"/>
     <child link="link5"/>
     <axis xyz="0 1.000 0"/>
-    <limit effort="4.100000" lower="-1.92" upper="2.0" velocity="4.800000"/>
+    <limit effort="4.100000" lower="-1.92" upper="2.21" velocity="4.800000"/>
     <dynamics damping="0.1" friction="0"/>
   </joint>
   <joint name="joint5" type="revolute">

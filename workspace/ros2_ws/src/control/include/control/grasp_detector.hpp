@@ -61,4 +61,31 @@ private:
   double t_{0.0};   // 지금 상태와 반대인 측정이 이어진 시간
 };
 
+// 강화학습 집기 쥔 뒤 집게 고정 (2026-11-21 실물: 쥔 뒤 정책의 집게 출력이 벌림 · 닫힘을 오가며 집게가 꿈틀댐).
+//   쥠 (손가락이 쥔 범위 + 막힘) 이 latch_time 이어지면 그 뒤로는 정책 집게 출력과 상관없이 닫힘 유지 (스킬 끝까지).
+//   latch_time ≤ 0 = 끔 (예전처럼 정책 출력 그대로)
+class GripLatch
+{
+public:
+  explicit GripLatch(double latch_time = 0.2)
+  : latch_time_(latch_time) {}
+
+  // held: 이번 tick 쥠인지, dt (s). 반환 = 고정됨
+  bool update(bool held, double dt)
+  {
+    if (latched_ || latch_time_ <= 0.0) {return latched_;}
+    t_ = held ? t_ + std::max(0.0, dt) : 0.0;
+    if (t_ + 1e-9 >= latch_time_) {latched_ = true;}
+    return latched_;
+  }
+
+  void reset() {latched_ = false; t_ = 0.0;}
+  bool latched() const {return latched_;}
+
+private:
+  double latch_time_;
+  bool latched_{false};
+  double t_{0.0};
+};
+
 }  // namespace control

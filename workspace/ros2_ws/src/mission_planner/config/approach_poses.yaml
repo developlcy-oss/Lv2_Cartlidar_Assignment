@@ -14,12 +14,12 @@ B1:S:
   - 1.5708
   stage:
   - 1.468
-  - 0.3147
+  - 0.3747
   - 1.5708
-  standoff: 0.4
+  standoff: 0.34
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.13
   stage_rotate: true
   box: 1
   side: S
@@ -46,7 +46,7 @@ B1:S:
 B1:N:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 1.468
   - 1.3125
@@ -59,7 +59,7 @@ B1:N:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 1
   side: N
   inline: false
@@ -84,7 +84,7 @@ B1:N:
 B1:W:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 1.1055
   - 0.95
@@ -98,7 +98,7 @@ B1:W:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 1
   side: W
   inline: true
@@ -235,7 +235,7 @@ B2:N:
 B2:W:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 3.3075
   - 3.152
@@ -249,7 +249,7 @@ B2:W:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 2
   side: W
   inline: true
@@ -355,12 +355,12 @@ B3:N:
   - -1.5708
   stage:
   - 2.936
-  - 5.9893
+  - 6.0393
   - -1.5708
-  standoff: 0.4
+  standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.135
   stage_rotate: true
   box: 3
   side: N
@@ -503,12 +503,12 @@ B4:N:
   - -1.5708
   stage:
   - 0.734
-  - 5.9893
+  - 6.0393
   - -1.5708
-  standoff: 0.4
+  standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.135
   stage_rotate: true
   box: 4
   side: N
@@ -570,7 +570,7 @@ B4:W:
 B4:E:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 1.0965
   - 5.354
@@ -584,7 +584,7 @@ B4:E:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 4
   side: E
   inline: true
@@ -609,7 +609,7 @@ B4:E:
 B5:S:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 2.202
   - 4.9915
@@ -622,7 +622,7 @@ B5:S:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 5
   side: S
   inline: false
@@ -654,12 +654,12 @@ B5:N:
   - -1.5708
   stage:
   - 2.202
-  - 5.9893
+  - 6.0393
   - -1.5708
-  standoff: 0.4
+  standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.07
+  stage_clearance: 0.135
   stage_rotate: true
   box: 5
   side: N
@@ -794,7 +794,7 @@ B6:S:
 B6:N:
   kind: box
   ok: false
-  note: final 외곽이 막힘
+  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
   - 3.67
   - 4.2485
@@ -807,7 +807,7 @@ B6:N:
   gap: 0.1272
   final_clearance: 0.0
   stage_clearance: 0.165
-  stage_rotate: true
+  stage_rotate: false
   box: 6
   side: N
   inline: false

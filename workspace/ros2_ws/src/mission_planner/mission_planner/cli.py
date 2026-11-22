@@ -37,7 +37,7 @@ def make_maps(argv=None):
     ap.add_argument("--out", default=os.path.normpath(os.path.join(HERE, "..")))
     ap.add_argument("--res", type=float, default=0.025)
     a = ap.parse_args(argv)
-    from .arena import LIDAR_Z, build_maps, write_map
+    from .arena import LIDAR_Z, LIDAR_Z_FRONT, build_maps, rasterize, write_map
     from .planner import World
 
     solids, nav, amcl = build_maps(a.sdf, res=a.res)
@@ -45,6 +45,10 @@ def make_maps(argv=None):
     os.makedirs(os.path.join(a.out, "config"), exist_ok=True)
     write_map(nav, os.path.join(a.out, "maps", "map_nav"), "주행 계획용 (벽 · 기둥 · 박스 · 받침대 · 신호등, 바닥 위 0 ~ 0.45 m), mission_make_maps 가 만듦")
     write_map(amcl, os.path.join(a.out, "maps", "map_amcl"), f"AMCL 용 (LiDAR 스캔면 바닥 위 {LIDAR_Z:.4f} m 를 지나는 것만), mission_make_maps 가 만듦")
+    # 비교판 (2026-11-20): 앞 라이다 스캔면 높이로 만든 AMCL 지도 = 상자 (출발 · 장소, 높이 0.07) 포함. 기본 map_amcl 은 상자를 뺀다 (arena 설명).
+    #   11-20 실물 bag 재생에서 B2 대기 자리 위치 감시 나쁜 전이 6 → 0 (앞 라이다가 상자 앞면을 봄). 콘솔 모드 9 가 이 지도로 띄움
+    write_map(rasterize(solids, res=a.res, at_z=LIDAR_Z_FRONT), os.path.join(a.out, "maps", "map_amcl_with_boxes"),
+              f"AMCL 비교판: 앞 LiDAR 스캔면 바닥 위 {LIDAR_Z_FRONT:.4f} m 를 지나는 것 (상자 포함), mission_make_maps 가 만듦")
     w = World(a.sdf, res=a.res)
     table = {}
     for k, ap_ in w.approaches.items():
