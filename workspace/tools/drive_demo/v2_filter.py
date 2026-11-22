@@ -13,6 +13,8 @@ drive_rl base_cmd.py 규칙 v2 와 같은 한계 (가속은 diff_drive 가 맡�
   - 11-18 속도 곡선: demo_follow 가 내는 /drive_demo/stop_dist (다음 정지까지 남은 경로 길이 [m], 음수 = 없음) 로
     |v| ≤ √(stop_creep_v² + 2·stop_decel·max(d − stop_creep_d, 0)) — 정지 앞에서만 감속 (그 밖은 전진 상한 · 모터 상한까지).
     0.3 s 넘게 안 오면 이 상한은 끔. 직진 모터 상한 = vx_fwd 기준 (11-16 젯슨 판과 같게, 기록으로 확인)
+  - 11-21 상자 구간 속도 상한: demo_follow 가 상자 정지점 0.30 m 안에서 내는 /drive_demo/speed_cap (m/s, ≤ 0 = 없음) 으로
+    |v| ≤ cap (v · ω 같은 비율). 0.3 s 넘게 안 오면 끔 (사용자 결정: max 에서도 상자 앞은 0.15)
 입력이 0.25 s 끊기면 0 을 0.5 s 동안 내고 조용해짐 (twist_mux nav 입력이 시간 초과로 풀리게 — 리모컨 · drive 를 막지 않음).
 같은 값을 cmd_vel_v2 로도 냄 (기록용). ⚠ 소프트웨어 한계일 뿐 물리 비상정지가 아님.
 """
@@ -49,12 +51,14 @@ class V2Filter(Node):
         self.stop_creep_d = self.declare_parameter("stop_creep_d", 0.05).value   # 마지막 구간 길이 [m] (demo_follow 가 중간 정지에는 이만큼 더해 보냄)
         self.stop_d, self.t_stop = -1.0, -1e9
         self.create_subscription(Float32, "/drive_demo/stop_dist", self._stop, 10)
+        self.cap_v, self.t_cap = -1.0, -1e9
+        self.create_subscription(Float32, "/drive_demo/speed_cap", self._cap, 10)
         self.pub = self.create_publisher(TwistStamped, out, 10)
         self.mon = self.create_publisher(TwistStamped, "cmd_vel_v2", 10)
         self.create_subscription(TwistStamped, "cmd_vel_raw", self._in, 20)
         self.raw, self.t_raw = (0.0, 0.0), -1e9
         self.spin_used = self.moved = self.rev_run = self.fwd = 0.0
-        self.clips = {"speed": 0, "curv": 0, "spin": 0, "rev": 0, "motor": 0, "stop": 0}
+        self.clips = {"speed": 0, "curv": 0, "spin": 0, "rev": 0, "motor": 0, "stop": 0, "zone": 0}
         if self.odom_topic:
             self.create_subscription(Odometry, self.odom_topic, self._odom, 20)
         self.create_timer(DT, self._tick)
@@ -73,6 +77,9 @@ class V2Filter(Node):
 
     def _stop(self, m):
         self.stop_d, self.t_stop = m.data, self.now()
+
+    def _cap(self, m):
+        self.cap_v, self.t_cap = m.data, self.now()
 
     def _in(self, m):
         self.raw, self.t_raw = (m.twist.linear.x, m.twist.angular.z), self.now()
@@ -117,6 +124,10 @@ class V2Filter(Node):
                 s = abs(v) / cap
                 v, w = v / s, w / s
                 self.clips["stop"] += 1
+        if self.cap_v > 0.0 and self.now() - self.t_cap < 0.3 and abs(v) > self.cap_v + 1e-6:   # 11-21 상자 구간 상한
+            s = abs(v) / self.cap_v
+            v, w = v / s, w / s
+            self.clips["zone"] += 1
         sp = abs(v)
         if sp < SPIN_V and abs(w) > 0.05:
             self.t_spin = self.now()

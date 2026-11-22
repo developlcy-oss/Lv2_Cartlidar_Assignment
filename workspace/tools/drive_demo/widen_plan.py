@@ -23,7 +23,8 @@ from PIL import Image
 from scipy.ndimage import distance_transform_edt, map_coordinates
 
 from pathlib import Path
-REPO = str(Path(__file__).resolve().parents[3]) + '/'   # 이 파일이 든 저장소 (workspace/tools/drive_demo)
+import os
+REPO = os.environ.get('LV2_REPO', str(Path(__file__).resolve().parents[3])).rstrip('/') + '/'   # 이 파일이 든 저장소 (workspace/tools/drive_demo) · 사본에서 돌릴 때 LV2_REPO=<저장소>
 RES, OX, OY = 0.025, -0.15, -0.15
 FP = np.array([[0.25, 0.07], [0.25, -0.07], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676], [0.1328, 0.1676]])
 SEP = 0.317 * 1.29
@@ -252,8 +253,10 @@ def seg_cost(C, P, k, d, need, near_goal=False):
     return t, clr.min()
 
 
-def plan_leg(C, q0, qg, r, deadline=60.0, r_rev=0.28, APP=APP):
+def plan_leg(C, q0, qg, r, deadline=60.0, r_rev=0.28, APP=APP, spin_pen=None, cusp=None):
     """q0 정지점 → qg 정지점 (마지막 APP m 곧게 전진). 돌려줌: [(kind, poses | dth)], 정보"""
+    SPIN_PEN_ = SPIN_PEN if spin_pen is None else spin_pen   # 11-21 --spin-pen: 제자리 회전 벌점 [s / 15°] (크게 = 곡선 · 방향 바뀜으로 대신)
+    CUSP_ = CUSP if cusp is None else cusp
     qa = (qg[0] - APP * math.cos(qg[2]), qg[1] - APP * math.sin(qg[2]), qg[2])   # 곧은 들어가기 시작
     hg = heur_grid(C, qa)
 
@@ -349,7 +352,7 @@ def plan_leg(C, q0, qg, r, deadline=60.0, r_rev=0.28, APP=APP):
                     c += KTIGHT * STEP
                 if d != 0 and dn != d:
                     c += CUSP_CURVE * ((abs(k) > 1e-9) + (abs(kn) > 1e-9))   # 굽은 채 멈춤 · 굽은 채 출발
-                c += (CUSP if (d != 0 and dn != d) else 0.0) + KCH * min(abs(kn - k) * (r if dn > 0 else r_rev), 2.0) * (d == dn)
+                c += (CUSP_ if (d != 0 and dn != d) else 0.0) + KCH * min(abs(kn - k) * (r if dn > 0 else r_rev), 2.0) * (d == dn)
                 nx_, ny_, nth = P[-1]
                 nrev = rev + STEP if dn == -1 else (0.0 if d == 1 or d == 0 else rev)   # 전진 시작하면 후진 셈 0 (0.15 m 규칙은 STEP 0.10 이 짧아 넉넉히 둠)
                 kk = key(nx_, ny_, nth, dn, nrev)
@@ -367,7 +370,7 @@ def plan_leg(C, q0, qg, r, deadline=60.0, r_rev=0.28, APP=APP):
             if C.poses(np.array([[x, y, th + dth / 2], [x, y, nth]])).min() < need(moved, x, y):
                 continue
             kk = key(x, y, nth, 0, rev)
-            ng = g + abs(dth) / 0.5 + SPIN_PEN + (CUSP if d != 0 else 0.0)
+            ng = g + abs(dth) / 0.5 + SPIN_PEN_ + (CUSP_ if d != 0 else 0.0)
             if ng < best_g.get(kk, 1e18) - 1e-9:
                 best_g[kk] = ng
                 nodes.append((x, y, nth, 0, 0.0, rev, moved))
@@ -470,6 +473,27 @@ def stats(C, pieces):
     return out, T
 
 
+def restop(d):
+    """정지점 (legs goal · course_text route 줄) 을 box_quiet.stop_pose 로. 상자 아닌 끝 (A1) · 출발은 그대로. 각 leg 에 'box' 정보"""
+    import re
+    import box_quiet as bq
+    for L in d['legs']:
+        t = bq.leg_target(L)
+        if t in bq.BOX_STOPS:
+            L['goal'] = bq.stop_pose(t)
+            L['box'] = {'name': t, 'center': list(bq.BOXES[t]), 'gap': bq.STOP_GAP, 'front': bq.FRONT}
+    lines = []
+    for ln in d.get('course_text', '').split('\n'):
+        m = re.match(r'(\s*- \{stop: )(\w+)(, x: )[-\d.]+(, y: )[-\d.]+(, face: )[-\d.]+(\}.*)', ln)
+        if m and m.group(2) in bq.BOX_STOPS:
+            x, y, th = bq.stop_pose(m.group(2))
+            ln = f"{m.group(1)}{m.group(2)}{m.group(3)}{x:.4f}{m.group(4)}{y:.4f}{m.group(5)}{math.degrees(th):.1f}}}   # 11-21 발제 상자 {bq.BOXES[m.group(2)]} 면 중앙, 앞 끝 ↔ 면 {bq.STOP_GAP * 100:.1f} cm"
+        lines.append(ln)
+    d['course_text'] = '\n'.join(lines).replace('# 정지점 = course_v1_L2_실측.yaml (상자 실측)', '# 정지점 = 11-21 발제 상자 좌표 (box_quiet.stop_pose, 이전 course_v1_L2_실측.yaml)')
+    d['plan'] = d['plan'].replace('7cm_실측L', '발제10.7cm')
+    d['course'] = d['plan'].split('_끝')[0] + '.yaml'
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('src')
@@ -481,10 +505,18 @@ def main():
     ap.add_argument('--keep', default='', help='원래 길 그대로 둘 구간 번호 (예 2,9 — 11-19 시뮬에서 새 길이 더 나빴던 구간)')
     ap.add_argument('--r-rev', type=float, default=0.25, help='후진 최소 반경 (상자에서 빠져나오기)')
     ap.add_argument('--deadline', type=float, default=30.0)
+    ap.add_argument('--spin-pen', type=float, default=SPIN_PEN, help='제자리 회전 벌점 [s / 15°] (11-19 기본 6, 11-21 곡선으로 이어 가기는 크게)')
+    ap.add_argument('--cusp', type=float, default=CUSP, help='방향 바뀜 (전진 ↔ 후진) 벌점 [s]')
+    ap.add_argument('--restop', action='store_true', help='11-21: 정지점을 box_quiet.stop_pose (발제 상자 면 중앙, 앞 끝 ↔ 면 STOP_GAP) 로 바꾸고 course_text 도 고침')
+    ap.add_argument('--hard', type=float, default=None, help='벽 여유 요구 [m] (기본 HARD 0.04)')
     a = ap.parse_args()
+    if a.hard is not None:
+        globals()['HARD'] = a.hard
     C = Clear()
     d = json.load(open(a.src))
     legs = d['legs']
+    if a.restop:
+        restop(d)
     sel = range(len(legs))
     if a.legs:
         lo, hi = (int(v) for v in a.legs.split('-'))
@@ -506,7 +538,7 @@ def main():
         cands = []
         for app in (0.25, 0.15, 0.08):
             for r in [float(v) for v in a.radii.split(',')]:
-                res, info = plan_leg(C, q0, qg, r, a.deadline, a.r_rev, app)
+                res, info = plan_leg(C, q0, qg, r, a.deadline, a.r_rev, app, a.spin_pen, a.cusp)
                 print(f"  {L['name']}: r {r} · 곧게 {app} → " + (f"비용 {info['cost']} s · 조각 {''.join(p['kind'] for p in res)}" if res else f"길 없음 ({info})"), flush=True)
                 if res:
                     info['app'] = app
@@ -526,7 +558,8 @@ def main():
         print(f"✓ {L['name']} r {r} · 이론 {t_old:.1f} → {t_new:.1f} s · {info}", flush=True)
         for s in st:
             print('    ' + s, flush=True)
-    d['plan'] = d['plan'] + '_반경넓힘'
+    if not d['plan'].endswith('_반경넓힘'):
+        d['plan'] = d['plan'] + '_반경넓힘'
     d['note_widen'] = f"11-19 widen_plan.py: 하이브리드 A* (구간마다 최소 반경 {a.radii} 중 r ≥ {a.r_floor} 에서 시간 최소, 제자리 · 방향 바뀜 벌점, 정지점 앞 {APP} m 곧게, 벽 여유 ≥ {HARD * 100:.0f} cm) 로 구간 길만 새로 — 정지점 그대로" + (f" · 원래 길 그대로 S{', S'.join(str(k) for k in sorted(keep))}" if keep else "")
     json.dump(d, open(a.dst, 'w'), ensure_ascii=False, indent=1)
     print(f"이론 시간 (조각 사이 1 s · 제자리 1.5 s 더함) {T0:.0f} → {T1:.0f} s → {a.dst}")

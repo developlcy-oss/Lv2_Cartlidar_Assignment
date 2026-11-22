@@ -13,4 +13,6 @@ target_link_libraries(nav2_composed rclcpp::rclcpp rclcpp_components::component 
 install(TARGETS nav2_composed DESTINATION lib/${PROJECT_NAME})
 
 install(DIRECTORY launch config behavior_trees DESTINATION share/${PROJECT_NAME})
+# Gazebo 전용 실물형 회전 흉내 (gazebo_sim.launch.py sim_turn:=, tools/drive_demo/sim_turn_scale.py 사본)
+install(PROGRAMS scripts/sim_turn_scale.py DESTINATION lib/${PROJECT_NAME})
 ament_package()

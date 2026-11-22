@@ -18,6 +18,10 @@
 //          ★ 측정은 팔 ALIGN 자세에서는 상자 변이 화면 밖이라 기본은 mission 이 함: mission center_box 단계가 BOX_VIEW 로 잰 상자를
 //          goal.center · center_box 로 넘기면 (팔은 ALIGN 으로 되돌린 뒤) 측정 없이 위 기동부터. FINE 안에서 스스로 재는 것은
 //          align.center.auto_after_fine (기본 false)
+//   (11-21) 중앙 맞춤 개정: final_puck 기본 끔 (중앙 = 상자 면 중심), 회전 중 앞 모서리 침범 검사 (box_center.hpp corner_intrusion),
+//          앞 틈이 넉넉하면 후진 없는 S 자, /scan_front 상자 앞면 (box_face_lidar.hpp) 로 틈 · 요 · 옆 교차확인,
+//          goal.center 결과에 center_status · center_reason · 끝 옆 · 요 · 라이다 값을 실어 mission 이 반복 판단 (decide_loop).
+//          건너뜀 (뒤 여유 · max_shift · 모서리 · 센서 불일치) 은 사유 코드 + 수치를 결과 · 로그에 남김
 //   (#157) /drive/navigate 를 정차 중에 받으면 먼저 곧게 후진 (navigate.backoff.*, 뒤 /scan · 뒤 카메라 확인) → 물러남 확인 뒤 Nav2
 //   (11-19) 뒤가 벽에 붙은 채 받으면 먼저 곧게 전진 (navigate.pullout.*, control/pullout.hpp, 앞 /scan · TFmini 확인) → Nav2
 //          (Nav2 제자리 회전에 뒤 모서리가 벽 칸에 걸려 MPPI · 복구가 모두 거부되는 것 막음). 못 가도 실패 없이 Nav2
@@ -29,6 +33,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <deque>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -47,10 +52,12 @@
 #include "rclcpp_components/register_node_macro.hpp"
 #include "control/align_controller.hpp"
 #include "control/box_center.hpp"
+#include "control/box_face_lidar.hpp"
 #include "control/box_park.hpp"
 #include "control/pullout.hpp"
 #include "control/loc_gate.hpp"
 #include "control/turn_skill.hpp"
+#include "control/spin_guard.hpp"
 #include "robot_interfaces/srv/set_perception_mode.hpp"
 #include "robot_interfaces/action/align_base.hpp"
 #include "robot_interfaces/action/execute_skill.hpp"
@@ -61,6 +68,7 @@
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/trigger.hpp"
+#include "tf2/LinearMath/Matrix3x3.hpp"
 #include "tf2/utils.hpp"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 #include "tf2_ros/buffer.hpp"
@@ -163,6 +171,24 @@ public:
     center_timeout_s_ = declare_parameter("align.center.timeout_s", 45.0);
     center_fwd_min_m_ = declare_parameter("align.center.forward_min_m", 0.12);
     center_auto_ = declare_parameter("align.center.auto_after_fine", false);
+    center_cfg_.alpha_hard = declare_parameter("align.center.alpha_hard", center_cfg_.alpha_hard);
+    center_cfg_.alpha_min = declare_parameter("align.center.alpha_min", center_cfg_.alpha_min);
+    center_cfg_.corner_margin = declare_parameter("align.center.corner_margin", center_cfg_.corner_margin);
+    center_cfg_.s_curve = declare_parameter("align.center.s_curve", center_cfg_.s_curve);
+    center_cfg_.corner_y = declare_parameter("align.center.corner_y", center_cfg_.corner_y);
+    center_cut_slack_ = declare_parameter("align.center.forward_cut_slack", 0.02);
+    lidar_topic_ = declare_parameter("align.center.lidar_topic", std::string("/scan_front"));
+    lidar_scans_ = static_cast<int>(declare_parameter("align.center.lidar_scans", 5));
+    lidar_min_ok_ = static_cast<int>(declare_parameter("align.center.lidar_min_ok", 4));
+    lidar_max_age_s_ = declare_parameter("align.center.lidar_max_age_s", 1.0);
+    fuse_cfg_.lidar_min_gap = declare_parameter("align.center.lidar_min_gap", fuse_cfg_.lidar_min_gap);
+    fuse_cfg_.disagree = declare_parameter("align.center.sensor_disagree", fuse_cfg_.disagree);
+    fuse_cfg_.w_cam_yaw = declare_parameter("align.center.fuse_w_arducam_yaw", fuse_cfg_.w_cam_yaw);
+    center_disagree_skip_ = declare_parameter("align.center.disagree_skip", true);
+    {
+      const auto tfv = declare_parameter("align.center.lidar_tf", std::vector<double>{0.1318, 0.0, -1.0, 0.0, 0.0, 1.0});
+      if (tfv.size() == 6) {lidar_tf_default_ = LaserTf2{tfv[0], tfv[1], tfv[2], tfv[3], tfv[4], tfv[5]};}
+    }
     coarse_min_ = declare_parameter("align.coarse_min", 0.3);
     default_tol_ = declare_parameter("align.default_tolerance", 0.01);
     front_offset_ = declare_parameter("base.front_offset", 0.1328);   // base_link → 차체 앞 끝 (B안) ★
@@ -174,6 +200,9 @@ public:
     stale_s_ = declare_parameter("stale_s", 0.3);
     xy_tol_ = declare_parameter("navigate.xy_goal_tolerance", 0.25);
     spin_time_ = declare_parameter("navigate.spin_time_allowance", 15.0);
+    spin_guard_.max_deg = declare_parameter("navigate.spin_nocheck_deg", 3.0);   // 0 이하 = 끔
+    spin_guard_.clear = declare_parameter("navigate.spin_nocheck_clear", 0.03);
+    spin_guard_.front_x = front_offset_;
     map_frame_ = declare_parameter("frames.map", std::string("map"));
     base_frame_ = declare_parameter("frames.base", std::string("base_link"));
     LocGateParams lg;
@@ -203,6 +232,10 @@ public:
     turn_geo_.center_x = declare_parameter("turn.center_x", turn_geo_.center_x);
     // 실제 회전 중심 = robot_geometry.yaml base.icr_x (EKF odom_icr 와 같은 값, #92). 기본 = 보정 없음
     turn_geo_.icr_x = declare_parameter("base.icr_x", turn_geo_.center_x);
+    spin_guard_.icr_x = turn_geo_.icr_x;
+    center_cfg_.icr_x = turn_geo_.icr_x;   // 중앙 맞춤 모서리 침범 (끝 자세에는 상쇄됨)
+    center_cfg_.front_x = front_offset_;
+    shift_ = ShiftManeuver(center_cfg_);
 
     if (skill_enabled_) {
       std::vector<std::string> errs;
@@ -232,6 +265,13 @@ public:
     obstacle_params_ = std::make_shared<rclcpp::AsyncParametersClient>(this, obstacle_stop_node_);
     scan_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(names::SCAN, rclcpp::SensorDataQoS(),
         [this](sensor_msgs::msg::LaserScan::ConstSharedPtr m) {scan_ = m;}, so);
+    if (center_cfg_.enabled && !lidar_topic_.empty()) {   // 상자 앞면 (중앙 맞춤 교차확인). /scan_merged 는 차체 마스크가 상자를 지움
+      lidar_sub_ = create_subscription<sensor_msgs::msg::LaserScan>(lidar_topic_, rclcpp::SensorDataQoS(),
+          [this](sensor_msgs::msg::LaserScan::ConstSharedPtr m) {
+            lidar_buf_.push_back(m);
+            while (static_cast<int>(lidar_buf_.size()) > std::max(1, lidar_scans_)) {lidar_buf_.pop_front();}
+          }, so);
+    }
     odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(names::ODOM_FILTERED, 10,
         [this](nav_msgs::msg::Odometry::ConstSharedPtr m) {odom_ = m;}, so);
     if (center_cfg_.enabled && center_auto_) {   // FINE 안 자동 측정: perception place_box (latched) · 사전값 · 측정 서비스
@@ -413,7 +453,15 @@ private:
         Spin::Goal s;
         s.target_yaw = static_cast<float>(dyaw);
         s.time_allowance = rclcpp::Duration::from_seconds(spin_time_);
-        RCLCPP_INFO(get_logger(), "navigate → spin %.1f°", dyaw * 180 / M_PI);
+        // (11-22) 작은 보정 회전 (|각| ≤ spin_nocheck_deg) 은 Nav2 의 외곽-치명칸 검사를 끔: 상자 앞 (팔 끝 + padding 이 면에 닿는 자리) 에서
+        //   Spin 이 시작 직후 "Collision Ahead" 로 끝나던 문제. 단 /scan 으로 차체 외곽 (앞 · 뒤 · 옆) 둘레 여유가 쓸림 + 여유 이상일 때만 (spin_guard.hpp).
+        const bool sc = scan_ != nullptr;
+        const auto g = decide_spin_nocheck(dyaw, sc, sc && fresh(scan_->header.stamp),
+          sc ? scan_->ranges : std::vector<float>{}, sc ? scan_->angle_min : 0.0, sc ? scan_->angle_increment : 0.0,
+          sc ? scan_->range_min : 0.0, spin_guard_);
+        s.disable_collision_checks = g.disable_checks;
+        RCLCPP_INFO(get_logger(), "navigate → spin %.1f° 충돌검사 %s (%s, 외곽 여유 %.1f cm / 필요 %.1f cm)", dyaw * 180 / M_PI,
+          g.disable_checks ? "끔" : "유지", g.reason, g.min_dist * 100, (g.sweep + spin_guard_.clear) * 100);
         if (!spin_client_->action_server_is_ready()) {finish_nav(false, "nav2 spin 서버 없음"); return;}
         auto opts = rclcpp_action::Client<Spin>::SendGoalOptions();
         opts.goal_response_callback = [this, gen](rclcpp_action::ClientGoalHandle<Spin>::SharedPtr h) {
@@ -630,9 +678,19 @@ private:
     center_lateral_ = 0.0;
     center_note_.clear();
     center_given_ = false;
+    center_res_ = CenterResult{};
+    center_k_ = gh->get_goal()->center_iter;
     if (gh->get_goal()->center) {   // 상자 중앙 맞춤만 (mission 이 잰 상자): 측정 없이 기동부터, 정밀 모드
-      if (!center_cfg_.enabled) {finish_align(true, "중앙 맞춤 꺼짐 (align.center.enabled false) — 움직이지 않음"); return;}
-      if (!odom_ || !fresh(odom_->header.stamp)) {finish_align(true, "중앙 맞춤 안 함: /odometry/filtered 없음"); return;}
+      if (!center_cfg_.enabled) {
+        center_res_.status = Align::Result::CENTER_SKIPPED; center_res_.reason = "disabled";
+        finish_align(true, "중앙 맞춤 꺼짐 (align.center.enabled false) — 움직이지 않음");
+        return;
+      }
+      if (!odom_ || !fresh(odom_->header.stamp)) {
+        center_res_.status = Align::Result::CENTER_SKIPPED; center_res_.reason = "odom";
+        finish_align(true, "중앙 맞춤 안 함: /odometry/filtered 없음");
+        return;
+      }
       enter_box_approach(AlignMode::FINE);
       center_given_ = true;
       center_given_box_ = gh->get_goal()->center_box;
@@ -711,6 +769,14 @@ private:
     auto r = std::make_shared<Align::Result>();
     r->success = ok;
     r->message = msg;
+    r->center_status = center_res_.status;
+    r->center_reason = center_res_.reason;
+    r->center_lateral = static_cast<float>(center_res_.lateral);
+    r->center_yaw_err = static_cast<float>(center_res_.yaw_err);
+    r->shift_planned = static_cast<float>(center_res_.shift);
+    r->lidar_gap = static_cast<float>(center_res_.lidar_gap);
+    r->lidar_yaw = static_cast<float>(center_res_.lidar_yaw);
+    r->lidar_lateral = static_cast<float>(center_res_.lidar_lateral);
     RCLCPP_INFO(get_logger(), "align(%s) %s: %s",
       align_mode_ == AlignMode::FINE ? "정밀" : align_mode_ == AlignMode::BOX ? "박스" : "먼 거리",
       ok ? "성공" : "실패", msg.c_str());
@@ -729,7 +795,7 @@ private:
     }
     const auto t = now();
     if (center_phase_ != CenterPhase::OFF) {   // 상자 중앙 맞춤은 따로 시간을 잼 (측정이 Jetson 에서 장당 약 3 s)
-      if ((t - center_start_).seconds() > center_timeout_s_) {center_fallback("중앙 맞춤 시간 초과"); return;}
+      if ((t - center_start_).seconds() > center_timeout_s_) {center_fallback("중앙 맞춤 시간 초과", "fallback_timeout"); return;}
     } else if ((t - align_start_).seconds() > align_timeout_s_) {
       finish_align(false, "시간 초과");
       return;
@@ -863,17 +929,22 @@ private:
   }
 
   // 움직이기 전 (측정 실패 · 믿기 어려운 값): 지금 자리가 FINE 결과 그대로이므로 성공으로 끝냄
-  void center_skip(const std::string & why)
+  //   code = 결과 center_reason (기계용). 수치는 why 에 넣어 로그 · message 에 남김 (조용한 건너뜀 없음)
+  void center_skip(const std::string & why, const char * code = "skip")
   {
-    RCLCPP_WARN(get_logger(), "중앙 맞춤 안 함 (%s)", why.c_str());
+    RCLCPP_WARN(get_logger(), "중앙 맞춤 안 함 [%s] (%s)", code, why.c_str());
+    center_res_.status = Align::Result::CENTER_SKIPPED;
+    center_res_.reason = code;
     center_phase_ = CenterPhase::OFF;
     finish_align(true, "허용오차 안에서 정지 (중앙 맞춤 안 함: " + why + ")");
   }
 
   // 움직인 뒤 문제: 기존 FINE (퍽 arm_offset + TFmini) 로 되돌아가 처음부터 다시 맞춤 (시간도 새로)
-  void center_fallback(const std::string & why)
+  void center_fallback(const std::string & why, const char * code = "fallback")
   {
-    RCLCPP_WARN(get_logger(), "중앙 맞춤 포기 (%s) → 기존 FINE 으로", why.c_str());
+    RCLCPP_WARN(get_logger(), "중앙 맞춤 포기 [%s] (%s) → 기존 FINE 으로", code, why.c_str());
+    center_res_.status = Align::Result::CENTER_FALLBACK;
+    center_res_.reason = code;
     publish_cmd(0, 0);
     center_phase_ = CenterPhase::OFF;
     center_note_ = "중앙 맞춤 포기: " + why;
@@ -894,9 +965,9 @@ private:
       publish_cmd(0, 0);
       if ((t - last_valid_).seconds() > lost_s_) {
         if (center_phase_ == CenterPhase::GIVEN || center_phase_ == CenterPhase::PRIOR || center_phase_ == CenterPhase::MEASURE) {
-          center_skip("/odometry/filtered 끊김");
+          center_skip("/odometry/filtered 끊김", "odom");
         } else {
-          center_fallback("/odometry/filtered 끊김");
+          center_fallback("/odometry/filtered 끊김", "fallback_odom");
         }
       }
       return;
@@ -909,7 +980,7 @@ private:
     if (center_phase_ == CenterPhase::PRIOR) {
       publish_cmd(0, 0);
       if (in_phase < center_prior_delay_s_) {return;}
-      if (!pb_client_->service_is_ready()) {center_skip(center_service_ + " 서비스 없음"); return;}
+      if (!pb_client_->service_is_ready()) {center_skip(center_service_ + " 서비스 없음", "no_service"); return;}
       center_req_t_ = now();
       const int gen = ++center_req_gen_;
       pb_client_->async_send_request(std::make_shared<std_srvs::srv::Trigger::Request>(),
@@ -926,12 +997,12 @@ private:
 
     if (center_phase_ == CenterPhase::MEASURE) {
       publish_cmd(0, 0);
-      if (center_svc_state_ < 0) {center_skip("측정 거부: " + center_svc_msg_); return;}
+      if (center_svc_state_ < 0) {center_skip("측정 거부: " + center_svc_msg_, "measure_fail"); return;}
       const bool st_new = pb_status_ && pb_status_rx_ > center_req_t_;
       const bool pose_new = pb_pose_ && pb_pose_rx_ > center_req_t_;
       if (!pose_new) {
-        if (st_new && pb_status_->data.find("\"ok\": false") != std::string::npos) {center_skip("상자 못 찾음 " + pb_status_->data); return;}
-        if (in_phase > center_measure_timeout_s_) {center_skip("측정 시간 초과"); return;}
+        if (st_new && pb_status_->data.find("\"ok\": false") != std::string::npos) {center_skip("상자 못 찾음 " + pb_status_->data, "measure_fail"); return;}
+        if (in_phase > center_measure_timeout_s_) {center_skip("측정 시간 초과", "measure_timeout"); return;}
         return;
       }
       center_use_box(*pb_pose_, rx, ry, ryaw);
@@ -946,18 +1017,24 @@ private:
 
     if (center_phase_ == CenterPhase::MOVE) {
       if (shift_.phase() != center_move_phase_) {center_move_phase_ = shift_.phase(); center_phase_start_ = t;}
-      else if (in_phase > center_phase_timeout_s_) {center_fallback("기동 단계 시간 초과"); return;}
-      if (shift_.forward() && range && *range < center_fwd_min_m_) {shift_.cut_forward();}   // TFmini 가 너무 가까우면 비스듬 전진 끝
+      else if (in_phase > center_phase_timeout_s_) {center_fallback("기동 단계 시간 초과", "fallback_phase_timeout"); return;}
+      // 비스듬 전진 중 TFmini 가 계획한 끝 틈보다 cut_slack 넘게 가까우면 (상자가 생각보다 가까움 · 미끄럼) 일찍 끝냄.
+      //   하한 forward_min_m (TFmini 최소 측정). 비스듬 빔은 법선 거리보다 길게 재므로 보수적
+      if (shift_.forward() && range && *range < center_cut_m_) {
+        RCLCPP_WARN(get_logger(), "중앙 맞춤: 비스듬 전진 일찍 끝 (TFmini %.3f < %.3f m, 남은 %.3f m)", *range, center_cut_m_, shift_.remaining());
+        center_res_.reason = "cut_forward";
+        shift_.cut_forward();
+      }
       const auto c = shift_.step(rx, ry, ryaw);
       if (c.done) {enter_center_hold(); return;}
       if (c.v < 0.0) {
         const bool scan_ok = scan_ && fresh(scan_->header.stamp);
-        if (!scan_ok && require_scan_) {center_fallback("후진 중 /scan 없음"); return;}
+        if (!scan_ok && require_scan_) {center_fallback("후진 중 /scan 없음", "fallback_no_scan"); return;}
         if (scan_ok && scan_blocked(scan_->ranges, scan_->angle_min, scan_->angle_increment, M_PI, scan_half_, scan_rear_stop_)) {
-          center_fallback("후방 장애물 (/scan)");
+          center_fallback("후방 장애물 (/scan)", "fallback_rear");
           return;
         }
-        if (rear_camera_blocks(c.v, rear_camera_, rear_state())) {center_fallback("후방 장애물 (뒤 카메라: " + rear_why() + ")"); return;}
+        if (rear_camera_blocks(c.v, rear_camera_, rear_state())) {center_fallback("후방 장애물 (뒤 카메라: " + rear_why() + ")", "fallback_rear_cam"); return;}
       }
       publish_cmd(c.v, c.w);
       return;
@@ -968,7 +1045,7 @@ private:
     // HOLD: 법선 yaw 유지 + TFmini 거리 (BoxApproach). 끝나면 반복 남았으면 다시 잼
     if (!range) {
       publish_cmd(0, 0);
-      if (in_phase > lost_s_ && (t - center_range_ok_).seconds() > lost_s_) {center_fallback("유지 중 박스 거리 무효");}
+      if (in_phase > lost_s_ && (t - center_range_ok_).seconds() > lost_s_) {center_fallback("유지 중 박스 거리 무효", "fallback_range");}
       return;
     }
     center_range_ok_ = t;
@@ -993,6 +1070,55 @@ private:
     publish_cmd(c.v, c.w);
   }
 
+  // /scan_front 최근 장 → 상자 앞면 (중앙값). expect = 받은 상자에서 본 앞면 (base_link), 없으면 기본 창
+  FaceLidar lidar_face(const std::optional<FaceLidar> & expect)
+  {
+    FaceLidar out;
+    if (lidar_buf_.empty()) {out.why = lidar_topic_ + " 없음"; return out;}
+    const auto t = now();
+    std::vector<FaceLidar> fs;
+    for (const auto & m : lidar_buf_) {
+      if ((t - rclcpp::Time(m->header.stamp, RCL_ROS_TIME)).seconds() > lidar_max_age_s_) {continue;}
+      LaserTf2 tf = lidar_tf_default_;
+      try {   // TF 의 회전 행렬 xy 부분 (roll π 면 r00 = −1) — 없으면 기본값
+        const auto tr = tf_buffer_->lookupTransform(base_frame_, m->header.frame_id, tf2::TimePointZero);
+        tf2::Quaternion q;
+        tf2::fromMsg(tr.transform.rotation, q);
+        const tf2::Matrix3x3 R(q);
+        tf = LaserTf2{tr.transform.translation.x, tr.transform.translation.y, R[0][0], R[0][1], R[1][0], R[1][1]};
+      } catch (const tf2::TransformException &) {
+      }
+      FaceLidarConfig fc;
+      fc.angle_inc = std::fabs(m->angle_increment) > 1e-6 ? std::fabs(m->angle_increment) : fc.angle_inc;
+      fc.laser_x = tf.tx; fc.laser_y = tf.ty; fc.front_offset = front_offset_;
+      const auto pts = lidar_scan_to_base(m->ranges, m->angle_min, m->angle_increment,
+        std::max<double>(m->range_min, 0.01), m->range_max, tf);
+      fs.push_back(find_box_face_lidar(pts, fc, expect ? &*expect : nullptr));
+    }
+    if (fs.empty()) {out.why = lidar_topic_ + " 오래됨"; return out;}
+    return median_faces(fs, std::min<int>(lidar_min_ok_, static_cast<int>(fs.size())), 0.04, 0.14, front_offset_);
+  }
+
+  // 받은 상자 (odom) → 지금 base_link 에서 본 앞면 기대값
+  std::optional<FaceLidar> expect_face(double rx, double ry, double ryaw, double bx, double by, double heading)
+  {
+    const double fx = bx - std::cos(heading) * center_box_half_ - rx, fy = by - std::sin(heading) * center_box_half_ - ry;
+    FaceLidar e;
+    e.cx = std::cos(ryaw) * fx + std::sin(ryaw) * fy;
+    e.cy = -std::sin(ryaw) * fx + std::cos(ryaw) * fy;
+    e.nyaw = wrap_pi(heading - ryaw);
+    return e;
+  }
+
+  void store_lidar(const FaceLidar & f)
+  {
+    if (f.ok) {
+      center_res_.lidar_gap = f.gap; center_res_.lidar_yaw = f.yaw_err; center_res_.lidar_lateral = f.lateral;
+    } else {
+      center_res_.lidar_gap = center_res_.lidar_yaw = center_res_.lidar_lateral = std::numeric_limits<double>::quiet_NaN();
+    }
+  }
+
   // 잰 상자 (자동 측정 · goal.center) → 법선 · 옆 어긋남 → 건너뜀 · 유지 · 옆 이동 기동
   void center_use_box(const geometry_msgs::msg::PoseStamped & box, double rx, double ry, double ryaw)
   {
@@ -1008,55 +1134,114 @@ private:
         by = o.pose.position.y;
         byaw = tf2::getYaw(o.pose.orientation);
       } catch (const tf2::TransformException & e) {
-        center_skip(std::string("상자 프레임 변환 실패: ") + e.what());
+        center_skip(std::string("상자 프레임 변환 실패: ") + e.what(), "tf");
         return;
       }
     }
-    const auto e = center_error(rx, ry, ryaw, bx, by, byaw);
+    auto e = center_error(rx, ry, ryaw, bx, by, byaw);
     center_box_ = {bx, by};
+    center_box_yaw_ = byaw;
+    // 라이다 앞면 (틈 ≥ lidar_min_gap 일 때만 섞음): 요는 분산 가중, 옆은 교차확인 (Arducam 이 주)
+    const auto lf = lidar_face(expect_face(rx, ry, ryaw, bx, by, e.heading));
+    store_lidar(lf);
+    SideMeas cam{true, e.lateral, e.yaw_err, -e.depth - center_box_half_ - front_offset_};
+    SideMeas lid{lf.ok, lf.lateral, lf.yaw_err, lf.gap};
+    const auto fu = fuse_measure(cam, lid, fuse_cfg_);
+    if (fu.lidar_used) {e.heading = wrap_pi(ryaw + fu.yaw); e.yaw_err = fu.yaw;}
     center_lateral_ = e.lateral;
     center_heading_ = e.heading;
+    center_res_.lateral = e.lateral;
+    center_res_.yaw_err = e.yaw_err;
     const auto d = decide_center(e, center_cfg_);
-    RCLCPP_INFO(get_logger(), "중앙 맞춤 %d: 상자 (%.3f, %.3f) 요 %.1f° → 옆 %+.1f mm · 요 오차 %+.2f° · 깊이 %.3f m",
-      center_iter_ + 1, bx, by, byaw * 180 / M_PI, e.lateral * 1000, e.yaw_err * 180 / M_PI, -e.depth);
+    RCLCPP_INFO(get_logger(), "중앙 맞춤 %d (mission k %d): 상자 (%.3f, %.3f) 요 %.1f° → 옆 %+.1f mm · 요 오차 %+.2f° · 깊이 %.3f m · "
+      "라이다 %s (틈 %.3f · 요 %+.2f° · 옆 %+.1f mm, %s)",
+      center_iter_ + 1, center_k_, bx, by, byaw * 180 / M_PI, e.lateral * 1000, e.yaw_err * 180 / M_PI, -e.depth,
+      fu.src, lf.gap, lf.yaw_err * 180 / M_PI, lf.lateral * 1000, lf.why.c_str());
+    if (fu.disagree && center_disagree_skip_ && center_iter_ == 0) {
+      char b[160];
+      std::snprintf(b, sizeof(b), "센서 불일치: Arducam 옆 %+.1f mm · 라이다 옆 %+.1f mm (> %.0f mm) — 다시 재야 함",
+        cam.lateral * 1000, lid.lateral * 1000, fuse_cfg_.disagree * 1000);
+      center_skip(b, "disagree");
+      return;
+    }
     if (d == CenterDecision::BEHIND || d == CenterDecision::TOO_FAR) {
-      const std::string why = d == CenterDecision::BEHIND ? "상자가 앞에 없음" : "옆 어긋남이 max_shift 초과";
-      if (center_iter_ == 0) {center_skip(why); return;}
+      char b[120];
+      if (d == CenterDecision::BEHIND) {
+        std::snprintf(b, sizeof(b), "상자가 앞에 없음 (깊이 %+.3f m)", -e.depth);
+      } else {
+        std::snprintf(b, sizeof(b), "옆 어긋남 %+.1f mm 가 max_shift %.0f mm 초과", e.lateral * 1000, center_cfg_.max_shift * 1000);
+      }
+      const char * code = d == CenterDecision::BEHIND ? "behind" : "max_shift";
+      if (center_iter_ == 0) {center_skip(b, code); return;}
+      RCLCPP_WARN(get_logger(), "중앙 맞춤: %s — 법선 유지만 하고 끝냄", b);
+      center_res_.reason = code;
       enter_center_hold();   // 이미 한 번 옮김: 측정이 이상하면 법선 유지만 하고 끝냄
       return;
     }
-    if (d == CenterDecision::DONE || center_iter_ >= center_cfg_.max_iter) {enter_center_hold(); return;}
-    // 뒤 여유 (pullout 처럼 뒤 /scan ± rear_half_angle 가장 가까운 점 − scan.rear_stop) 로 후진 거리 제한
+    if (d == CenterDecision::DONE || center_iter_ >= center_cfg_.max_iter) {
+      if (center_iter_ == 0) {center_res_.status = Align::Result::CENTER_DONE; center_res_.reason = "done";}
+      enter_center_hold();
+      return;
+    }
+    // 앞 틈 g0: TFmini (렌즈 ≈ 앞 끝) → 라이다 → 받은 상자 깊이 중 가장 작은 값 (보수적)
+    double g0 = cam.gap;
+    if (const auto r = box_.value(now().seconds())) {g0 = std::min(g0, *r);}
+    if (lf.ok && lf.gap >= fuse_cfg_.lidar_min_gap) {g0 = std::min(g0, lf.gap);}
+    // 뒤 여유 (pullout 처럼 뒤 /scan ± rear_half_angle 가장 가까운 점 − scan.rear_stop). S 자 (후진 없음) 면 필요 없음
     const bool scan_ok = scan_ && fresh(scan_->header.stamp);
-    if (!scan_ok && require_scan_) {
-      if (center_iter_ == 0) {center_skip("/scan 없음 — 뒤 여유 모름"); return;}
+    double rear_min = std::numeric_limits<double>::infinity();
+    double room = center_cfg_.back_max;
+    if (scan_ok) {
+      rear_min = rear_min_range(scan_->ranges, scan_->angle_min, scan_->angle_increment, center_rear_half_);
+      room = std::min(center_cfg_.back_max, rear_min - scan_rear_stop_);
+    } else if (require_scan_) {
+      room = 0.0;   // 뒤를 못 봄 → 후진 계획 불가 (S 자만)
+    }
+    const auto mp = plan_center_move(e, center_cfg_, g0, room);
+    if (!mp.ok) {
+      char b[200];
+      std::snprintf(b, sizeof(b), "기동 계획 불가 [%s]: 옆 %+.1f mm · 앞 틈 %.3f m · 모서리 침범 %.3f m (α %.0f°) · 필요 후진 %.3f m · 뒤 여유 %.3f m%s",
+        mp.reason, e.lateral * 1000, g0, corner_intrusion(center_cfg_.max_alpha, center_cfg_), center_cfg_.max_alpha * 180 / M_PI,
+        mp.need_back, room, scan_ok ? "" : " (/scan 없음)");
+      const char * code = std::string(mp.reason) == "rear_room" && !scan_ok ? "no_scan" : mp.reason;
+      if (center_iter_ == 0) {center_skip(b, code); return;}
+      RCLCPP_WARN(get_logger(), "중앙 맞춤: %s — 법선 유지만 하고 끝냄", b);
+      center_res_.reason = code;
       enter_center_hold();
       return;
     }
-    const double rear_min = scan_ok ?
-      rear_min_range(scan_->ranges, scan_->angle_min, scan_->angle_increment, center_rear_half_) :
-      std::numeric_limits<double>::infinity();
-    const double room = rear_back_room(rear_min, scan_rear_stop_, center_cfg_);
-    if (room <= 0.0) {
-      const std::string why = "뒤 여유 부족 (뒤 /scan " + std::to_string(rear_min) + " m)";
-      if (center_iter_ == 0) {center_skip(why); return;}
-      enter_center_hold();
-      return;
-    }
-    const auto p = plan_shift(e, center_cfg_, room);
+    const auto & p = mp.p;
     shift_.start(p);
     ++center_iter_;
+    center_res_.status = Align::Result::CENTER_MOVED;
+    center_res_.reason = mp.s_curve ? "moved_s" : "moved_back";
+    center_res_.shift = -e.lateral;
+    center_cut_m_ = std::max(center_fwd_min_m_, g0 + mp.extra_gap - center_cut_slack_);
     center_phase_ = CenterPhase::MOVE;
     center_phase_start_ = now();
     center_move_phase_ = shift_.phase();
-    RCLCPP_INFO(get_logger(), "중앙 맞춤 기동: 법선 %.1f° · 후진 %.3f m · %+.1f° · 전진 %.3f m",
-      p.heading * 180 / M_PI, p.back, p.alpha * 180 / M_PI, p.fwd);
+    RCLCPP_INFO(get_logger(), "중앙 맞춤 기동 (%s): 법선 %.1f° · 후진 %.3f m · %+.1f° · 전진 %.3f m · 앞 틈 %.3f → 끝 %.3f m (최소 %.3f, 모서리 포함) · "
+      "뒤 여유 %.3f m · 전진 끊는 TFmini %.3f m",
+      mp.s_curve ? "S 자" : "후진", p.heading * 180 / M_PI, p.back, p.alpha * 180 / M_PI, p.fwd, g0, g0 + mp.extra_gap, mp.min_gap,
+      room, center_cut_m_);
   }
 
   void center_finish(const std::string & extra)
   {
-    char buf[96];
-    std::snprintf(buf, sizeof(buf), "상자 중앙 맞춤 %d 회, 마지막 측정 옆 %+.1f mm", center_iter_, center_lateral_ * 1000);
+    // 끝 자세 (odom) 로 본 남은 옆 · 요 (받은 상자 기준 — 진짜 값은 mission Arducam 재측정) + 라이다 앞면 (틈 ≥ 약 0.14 일 때만)
+    if (odom_ && fresh(odom_->header.stamp)) {
+      const double rx = odom_->pose.pose.position.x, ry = odom_->pose.pose.position.y;
+      const double ryaw = tf2::getYaw(odom_->pose.pose.orientation);
+      const auto e = center_error(rx, ry, ryaw, center_box_.first, center_box_.second, center_box_yaw_);
+      center_res_.lateral = e.lateral;
+      center_res_.yaw_err = wrap_pi(center_heading_ - ryaw);
+      store_lidar(lidar_face(expect_face(rx, ry, ryaw, center_box_.first, center_box_.second, center_heading_)));
+    }
+    if (center_res_.status == Align::Result::CENTER_NONE) {center_res_.status = Align::Result::CENTER_DONE; center_res_.reason = "done";}
+    char buf[200];
+    std::snprintf(buf, sizeof(buf), "상자 중앙 맞춤 %d 회, 기동 전 옆 %+.1f mm → 끝 (odom) %+.1f mm · 요 %+.2f° · 라이다 틈 %.3f m [%s]",
+      center_iter_, center_lateral_ * 1000, center_res_.lateral * 1000, center_res_.yaw_err * 180 / M_PI, center_res_.lidar_gap,
+      center_res_.reason.c_str());
     center_phase_ = CenterPhase::OFF;
     finish_align(true, extra.empty() ? std::string(buf) : std::string(buf) + ", " + extra);
   }
@@ -1338,6 +1523,27 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr pb_prior_pub_;
   rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr pb_client_;
   std::pair<double, double> center_box_{0.0, 0.0};   // 측정한 상자 중심 (odom)
+  double center_box_yaw_ = 0.0;
+  // (11-21) goal.center 결과 (AlignBase.Result center_*)
+  struct CenterResult
+  {
+    int8_t status = 0;   // Align::Result::CENTER_*
+    std::string reason;
+    double lateral = std::numeric_limits<double>::quiet_NaN(), yaw_err = std::numeric_limits<double>::quiet_NaN(), shift = 0.0;
+    double lidar_gap = std::numeric_limits<double>::quiet_NaN(), lidar_yaw = std::numeric_limits<double>::quiet_NaN();
+    double lidar_lateral = std::numeric_limits<double>::quiet_NaN();
+  };
+  CenterResult center_res_;
+  int center_k_ = 0;
+  double center_cut_m_ = 0.10, center_cut_slack_ = 0.02;
+  bool center_disagree_skip_ = true;
+  FuseConfig fuse_cfg_;
+  std::string lidar_topic_;
+  int lidar_scans_ = 5, lidar_min_ok_ = 4;
+  double lidar_max_age_s_ = 1.0;
+  LaserTf2 lidar_tf_default_;
+  std::deque<sensor_msgs::msg::LaserScan::ConstSharedPtr> lidar_buf_;
+  rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr lidar_sub_;
   double center_rear_half_ = 0.785;
   bool center_puck_checked_ = false;
   geometry_msgs::msg::PointStamped::ConstSharedPtr arm_target_;   // /perception/arm_target (퍽 중심, base_footprint)
@@ -1363,6 +1569,7 @@ private:
   std::optional<std::pair<double, double>> pullout_from_;   // 전진 시작 odom (x, y)
   std::shared_ptr<rclcpp::AsyncParametersClient> obstacle_params_;
   sensor_msgs::msg::LaserScan::ConstSharedPtr scan_;
+  SpinGuardConfig spin_guard_;
   nav_msgs::msg::Odometry::ConstSharedPtr odom_;
   std::optional<bool> rear_;   // /perception/rear_obstacle (#84)
   rclcpp::Time rear_rx_{0, 0, RCL_ROS_TIME};

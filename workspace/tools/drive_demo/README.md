@@ -13,17 +13,20 @@
 
 | 파일 | 하는 일 |
 |---|---|
-| `run_demo.sh` | 시연 한 회차: 시연 Nav2 노드 · 규칙 v2 필터를 띄우고 active 확인 → 계획을 따라감 → 기록 → 끝나면 끔 (`real` · `sim`, `RUN_TAG=` 이름표, `NO_RECOVER=1` 되찾기 끔, `SIM_TURN=` 실물형 시뮬, `BOX_APPROACH=1\|0\|dry` 상자 앞 다가가기, `DEMO_BAG=0` rosbag 끔) |
+| `run_demo.sh` | 시연 한 회차: 시연 Nav2 노드 · 규칙 v2 필터를 띄우고 active 확인 → 계획을 따라감 → 기록 → 끝나면 끔 (`real` · `sim`, `RUN_TAG=` 이름표, `NO_RECOVER=1` 되찾기 끔, `SIM_TURN=` 실물형 시뮬, `BOX_APPROACH=1\|0\|dry` 상자 앞 다가가기, `FRONT_GUARD=0` 상자 구간 앞 라이다 원본 정지 끔, `DEMO_BAG=0` rosbag 끔, `auto` 완전 자율 — 아래 "완전 자율 (auto) 모드") |
 | `demo_follow.py` | 계획의 조각 (전진 · 후진 · 제자리) 을 Nav2 에 차례로 보냄 · 출발 확인 · 경로 이탈 멈춤 (10 cm) · 방향 맞추기 거부 시 건너뛰기 · **되찾기** (조각 실패 → 위치 다시 찾기 → 왔던 길 ≤ 0.30 m → 다시, 최대 2 번) · 기록 (`track_live.csv`) |
-| `box_quiet.py` · `test_box_quiet.py` | 11-20 상자 정지점 0.40 m 안 판정 (demo_follow 가 import — **`demo_follow.py` 와 같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_quiet.py` |
+| `box_quiet.py` · `test_box_quiet.py` | 상자 정지점 0.40 m 안 · 0.30 m 안 판정 · 상자 좌표 · 점 지우기 함수 (demo_follow · box_scan_guard 가 import — **`demo_follow.py` 와 같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_quiet.py` |
+| `box_scan_guard.py` | 11-21 상자 구간에서 그 상자 점만 지운 `/scan_guard` · 앞 라이다 원본 `/scan_front_guard` (collision_monitor · HOLD 소스, run_demo.sh 가 `SAFETY=1` 일 때 띄움) |
 | `box_face.py` · `test_box_face.py` | 11-21 `/scan_front` 로 상자 앞면 재기 (선분 맞춤 · 길이 205 ± 25 mm, demo_follow 가 import — **같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_face.py` |
-| `v2_filter.py` | Nav2 속도를 규칙 v2 로 자름 (제자리 ≤ 90° 실제 각도 · 이어진 후진 ≤ 0.40 m (실물 0.50) · 반경 ≥ 0.20 · 꺾는 중 모터 상한) |
+| `v2_filter.py` | Nav2 속도를 규칙 v2 로 자름 (제자리 ≤ 90° 실제 각도 · 이어진 후진 ≤ 0.40 m (실물 0.50) · 반경 ≥ 0.20 · 꺾는 중 모터 상한 · 11-21 상자 앞 `/drive_demo/speed_cap`) |
 | `sim_turn_scale.py` | 시뮬만: 실물처럼 덜 도는 로봇 흉내 (회전 명령을 꺾기 · 제자리 비율로 줄임, `SIM_TURN=0.79,0.70`) |
 | `scan_rotate.py` | LDS-03 두 대 드라이버 (URDF 에 라이다 보정이 없을 때만 180° 돌림, 자동) |
 | `check_jetson.sh` · `jetson_check.sh` | 시연 전 점검 · Jetson / OpenCR (펌웨어 버전 · 팔 대기 범위) / 센서 장치 점검 (읽기만) |
 | `params_demo*.yaml` | 시연 Nav2 설정 (A = 기본, B · C = 벨트 v7 빠른 꺾기) |
 | `demo_plan.json` · `legs.json` · `route_*.json` | 오늘 계획 `7cm_실측L_어제순서` (10 구간, L1 ~ L3 실측) · 미리 계산한 길 90 개 · 들르기 방식 |
 | `demo_plan_wide.json` · `widen_plan.py` | 11-19 반경 넓힌 계획 (정지점 같음, 제자리 회전 · 방향 맞추기 적게) · 만드는 도구 (아래 "반경 넓힌 계획") |
+| `auto_order.py` · `demo_plan_auto.json` | 11-21 완전 자율 계획 만들기 (방문 순서 `plan` 정한 순서 · `opt` 최적, 출발 자세 복귀 구간 포함) · 만든 계획 (`demo_plan_auto_opt.json` 은 `--order opt` 로 만들 때만) |
+| `test_auto_order.py` | `auto_order.py` 시험 · 한꺼번에 `python3 -m pytest -q test_auto_order.py test_box_quiet.py test_box_face.py` |
 | `scan_view/` | 노트북 RViz 감시 (ssh 로 Jetson 라이다 · AMCL 자세만 받음) |
 | `rc100_state_watch.py` · `lv2_paths.py` | 리모컨 버튼 값 읽기 · 저장소 위치 찾기 |
 
@@ -210,6 +213,7 @@ cd ~/demo_v2 && ./check_jetson.sh
 ./run_demo.sh real slow step init         # 처음부터 끝까지 구간마다 Enter
 BOX_APPROACH=dry ./run_demo.sh real slow step init 0-0   # 상자 앞 다가가기는 재기만 (안 움직임)
 BOX_APPROACH_AT=box1 ./run_demo.sh real slow step init 0-0   # box1 에서만 다가가기
+./run_demo.sh real slow auto init         # 완전 자율 한 바퀴 + 출발 자세 복귀 (아래 "완전 자율 (auto) 모드")
 ```
 - `run_demo.sh` 가 하는 일: 시연 Nav2 노드 (controller_server · behavior_server) 와 규칙 v2 필터를 띄우고 **active 인지 확인 (아니면 켬)** → `demo_follow.py` 가 계획을 따라감 → 끝나면 모두 끔.
 - `slow` = 전진 0.20 · 후진 0.10 m/s · 제자리 0.4 rad/s (`full` = 0.30 · 0.15 · 0.5). `step` = 구간마다 Enter. `init` = 출발 자세를 AMCL 에 알림. `4-9` = 그 구간만.
@@ -302,29 +306,33 @@ bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
 - **한계:** 비켜 갈 옆 공간이 이어져 있는 곳은 시연 경로의 약 19 % 뿐입니다 (S0 · S1 · S3 · S5 는 0 %). 그 밖에서는 우회 경로가 안 나와 기다린 뒤 되찾기 (step 모드면 건너뛰기) 로 넘어갑니다.
 - 기록: `course_result.json` 의 구간마다 `detour_n` (우회 횟수), `tries` 에 상태 `"detour"` 줄 (후진 · 경로 · 결과).
 
-#### 상자 앞에서 정지 띠 · HOLD 끄기 (11-20 추가, 실물 미시험)
+#### 상자 앞 정지 띠 · HOLD — 상자 점만 빼기 (11-21 바꿈, 실물 미시험)
 
 - 11-20 에 실물 앞 LDS-03 을 **1.5 cm 낮췄습니다** (`laser_front` z 0.0675 → 0.0525, 스캔면 바닥 위 약 60 mm). 이제 높이 70 mm 상자가 앞 라이다에 보입니다. 뒤 라이다는 그대로입니다.
-- 시연 정지점은 대부분 상자 바로 앞입니다 (앞 끝 ↔ 상자 −8.8 ~ +2.5 cm). 그래서 다가가는 동안 정지 띠와 HOLD 가 상자에 걸려 우회로 빠집니다.
-- 그래서 `demo_follow.py` 는 목적지가 상자 (`box1` ~ `box6`, `L1` ~ `L3`) 인 구간에서 로봇 (map 자세) 이 정지점 **0.40 m 안**에 들어오면 아래 두 가지를 끕니다.
-  - `collision_monitor`: `/collision_monitor/toggle` 로 끔. 끄면 명령이 그대로 통과합니다.
-  - HOLD 판단
-- 다시 켜는 때: 0.42 m 밖으로 나갈 때 · 구간이 끝날 때 · Ctrl+C · 오류로 끝날 때. 켜고 끌 때마다 로그 한 줄 (`정지 띠 (collision_monitor) · HOLD 끔` / `다시 켬`) 을 남기고, `course_result.json` 의 `box_quiet_n` 에 끈 횟수를 적습니다.
-- 거리는 `demo_follow.py --box-quiet-m 0.40` 으로 바꿉니다. `0` 이면 이 기능을 끕니다. S9 (→ A1) 에는 적용하지 않습니다.
-- ⚠ **끈 동안 남는 보호:**
-  - 정지 앞 감속 (v2_filter `v ≤ √(0.05² + 0.6·(d − 0.05))`): 0.40 m 에서 0.46 · 0.16 m 에서 0.26 · 0.10 m 에서 0.18 · 마지막 5 cm 는 0.05 m/s 입니다. 이 계산상 상한은 max 전진 0.45 m/s 보다 0.16 m 안에서만 낮습니다.
-  - 경로 이탈 멈춤 (10 cm)
-  - 리모컨
-- 시연 base_bringup 은 `obstacle_lock:=false` 라 **TFmini 비상 정지가 없습니다**. 상자 앞 0.40 m 안에 사람이나 물건이 들어와도 로봇이 멈추지 않으니 리모컨을 손에 들고 지켜봅니다.
+- 시연 정지점은 대부분 상자 바로 앞입니다 (앞 끝 ↔ 상자 −8.8 ~ +2.5 cm). 그대로 두면 다가가는 동안 정지 띠와 HOLD 가 상자에 걸려 우회로 빠집니다.
+- 11-20 판은 상자 정지점 0.40 m 안에서 `collision_monitor` 와 HOLD 를 **껐습니다**. 11-21 사용자 결정으로 끄지 않고 **그 상자 점만 지운 라이다**로 바꿨습니다.
+  - 상자 구간: 목적지가 상자 (`box1` ~ `box6`, `L1` ~ `L3`) 인 구간에서 로봇 (map 자세) 이 정지점 **0.40 m 안** (끝 0.42 m 밖, `--box-quiet-m`). S9 (→ A1) 에는 적용하지 않습니다.
+  - `demo_follow.py` 가 0.1 s 마다 `/drive_demo/box_zone` (상자 이름 · 가운데) 을 냅니다 → `box_scan_guard.py` 가 상자 사각형 (반 변 + 5 cm) 안 점만 지운 `/scan_guard` 를 냅니다. `collision_monitor` 와 HOLD 는 이 스캔을 봅니다.
+  - 같은 동안 `/scan_front_guard` 도 냅니다: 앞 라이다 원본 (`/scan_front`) 에서 차체 · 상자 점을 지운 것. `/scan_merged` 는 차체 가림 지우기 때문에 차체 앞 약 3.5 cm 안을 못 보므로 그 사각지대를 메웁니다. 상자 구간 밖에서는 모두 inf 입니다. 차체 반사로 잘못 멈추면 `FRONT_GUARD=0` 으로 끕니다.
+  - 정지점 **0.30 m 안** 에서는 `/drive_demo/speed_cap` 0.15 m/s → `v2_filter` 가 속도를 자릅니다 (max 에서도 상자 앞은 느리게). 다가가기 (≤ 0.05 m/s) 에는 영향이 없습니다.
+  - 상자 점 지우기를 0.40 m 로 둔 까닭: 다가가기가 정지점 3.8 cm 앞 (틈 0.145 m) 에서 재고 옆으로도 움직입니다. 지우기를 0.30 m 로 줄이면 재는 동안 상자에 걸려 멈춥니다.
+- 시뮬 (loopback) 은 앞 라이다 원본이 따로 없어 `/scan_front_guard` 는 늘 비어 있습니다. `SAFETY=0` 이면 `box_scan_guard.py` 를 띄우지 않습니다.
+- 기록: 로그 한 줄 (`상자 0.40 m 안 … 상자 점 뺀 라이다로` / `상자 구간 벗어남`), `course_result.json` 의 `box_quiet_n` (들어간 횟수), rosbag 에 `/scan_guard` · `/scan_front_guard` · `/drive_demo/box_zone` · `/drive_demo/speed_cap` · `/collision_monitor_state`.
+- ⚠ **남은 위험:**
+  - 상자 사각형 (반 변 + 5 cm) 안에 든 손 · 발은 상자 점으로 보고 지웁니다.
+  - AMCL 이 5 cm 넘게 틀리면 상자 점이 안 지워져 멈춥니다 (안전 쪽 — 다가가기는 3 s 정체로 그만두고 기존 동작).
+  - 앞 라이다 원본의 차체 반사는 실물에서 확인하지 않았습니다.
+  - 시연 base_bringup 은 `obstacle_lock:=false` 라 **TFmini 비상 정지가 없습니다**. 리모컨을 손에 들고 지켜봅니다.
 
 #### 상자 앞 다가가기 (11-21 추가, 실물 미시험)
 
 **무엇을 하나** — 상자 구간 (`box1` ~ `box6`, `L1` ~ `L3`, S0 ~ S8) 의 정지점에서 상판 앞 끝 (`base_link` x 0.1328) 과 상자 앞면 사이를 **5 cm** 로 맞춥니다.
 
-1. 마지막 전진 조각을 정지점 **0.30 m** 앞에서 끊습니다 (재는 자리). 마지막이 전진이 아니면 도착한 뒤 최대 **0.35 m** 곧게 후진합니다.
-2. 그 자리에서 원본 `/scan_front` 3 ~ 5 장으로 상자 앞면을 잽니다. 선분을 맞추고, 길이가 205 ± 25 mm 인지 보고, 두 끝점 가운데를 씁니다.
-3. 상자 앞 **0.15 m** 자리로 가면서 옆과 각도를 맞춥니다 (돌기 → 전진 → 앞면 법선으로 돌기).
-4. 다시 잽니다. 마지막은 오도메트리로 곧게 다가가 틈 5 cm 에 섭니다. 속도는 0.05 m/s 이하입니다.
+1. (11-22 바뀜) 마지막 전진 조각을 정지점 **0.038 m** 앞 (정지점 틈 0.107 + 0.038 = 측정 틈 **0.145 m**, 앞면 x 0.278) 에서 끊습니다 (재는 자리). 마지막이 전진이 아니면 도착한 뒤 곧게 후진해 그 자리로 갑니다. 까닭: 1121 bag 재생에서 0.40 ~ 0.50 m 는 상자 점이 8 개뿐 (찾음 0/17), 0.26 ~ 0.29 m 는 46 개 (5/14).
+2. 그 자리에서 원본 `/scan_front` 3 ~ 5 장으로 상자 앞면을 잽니다. 선분을 맞추고, 길이가 205 ± 25 mm 인지 보고, 두 끝점 가운데를 씁니다. 예상 자리 창 (±0.20 m) 에서 못 찾으면 정면 넓은 창으로 한 번 더 찾습니다.
+3. 틈 ≤ 0.20 m 로 재면 **S 자 한 번** (`bf.plan_s_curve_face`) 으로 5 cm 자리까지 갑니다: 옆 오차 약 3 cm 까지는 후진 없이, 더 크면 짧은 후진이 들어갑니다. 회전마다 앞 모서리 여유 ≥ 2 cm 를 계획이 모의로 확인합니다. 5 cm 자리는 라이다에 안 보이므로 다시 재지 않고 오도메트리로 닫습니다 (옆 오차 전후는 `auto_result.json` 의 `approach.lat_before_cm` · `lat_mid_cm`, `s_plan`).
+   - 틈 > 0.20 m 로 잰 경우 (`--ap-measure-gap` 을 키웠을 때 등) 는 예전 흐름: 0.20 m 자리로 간 뒤 다시 재고 옆 오차가 8 mm 넘으면 S 자 보정 (최대 2 번, 보정마다 곧게 물러나 다시 잼).
+4. 마지막은 오도메트리로 곧게 다가가 틈 5 cm 에 섭니다. 속도는 0.05 m/s 이하입니다.
 
 - 마지막을 라이다로 안 보는 까닭: LDS-03 최소 거리가 0.12 m 이고 라이다가 앞 끝과 거의 같은 자리라, 5 cm 에서는 상자가 안 보입니다.
 - `/scan_merged` 를 안 쓰는 까닭: 차체 마스크 (x ≤ 0.285) 가 가까운 상자를 지웁니다.
@@ -370,7 +378,7 @@ bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
 - 회전은 오도메트리로 닫습니다. 5 cm 에서는 라이다로 다시 잴 수 없으니 끝 자세는 줄자로 확인합니다.
 
 ⚠ **안전**
-- 상자 정지점 0.40 m 안에서는 정지 띠 · HOLD 가 꺼지고 TFmini 비상 정지도 없습니다 (위 "상자 앞에서 정지 띠 · HOLD 끄기"). 다가가는 동안 상자 앞에 손을 넣지 않습니다.
+- 상자 정지점 0.40 m 안에서는 정지 띠 · HOLD 가 그 상자 점을 빼고 보며 (상자 둘레 5 cm 안 손 · 발도 못 봄), TFmini 비상 정지도 없습니다 (위 "상자 앞 정지 띠 · HOLD — 상자 점만 빼기"). 다가가는 동안 상자 앞에 손을 넣지 않습니다.
 - 리모컨 담당은 **리모컨 1** 에 손을 얹고 지켜봅니다. 시작 전에 리모컨 전원 · 블루투스 LED 를 확인합니다.
 
 **처음 시험 순서**
@@ -402,6 +410,150 @@ PLAN=$PWD/demo_plan_wide.json ./run_demo.sh sim max                          # �
 - 다시 만들기: `python3 widen_plan.py demo_plan_max.json demo_plan_wide.json --keep 2,9` (구간마다 몇 초 ~ 2 분, `--legs 3-5` = 그 구간만).
 - 계획을 새로 만들 때 꼭 지킬 것: ① 안전 띠 (전진 앞 · 후진 뒤) 에 `map_amcl` 벽 · 기둥이 안 들어오게 ② 이어진 후진 ≤ 0.30 m (필터 0.40 − 따라가기 끝 밀기 0.10, 꽉 채우면 `Failed to make progress`) ③ 벽 여유 4 cm.
 - 원래 S9 출발 후진은 뒤 띠에 1 cm 걸치는 점이 있습니다 (시뮬에선 안 걸림) — 실물에서 S9 출발 HOLD 가 나면 이것.
+
+#### 완전 자율 (auto) 모드 (11-21 추가, 실물 미시험)
+
+**무엇을 하나** — 사람 입력 없이 한 바퀴를 돕니다.
+
+출발 → `box1` → `box2` → `box6` → `box3` → `box5` → `box4` → `L3` → `L2` → `L1` → **출발 자세 (0.6936, 0.95) · 180°** 복귀
+
+- 상자 정지점마다 상판 앞 끝 ↔ 상자 **5 cm** 까지 다가갑니다 (위 "상자 앞 다가가기").
+- 정지점마다 **3 s** 머뭅니다. 팔은 명령하지 않습니다 (주행 자세 그대로). 도착은 `/drive_demo/arrived` (곳 이름) 로 알립니다.
+- 실패한 곳은 건너뛰고 다음 곳으로 갑니다. 끝에 요약 표와 재개 명령을 찍습니다.
+
+| | `step` | `auto` | `auto step` |
+|---|---|---|---|
+| 구간 출발 | Enter | 저절로 (3 s 머문 뒤) | Enter (3 s 대기 없음) |
+| 되찾기 실패 | Enter · s · q 를 물음 | 그 곳 건너뜀 · 연속 2 곳이면 복귀 | auto 와 같은 실패 규칙 |
+| 끝 | 마지막 구간 (S9 → A1) | 출발 자세로 복귀 (반드시) | 복귀 전에 Enter 를 물음 (`q` = 복귀 안 함) |
+| 계획 (기본) | `demo_plan.json` | `demo_plan_auto.json` | 같음 |
+| 기록 | `course_result.json` | `auto_result.json` (따로) | 같음 |
+
+- 사람 입력은 출발 전 한 번뿐입니다: 위치 감시가 꺼져 있으면 `y` + Enter (단계 9 "출발 확인").
+- `auto_result.json` 은 주행기록 HTML 이 읽지 않습니다 (HTML 은 `course_result.json` 만 읽음).
+
+**상자를 떠나는 법** (5 cm 다가가기를 마친 뒤)
+1. 곧게 후진해 앞 끝 ↔ 상자 틈을 **0.12 m 이상** 으로 벌립니다 (돌 때 앞 모서리가 상자에 안 닿게).
+2. 그 자리에서 다음 구간 계획 길에 잇습니다. 다음 구간 첫 조각이 후진이면 이미 후진한 만큼 잘라 냅니다.
+- 계획 정지점으로 돌아가지 않습니다 (이 동작이 정지점 복귀를 대신함). `AP_RETURN=0` 이면 끕니다.
+- 5 cm 다가가기를 못 한 곳 (`↷5cm못함`) 은 계획 정지점에서 그대로 다음 구간을 갑니다.
+- `max` 에서는 상자를 떠나 다음 상자 정지점 **0.30 m 앞** 까지 전진 **0.45 m/s** 로 가고, 0.30 m 안은 0.15 m/s 상한입니다 (위 "상자 앞 정지 띠 · HOLD").
+
+**출발 자리로 돌아오는 법**
+- 출발 구역은 폭 약 1 m 주머니이고 입구가 남쪽 · 북쪽입니다. 그래서 180° 로 곧장 들어올 수 없습니다.
+- 북서쪽 **120°** 로 곧게 0.15 m 들어와 (0.6936, 0.95) 에 선 뒤, 제자리에서 **+60°** 돌아 180° 를 맞춥니다.
+- 판정은 **3 cm · 5°** (`HOME_TOL`) 입니다. 어긋나면 지금 방향 선 위로만 곧게 보정합니다 (≤ 0.10 m). 옆 어긋남은 남을 수 있습니다.
+
+| 복귀 길 (`home_legs`) | 곳 | 길 |
+|---|---|---|
+| 직접 | `box1` · `box2` · `box6` · `L1` · `L2` | 정지점 → 출발 자리 |
+| 두 단계 | `box3` · `box4` · `box5` · `L3` | 남쪽 입구 W (1.497, 0.326) 를 지나 (멈추지 않음) → 출발 자리 |
+
+- 연속 2 곳 실패 등으로 중간에 돌아올 때 씁니다. 9 곳 모두 미리 계산해 두었습니다.
+- 첫 조각은 모두 **후진 0.30 m** 입니다. 이론 시간은 15 ~ 32 s 입니다.
+
+**실행**
+```bash
+./run_demo.sh sim slow auto                       # 노트북 시뮬
+./run_demo.sh real slow auto init                 # 실물: 출발 자리에 놓고
+AUTO_FROM=box3 ./run_demo.sh real slow auto init  # box3 부터 재개 (로봇을 직전 정지점 = box6 정지점에)
+AUTO_ORDER=opt ./run_demo.sh real full auto init  # 최적 순서 계획으로
+```
+
+| 환경 변수 | 기본 | 뜻 | `demo_follow.py` 인자 |
+|---|---|---|---|
+| `AUTO_ORDER` | `plan` | `plan` = `demo_plan_auto.json` · `opt` = `demo_plan_auto_opt.json` (없으면 만드는 명령을 찍고 멈춤). `PLAN=` 을 주면 그것을 씀 | (`--plan`) |
+| `AUTO_DWELL` | `3` | 정지점에서 머무는 시간 [s] | `--dwell` |
+| `AUTO_FROM` | (처음) | 그 곳부터 재개 — 곳 이름 (`box3`, `L2`) 또는 구간 번호 (`3`) | `--from` |
+| `AUTO_FAIL_HOME` | `2` | 연속 몇 곳 실패면 바로 복귀 | `--auto-fail-home` |
+| `HOME_TOL` | `0.03,5` | 복귀 허용 오차 [m, °] | `--home-tol` |
+| `AP_RETURN` | `1` | `1` = 5 cm 다가간 뒤 곧게 후진 (틈 ≥ 0.12 m) → 다음 구간 길에 이음 (위 "상자를 떠나는 법") · `0` = 끔 | `--ap-return-stop` / `--no-ap-return-stop` |
+| `AP_MEASURE_GAP` | `14.5` | 상자 측정 틈 [cm] = 측정할 때 상판 앞 끝 ↔ 상자 (8 ~ 50). 정지점 틈 10.7 cm 이므로 정지점 3.8 cm 앞에서 끊음 | `--ap-measure-gap` |
+| `AP_MID_FIX` · `AP_MID_TOL` | `2` · `8` | (틈 > 0.20 m 로 잰 예전 흐름) 다시 잰 뒤 S 자 보정 최대 횟수 · 허용 옆 오차 [mm] | `--ap-mid-fix` · `--ap-mid-tol` |
+| `TURN_DIRECT` | `5` | 이 각 [°] 이하 제자리 회전은 Nav2 Spin 대신 `cmd_vel` 직접 (상자 앞은 12° 까지, Spin 이 "Collision Ahead" 면 30° 까지 직접으로 한 번 더). `0` = 늘 Spin | `--turn-direct` |
+| `TURN_ROOM` | `1` | 상자 앞 계획 제자리 회전 전 틈 확보 후진 (틈 ≥ 0.12 m + 모서리 여유) · `0` 끔 | `--turn-room` / `--no-turn-room` |
+| `AP_LEAVE_ALL` | `1` | 다가가기가 안 된 상자 정지점에서도 떼기 후진 · `0` 끔 | `--ap-leave-all` / `--no-ap-leave-all` |
+| `AP_CUT_YAW` | `20` | 끊는 점 (정지점 3.8 cm 앞) 의 길 방향 ↔ 정지점 방향 차이 한도 [°]. 넘으면 끊지 않고 도착 뒤 후진하며 잼 (`box5` · `box4`). `0` = 예전처럼 늘 끊음 | `--ap-cut-yaw` |
+
+- 빈 값이면 인자를 넘기지 않고 `demo_follow.py` 기본값을 씁니다. `AP_RETURN` · `AP_CUT_YAW` 는 auto 가 아닐 때도 넘깁니다.
+- auto 에서는 구간 인자 (`2-4`) 를 받지 않습니다. 재개는 `AUTO_FROM=` 으로 합니다.
+- auto 에서는 `DEMO_AUTO_SKIP` (조각 건너뛰기, max 기본) 을 끕니다 (`run_demo.sh` · `demo_follow.py` 둘 다). 조각을 건너뛰면 구간이 '성공' 으로 끝나 엉뚱한 자리에서 다음 곳으로 가기 때문입니다. 실패는 곳 단위로 건너뜁니다.
+- 기록 폴더 이름에 `_자동` 이 붙습니다 (예 `runs/1121_1530_실물_slow_자동/`).
+
+**화면에 보이는 것** (예시)
+```
+  ⚠ 자율: 상자 0.40 m 안은 그 상자 점을 지운 라이다로 정지 띠 작동 (상자 둘레 5 cm 안 손·발은 못 봄) — 리모컨 1(E-stop)에 손 · 계획 demo_plan_auto.json
+[1/9] ▶ S0 출발→box1
+    ✓ 상자 앞 틈 5.1 cm · 옆 +0.3 cm
+  ⏸ box1 머묾 3 s (1/9) · 틈 5.1 cm
+[2/9] ▶ S1 box1→box2
+  …
+[복귀] ▶ 계획 복귀 길 …
+```
+끝 요약 표 (예시)
+```
+  곳     결과              구간 s  누적 s  어긋남 cm  틈 cm  옆 cm
+  box1   ✓                 15.2    15.2    1.2        5.1    +0.3
+  box2   ✗건너뜀 · 이유…   31.0    46.2    –          –      –
+  box6   ✓                 22.4    68.6    2.0        4.8    −0.5
+  box3   ↷5cm못함 · 이유…  19.8    88.4    1.6        –      –
+  …
+  HOME   ✓
+  전체 8/9 (5 cm 7) · 총 412.3 s · 출발 자세 복귀 오차 1.8 cm · 2.1° ✓
+  다시: 로봇을 box1 정지점에 놓고 AUTO_FROM=box2 ./run_demo.sh real slow auto init
+```
+- 결과: `✓` · `↷5cm못함` (다가가기 fallback, 실패 아님) · `✗건너뜀`. 뒤에 ` · planner` (우회 길) 와 이유가 붙을 수 있습니다.
+- `다시:` 줄의 곳은 첫 `✗` 곳이고, 놓을 자리는 그곳으로 가는 구간의 시작 정지점입니다. `다시:` 줄에는 언제나 `init` 이 붙습니다 (시뮬이면 `./run_demo.sh sim slow auto init`).
+
+**실패 · 건너뛰기 · 복귀 규칙**
+
+| 일 | 처리 |
+|---|---|
+| 구간이 되찾기 (최대 2 번) 까지 실패 | 그 곳 `✗건너뜀` → 다음 곳으로 |
+| 연속 **2 곳** 실패 (`AUTO_FAIL_HOME`) | 남은 곳을 버리고 바로 복귀 |
+| 5 cm 다가가기 못 함 (`↷5cm못함`, `fallback`) | **실패 아님.** 계획 정지점에서 머물고 다음 곳으로. 연속 실패 수에 안 셈 |
+| `box5` · `box4` | 끊는 점의 길 방향이 정지점 방향과 `AP_CUT_YAW` (20°) 넘게 달라 끊지 않고, 도착 뒤 후진하며 잽니다 (후진 측정) |
+| 복귀 | 실패 · 건너뛰기와 상관없이 **반드시** 합니다. 끝 자세가 `HOME_TOL` 밖이면 `HOME ✗`. `auto step` 에서만 복귀 전에 Enter 를 묻고, `q` 면 복귀하지 않습니다 |
+
+**끼어들기 · 재개**
+- **리모컨 1** = E-stop (풀기 2 + 3). 바퀴가 바로 섭니다. 소프트웨어 정지라 물리 비상정지가 아닙니다.
+- **Ctrl+C** (J4 터미널) = Nav2 동작 취소 → 0 → 기록 저장 후 끝.
+- 재개: 로봇을 **직전 정지점** (재개할 곳으로 가는 구간의 시작 정지점, 좌표는 단계 9 "중간 구간부터 다시" 표) 에 놓고 `init` 을 붙입니다. 끝 요약의 `다시:` 줄 (예 `다시: 로봇을 box6 정지점에 놓고 AUTO_FROM=box3 ./run_demo.sh real slow auto init`) 을 그대로 따릅니다.
+- 직전 정지점에서 **15 cm 밖** 에 놓이면 Nav2 planner (전진만) 로 그 구간 길까지 이어 갑니다.
+  - ⚠ 이 planner 길은 계획 길보다 벽 여유 · 회전 검사가 약합니다. 되도록 정지점에 2 ~ 3 cm 안으로 놓고, planner 로 갈 때는 리모컨 1 에 손을 얹고 지켜봅니다.
+
+⚠ **안전**
+- 상자 정지점 0.40 m 안에서는 정지 띠 · HOLD 가 **그 상자 점을 지운 라이다** 로 작동합니다. 상자 둘레 5 cm 안 손 · 발은 못 봅니다 (위 "상자 앞 정지 띠 · HOLD"). TFmini 비상 정지도 없습니다.
+- auto 는 사람이 Enter 로 확인하지 않습니다. 리모컨 담당은 처음부터 끝까지 **리모컨 1** 에 손을 얹습니다. 시작 전에 리모컨 전원 · 블루투스 LED 를 확인합니다.
+- 도는 동안 경기장 안 (특히 상자 앞) 에 사람 · 손이 들어가지 않습니다.
+- 첫 시험은 반드시 `slow` 로 합니다.
+
+**처음 시험 순서**
+1. `./run_demo.sh sim slow auto` — 한 바퀴 · 복귀 · 요약 표 확인.
+2. `DEMO_TEST_PIECE_FAIL=1 ./run_demo.sh sim slow auto` — 건너뛰기 · 연속 실패 복귀 확인.
+3. 실물 `BOX_APPROACH=dry ./run_demo.sh real slow auto init` — 다가가지 않고 재기만.
+4. 실물 `./run_demo.sh real slow auto init` × 2.
+5. `full`.
+6. `max`.
+
+**계획 다시 만들기** (`auto_order.py`, 노트북)
+```bash
+python3 auto_order.py --base demo_plan_wide.json --legs legs.json --order plan \
+  --home-pose 0.6936,0.95,180 --home-legs --home-face 120 --deadline 120 --out demo_plan_auto.json       # 정한 순서 (노트북 약 15 ~ 20 분)
+python3 auto_order.py --base demo_plan_wide.json --legs legs.json --order opt \
+  --home-pose 0.6936,0.95,180 --home-legs --home-face 120 --deadline 120 --out demo_plan_auto_opt.json   # 최적 순서
+```
+- 만든 뒤 Jetson `~/demo_v2` 로 복사합니다.
+- `demo_plan_auto_opt.json` 은 아직 만들지 않았습니다 (`--dry` 예상 188.3 s). `--dry` = 순서 · 예상 시간만 찍음.
+- `--home-face 120` = 출발 자리로 들어올 방향 (위 "출발 자리로 돌아오는 법"). 다른 옵션은 `python3 auto_order.py -h`.
+- 시험: `python3 -m pytest -q test_auto_order.py test_box_quiet.py test_box_face.py`
+
+| 보이는 것 | 원인 · 해결 |
+|---|---|
+| `✗ demo_plan_auto.json 없음` · `✗ demo_plan_auto_opt.json 없음` | 위 "계획 다시 만들기" 명령 (화면에도 찍힘). opt 는 노트북에서 만들어 복사 |
+| `HOME ✗` (`HOME_TOL` 밖 · 복귀 구간 실패) | 리모컨 1 → 로봇을 출발 자리에 손으로 놓음. 기록 (`follow.log` · `auto_result.json` · `bag/`) 을 제어 담당에게. 위치 튐이면 `/loc_guard/event` 를 봄 |
+| `↷5cm못함` 이 잦음 | 이유 보기 (dry 로 다시): 상자 못 찾음 = 라이다 높이 · 정지점 ↔ 상자 10 cm 넘게 다름, 기울기 25° 넘음 = `laser_front` yaw, `RMS` = `BOX_APPROACH_LOOSE=1`. 끊는 자리가 나쁘면 `AP_CUT_YAW` 를 낮춰 후진 측정으로 |
+| 같은 곳이 늘 건너뜀 | `AUTO_FROM=` 으로 그 곳부터 `step` 을 붙여 (`auto step`) 보며 확인 |
 
 ## 4. B. 전체 미션 시험 (팀 bringup)
 

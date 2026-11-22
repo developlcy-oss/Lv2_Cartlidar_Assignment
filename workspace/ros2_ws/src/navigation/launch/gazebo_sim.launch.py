@@ -6,6 +6,7 @@
   ros2 launch navigation gazebo_sim.launch.py x:=1.8108 y:=0.95  # 다른 시작 자세 (AMCL 시작 자세도 같이 바뀜)
   ros2 launch navigation gazebo_sim.launch.py use_scan:=false    # /scan (perception scan_merger) 없이
   ros2 launch navigation gazebo_sim.launch.py use_loc_monitor:=false  # loc_monitor 없이 (기본 켬, loc_map 은 같은 SDF 지도, #133 · #151)
+  ros2 launch navigation gazebo_sim.launch.py sim_turn:=0.79,0.70   # 실물형 회전 (꺾기 × 0.79 · 제자리 × 0.70, 아래)
   ros2 launch navigation gazebo_sim.launch.py map:=<localization share>/maps/slam_walls_001.yaml objects_map:=<...>/objects.yaml   # Isaac SLAM 지도로
 
 waffle_4wd_description 은 ros2_ws/src 밖 패키지라 먼저 같이 빌드해야 한다 (README "Gazebo 시험").
@@ -13,18 +14,41 @@ Gazebo 는 twist_mux · ros2_control 을 거치지 않는다 → Nav2 를 cmd_ve
 odom: use_ekf:=true (기본) 면 실물처럼 bringup odom_icr + EKF (바퀴 vx · vy + IMU yaw rate) 가 /odometry/filtered 와 odom -> base_link TF 를 냄
   (Gazebo DiffDrive TF 는 끔). Gazebo 바퀴 odom 은 제자리 회전을 실제보다 약 22 % 크게 셈 (스키드 미끄러짐, 2026-11-13 측정) → 바퀴 odom 그대로 쓰면
   AMCL yaw 가 회전마다 어긋나 loc_monitor LOST 가 잦았음 (#151). use_ekf:=false 면 예전처럼 /odom (바퀴) 그대로.
+sim_turn:=<꺾기>,<제자리> (기본 빈 값 = 끔): 실물처럼 덜 도는 로봇 흉내 (2026-11-21, tools/drive_demo SIM_TURN 과 같은 값 0.79,0.70).
+  scripts/sim_turn_scale.py 가 /cmd_vel_turn 의 회전만 줄여 /cmd_vel (Gazebo 브리지) 로 냄. 켜면 cmd_vel_out 이 기본 /cmd_vel 일 때 Nav2 출력을
+  /cmd_vel_turn 으로 돌림. 다른 출력 (cmd_vel_out:=/cmd_vel_nav + twist_mux · watchdog 등) 을 쓰면 /cmd_vel 로 내는 마지막 노드를
+  /cmd_vel_turn 으로 remap 할 것 (mission_planner test/gazebo_mission.sh SIM_TURN=). 근사일 뿐 (미끄럼 · 지연 없음), 실물 검증 아님.
 팔: Gazebo 관절은 0 (영 자세) 으로 시작하므로 팀 기본 시작 자세 (urdf_and_usd/isaac/robot_params.json poses.drive) 로 보낸다.
 Nav2 는 팔 명령을 다 보낸 뒤 5 s 기다렸다 띄운다 (scan_body_mask 가 처음 1.9 s 정지 스캔으로 차체 가림을 배우므로 팔이 멈춘 뒤에).
 지도: Gazebo 경기장과 같은 SDF 에서 만든 mission_planner 지도 (/map = map_amcl 스캔면, /map_objects = map_nav 벽 + 상자, 0.025 m).
   localization 기본 (Isaac SLAM slam_walls_001) 은 동쪽으로 갈수록 SDF 와 8 ~ 15 cm 어긋나 AMCL 이 치우치다 위치를 잃었다 (2026-11-04)."""
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, RegisterEventHandler, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler, TimerAction
 from launch.conditions import IfCondition
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration as LC, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+
+TURN_IN = '/cmd_vel_turn'   # sim_turn 켤 때 scale 노드 입력 (출력 = /cmd_vel, Gazebo 브리지)
+
+
+def sim_turn_node(context):
+    """sim_turn:=<꺾기>,<제자리> → scripts/sim_turn_scale.py (TURN_IN → /cmd_vel). 빈 값이면 아무것도 안 띄움"""
+    s = LC('sim_turn').perform(context).strip()
+    if not s:
+        return []
+    try:
+        k_curve, k_spin = (float(v) for v in s.split(','))
+    except ValueError:
+        raise RuntimeError(f'gazebo_sim: sim_turn:={s} 는 <꺾기>,<제자리> 두 숫자여야 함 (예 0.79,0.70)') from None
+    if not (0.0 < k_curve <= 1.5 and 0.0 < k_spin <= 1.5):
+        raise RuntimeError(f'gazebo_sim: sim_turn:={s} 비율은 0 ~ 1.5')
+    return [Node(package='navigation', executable='sim_turn_scale.py', name='sim_turn_scale', output='screen',
+                 parameters=[{'use_sim_time': True, 'k_curve': k_curve, 'k_spin': k_spin}],
+                 remappings=[('cmd_vel_turn', TURN_IN), ('cmd_vel', '/cmd_vel')])]
+
 
 ARM_DRIVE = {'joint1': 0.0, 'joint2': -1.35, 'joint3': 1.1497, 'joint4': 0.8094, 'joint5': 0.0, 'gripper_roll': 0.0}  # robot_params.json poses.drive
 
@@ -44,7 +68,10 @@ def generate_launch_description():
         output='screen')
     nav = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(PathJoinSubstitution([FindPackageShare('navigation'), 'launch', 'navigation.launch.py'])),
-        launch_arguments={'use_sim_time': 'true', 'cmd_vel_out': LC('cmd_vel_out'),
+        # sim_turn 을 켜고 cmd_vel_out 이 기본 (/cmd_vel) 이면 Nav2 출력을 scale 노드 입력으로
+        launch_arguments={'use_sim_time': 'true',
+                          'cmd_vel_out': PythonExpression(["'", TURN_IN, "' if '", LC('sim_turn'), "'.strip() and '", LC('cmd_vel_out'),
+                                                           "' == '/cmd_vel' else '", LC('cmd_vel_out'), "'"]),
                           'odom_topic': PythonExpression(["'/odometry/filtered' if '", LC('use_ekf'), "' == 'true' else '/odom'"]),
                           'use_loc_monitor': LC('use_loc_monitor'), 'map': LC('map'), 'objects_map': LC('objects_map'),
                           'loc_map': LC('loc_map'),
@@ -84,8 +111,12 @@ def generate_launch_description():
                               description='실물처럼 odom_icr + EKF (IMU yaw rate) 가 odom TF · /odometry/filtered 를 냄. false = Gazebo 바퀴 odom 그대로 (회전 약 22 % 큼, #151)'),
         DeclareLaunchArgument('use_scan', default_value='true',
                               description='실물처럼 perception scan_merger 가 /scan 을 냄 (drive_node 정렬 · 전진 · 후진 확인용). false = /scan 없음 (예전)'),
+        DeclareLaunchArgument('sim_turn', default_value='',
+                              description='실물형 회전 <꺾기>,<제자리> (예 0.79,0.70 = tools/drive_demo SIM_TURN). 빈 값 = 끔. '
+                                          '켜면 /cmd_vel_turn → (회전만 줄임) → /cmd_vel, cmd_vel_out 기본이면 Nav2 출력도 /cmd_vel_turn'),
         gazebo,
         *ekf,
+        OpaqueFunction(function=sim_turn_node),
         scan,
         arm,
         RegisterEventHandler(OnProcessExit(target_action=arm, on_exit=[TimerAction(period=5.0, actions=[nav])])),

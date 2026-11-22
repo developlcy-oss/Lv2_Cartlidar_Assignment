@@ -991,17 +991,17 @@ L2:
   ok: true
   note: ''
   final:
-  - 2.202
-  - 4.0625
-  - -1.5708
+  - 2.5645
+  - 3.7
+  - -3.1416
   stage:
-  - 2.202
-  - 4.3853
-  - -1.5708
+  - 2.8873
+  - 3.7
+  - -3.1416
   standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.2
+  stage_clearance: 0.17
   stage_rotate: true
   tag: 13
   geom:
@@ -1013,28 +1013,28 @@ L2:
       y: 3.64
       dist: 0.332
       fwd: 0.3265
-      lat: -0.06
+      lat: 0.06
       mode: tilt
     -1,0:
       x: 2.142
       y: 3.7
-      dist: 0.2732
-      fwd: 0.2665
-      lat: -0.06
+      dist: 0.3265
+      fwd: 0.3265
+      lat: -0.0
       mode: tilt
     -1,1:
       x: 2.142
       y: 3.76
-      dist: 0.215
-      fwd: 0.2065
+      dist: 0.332
+      fwd: 0.3265
       lat: -0.06
       mode: tilt
     0,-1:
       x: 2.202
       y: 3.64
-      dist: 0.3265
-      fwd: 0.3265
-      lat: -0.0
+      dist: 0.2732
+      fwd: 0.2665
+      lat: 0.06
       mode: tilt
     0,0:
       x: 2.202
@@ -1046,30 +1046,30 @@ L2:
     0,1:
       x: 2.202
       y: 3.76
-      dist: 0.2065
-      fwd: 0.2065
-      lat: -0.0
+      dist: 0.2732
+      fwd: 0.2665
+      lat: -0.06
       mode: tilt
     1,-1:
       x: 2.262
       y: 3.64
-      dist: 0.332
-      fwd: 0.3265
+      dist: 0.215
+      fwd: 0.2065
       lat: 0.06
       mode: tilt
     1,0:
       x: 2.262
       y: 3.7
-      dist: 0.2732
-      fwd: 0.2665
-      lat: 0.06
+      dist: 0.2065
+      fwd: 0.2065
+      lat: -0.0
       mode: tilt
     1,1:
       x: 2.262
       y: 3.76
       dist: 0.215
       fwd: 0.2065
-      lat: 0.06
+      lat: -0.06
       mode: tilt
 L3:
   kind: place

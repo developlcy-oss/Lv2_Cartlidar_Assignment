@@ -11,6 +11,10 @@
 #   ros2 launch bringup bringup.launch.py sim:=true use_sim_time:=true use_teleop:=false use_tfmini:=false   # Isaac Sim (workspace/tools/isaac_sim 브리지)
 #   ros2 launch bringup bringup.launch.py front_serial:=<시리얼> rear_serial:=<시리얼>   # D435 두 대 구분 (rs-enumerate-devices -s)
 #   use_sensors:=false — 카메라 · 라이다 드라이버를 띄우지 않는다 (sim:=true 면 기본 false: Isaac 브리지가 같은 토픽을 냄)
+#   max_wz:=<rad/s> — Nav2 회전 한계 (navigation.launch.py max_wz: MPPI wz_max · RotationShim 제자리 회전 min(YAML 0.75, max_wz) · behavior
+#                     max_rotational_vel · smoother 를 함께). 기본: 실물 (use_hardware:=true, sim:=false) 0.5 (2026-11-21, tools/drive_demo v2_filter 근거:
+#                     실물은 꺾기 79 % · 제자리 66 ~ 80 % 만 돌고, 0.26 + 0.2045·0.5 = 0.362 m/s 로 바깥 바퀴 포화 0.425 대비 여유 15 %),
+#                     Isaac (sim:=true) · use_hardware:=false 는 빈 값 = nav2_params.yaml (0.75). YAML 값을 실물에서 쓰려면 max_wz:=0.75
 #   use_tfmini:=false — TFmini(박스 거리) · obstacle_stop 을 띄우지 않고 twist_mux obstacle lock 도 뺀다 (TFmini 가 없는데 lock 이 있으면 늘 잠김)
 #
 #   미션 전체 (주사위 기억 로봇, plan 모드 = 기본). 2026-11-14 부터 use_localization · use_nav2 기본 true (경기 명령 = 인자 없이):
@@ -217,6 +221,7 @@ def generate_launch_description():
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(PathJoinSubstitution([nav, 'launch', 'navigation.launch.py'])),
                 launch_arguments={'use_sim_time': LaunchConfiguration('use_sim_time'),
+                                  'max_wz': LaunchConfiguration('max_wz'),   # 실물 기본 0.5 (아래 선언, 11-21)
                                   'use_localization': 'false'}.items(),   # 위치 추정은 위 use_localization 하나만 (#116)
                 condition=IfCondition(LaunchConfiguration('use_nav2')))]),
     ]
@@ -316,6 +321,13 @@ def generate_launch_description():
         DeclareLaunchArgument('stage_timeout', default_value='90', description='/joint_states 를 기다릴 최대 [s]. 넘으면 그래도 띄움'),
         DeclareLaunchArgument('nav2_delay', default_value='10.0', description='무거운 묶음 시작 뒤 Nav2 를 띄울 때까지 [s] (bt_navigator 활성화 실패 #276)'),
         DeclareLaunchArgument('use_sim_time', default_value='false', description='시뮬레이션 시계(/clock) 사용 — 모든 노드에 전달'),
+        # 2026-11-21 실물 회전 한계 (review_arch ③): 실물이면 0.5, Isaac · 하드웨어 없음은 빈 값 (= nav2_params.yaml 0.75). rotate_wz 는 안 줌
+        #   (navigation 이 min(YAML 0.75, max_wz) = 0.5 로 맞춤. rotate_wz 기본을 같이 두면 max_wz:=0.4 같은 명령에서 rotate > max 로 거부됨)
+        DeclareLaunchArgument('max_wz',
+                              default_value=PythonExpression(["'0.5' if '", LaunchConfiguration('use_hardware'), "'.lower() == 'true' and '",
+                                                              LaunchConfiguration('sim'), "'.lower() != 'true' else ''"]),
+                              description='Nav2 회전 한계 [rad/s] (MPPI wz_max · 제자리 회전 · behavior max_rotational_vel · smoother). '
+                                          '기본 실물 0.5 · sim:=true 또는 use_hardware:=false 는 빈 값 (YAML 0.75)'),
         OpaqueFunction(function=mode_setup),   # 아래 모든 것보다 먼저 (drive 면 use_nav2 · use_planner = false)
 
         IncludeLaunchDescription(

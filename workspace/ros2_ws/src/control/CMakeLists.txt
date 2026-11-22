@@ -67,7 +67,8 @@ if(BUILD_TESTING)
   ament_add_gtest(test_control_logic test/test_fsm.cpp test/test_align.cpp test/test_ik.cpp test/test_turn.cpp
     test/test_target_look_pose.cpp test/test_sag_comp.cpp test/test_diff_ik.cpp test/test_toppick_obs.cpp test/test_lieupright.cpp test/test_loc_gate.cpp
     test/test_box_park.cpp test/test_pullout.cpp test/test_startup_stow.cpp test/test_grasp_detector.cpp test/test_min_jerk.cpp
-    test/test_puck_height.cpp test/test_place_teach.cpp test/test_stow_hint.cpp test/test_place_press.cpp)
+    test/test_puck_height.cpp test/test_place_teach.cpp test/test_stow_hint.cpp test/test_place_press.cpp
+    test/test_box_center_loop.cpp test/test_box_face_lidar.cpp test/test_spin_guard.cpp)
   target_link_libraries(test_control_logic arm_ik)
   # manipulator.yaml 한계 · 자세 · 팔레트 궤적 = URDF 한계 (#83)
   ament_add_gtest(test_config_limits test/test_config_limits.cpp)

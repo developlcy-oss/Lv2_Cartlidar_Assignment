@@ -26,6 +26,7 @@
   <depend>tf2_geometry_msgs</depend>
   <depend>yaml_cpp_vendor</depend>
   <depend>ament_index_cpp</depend>
+  <depend>control</depend>                   <!-- center_box 반복 판단 decide_loop (control/box_center.hpp, 헤더만) -->
 
   <exec_depend>mission_planner</exec_depend>   <!-- survey 조사 자세 (approach_poses.yaml) -->
   <exec_depend>launch</exec_depend>
