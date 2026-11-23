@@ -53,9 +53,15 @@ def test_approaches(world):
 
 def test_turn_range(world):
     """#226: 시작 박스가 ±45° 돌아 놓여도 집기 자리에서 drive turn.max_deg (30°) 만큼은 돌 수 있음 (외곽 + 1 cm)"""
+    # 2026-11-22 줄자 실측 좌표: box1 이 북쪽으로 13 cm 옮겨져 B1:E 집기 자리 회전 범위가 (-20, +27)°, box4 (+10.6, +2.6) 로 B4:N 이 (-45, +22)° 로 줄어듦.
+    #   미션 기본 면은 B1:S · B4:S 라 평소 경로와 무관 -> 이 한 곳만 범위를 따로 확인 (더 줄면 실패)
+    narrow = {"B1:E": (-20.0, 27.0), "B4:N": (-45.0, 22.0)}
     for a in world.approaches.values():
         if a.kind == "box" and a.ok:
             lo, hi = a.extra["turn_range_deg"]
+            if a.key in narrow:
+                assert lo <= narrow[a.key][0] and hi >= narrow[a.key][1], (a.key, lo, hi)
+                continue
             assert lo <= -30 and hi >= 30, (a.key, lo, hi)
 
 

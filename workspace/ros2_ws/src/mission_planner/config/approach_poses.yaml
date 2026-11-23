@@ -9,17 +9,17 @@ B1:S:
   ok: true
   note: ''
   final:
-  - 1.468
-  - 0.5875
+  - 1.45
+  - 0.7175
   - 1.5708
   stage:
-  - 1.468
-  - 0.3747
+  - 1.45
+  - 0.3947
   - 1.5708
-  standoff: 0.34
+  standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.13
+  stage_clearance: 0.15
   stage_rotate: true
   box: 1
   side: S
@@ -46,20 +46,20 @@ B1:S:
 B1:N:
   kind: box
   ok: false
-  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
+  note: final 외곽이 막힘
   final:
-  - 1.468
-  - 1.3125
+  - 1.45
+  - 1.4425
   - -1.5708
   stage:
-  - 1.468
-  - 1.6353
+  - 1.45
+  - 1.7053
   - -1.5708
-  standoff: 0.45
+  standoff: 0.39
   gap: 0.1272
   final_clearance: 0.0
-  stage_clearance: 0.165
-  stage_rotate: false
+  stage_clearance: 0.13
+  stage_rotate: true
   box: 1
   side: N
   inline: false
@@ -86,18 +86,18 @@ B1:W:
   ok: false
   note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 1.1055
-  - 0.95
+  - 1.0875
+  - 1.08
   - -0.0
   stage:
-  - 0.7827
-  - 0.95
+  - 0.7647
+  - 1.08
   - -0.0
   standoff: 0.45
   alt: true
   gap: 0.1272
   final_clearance: 0.0
-  stage_clearance: 0.165
+  stage_clearance: 0.17
   stage_rotate: false
   box: 1
   side: W
@@ -125,18 +125,18 @@ B1:E:
   ok: true
   note: ''
   final:
-  - 1.8305
-  - 0.95
+  - 1.8125
+  - 1.08
   - -3.1416
   stage:
-  - 2.1533
-  - 0.95
+  - 2.1353
+  - 1.08
   - -3.1416
   standoff: 0.45
   alt: true
   gap: 0.1272
-  final_clearance: 0.125
-  stage_clearance: 0.165
+  final_clearance: 0.035
+  stage_clearance: 0.135
   stage_rotate: true
   box: 1
   side: E
@@ -157,24 +157,24 @@ B1:E:
       lat: -0.0
       turn_deg: 0.0
   turn_range_deg:
-  - -45.0
-  - 45.0
+  - -20.0
+  - 27.0
 B2:S:
   kind: box
   ok: true
   note: ''
   final:
-  - 3.67
-  - 2.7895
+  - 3.65
+  - 2.8075
   - 1.5708
   stage:
-  - 3.67
-  - 2.4667
+  - 3.65
+  - 2.4847
   - 1.5708
   standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.165
+  stage_clearance: 0.145
   stage_rotate: true
   box: 2
   side: S
@@ -203,12 +203,12 @@ B2:N:
   ok: false
   note: stage 외곽이 막힘 (standoff 를 줄여도)
   final:
-  - 3.67
-  - 3.5145
+  - 3.65
+  - 3.5325
   - -1.5708
   stage:
-  - 3.67
-  - 3.6873
+  - 3.65
+  - 3.7053
   - -1.5708
   standoff: 0.3
   box: 2
@@ -237,18 +237,18 @@ B2:W:
   ok: false
   note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 3.3075
-  - 3.152
+  - 3.2875
+  - 3.17
   - -0.0
   stage:
-  - 2.9847
-  - 3.152
+  - 2.9647
+  - 3.17
   - -0.0
   standoff: 0.45
   alt: true
   gap: 0.1272
   final_clearance: 0.0
-  stage_clearance: 0.165
+  stage_clearance: 0.175
   stage_rotate: false
   box: 2
   side: W
@@ -276,12 +276,12 @@ B2:E:
   ok: false
   note: stage 외곽이 막힘 (standoff 를 줄여도)
   final:
-  - 4.0325
-  - 3.152
+  - 4.0125
+  - 3.17
   - -3.1416
   stage:
-  - 4.2053
-  - 3.152
+  - 4.1853
+  - 3.17
   - -3.1416
   standoff: 0.3
   alt: true
@@ -311,17 +311,17 @@ B3:S:
   ok: true
   note: ''
   final:
-  - 2.936
-  - 4.9915
+  - 2.93
+  - 5.0875
   - 1.5708
   stage:
-  - 2.936
-  - 4.6687
+  - 2.93
+  - 4.7647
   - 1.5708
   standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.165
+  stage_clearance: 0.16
   stage_rotate: true
   box: 3
   side: S
@@ -350,17 +350,17 @@ B3:N:
   ok: true
   note: ''
   final:
-  - 2.936
-  - 5.7165
+  - 2.93
+  - 5.8125
   - -1.5708
   stage:
-  - 2.936
-  - 6.0393
+  - 2.93
+  - 6.0453
   - -1.5708
-  standoff: 0.45
+  standoff: 0.36
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.135
+  stage_clearance: 0.13
   stage_rotate: true
   box: 3
   side: N
@@ -389,12 +389,12 @@ B3:W:
   ok: false
   note: stage 외곽이 막힘 (standoff 를 줄여도)
   final:
-  - 2.5735
-  - 5.354
+  - 2.5675
+  - 5.45
   - -0.0
   stage:
-  - 2.4007
-  - 5.354
+  - 2.3947
+  - 5.45
   - -0.0
   standoff: 0.3
   alt: true
@@ -424,12 +424,12 @@ B3:E:
   ok: false
   note: stage 외곽이 막힘 (standoff 를 줄여도)
   final:
-  - 3.2985
-  - 5.354
+  - 3.2925
+  - 5.45
   - -3.1416
   stage:
-  - 3.4713
-  - 5.354
+  - 3.4653
+  - 5.45
   - -3.1416
   standoff: 0.3
   alt: true
@@ -459,17 +459,17 @@ B4:S:
   ok: true
   note: ''
   final:
-  - 0.734
-  - 4.9915
+  - 0.84
+  - 5.0175
   - 1.5708
   stage:
-  - 0.734
-  - 4.6687
+  - 0.84
+  - 4.6947
   - 1.5708
   standoff: 0.45
   gap: 0.1272
-  final_clearance: 0.125
-  stage_clearance: 0.165
+  final_clearance: 0.06
+  stage_clearance: 0.125
   stage_rotate: true
   box: 4
   side: S
@@ -490,25 +490,25 @@ B4:S:
       lat: -0.04
       turn_deg: -17.06
   turn_range_deg:
-  - -45.0
-  - 45.0
-  turn_clearance: 0.08
+  - -30.0
+  - 35.0
+  turn_clearance: 0.035
 B4:N:
   kind: box
   ok: true
   note: ''
   final:
-  - 0.734
-  - 5.7165
+  - 0.84
+  - 5.7425
   - -1.5708
   stage:
-  - 0.734
-  - 6.0393
+  - 0.84
+  - 6.0653
   - -1.5708
   standoff: 0.45
   gap: 0.1272
-  final_clearance: 0.125
-  stage_clearance: 0.135
+  final_clearance: 0.06
+  stage_clearance: 0.11
   stage_rotate: true
   box: 4
   side: N
@@ -530,22 +530,26 @@ B4:N:
       turn_deg: 17.06
   turn_range_deg:
   - -45.0
-  - 45.0
-  turn_clearance: 0.08
+  - 22.0
+  turn_clearance: 0.025
 B4:W:
   kind: box
-  ok: false
-  note: stage 외곽이 막힘 (standoff 를 줄여도)
+  ok: true
+  note: stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 0.3715
-  - 5.354
+  - 0.4775
+  - 5.38
   - -0.0
   stage:
-  - 0.1987
-  - 5.354
+  - 0.2947
+  - 5.38
   - -0.0
-  standoff: 0.3
+  standoff: 0.31
   alt: true
+  gap: 0.1272
+  final_clearance: 0.125
+  stage_clearance: 0.05
+  stage_rotate: false
   box: 4
   side: W
   inline: true
@@ -570,21 +574,21 @@ B4:W:
 B4:E:
   kind: box
   ok: false
-  note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
+  note: final 외곽이 막힘
   final:
-  - 1.0965
-  - 5.354
+  - 1.2025
+  - 5.38
   - -3.1416
   stage:
-  - 1.4193
-  - 5.354
+  - 1.5253
+  - 5.38
   - -3.1416
   standoff: 0.45
   alt: true
   gap: 0.1272
   final_clearance: 0.0
-  stage_clearance: 0.165
-  stage_rotate: false
+  stage_clearance: 0.195
+  stage_rotate: true
   box: 4
   side: E
   inline: true
@@ -611,17 +615,17 @@ B5:S:
   ok: false
   note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 2.202
-  - 4.9915
+  - 2.25
+  - 5.0175
   - 1.5708
   stage:
-  - 2.202
-  - 4.6687
+  - 2.25
+  - 4.6947
   - 1.5708
   standoff: 0.45
   gap: 0.1272
   final_clearance: 0.0
-  stage_clearance: 0.165
+  stage_clearance: 0.125
   stage_rotate: false
   box: 5
   side: S
@@ -649,17 +653,17 @@ B5:N:
   ok: true
   note: ''
   final:
-  - 2.202
-  - 5.7165
+  - 2.25
+  - 5.7425
   - -1.5708
   stage:
-  - 2.202
-  - 6.0393
+  - 2.25
+  - 6.0453
   - -1.5708
-  standoff: 0.45
+  standoff: 0.43
   gap: 0.1272
-  final_clearance: 0.125
-  stage_clearance: 0.135
+  final_clearance: 0.12
+  stage_clearance: 0.13
   stage_rotate: true
   box: 5
   side: N
@@ -688,18 +692,18 @@ B5:W:
   ok: true
   note: ''
   final:
-  - 1.8395
-  - 5.354
+  - 1.8875
+  - 5.38
   - -0.0
   stage:
-  - 1.5167
-  - 5.354
+  - 1.5647
+  - 5.38
   - -0.0
   standoff: 0.45
   alt: true
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.165
+  stage_clearance: 0.195
   stage_rotate: true
   box: 5
   side: W
@@ -727,12 +731,12 @@ B5:E:
   ok: false
   note: stage 외곽이 막힘 (standoff 를 줄여도)
   final:
-  - 2.5645
-  - 5.354
+  - 2.6125
+  - 5.38
   - -3.1416
   stage:
-  - 2.7373
-  - 5.354
+  - 2.7853
+  - 5.38
   - -3.1416
   standoff: 0.3
   alt: true
@@ -762,12 +766,12 @@ B6:S:
   ok: false
   note: stage 외곽이 막힘 (standoff 를 줄여도)
   final:
-  - 3.67
-  - 3.5235
+  - 3.76
+  - 3.4375
   - 1.5708
   stage:
-  - 3.67
-  - 3.3507
+  - 3.76
+  - 3.2647
   - 1.5708
   standoff: 0.3
   box: 6
@@ -796,17 +800,17 @@ B6:N:
   ok: false
   note: final 외곽이 막힘; stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 3.67
-  - 4.2485
+  - 3.76
+  - 4.1625
   - -1.5708
   stage:
-  - 3.67
-  - 4.5713
+  - 3.76
+  - 4.4853
   - -1.5708
   standoff: 0.45
   gap: 0.1272
   final_clearance: 0.0
-  stage_clearance: 0.165
+  stage_clearance: 0.075
   stage_rotate: false
   box: 6
   side: N
@@ -832,20 +836,20 @@ B6:N:
 B6:W:
   kind: box
   ok: true
-  note: ''
+  note: stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 3.3075
-  - 3.886
+  - 3.3975
+  - 3.8
   - -0.0
   stage:
-  - 2.9847
-  - 3.886
+  - 3.0747
+  - 3.8
   - -0.0
   standoff: 0.45
   gap: 0.1272
-  final_clearance: 0.125
-  stage_clearance: 0.165
-  stage_rotate: true
+  final_clearance: 0.08
+  stage_clearance: 0.08
+  stage_rotate: false
   box: 6
   side: W
   inline: true
@@ -866,18 +870,18 @@ B6:W:
       turn_deg: 0.0
   turn_range_deg:
   - -45.0
-  - 45.0
+  - 35.0
 B6:E:
   kind: box
   ok: false
   note: stage 외곽이 막힘 (standoff 를 줄여도)
   final:
-  - 4.0325
-  - 3.886
+  - 4.1225
+  - 3.8
   - -3.1416
   stage:
-  - 4.2053
-  - 3.886
+  - 4.2953
+  - 3.8
   - -3.1416
   standoff: 0.3
   box: 6
@@ -899,89 +903,89 @@ B6:E:
       lat: -0.0
       turn_deg: 0.0
   turn_range_deg:
-  - -45.0
-  - 45.0
+  - -9.0
+  - 24.0
 L1:
   kind: place
   ok: true
-  note: ''
+  note: stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 3.3075
-  - 0.95
+  - 3.3575
+  - 1.01
   - -0.0
   stage:
-  - 2.9847
-  - 0.95
+  - 3.0347
+  - 1.01
   - -0.0
   standoff: 0.45
   gap: 0.1272
-  final_clearance: 0.125
-  stage_clearance: 0.165
-  stage_rotate: true
+  final_clearance: 0.105
+  stage_clearance: 0.105
+  stage_rotate: false
   tag: 12
   geom:
     box_half: 0.1025
     tfmini_x: 0.13
   cells:
     -1,-1:
-      x: 3.61
-      y: 0.89
+      x: 3.66
+      y: 0.95
       dist: 0.215
       fwd: 0.2065
       lat: -0.06
       mode: tilt
     -1,0:
-      x: 3.61
-      y: 0.95
+      x: 3.66
+      y: 1.01
       dist: 0.2065
       fwd: 0.2065
       lat: 0.0
       mode: tilt
     -1,1:
-      x: 3.61
-      y: 1.01
+      x: 3.66
+      y: 1.07
       dist: 0.215
       fwd: 0.2065
       lat: 0.06
       mode: tilt
     0,-1:
-      x: 3.67
-      y: 0.89
+      x: 3.72
+      y: 0.95
       dist: 0.2732
       fwd: 0.2665
       lat: -0.06
       mode: tilt
     0,0:
-      x: 3.67
-      y: 0.95
+      x: 3.72
+      y: 1.01
       dist: 0.2665
       fwd: 0.2665
       lat: 0.0
       mode: tilt
     0,1:
-      x: 3.67
-      y: 1.01
+      x: 3.72
+      y: 1.07
       dist: 0.2732
       fwd: 0.2665
       lat: 0.06
       mode: tilt
     1,-1:
-      x: 3.73
-      y: 0.89
+      x: 3.78
+      y: 0.95
       dist: 0.332
       fwd: 0.3265
       lat: -0.06
       mode: tilt
     1,0:
-      x: 3.73
-      y: 0.95
+      x: 3.78
+      y: 1.01
       dist: 0.3265
       fwd: 0.3265
       lat: 0.0
       mode: tilt
     1,1:
-      x: 3.73
-      y: 1.01
+      x: 3.78
+      y: 1.07
       dist: 0.332
       fwd: 0.3265
       lat: 0.06
@@ -991,17 +995,17 @@ L2:
   ok: true
   note: ''
   final:
-  - 2.5645
-  - 3.7
+  - 2.5725
+  - 3.72
   - -3.1416
   stage:
-  - 2.8873
-  - 3.7
+  - 2.8953
+  - 3.72
   - -3.1416
   standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.17
+  stage_clearance: 0.16
   stage_rotate: true
   tag: 13
   geom:
@@ -1009,64 +1013,64 @@ L2:
     tfmini_x: 0.13
   cells:
     -1,-1:
-      x: 2.142
-      y: 3.64
+      x: 2.15
+      y: 3.66
       dist: 0.332
       fwd: 0.3265
       lat: 0.06
       mode: tilt
     -1,0:
-      x: 2.142
-      y: 3.7
+      x: 2.15
+      y: 3.72
       dist: 0.3265
       fwd: 0.3265
       lat: -0.0
       mode: tilt
     -1,1:
-      x: 2.142
-      y: 3.76
+      x: 2.15
+      y: 3.78
       dist: 0.332
       fwd: 0.3265
       lat: -0.06
       mode: tilt
     0,-1:
-      x: 2.202
-      y: 3.64
+      x: 2.21
+      y: 3.66
       dist: 0.2732
       fwd: 0.2665
       lat: 0.06
       mode: tilt
     0,0:
-      x: 2.202
-      y: 3.7
+      x: 2.21
+      y: 3.72
       dist: 0.2665
       fwd: 0.2665
       lat: -0.0
       mode: tilt
     0,1:
-      x: 2.202
-      y: 3.76
+      x: 2.21
+      y: 3.78
       dist: 0.2732
       fwd: 0.2665
       lat: -0.06
       mode: tilt
     1,-1:
-      x: 2.262
-      y: 3.64
+      x: 2.27
+      y: 3.66
       dist: 0.215
       fwd: 0.2065
       lat: 0.06
       mode: tilt
     1,0:
-      x: 2.262
-      y: 3.7
+      x: 2.27
+      y: 3.72
       dist: 0.2065
       fwd: 0.2065
       lat: -0.0
       mode: tilt
     1,1:
-      x: 2.262
-      y: 3.76
+      x: 2.27
+      y: 3.78
       dist: 0.215
       fwd: 0.2065
       lat: -0.06
@@ -1076,12 +1080,12 @@ L3:
   ok: true
   note: ''
   final:
-  - 3.67
-  - 4.9915
+  - 3.7
+  - 4.9875
   - 1.5708
   stage:
-  - 3.67
-  - 4.6687
+  - 3.7
+  - 4.6647
   - 1.5708
   standoff: 0.45
   gap: 0.1272
@@ -1094,64 +1098,64 @@ L3:
     tfmini_x: 0.13
   cells:
     -1,-1:
-      x: 3.61
-      y: 5.294
+      x: 3.64
+      y: 5.29
       dist: 0.215
       fwd: 0.2065
       lat: 0.06
       mode: tilt
     -1,0:
-      x: 3.61
-      y: 5.354
+      x: 3.64
+      y: 5.35
       dist: 0.2732
       fwd: 0.2665
       lat: 0.06
       mode: tilt
     -1,1:
-      x: 3.61
-      y: 5.414
+      x: 3.64
+      y: 5.41
       dist: 0.332
       fwd: 0.3265
       lat: 0.06
       mode: tilt
     0,-1:
-      x: 3.67
-      y: 5.294
+      x: 3.7
+      y: 5.29
       dist: 0.2065
       fwd: 0.2065
       lat: 0.0
       mode: tilt
     0,0:
-      x: 3.67
-      y: 5.354
+      x: 3.7
+      y: 5.35
       dist: 0.2665
       fwd: 0.2665
       lat: 0.0
       mode: tilt
     0,1:
-      x: 3.67
-      y: 5.414
+      x: 3.7
+      y: 5.41
       dist: 0.3265
       fwd: 0.3265
       lat: 0.0
       mode: tilt
     1,-1:
-      x: 3.73
-      y: 5.294
+      x: 3.76
+      y: 5.29
       dist: 0.215
       fwd: 0.2065
       lat: -0.06
       mode: tilt
     1,0:
-      x: 3.73
-      y: 5.354
+      x: 3.76
+      y: 5.35
       dist: 0.2732
       fwd: 0.2665
       lat: -0.06
       mode: tilt
     1,1:
-      x: 3.73
-      y: 5.414
+      x: 3.76
+      y: 5.41
       dist: 0.332
       fwd: 0.3265
       lat: -0.06
