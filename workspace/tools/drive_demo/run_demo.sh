@@ -119,7 +119,7 @@ stop_bag() {   # 11-21: ros2 bag record 는 SIGINT 로 닫아야 파일 끝 (mca
 cleanup() { stop_bag; for p in "${PIDS[@]}"; do kill -INT -- -"$p" 2>/dev/null; done; sleep 2; for p in "${PIDS[@]}"; do kill -KILL -- -"$p" 2>/dev/null; done; }
 trap cleanup EXIT TERM
 if [ "$DEMO_BAG" = 1 ]; then   # 11-21: 기록 폴더/bag 에 rosbag (백그라운드, 로그 bag.log). 없는 토픽은 생기면 그때부터 기록
-  BT=(/amcl_pose /odometry/filtered /scan_merged /scan_front /tf /tf_static /loc_guard/pose /loc_guard/event /cmd_vel_raw /cmd_vel /odom_icr /imu/data /diagnostics /scan_guard /scan_front_guard /drive_demo/box_zone /drive_demo/speed_cap /collision_monitor_state)
+  BT=(/amcl_pose /odometry/filtered /scan_merged /scan_front /tf /tf_static /loc_guard/pose /loc_guard/event /cmd_vel_raw /cmd_vel /odom_icr /imu/data /diagnostics /scan_guard /scan_front_guard /drive_demo/box_zone /drive_demo/speed_cap /collision_monitor_state /perception/place_box/status /perception/place_box/prior /rosout)   # 11-23: 팔 측정 진단용 3 개 추가
   [ "$DEMO_BAG_PARTICLES" = 0 ] || BT+=(/particle_cloud)
   BOPT=(); BFMT=sqlite3
   BH=$(ros2 bag record --help 2>&1)

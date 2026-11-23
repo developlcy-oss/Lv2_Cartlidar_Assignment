@@ -292,7 +292,11 @@ class ArmLook:
         t_call = time.time()
         fut = self.meas_cli.call_async(Trigger.Request())
         if not self._wait(fut, 6.0):
-            return None, "measure 응답 없음"
+            # 11-23 실물 1641: perception 은 요청을 곧 처리했는데 (윗면 못 찾음 1.8 s) 여기선 응답이 안 옴 — 다음 주행에서 어디서 막히는지 가리려고 기록만 더함
+            ready = self.meas_cli.service_is_ready()
+            fut.add_done_callback(lambda f, t=t_call: self.log(
+                f"    · (진단) 늦은 measure 응답 {time.time() - t:.1f} s 뒤: " + (f.result().message if f.result() is not None else "결과 없음")))
+            return None, f"measure 응답 없음 (6 s · 서비스 {'보임' if ready else '안 보임'})"
         r = fut.result()
         if not r.success:
             return None, f"measure 거절: {r.message}"
