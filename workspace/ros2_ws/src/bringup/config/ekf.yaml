@@ -1,6 +1,6 @@
 ekf_filter_node:
   ros__parameters:
-    frequency: 50.0
+    frequency: 30.0              # 11-22 50 → 30: 젯슨 "Failed to meet update rate! Took 0.022~0.027 s" (50 Hz = 20 ms). 30 Hz = 33 ms 여유. 소비자: Nav2 odom_duration 0.1 · transform_tolerance ≥ 0.1 · AMCL 은 TF 만 — 33 ms 지연 괜찮음
     two_d_mode: true
     publish_tf: true             # odom → base_link 은 ekf 만 발행 (diff_drive enable_odom_tf: false)
     map_frame: map
@@ -16,3 +16,9 @@ ekf_filter_node:
                   false, false, false,  false, false, true,
                   false, false, false]    # 회전 속도는 IMU 에서만
     imu0_remove_gravitational_acceleration: true
+    # 11-22 튐 방지: 1835·1851 bag 에서 /odometry/filtered 가 한 틱에 vx ±50 m/s · 위치 0.25 m 튀고 (100 ms 간격 쌍) 원위치 (s4 · v2 분석).
+    # 출력 간격은 20 ms 로 규칙적 = 스케줄 지연 (dt 이상) 이 아니라 /odom_icr vx 이상값 한 개를 EKF 가 받아들인 것으로 봄 (가설, /odom_icr 은 bag 에 없어 미확정).
+    # 문턱 = 마할라노비스 거리 (σ 배수). 기본 무한대. 정상 한 틱 vx 변화 ≤ 0.044 m/s (1851 bag) vs 기본 Q 로 1σ ≈ 0.03 → 10σ ≈ 0.3 m/s 는 정상 가속의 7 배 · 튐 (50 m/s) 은 1600σ.
+    # 3 은 급가감속에서 거짓 거부 가능 (정상 변화 ≈ 1.5σ 라 여유 2 배뿐) 이라 10. 거부돼도 그 측정 한 개만 건너뜀 (상태 안 망가짐).
+    odom0_twist_rejection_threshold: 10.0
+    # imu0_twist_rejection_threshold: 튐 때 IMU wz 는 정상 (≈0) 이라 적용 안 함. 급회전 시작 (wz 0 → 0.5 rad/s 가속) 거짓 거부 위험.

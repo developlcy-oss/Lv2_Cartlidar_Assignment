@@ -4,8 +4,8 @@
   상판 앞 끝 (base_link x 0.1328) ↔ 상자 앞면 5 cm · 상자 중앙선 위 · 상자 법선 방향으로 다가감.
 라이다: laser_front = base_link (0.1318, 0, 0.0525), rpy (π, 0, π) → 2D 회전행렬 [[−1, 0], [0, 1]]
   → bx = 0.1318 − r·cosθ, by = +r·sinθ (yaw 만 쓰면 y 부호가 틀림 → 반드시 2 × 2 행렬).
-LDS-03: range_min ≈ 0.12 m, 각 간격 ≈ 1°, 거리 잡음 σ ≈ 1 cm (추정) → 측정은 앞 끝 ↔ 상자 0.15 ~ 0.35 m 에서만,
-  마지막은 오도메트리로 다가감 (plan_approach 의 단계).
+LDS-03: 각 간격 ≈ 1°. 11-22 실물: 앞 끝 ↔ 상자 틈 10.0 cm (점 97 · RMS 1.2 mm) · 9.9 cm 측정 성공 (라이다가 앞 끝과 거의 같은 x 라 라이다 ↔ 상자 약 10 cm)
+  → 틈 10 cm 근처까지 잼 (이전 추정 range_min 0.12 m 는 실물과 안 맞음). 마지막 5 cm 는 오도메트리로 다가감.
 좌표: 모두 base_link (측정 순간 로봇 자세 = (0, 0, 0)). 각도 [rad], 거리 [m].
 정의:
   (cx, cy) = 상자 앞면 선분 중점, nyaw = 로봇 → 상자 쪽 면 법선 yaw (n = (cos, sin)),
@@ -272,15 +272,20 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
     ex = _expect_xyyaw(expect)
     mg = c["fit_margin"]
     win = []
+    n_sel = 0      # 선택 창 (앞면 중점이 있어야 할 자리) 안 점 수 — 실패 이유 진단용 (11-22: 상자 자리에 점이 드문 것을 벽 기울기로 잘못 보고함)
     for p in pts:
         x, y = float(p[0]), float(p[1])
         if not (math.isfinite(x) and math.isfinite(y)) or x < c["x_min"]:
             continue
         if ex is None:
+            if x <= c["x_max"] and abs(y) <= c["y_abs"]:
+                n_sel += 1
             if x <= c["x_max"] + mg and abs(y) <= c["y_abs"] + BOX_SIDE / 2 + mg:
                 win.append((x, y))
         else:
             along, side = _in_expect_frame(x, y, ex)
+            if abs(along) <= c["expect_win"] and abs(side) <= c["expect_win"]:
+                n_sel += 1
             if abs(along) <= c["expect_win"] + mg and abs(side) <= c["expect_win"] + BOX_SIDE / 2 + mg:
                 win.append((x, y))
     if len(win) < c["min_inliers"]:
@@ -308,22 +313,27 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
             iset = set(idx)
             rest = [p for i, p in enumerate(rest) if i not in iset]
             if len(inl) < c["min_ransac"]:
-                fails.append((len(inl), f"선분 점 {len(inl)} 개 < {c['min_ransac']} (RANSAC)", _rms(inl) if len(inl) >= 2 else None))
+                fails.append((len(inl), f"선분 점 {len(inl)} 개 < {c['min_ransac']} (RANSAC)", _rms(inl) if len(inl) >= 2 else None, True))
                 continue
             thr_r = c["refine_thr"]
             if c["refine_adapt"] > 0 and len(inl) >= 3:   # 잡음 작으면 다시 모으는 폭도 좁힘 → 옆면 (L 자 모서리) 점이 끝에 붙어 길이 · 중점이 밀리는 것 막음
                 thr_r = min(thr_r, max(c["ransac_thr"], c["refine_adapt"] * _rms(inl)))
             inl = _refine(inl, win, thr_r, c["run_min"], c["run_k"], lx, ly, dth)
             if len(inl) < c["min_inliers"]:
-                fails.append((len(inl), f"선분 점 {len(inl)} 개 < {c['min_inliers']}", _rms(inl) if len(inl) >= 2 else None))
+                fails.append((len(inl), f"선분 점 {len(inl)} 개 < {c['min_inliers']}", _rms(inl) if len(inl) >= 2 else None, True))
                 continue
             cx, cy, nyaw, length, ends, rends = _segment(inl, lx, ly, dth, c["end_quant"])
             if any(abs(cx - o.cx) < 0.01 and abs(cy - o.cy) < 0.01 for _, o in cands):
                 continue                      # 쪼개진 군집에서 같은 면이 또 나옴
             rms = _rms(inl)
             ye = wrap(nyaw)
+            if ex is None:
+                in_win = cx <= c["x_max"] and abs(cy) <= c["y_abs"]
+            else:
+                _a, _s = _in_expect_frame(cx, cy, ex)
+                in_win = abs(_a) <= c["expect_win"] and abs(_s) <= c["expect_win"]
             if abs(ye) > c["yaw_max"]:
-                fails.append((len(inl), f"기울기 {math.degrees(abs(ye)):.0f}° > {math.degrees(c['yaw_max']):.0f}°", rms))
+                fails.append((len(inl), f"기울기 {math.degrees(abs(ye)):.0f}° > {math.degrees(c['yaw_max']):.0f}°", rms, in_win))
                 continue
             if abs(length - c["len_nom"]) > c["len_tol"]:
                 msg = f"길이 {length:.3f} m ≠ {c['len_nom']:.3f}"
@@ -333,10 +343,10 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
                     msg += " (끝 가림 의심)" if any(occ) else " (가림 없음, 짧음)"
                 else:
                     msg += " (너무 김 — 벽 · 이웃 상자와 붙었을 수 있음)"
-                fails.append((len(inl), msg, rms))
+                fails.append((len(inl), msg, rms, in_win))
                 continue
             if rms > c["rms_max"]:
-                fails.append((len(inl), f"직선 잔차 RMS {rms * 1000:.1f} mm > {c['rms_max'] * 1000:.1f} mm", rms))
+                fails.append((len(inl), f"직선 잔차 RMS {rms * 1000:.1f} mm > {c['rms_max'] * 1000:.1f} mm", rms, in_win))
                 continue
             # 선택 창 (앞면 중점) · 점수: 길이가 0.205 에 가깝고 정면 (expect 있으면 expect) 에 가까울수록 작음
             if ex is None:
@@ -357,11 +367,20 @@ def find_box_face(pts, expect=None, cfg=None) -> FaceResult:
             return FaceResult(False, f"상자면 모양 선분 {len(outside)} 개가 창 밖 (가장 정면 ({ox:.3f}, {oy:+.3f})) · RMS - · 점 0 개 (창 {len(win)} 개)",
                               n_pts=0)
         if fails:
-            fails.sort(key=lambda t: -t[0])
-            n, msg, rms = fails[0]
+            in_fails = [t for t in fails if t[3]]
+            if not in_fails:
+                # 11-22 실물 box1: 선택 창 안에 선이 하나도 없는데 (점 13 개, 폭 3 cm 가는 조각 둘) 창 밖 동쪽 벽 (기울기 96°) 이 "첫 실패" 로 보고됨
+                #   → 창 밖 선은 이유로 쓰지 않고 "예상 자리에 점이 드묾" 으로 보고 (원인 = 상자 앞면이 라이다에 안 보임)
+                n, msg, rms, _ = max(fails, key=lambda t: t[0])
+                return FaceResult(False, f"예상 자리 안 점이 적어 앞면 선 못 찾음 (자리 안 점 {n_sel} 개뿐 · 다른 선 {len(fails)} 개는 창 밖: {msg}) · RMS - · 점 0 개 (창 {len(win)} 개)",
+                                  n_pts=0)
+            in_fails.sort(key=lambda t: -t[0])
+            n, msg, rms, _ = in_fails[0]
             rtxt = f"{rms * 1000:.1f} mm" if rms is not None else "-"
             return FaceResult(False, f"{msg} · RMS {rtxt} · 점 {n} 개 (창 {len(win)} 개)", n_pts=n,
                               rms=rms if rms is not None else 0.0)
+        if n_sel < c["min_inliers"]:
+            return FaceResult(False, f"예상 자리 안 점이 적어 앞면 선 못 찾음 (자리 안 점 {n_sel} 개뿐) · RMS - · 점 0 개 (창 {len(win)} 개)", n_pts=0)
         return FaceResult(False, f"상자 못 찾음 (군집 {len(clusters)} 개 모두 점 부족) · RMS - · 점 0 개 (창 {len(win)} 개)",
                           n_pts=len(win))
     cands.sort(key=lambda t: t[0])
@@ -589,6 +608,9 @@ class SPlan:
     min_clear: float = 0.0     # 회전마다 turn_clearance 최솟값 [m]
     end_gap: float = 0.0       # 실행 뒤 예상 틈 [m]
     end_lat: float = 0.0       # 실행 뒤 예상 옆 오차 [m]
+    pre_back: float = 0.0      # (후진 S 자) 회전 여유용 처음 곧은 후진 [m]
+    f_back: float = 0.0        # (후진 S 자) 비스듬 후진 f = |e|/sinα [m]
+    partial: float = 0.0       # (후진 S 자, clamp) 못 옮긴 남은 옆 오차 e − e_max [m] (부호 있음, 0 = 전부 보정)
 
 
 def _face_from_err(e, g, yaw):
@@ -712,3 +734,79 @@ def plan_s_curve_face(face, gap_target=0.05, back_room=None, cfg=None) -> SPlan:
         return SPlan(False, "상자면 측정 실패: " + (face.why if face is not None else "없음"))
     _fill(face)
     return plan_s_curve(face.lateral, face.gap, face.yaw_err, gap_target, back_room, cfg)
+
+
+# ---------------------------------------------------------------- 후진 S 자 (11-23): 전진은 정면 곧게만, 옆 보정은 후진으로
+BACK_CFG = {
+    "alpha_min": math.radians(10.0),
+    "alpha_max": math.radians(30.0),
+    "alpha_step": math.radians(0.5),
+    "margin": 0.02,                  # 회전 중 앞 모서리 ↔ 상자면 평면 최소 여유 [m]
+    "e_max": 0.08,                   # |옆 오차| 상한
+    "yaw_max": math.radians(25.0),
+    "d0_step": 0.005, "d0_max": 0.15,   # 회전 여유용 처음 곧은 후진 탐색
+    "icr_x": ICR_X,
+}
+
+
+def plan_s_curve_back(e, g, yaw=0.0, back_room=None, rev_budget=None, cfg=None, clamp=False) -> SPlan:
+    """후진 S 자 옆 보정. e (+ = 상자 중앙이 왼쪽) · g (틈) · yaw (면 기울기) → SPlan.
+    순서: [곧은 후진 d0 (회전 여유, 필요할 때만)] [정렬 yaw − sg·α 한 번에] [곧게 후진 f = |e|/sinα] [돌기 +sg·α]
+    실행 뒤 방향 = 법선, 옆 오차 ≈ 0, 틈 = g + f·cosα (+ d0). 전진 없음 (마지막 곧은 전진은 호출한 쪽이 다시 잰 뒤).
+    회전마다 turn_clearance ≥ margin 을 ICR 모의로 확인. back_room = 뒤 여유 [m], rev_budget = 이어진 후진 허용 [m] (둘 다 d0 + f 에 적용).
+    d0 + f 가 가장 작은 α (같으면 큰 α) 를 고름."""
+    c = {**BACK_CFG, **(cfg or {})}
+    icr = c["icr_x"]
+    if abs(yaw) > c["yaw_max"]:
+        return SPlan(False, f"면 기울기 {math.degrees(yaw):+.1f}° > {math.degrees(c['yaw_max']):.0f}°")
+    if abs(e) > c["e_max"]:
+        if not clamp:
+            return SPlan(False, f"옆 오차 {e * 100:+.1f} cm > {c['e_max'] * 100:.0f} cm (다시 재기)")
+        rest = e - math.copysign(c["e_max"], e)   # 부분 보정: e_max 만큼만 옮기고 나머지는 다시 잰 뒤
+        p = plan_s_curve_back(math.copysign(c["e_max"], e), g, yaw, back_room, rev_budget, cfg)
+        p.partial = rest
+        if p.ok:
+            p.why = f"부분 보정 (옆 {e * 100:+.1f} cm 중 {c['e_max'] * 100:.0f} cm, 남음 {rest * 100:+.1f}) · " + p.why
+        return p
+    face = _face_from_err(e, g, yaw)
+    lim = min(x for x in (back_room, rev_budget, c["d0_max"] + 0.40) if x is not None)
+    if abs(e) < 1e-4:
+        return SPlan(True, "옆 오차 0 — 보정 없음", 0.0, 0.0, 0.0, 0.0, yaw, [], g, g, e)
+    best = None
+    na = int(round((c["alpha_max"] - c["alpha_min"]) / c["alpha_step"]))
+    nd = int(round(c["d0_max"] / c["d0_step"]))
+    for k in range(na + 1):
+        a = c["alpha_max"] - k * c["alpha_step"]
+        for j in range(nd + 1):
+            d0 = j * c["d0_step"]
+            pre = ([("drive", -d0)] if d0 > 1e-9 else []) + [("turn", yaw)]
+            pose, _ = _run_steps(face, pre, icr)
+            _, e_al, _ = _err_at(face, pose)
+            sg = 1.0 if e_al > 0 else -1.0   # 정렬 뒤 옆 오차 기준 (정렬 회전이 옆을 조금 바꿈)
+            f = abs(e_al) / math.sin(a)
+            tot = d0 + f
+            if tot > lim + 1e-9 or (best is not None and tot > best.back + 1e-9):
+                continue
+            steps = [st for st in (pre[:-1] + [("turn", yaw - sg * a), ("drive", -f), ("turn", sg * a)])
+                     if not (st[0] == "turn" and abs(st[1]) < 1e-6) and not (st[0] == "drive" and abs(st[1]) < 1e-4)]
+            pose, worst = _run_steps(face, steps, icr)
+            if worst < c["margin"]:
+                continue   # d0 를 더 늘려 봄
+            ge, le, ye = _err_at(face, pose)
+            p = SPlan(True, "", tot, sg * a, 0.0, 0.0, yaw, steps, worst, ge, le, d0, f)
+            if best is None or tot < best.back - 1e-9 or (abs(tot - best.back) < 1e-9 and a > abs(best.alpha)):
+                best = p
+            break   # 이 α 는 가장 작은 d0 로 충분
+    if best is None:
+        return SPlan(False, f"옆 {e * 100:+.1f} cm 후진 S 자 계획 안 됨: 틈 {g:.3f} m, 후진 한도 {lim:.2f} m 안에서 회전 여유 {c['margin'] * 100:.0f} cm 안 나옴")
+    best.why = (f"후진 S 자 α {math.degrees(best.alpha):+.1f}° · 처음 후진 {best.pre_back:.3f} m · 비스듬 후진 {best.f_back:.3f} m · "
+                f"모서리 여유 {best.min_clear * 100:.1f} cm → 틈 {best.end_gap * 100:.1f} cm · 옆 {best.end_lat * 100:+.1f} cm")
+    return best
+
+
+def plan_s_curve_back_face(face, back_room=None, rev_budget=None, cfg=None) -> SPlan:
+    """FaceResult 로 plan_s_curve_back"""
+    if face is None or not face.ok:
+        return SPlan(False, "상자면 측정 실패: " + (face.why if face is not None else "없음"))
+    _fill(face)
+    return plan_s_curve_back(face.lateral, face.gap, face.yaw_err, back_room, rev_budget, cfg)

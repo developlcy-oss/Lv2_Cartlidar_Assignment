@@ -67,6 +67,7 @@ from rclpy.action import ActionClient
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
 from rclpy.parameter import Parameter
+from rcl_interfaces.srv import SetParameters
 from rclpy.qos import DurabilityPolicy, QoSProfile, ReliabilityPolicy, qos_profile_sensor_data
 from rclpy.time import Time
 from std_msgs.msg import Float32, String
@@ -81,13 +82,35 @@ try:   # 11-21 상자 다가가기 (순수 함수). 없으면 기능만 끄고 �
 except ImportError as _e:   # noqa: N816
     bf, BF_ERR = None, str(_e)
 
+try:   # 11-22 밤: 팔 카메라 (Arducam) 로 상자 재기 (ARM_LOOK). 없으면 기능만 끔
+    import arm_look as al
+    AL_ERR = ""
+except ImportError as _e:   # noqa: N816
+    al, AL_ERR = None, str(_e)
+ARM = {"mode": "off", "ok": False, "why": "", "solo": False}   # main 이 --arm-look off|dry|on · --arm-solo 와 서비스 확인으로 채움. off = 안 씀 · dry = 재서 기록만 (움직임에 안 씀) · on = 라이다와 3 cm · 3° 넘게 다르면 5 cm 다가가기 포기
+                                                                 #   solo = (on 에서만) 라이다가 못 잰 곳을 팔 카메라 값 단독으로 다가감 (기본 꺼짐 — 위험은 README)
+AP_PRE_GAP = 0.30        # 11-22 밤 팔 카메라: 1 차 정지 자리 = 상판 앞 끝 ↔ 상자 틈 [m] (ALIGN 에서 윗면 전체가 보이는 0.19~0.65 의 가운데, --ap-pre-gap cm). 정지점 앞 AP_PRE_GAP − STOP_GAP 에서 끊음
+ARM_ZONE = True   # 11-23 사용자 결정 (--arm-zone): BOX_VIEW 를 상자 구간 (정지점 BOX_QUIET_M 0.40 m 안) 에서만 — 들어가면 주행 중 (바퀴 안 멈춤) BOX_VIEW, 벗어나면 DRIVE. --no-arm-zone = 11-22 방식 (주행 내내 BOX_VIEW)
+ARM_ZONE_FOLD = "DRIVE"   # 11-23 상자 구간 밖 팔 자세 (--arm-zone-fold). 젯슨 기준 ~/Lv2 · 노트북 DRIVE = [0, -1.30, 0.60, 1.85] (앞 D435 가림 약 12 %). 예전 ~/git (DRIVE = E2, 27~29 %) 이면 --arm-zone-fold DRIVE_LOW
+ARM_ZONE_WAIT = 12.0   # 측정 자리에 섰는데 팔이 아직 BOX_VIEW 로 가는 중이면 기다리는 상한 [s] (POSE_T 와 같게)
+ARM_POSE = al.ARM_POSE if al is not None else "BOX_VIEW"   # 측정 자세 (11-22 밤 사용자 결정: 기본 BOX_VIEW = 라이다 측정 자리 틈 0.145 에서 · ALIGN = 틈 0.30 1 차 정지에서). main 이 --arm-pose 로 바꿈
+
 # 11-21 상자 다가가기 (box approach) — 사용자 결정: 5 cm 기준 = 상판 앞 끝 (base_link x 0.1328), 상자 중앙선 위 · 법선 방향
 AP = {"mode": "on", "at": set(), "gap": 0.05, "loose": False}   # main 이 --box-approach · --box-approach-at · --box-gap · --box-loose 로 채움
 AP_FRONT, AP_BOX_SIDE = 0.1328, 0.205   # 상판 앞 끝 [m] (robot_geometry base.front_offset) · 상자 한 변 [m]
-AP_MEASURE_GAP = 0.145   # 11-22 측정 자리 = 측정할 때 상판 앞 끝 ↔ 상자 틈 [m] (0.13~0.16, 앞면 x 0.26~0.29, --ap-measure-gap cm).
+AP_MEASURE_GAP = STOP_GAP  # 11-23 측정 자리 = 정지점 (끊지 않고 정지점까지 가서 잼, 사용자 결정). 11-22 는 0.145 (정지점 3.8 cm 앞에서 끊고 잼 — --ap-measure-gap 14.5 로 되돌림). 11-22 측정 자리 = 측정할 때 상판 앞 끝 ↔ 상자 틈 [m] (0.13~0.16, 앞면 x 0.26~0.29, --ap-measure-gap cm).
                          #   bag 재생 (face): 앞면 x 0.40~0.50 은 상자 점 8 개 · 0/17, 0.26~0.29 는 점 46 개 · 5/14 (11-21 은 정지점 0.30 m 앞 = 틈 0.41)
-AP_MEASURE_D = max(AP_MEASURE_GAP - STOP_GAP, 0.0)   # 끊는 거리: 마지막 전진 조각을 정지점 이만큼 [m] 앞에서 끊음 (정지점 틈 STOP_GAP 0.107 → 0.038). main 이 --ap-measure-gap 으로 다시 계산
+AP_MEASURE_D = max(AP_MEASURE_GAP - STOP_GAP, 0.0)   # 끊는 거리 (11-23 기본 0 = 끊지 않음, AP_NOCUT_D 미만이면 안 끊음): 마지막 전진 조각을 정지점 이만큼 [m] 앞에서 끊음 (정지점 틈 STOP_GAP 0.107 → 0.038). main 이 --ap-measure-gap 으로 다시 계산
                          #   (후진할 때도 정지점 이만큼 앞이 되게). 예전 0.30 근거: 0.25 면 1 차 기동 전진이 10 cm 뿐이라 옆 3 cm + 방향 6° 에서 box_face 회전 상한 25° 에 걸림
+AP_NOCUT_D = 0.01        # 11-23 끊는 거리 AP_MEASURE_D 가 이보다 짧으면 [m] 조각을 끊지 않고 정지점 도착 뒤 (후진 0 ~ 약간) 그 자리에서 잼
+AP_CM_APPROACH_OFF = True   # 11-23 안 B (--ap-cm-approach-off): 상자 다가가기 동안 collision_monitor FootprintApproach (감속) 를 끔 — 끝나면 늘 다시 켬. VelocityStop (정지 띠 · fwd_creep) 은 그대로
+AP_S_MODE = "back"       # 11-23 보정 방식 (--ap-s-mode): back = 정지점에서 재고 후진 S 자 (bf.plan_s_curve_back) 로 옆 보정 → 다시 재고 정면 곧게 전진만 · forward = 11-22 방식 (전진 S 자 · 1 차 기동)
+AP_GAP_MIN = 0.08        # back: 잰 틈이 이보다 작으면 [m] 곧게 후진해 AP_BACK_GAP 로 맞춘 뒤 다시 잼 (회전 여유)
+AP_BACK_GAP = 0.10       # back: 위 후진 목표 틈 [m]
+AP_RETRY_GAP = 0.14      # back: 첫 측정이 믿을 수 없게 끝나면 (점 부족 · 길이 불일치) 곧게 후진해 이 틈 [m] 에서 한 번 더 잼 (chain 에 합산, 0 = 안 함)
+ZONE_MAX_DEV, ZONE_MIN_PTS, ZONE_MAX_RMS, ZONE_LEN_TOL = 0.08, 30, 0.003, 0.03   # box_zone 중심을 잰 값으로 바꿀 조건: BOXES 와 차 [m] · 점 수 · RMS [m] · 앞면 길이 ± [m]
+AP_CLOSE_TRY = 2         # back: 틈 확보 후진 + 다시 재기 최대 횟수
+AP_SPIN_RANGE, AP_SPIN_SUM, AP_RESET_M = math.radians(85.0), math.radians(175.0), 0.15   # v2_filter 제자리 예산 (범위 90° · 합 180°, 0.15 m 움직이면 다시 셈) 에 5° 여유
 AP_CUT_MIN = 0.05        # 끊고 남은 앞부분이 이보다 [m] 짧으면 끊지 않음 (후진해서 잼)
 AP_BACK_MAX = 0.35       # 후진해서 잴 때 최대 [m] (box_quiet 다시 켜기 0.42 m 안, v2_filter 이어진 후진 한도 안)
 AP_CLOSE_GAP = 0.20      # 11-22 잰 틈이 이 이하 [m] 면 '가까이 잼': 곧바로 S 자 계획 (bf.plan_s_curve_face) 으로 5 cm 자리까지 (0.20 m 자리 다시 재기 없음)
@@ -114,6 +137,8 @@ AP_W_MAX, AP_W_MIN = 0.30, 0.10   # 제자리 회전 [rad/s] 상한 · 하한
 AP_KP_LIN, AP_KP_YAW = 1.0, 1.5   # 남은 거리 [m] → 속도, 남은 각 [rad] → 각속도
 AP_KP_HOLD, AP_HOLD_W = 1.0, 0.15   # 곧게 갈 때 방향 유지 이득 · 상한 [rad/s]
 AP_YAW_TOL, AP_POS_TOL = math.radians(1.0), 0.002   # 회전 끝 · 거리 끝 허용
+AP_CM_STOP_T = 1.0       # 11-23 collision_monitor STOP 이 이 시간 [s] 넘게 이어지며 안 나아가면 바로 그만둠 (이유에 "collision_monitor 정지")
+AP_FIN_TOL = 0.015       # 11-23 마지막 곧은 전진이 막혀 멈춰도 남은 거리가 이 이하 [m] 면 경고 + done (5 cm 자리는 상자 면이 VelocityStop 어깨에 들어감)
 AP_STUCK_T = 3.0         # 이 시간 [s] 동안 나아가지 않으면 그만둠 (v2_filter 가 제자리 예산 · 후진 한도로 0 을 낼 때)
 AP_TURN_T = 15.0         # 회전 한 번 시간 상한 [s]
 ODOM_STALE = 0.5         # 오도메트리가 이 시간 [s] 넘게 끊기면 그만둠
@@ -162,6 +187,7 @@ START_TOL, START_YAW_TOL = 0.15, math.radians(15.0)
 AMCL_XY_OK, AMCL_YAW_OK = 0.05, 5.0   # 위치 감시를 껐을 때 출발 허용 AMCL σ [m] · [deg]
 OFF_PATH = 0.10   # 11-15 21:4x 사용자 결정: 전진 · 후진 조각 중 AMCL 자리가 조각 경로에서 max(이 값, 시작 때 어긋남 + 3 cm) 넘게
                   #   벗어나면 그 조각을 취소하고 멈춤 (S6 벽 닿음: 경로에서 24 cm). 소프트웨어 정지, 물리 비상정지 아님. 0 = 끔 (--off-path)
+OFF_HOLD_T = 0.3   # 11-22 s4: 경로 이탈 한도 넘음이 이 시간 [s] (0.1 s 점검 3 번) 연속일 때만 멈춤
 RECOVER_TRIES, BACK_MAX = 2, 0.30   # 11-16 사용자 결정: 조각 실패 시 되찾기 (자기 위치 찾기 → 왔던 길 ≤ BACK_MAX m → 다시) 최대 횟수 (0 = 끔)
 STEP_MODE = False                  # step 모드면 되찾기도 안 될 때 사람에게 물음
 HEAD_FIX = math.radians(4.0)          # 전진 · 후진 조각 시작 때 방향이 이보다 틀어져 있으면 먼저 제자리로 맞춤 (0 = 끔, --no-head-fix)
@@ -181,6 +207,14 @@ SCAN_STALE = 2.0                       # 라이다가 이 시간 [s] 넘게 끊�
 CM_STALE = 0.5                         # goal 보내기 전부터 남은 STOP 은 이 시간 [s] 동안 안 믿음 (상태가 바뀔 때만 발행되므로)
 HOLD_RUN_OK = 1.0                      # 이어간 뒤 이 시간 [s] 넘게 달렸으면 다음 STOP 은 새 HOLD (기다림 시계 새로)
 ZONE_V = 0.15                          # 11-21 상자 정지점 0.30 m (BOX_CAP_M) 안 속도 상한 [m/s] (v2_filter /drive_demo/speed_cap)
+# 11-22 안전 정지 (실물 1122_1518: box1 출발 후진 옆구리 접촉 · S8 뒤 접촉 뒤 되찾기가 몸체를 더 돌림)
+#   접촉 · 걸림 의심 (명령 ↔ 오도메트리 어긋남) · 위치 잃음 (되찾기 뒤 AMCL σ 큼) 이면 되찾기 · 우회 · 복귀 없이 전체를 멈춤 → 리모컨으로 옮김
+SAFE = "SAFE_STOP"                     # 안전 정지 표시 (문자열 앞머리)
+STALL_V, STALL_ODOM_V, STALL_T = 0.05, 0.01, 1.5   # 직진 명령 ≥ 0.05 m/s 인데 오도메트리 < 0.01 m/s 가 1.5 s 이어지면 걸림 (1518 S8: 명령 0.08 · 바퀴 0 이 12 s)
+TWIST_W, TWIST_ODOM_W, TWIST_T = 0.15, 0.30, 0.3   # 회전 명령 ≥ 0.15 rad/s 와 반대로 ≥ 0.30 rad/s 가 0.3 s 이어지면 접촉 (1518 S8: +0.4 명령에 −1.73)
+RELOC_OK_XY, RELOC_OK_YAW, RELOC_N_MAX, RELOC_T_MAX = 0.04, 5.0, 20, 8.0   # 11-22 s4: 수렴 판정 (σ ≤ 4 cm · 5° 이면 바로 통과) · 최대 갱신 횟수 · 시간 [s]. 이래도 아래 6 cm · 8° 넘으면 안전 정지 (기준 완화 없음)
+RELOC_XY_MAX, RELOC_YAW_MAX = 0.06, 8.0            # 되찾기 위치 다시 찾기 뒤 AMCL σ 가 이보다 크면 위치 잃음 (1518 S8: 10.1 cm · 16°)
+HEAD_SKIP_MAX = math.radians(20.0)                 # 조각 시작 방향 맞추기가 실패했을 때 이보다 크면 그대로 진행하지 않음 (1518: +77.8° · −29.4° 를 그대로 진행)
 TEST_BLOCK = {"done": False}        # 시험용 DEMO_TEST_BLOCK=1 은 전체에서 한 번만
 STOP = threading.Event()
 LIVE = None   # 11-15 21:3x: track_live.csv — 0.1 s 마다 바로 씀 (Ctrl+C · 강제 종료로 save() 를 못 해도 남음)
@@ -211,6 +245,9 @@ class Follower(Node):
         self.out = (0.0, 0.0, -9.0)
         self.create_subscription(TwistStamped, "cmd_vel_raw", lambda m: setattr(self, "raw", (m.twist.linear.x, m.twist.angular.z, self.now_s())), 20)
         self.create_subscription(TwistStamped, "cmd_vel_v2", lambda m: setattr(self, "out", (m.twist.linear.x, m.twist.angular.z, self.now_s())), 20)
+        # 11-22 접촉 · 걸림 감시용: 바퀴로 가는 마지막 명령 (실물 twist_mux 출력 · 시뮬 collision_monitor 출력). cmd_vel_v2 는 collision_monitor 감속 전이라 안 씀
+        self.fin = (0.0, 0.0, -9.0)
+        self.create_subscription(TwistStamped, "/cmd_vel", lambda m: setattr(self, "fin", (m.twist.linear.x, m.twist.angular.z, self.now_s())), 20)
         latched = QoSProfile(depth=1, reliability=ReliabilityPolicy.RELIABLE, durability=DurabilityPolicy.TRANSIENT_LOCAL)
         self.loc = None
         self.create_subscription(String, "/localization/status", lambda m: setattr(self, "loc", m.data), latched)
@@ -282,6 +319,9 @@ class Follower(Node):
         self.quiet = q
         g = self.quiet_goal
         dist = f"정지점까지 {math.hypot(p[0] - g[0], p[1] - g[1]):.2f} m" if (p and g) else "구간 끝"
+        az = getattr(self, "arm_zone", None)
+        if az is not None:   # 11-23: 상자 (box1~6 · L1~3, 좌표 있는 곳) 구간만 BOX_VIEW — 들어가면 펴고, 벗어나면 (0.42 m 밖 · 구간 끝) 접음. 비동기 (타이머 스레드를 안 막음)
+            az.request(ARM_POSE if (q and self.quiet_box) else az.fold)
         if q:
             self.quiet_n += 1
             self.quiet_sent = True
@@ -346,6 +386,7 @@ class Follower(Node):
         q = m.pose.pose.orientation
         self.odom = (m.pose.pose.position.x, m.pose.pose.position.y,
                      math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z)), time.time())
+        self.odom_tw = (m.twist.twist.linear.x, m.twist.twist.angular.z, time.time())   # 11-22 접촉 · 걸림 감시 (contact_check)
 
     def _cm(self, m):
         if m.action_type == CollisionMonitorState.STOP:
@@ -519,6 +560,37 @@ def pub_stop(node, d):
     node.stop_pub.publish(m)
 
 
+def contact_check(node, mon):
+    """11-22: 바퀴로 가는 마지막 명령 (/cmd_vel) 과 오도메트리 (EKF: 바퀴 vx · IMU wz) 가 크게 어긋나면 접촉 · 걸림으로 봄 → SAFE 문자열, 아니면 None.
+    mon = 조각마다 새 dict (어긋남이 시작된 벽시계)"""
+    c, o, t = node.fin, getattr(node, "odom_tw", None), time.time()
+    if o is None or t - o[2] > ODOM_STALE or node.now_s() - c[2] > 0.3:   # 명령 · 오도메트리가 끊겼으면 판단 안 함 (Nav2 쉬는 중 등)
+        mon.clear()
+        return None
+    cv, cw, ov, ow = c[0], c[1], o[0], o[1]
+    if abs(cv) >= STALL_V and abs(ov) < STALL_ODOM_V:
+        mon.setdefault("stall", t)
+        if t - mon["stall"] >= STALL_T:
+            return f"{SAFE}: 명령 {cv:+.2f} m/s 인데 {STALL_T:.1f} s 넘게 안 움직임 (걸림 · 접촉 의심)"
+    else:
+        mon.pop("stall", None)
+    if abs(cw) >= TWIST_W and ow * cw < 0 and abs(ow) >= TWIST_ODOM_W:
+        mon.setdefault("twist", t)
+        if t - mon["twist"] >= TWIST_T:
+            return f"{SAFE}: 회전 명령 {cw:+.2f} 과 반대로 {ow:+.2f} rad/s 돎 (접촉 의심)"
+    else:
+        mon.pop("twist", None)
+    return None
+
+
+def safe_stop(node, why):
+    """11-22: 안전 정지 — 전체를 멈춤 (STOP). auto 도 복귀하지 않음 (접촉 · 위치 잃음 상태로 더 움직이면 위험) → 사람이 리모컨으로 옮김"""
+    if getattr(node, "safe_msg", None) is None:
+        node.safe_msg = why
+        print(f"\n  ⛔ 안전 정지: {why}\n     되찾기 · 우회 · 복귀 없이 멈춤 — 로봇 주변 · 차체를 확인하고 리모컨으로 옮기세요", flush=True)
+    STOP.set()
+
+
 def follow_piece(node, pc, final=True):
     if pc["kind"] == "S" and not pc.get("_raw"):   # 11-21 (3): 작은 각 · 상자 앞은 turn_safe 가 직접 회전 · 틈 확보 후진 → Spin
         return turn_safe(node, pc["dth"], room=bool(pc.get("_room")), rev_budget=pc.get("_rev_budget"))
@@ -526,7 +598,8 @@ def follow_piece(node, pc, final=True):
         g = Spin.Goal()
         g.target_yaw = float(pc["dth"])
         g.time_allowance = Duration(sec=int(abs(pc["dth"]) / 0.2) + 10)
-        return run_action(node.spin, g, abs(pc["dth"]) / 0.2 + 30)
+        mon = {}
+        return run_action(node.spin, g, abs(pc["dth"]) / 0.2 + 30, abort_when=lambda: contact_check(node, mon))
     poses = pc["poses"]
     cur = node.pose()
     if len(poses) < 2 or (cur and math.hypot(poses[-1][0] - cur[0], poses[-1][1] - cur[1]) < 0.03):
@@ -550,8 +623,12 @@ def follow_piece(node, pc, final=True):
             else:
                 r, msg = follow_piece(node, {"kind": "S", "dth": err})
             if not r:
-                if STOP.is_set():
-                    return False, f"시작 방향 맞추기 {math.degrees(err):+.0f}°: {msg}"
+                if STOP.is_set() or msg.startswith(SAFE):
+                    return False, msg if msg.startswith(SAFE) else f"시작 방향 맞추기 {math.degrees(err):+.0f}°: {msg}"
+                if abs(err) > HEAD_SKIP_MAX:   # 11-22: 크게 틀어진 채 RPP 로 그대로 가면 몸체가 크게 휩쓸림 (1518 S8 +77.8° → 뒤 접촉)
+                    print(f"    · 시작 방향 맞추기 {math.degrees(err):+.0f}° 실패 ({msg}) — {math.degrees(HEAD_SKIP_MAX):.0f}° 넘어 그대로 진행 안 함 (이 시도 실패)", flush=True)
+                    node.head_skip.append(round(math.degrees(err), 1))
+                    return False, f"시작 방향 {math.degrees(err):+.0f}° 맞추기 실패 ({msg})"
                 # 11-16 (사용자 결정): Nav2 Spin 이 충돌 예상 (Collision Ahead) · 시간 초과로 거부하면 구간 전체를 멈추지 않고
                 #   방향 맞추기만 건너뛰고 조각을 그대로 진행 (RPP 가 따라가며 바로잡음, 경로 이탈 멈춤이 지킴). 시뮬 P2 S2 에서 나옴
                 print(f"    · 시작 방향 맞추기 건너뜀 ({msg}) — 조각을 그대로 진행 (경로 이탈 멈춤 {OFF_PATH * 100:.0f} cm 가 지킴)", flush=True)
@@ -595,6 +672,7 @@ def follow_piece(node, pc, final=True):
     d0 = dev() or 0.0
     lim = max(OFF_PATH, d0 + 0.03)
     last = [0.0]
+    off_t = [None]   # 11-22: 경로 한도 넘음이 시작된 벽시계 (연속 지속 확인)
     # 11-18 속도 곡선: 조각 끝 = 정지 (구간 끝이면 마지막 STOP_CREEP_D 천천히, 중간이면 그만큼 더해 보내 그 구간을 건너뜀)
     cum = [0.0]
     for a, b in zip(poses, poses[1:]):
@@ -629,7 +707,15 @@ def follow_piece(node, pc, final=True):
         last[0] = time.time()
         d = dev()
         if d is not None and d > lim:
-            return f"경로에서 {d * 100:.0f} cm 벗어남 (한도 {lim * 100:.0f} cm) — 멈춤 (소프트웨어 정지)"
+            # 11-22 s4: 1835 · 1851 의 "12~18 cm 이탈" 은 EKF 가 ~100 ms 튄 한 틱 (실제 궤적은 1~3 cm). 한도 넘음이 OFF_HOLD_T 연속 지속될 때만 멈춤 (표본을 버리지 않음 — 진짜 이탈은 그대로 잡음)
+            if off_t[0] is None:
+                off_t[0] = time.time()
+            if d > 2 * lim:   # 한도의 2 배 넘으면 기다리지 않고 즉시 멈춤 (벽 여유가 작은 구간 보호, devil2)
+                return f"경로에서 {d * 100:.0f} cm 벗어남 (한도 {lim * 100:.0f} cm 의 2 배 넘음) — 즉시 멈춤 (소프트웨어 정지)"
+            if time.time() - off_t[0] >= OFF_HOLD_T:
+                return f"경로에서 {d * 100:.0f} cm 벗어남 (한도 {lim * 100:.0f} cm, {OFF_HOLD_T:.1f} s 넘게 지속) — 멈춤 (소프트웨어 정지)"
+        else:
+            off_t[0] = None
         return None
     # 11-19 정지 래치 (HOLD): collision_monitor STOP 을 처음 받으면 FollowPath 를 바로 취소 (Nav2 가 0 → 섬).
     #   그대로 두면 RPP 가 더 느린 명령을 내고 collision_monitor 가 그 명령을 더 좁은 띠로만 봐서 다시 통과 → 정지 · 이어감 반복하며 다가감
@@ -652,9 +738,11 @@ def follow_piece(node, pc, final=True):
             return None
         return HOLD
 
+    mon = {}
+
     def abort():
         send_stop()
-        return off_path() or stop_seen()
+        return contact_check(node, mon) or off_path() or stop_seen()
     try:
         while True:
             k0 = max(pc["_near"] - 2, 0)
@@ -733,20 +821,37 @@ def hold_wait(node, kind, t0):
         time.sleep(0.05)
 
 
-def relocalize(node, label):
-    """멈춘 채 자기 위치 다시 찾기 (11-16): 실물이면 AMCL nomotion 갱신을 몇 번 요청 (움직이지 않아도 라이다로 다시 맞춤) → σ 를 알림"""
+def relocalize(node, label, converge=False):
+    """멈춘 채 자기 위치 다시 찾기 (11-16): 실물이면 AMCL nomotion 갱신을 몇 번 요청 (움직이지 않아도 라이다로 다시 맞춤) → σ 를 알림.
+    converge (11-22 s4): EKF 튐 뒤에는 입자만 퍼져 공분산이 부풀므로 5 번에 끝내지 않고 σ ≤ RELOC_OK_* 가 되면 바로 끝, 아니면 최대 RELOC_N_MAX 번 · RELOC_T_MAX s"""
     sleep_s(node, 0.5)
     n = 0
     if not node.sim and node.nomotion.wait_for_service(timeout_sec=1.0):
-        for _ in range(5):
+        t_rel = time.time()
+        while n < (RELOC_N_MAX if converge else 5):
             if STOP.is_set():
                 break
             wait_future(node.nomotion.call_async(Empty.Request()), 2.0)
             n += 1
             sleep_s(node, 0.3)
+            am = node.amcl
+            if converge and n >= 3 and am and time.time() - am[2] < 1.0 and am[0] <= RELOC_OK_XY and am[1] <= RELOC_OK_YAW:
+                break   # 수렴 — 더 안 기다림
+            if converge and time.time() - t_rel > RELOC_T_MAX:
+                break
     am = node.amcl
     sig = f"AMCL σ {am[0] * 100:.1f} cm · {am[1]:.1f}°" if am and time.time() - am[2] < 10 else ("시뮬 (AMCL 없음)" if node.sim else "AMCL σ 모름")
     print(f"    · {label}: 자기 위치 다시 찾기 (nomotion 갱신 {n} 번) · {sig}", flush=True)
+    return (am[0], am[1]) if am and time.time() - am[2] < 10 else None
+
+
+def reloc_bad(node, label):
+    """11-22: 위치 다시 찾기 → AMCL σ 가 RELOC_* 넘으면 안전 정지하고 True (시뮬 · σ 모름은 그대로)"""
+    s = relocalize(node, label, converge=True)
+    if s is not None and (s[0] > RELOC_XY_MAX or s[1] > RELOC_YAW_MAX):
+        safe_stop(node, f"{label} AMCL σ {s[0] * 100:.1f} cm · {s[1]:.1f}° > {RELOC_XY_MAX * 100:.0f} cm · {RELOC_YAW_MAX:.0f}° (위치 잃음)")
+        return True
+    return False
 
 
 def backtrack_piece(node, pc, max_len=None):
@@ -963,7 +1068,7 @@ def confirm(prompt):
 
 
 def main():
-    global TURN_DIRECT, TURN_ROOM, AP_LEAVE_ALL, AP_MID_MAX, AP_MID_TOL, AP_MEASURE_D, AP_MEASURE_GAP   # 11-21 (3) — 아래 help 문자열이 기본값을 읽으므로 맨 위에
+    global ARM_POSE, TURN_DIRECT, TURN_ROOM, AP_LEAVE_ALL, AP_MID_MAX, AP_MID_TOL, AP_MEASURE_D, AP_MEASURE_GAP, AP_PRE_GAP, AP_S_MODE, AP_CM_APPROACH_OFF, ARM_ZONE, ARM_ZONE_FOLD   # 11-21 (3) — 아래 help 문자열이 기본값을 읽으므로 맨 위에
     ap = argparse.ArgumentParser()
     ap.add_argument("--plan", required=True)
     ap.add_argument("--out", required=True)
@@ -983,6 +1088,19 @@ def main():
     ap.add_argument("--box-approach-at", default="", help="상자 다가가기 할 곳 (쉼표 목록, 예 box1,L2 — 비우면 box1 ~ 6 · L1 ~ 3 전부)")
     ap.add_argument("--box-gap", type=float, default=0.05, help="상자 다가가기 목표: 상판 앞 끝 ↔ 상자 앞면 [m] (기본 0.05)")
     ap.add_argument("--box-scan-topic", default="/scan_front", help="상자를 잴 원본 앞 라이다 (차체 가림 지우기 전, 기본 /scan_front)")
+    ap.add_argument("--arm-look", choices=["off", "dry", "on"], default="off",
+                    help="11-22: 상자 앞 1 차 정지 (틈 --ap-pre-gap) 에서 팔을 ALIGN 으로 펴 팔 카메라 (Arducam) 로 상자 윗면을 잼 → 팔 DRIVE 로 접고 → 틈 14.5 cm 에서 라이다 정밀 측정과 비교. "
+                         "off 기본 · dry = 재서 기록만 (움직임에 안 씀) · on = 둘이 3 cm · 3° 넘게 다르면 다가가기 포기. 인식 (perception place_box) 이 떠 있어야 함 — README '팔 카메라 상자 재기'")
+    ap.add_argument("--arm-zone", action=argparse.BooleanOptionalAction, default=ARM_ZONE,
+                    help="(BOX_VIEW) 상자 구간 0.40 m 안에 들어가면 주행 중 팔 BOX_VIEW, 벗어나면 --arm-zone-fold 자세 (기본 켬, 11-23). --no-arm-zone = 주행 내내 BOX_VIEW (11-22)")
+    ap.add_argument("--arm-zone-fold", default=ARM_ZONE_FOLD,
+                    help=f"상자 구간 밖 팔 자세 (기본 {ARM_ZONE_FOLD}. ~/git 판 팔 제어기면 DRIVE_LOW — manipulator.yaml 에 있어야 함, 못 가면 DRIVE)")
+    ap.add_argument("--arm-pose", choices=["BOX_VIEW", "ALIGN"], default="BOX_VIEW",
+                    help="팔 카메라 측정 자세 (기본 BOX_VIEW = 바로 아래를 봄 · 1 차 정지 없이 라이다 측정 자리 (틈 --ap-measure-gap) 에서 라이다 측정 뒤 재고 DRIVE 로 접음 · 윗면 일부만 보여 부정확할 수 있음 · 허용 틈 10~20 cm. "
+                         "ALIGN = 틈 --ap-pre-gap 1 차 정지에서 윗면 전체를 봄 · 허용 틈 20~65 cm)")
+    ap.add_argument("--arm-solo", action="store_true",
+                    help="--arm-look on 에서만: 라이다가 못 잰 곳을 팔 카메라 값 단독으로 5 cm 다가감 (팔 기구학 오차 약 2 cm — 기본 꺼짐, 위험은 README)")
+    ap.add_argument("--ap-pre-gap", type=float, default=AP_PRE_GAP * 100, help=f"팔 카메라 1 차 정지 틈 [cm] (기본 {AP_PRE_GAP * 100:.0f}, 25~40)")
     ap.add_argument("--box-loose", action="store_true",
                     help="상자 측정 느슨한 기준 (bf.FACE_CFG_LOOSE · bf.AVG_LOOSE — 실물 잡음 조정용, 퍽 2 cm 틈 구분 포기)")
     ap.add_argument("--odom-topic", default="", help="상자 다가가기 회전 · 거리 (기본: 실물 /odometry/filtered · 시뮬 /odom)")
@@ -1008,11 +1126,21 @@ def main():
     ap.add_argument("--ap-mid-fix", type=int, default=AP_MID_MAX,
                     help=f"다가가기 0.20 m 자리 다시 잰 뒤 S 자 보정 최대 횟수 (기본 {AP_MID_MAX}, 0 = 예전처럼 확인만 · 3 cm 넘으면 그만둠)")
     ap.add_argument("--ap-mid-tol", type=float, default=AP_MID_TOL * 1000, help=f"S 자 보정 허용 옆 오차 [mm] (기본 {AP_MID_TOL * 1000:.0f})")
+    ap.add_argument("--ap-s-mode", choices=("back", "forward"), default=AP_S_MODE,
+                    help="상자 다가가기 보정 방식 (기본 back = 정지점에서 재고 후진 S 자로 옆 보정, 전진은 정면 곧게만 · forward = 11-22 전진 S 자 · 1 차 기동). forward 는 --ap-measure-gap 14.5 와 함께 써야 예전과 같음")
+    ap.add_argument("--ap-cm-approach-off", action=argparse.BooleanOptionalAction, default=AP_CM_APPROACH_OFF,
+                    help="상자 다가가기 동안 collision_monitor FootprintApproach (감속) 끄기 (기본 켬, 끝나면 다시 켬 · 정지 띠는 그대로). --no-ap-cm-approach-off = 예전처럼 늘 켬")
     ap.add_argument("--ap-measure-gap", type=float, default=AP_MEASURE_GAP * 100,
-                    help=f"상자 측정 자리 = 측정할 때 상판 앞 끝 ↔ 상자 틈 [cm] (기본 {AP_MEASURE_GAP * 100:.1f}, 앞면 x 0.26~0.29 — 상자 점이 충분히 보임). 정지점 앞 끊는 거리 = 이 값 − 정지점 틈 {STOP_GAP * 100:.1f} cm. {AP_CLOSE_GAP * 100:.0f} cm 이하면 S 자 한 번으로 5 cm 까지")
+                    help=f"상자 측정 자리 = 측정할 때 상판 앞 끝 ↔ 상자 틈 [cm] (기본 {AP_MEASURE_GAP * 100:.1f}, 앞면 x 0.26~0.29 — 상자 점이 충분히 보임). 정지점 앞 끊는 거리 = 이 값 − 정지점 틈 {STOP_GAP * 100:.1f} cm (기본은 정지점 = 끊지 않음, {AP_NOCUT_D * 100:.0f} cm 미만이면 안 끊음). {AP_CLOSE_GAP * 100:.0f} cm 이하면 S 자 한 번으로 5 cm 까지")
     a = ap.parse_args()
     AP_MEASURE_GAP = min(max(a.ap_measure_gap, 8.0), 50.0) / 100.0
     AP_MEASURE_D = max(AP_MEASURE_GAP - STOP_GAP, 0.0)
+    AP_PRE_GAP = min(max(a.ap_pre_gap, 25.0), 40.0) / 100.0
+    AP_S_MODE = a.ap_s_mode
+    AP_CM_APPROACH_OFF = a.ap_cm_approach_off
+    ARM_POSE = a.arm_pose
+    ARM_ZONE = bool(a.arm_zone and ARM_POSE == "BOX_VIEW")
+    ARM_ZONE_FOLD = a.arm_zone_fold
     global AP_CUT_YAW, AP_RETURN_STOP, AUTO_MODE
     TURN_DIRECT, TURN_ROOM, AP_LEAVE_ALL = math.radians(max(a.turn_direct, 0.0)), a.turn_room, a.ap_leave_all
     AP_MID_MAX, AP_MID_TOL = max(a.ap_mid_fix, 0), max(a.ap_mid_tol, 1.0) / 1000.0
@@ -1101,14 +1229,47 @@ def main():
         except Exception:  # noqa: BLE001  (끝낼 때 rclpy 종료와 겹치면 나는 오류 — 기록에는 영향 없음)
             pass
     threading.Thread(target=_spin, daemon=True).start()
+    node.arm = None
+    if a.arm_look != "off" and AP["mode"] != "off":
+        ARM["mode"], ARM["solo"] = a.arm_look, bool(a.arm_solo and a.arm_look == "on")
+        if a.arm_solo and a.arm_look != "on":
+            print("⚠ --arm-solo 는 --arm-look on 에서만 — 무시", flush=True)
+        if al is None:
+            ARM["mode"], ARM["why"] = "off", f"arm_look.py 못 읽음: {AL_ERR}"
+        else:
+            node.arm = al.ArmLook(node, STOP, hold=lambda: ap_cmd(node, 0.0, 0.0), log=lambda m: print(m, flush=True), pose=ARM_POSE)
+            ok, why = node.arm.available(wait=3.0)
+            if not ok:
+                ARM["mode"], ARM["why"], node.arm = "off", why, None
+            else:
+                ARM["ok"] = True
+                if ARM_ZONE:   # 11-23: 주행 중 팔 이동용 — hold 없음 (바퀴 0 명령을 안 냄 = "바퀴가 서 있을 때만" 규칙 없앰, 사용자 결정)
+                    node.arm_zone = ArmZone(node, al.ArmLook(node, STOP, hold=None, log=lambda m: print(m, flush=True), pose=ARM_POSE), fold=ARM_ZONE_FOLD)
+        if ARM["mode"] == "off":
+            print(f"팔 카메라 상자 재기: ⚠ 꺼짐 — {ARM['why']} (--arm-look {a.arm_look} 를 줬지만 쓸 수 없음 · 라이다만으로 진행)", flush=True)
+        else:
+            lo, hi = al.pose_gap_range(ARM_POSE)
+            kind = "dry (재서 기록만)" if ARM["mode"] == "dry" else "켬 (라이다와 3 cm · 3° 넘게 다르면 다가가기 포기" + (" · solo: 라이다 실패 곳은 팔 값 단독" if ARM["solo"] else "") + ")"
+            where = (f"라이다 측정 자리 (틈 {AP_MEASURE_GAP * 100:.1f} cm) 에서 라이다 측정 뒤" if al.pose_at(ARM_POSE) == "measure"
+                     else f"상자 앞 틈 {AP_PRE_GAP * 100:.0f} cm 1 차 정지에서")
+            how = (f"상자 구간 (정지점 {BOX_QUIET_M:.2f} m 안) 에 들어가면 주행 중 BOX_VIEW · 벗어나면 DRIVE (바퀴 안 멈춤)" if ARM_ZONE
+                   else "주행 시작 전 DRIVE → 한 번 펴 주행 내내 유지 · 끝에 접음 (정지점마다 팔 왕복 없음)" if al.pose_hold(ARM_POSE)
+                   else "팔 → DRIVE 로 접음 · 상자마다 약 15 ~ 25 s")
+            print(f"팔 카메라 상자 재기: {kind} · {where} 팔 {ARM_POSE} (허용 틈 {lo * 100:.0f} ~ {hi * 100:.0f} cm) · {how}", flush=True)
+            if al.pose_hold(ARM_POSE):
+                print("  ⚠ 팔 끝이 라이다 높이 위라 벽 (39 cm) · 높은 물체 접촉을 아무 장치도 못 봄 — 첫 실물은 --step 으로 S4 · S2 에서 팔–벽을 눈으로 확인", flush=True)
+    elif a.arm_look != "off":
+        print("팔 카메라 상자 재기: 꺼짐 (--box-approach off)", flush=True)
     print(f"출발 자세 (계획) {start[0]:.3f}, {start[1]:.3f}, {math.degrees(start[2]):.0f}° · "
           + (f"기본 경로 {' → '.join(data['route'])} · 들르기 요청 /drive_demo/detour" + (" 또는 step 입력" if a.step else "")
              if route else f"구간 {legs[0]['name']} ~ {legs[-1]['name']}"), flush=True)
     print("상자 구간: " + (f"상자 정지점 {node.quiet_m:.2f} m 안 (끝 {node.quiet_m + BOX_QUIET_HYST:.2f} m 밖) — 정지 띠 · HOLD 는 상자 점 뺀 라이다 ({a.scan_topic}) · "
                             f"{BOX_CAP_M:.2f} m 안 속도 ≤ {ZONE_V:.2f} m/s" if node.quiet_m > 0 else "꺼짐 (--box-quiet-m 0, 상자에도 멈춤)"), flush=True)
+    if AP["mode"] == "on" and AP_S_MODE == "back" and al is not None and al.pose_at(ARM_POSE) == "pre" and ARM["ok"] and ARM["mode"] != "off":
+        print("  ⚠ back 모드에서는 팔 ALIGN 1 차 정지 (틈 0.30) 가 동작하지 않음 (조각을 안 끊음) — --ap-s-mode forward --ap-measure-gap 14.5 필요", flush=True)
     print("상자 다가가기: " + ("꺼짐 (--box-approach off)" if AP["mode"] == "off" else f"⚠ 꺼짐 (box_face.py 못 읽음: {BF_ERR})" if bf is None else
                               f"{'dry (재기만, 조각 안 끊음)' if AP['mode'] == 'dry' else '켬'} · {' '.join(sorted(AP['at'])) or 'box1 ~ 6 · L1 ~ 3'} · "
-                              f"상판 앞 끝 ↔ 상자 {AP['gap'] * 100:.0f} cm · 정지점 {AP_MEASURE_D:.2f} m 앞에서 잼 (마지막이 전진 아니면 최대 {AP_BACK_MAX:.2f} m 후진) · "
+                              f"상판 앞 끝 ↔ 상자 {AP['gap'] * 100:.0f} cm · {AP_S_MODE} · {'정지점에서 잼 (끊지 않음)' if AP_MEASURE_D < AP_NOCUT_D else f'정지점 {AP_MEASURE_D:.2f} m 앞에서 잼'} (마지막이 전진 아니면 최대 {AP_BACK_MAX:.2f} m 후진) · "
                               f"라이다 {a.box_scan_topic} · 오도메트리 {odom_topic}" + (" · 느슨한 기준 (--box-loose)" if AP["loose"] else "")), flush=True)
 
     # 출발 확인
@@ -1173,6 +1334,7 @@ def main():
 
     results = []
     try:
+        arm_hold_start(node)   # 11-22 밤: BOX_VIEW 는 출발 확인 뒤 · 첫 구간 전에 한 번 펴고 주행 내내 유지 (try 안 — 중간에 예외 · Ctrl+C 여도 아래 finally 가 접음)
         if route:
             run_route(a, node, data, LIB, PTS, results)
         elif a.auto:
@@ -1186,6 +1348,7 @@ def main():
                 if not run_leg(node, g, results):
                     break
     finally:
+        arm_hold_end(node)   # 11-22 밤: 팔 접기 (안전 정지면 그 자리 유지)
         node.quiet_close()   # 11-20: 정지 띠를 끈 채 끝나지 않게 (정상 · Ctrl+C · 예외)
     node.step = -1
     time.sleep(1.0)
@@ -1225,6 +1388,156 @@ def ap_split(pieces, d=None):
     tail = dict(head, poses=list(poses[j:]), _box_tail=True)
     head = dict(head, poses=list(poses[:j + 1]), _stop=True)
     return pieces[:-1] + [head, tail], cum[-1] - cum[j]
+
+
+class ArmZone:
+    """11-23 (사용자 결정): 상자 구간 진입 · 이탈에 맞춰 팔 BOX_VIEW ↔ DRIVE 를 주행 중에 옮김 (바퀴 0 명령을 안 냄).
+    request(자세) 는 바로 돌아옴 (타이머 스레드에서 부름) · 스레드 하나가 마지막 요청 자세로 차례로 옮김.
+    BOX_VIEW 실패 → 이번 구간 팔 측정은 건너뜀 (라이다만) · DRIVE 로 되돌림 시도.
+    DRIVE 실패 (BACK_TRIES 번) → 경고만 하고 BOX_VIEW 인 채 계속 (경로 계산 widen_plan --arm 이 BOX_VIEW 팔 외곽을 전 구간 검사하므로 11-22 방식과 같음)"""
+
+    def __init__(self, node, arm, fold="DRIVE"):
+        self.node, self.arm, self.fold = node, arm, fold
+        self.at = "DRIVE"               # at = 마지막으로 확인된 자세 ("?" = 실패해 모름). 시작은 DRIVE (arm_hold_start)
+        self.want = "DRIVE"             # 처음엔 안 움직임 — arm_hold_start 가 DRIVE 확인 뒤 fold 를 요청
+        self.busy, self.why, self.log = False, "", []
+        self.cv = threading.Condition()
+        self.closing = False
+        self.th = threading.Thread(target=self._run, daemon=True)
+        self.th.start()
+
+    def request(self, pose):
+        with self.cv:
+            if pose != self.want:
+                self.want = pose
+                self.cv.notify_all()
+
+    def _run(self):
+        while True:
+            with self.cv:
+                while not self.closing and not STOP.is_set() and (self.want == self.at or (self.want != self.fold and self.at == "?")):
+                    self.cv.wait(0.5)
+                if self.closing or STOP.is_set():
+                    return
+                tgt, self.busy = self.want, True
+            t0 = time.time()
+            ok, msg = self.arm.go(tgt)
+            if not ok and tgt == self.fold:
+                for _ in range(BACK_TRIES_Z - 1):
+                    if STOP.is_set():
+                        break
+                    ok, msg = self.arm.go(tgt)
+                    if ok:
+                        break
+            dt = time.time() - t0
+            with self.cv:
+                self.log.append({"pose": tgt, "ok": ok, "s": round(dt, 2), "why": "" if ok else msg})
+                if ok:
+                    self.at, self.why = tgt, ""
+                    print(f"    · 팔 {tgt} ({dt:.1f} s, 주행 중)", flush=True)
+                elif tgt == self.fold:
+                    self.at, self.why = "?", f"{tgt} 로 못 접음: {msg}"
+                    self.want = "?"   # 다시 요청이 올 때까지 안 움직임
+                    print(f"    ⚠⚠ 팔 {tgt} 로 못 접음 ({msg}) — BOX_VIEW 인 채 계속 (경로는 BOX_VIEW 팔 외곽으로 계산돼 있음) · 끝나면 직접 확인", flush=True)
+                else:
+                    self.at, self.why = "?", f"{tgt} 로 못 감: {msg}"
+                    self.want = self.fold
+                    print(f"    ⚠ 팔 {tgt} 로 못 감 ({msg}) — 이번 상자는 라이다만 · {self.fold} 로 되돌림", flush=True)
+                self.busy = False
+                self.cv.notify_all()
+
+    def wait_at(self, pose, timeout, idle=None):
+        """(서 있는 측정 자리에서) 팔이 pose 에 닿을 때까지 기다림 → (됨, 이유)"""
+        end, last = time.time() + timeout, 0.0
+        with self.cv:
+            if self.want != pose and self.at != pose:
+                return False, f"요청이 {self.want} (상자 구간 아님?)"
+            while (self.busy or self.at != pose) and time.time() < end and not STOP.is_set():
+                if not self.busy and (self.at == "?" or self.want != pose):   # 실패했거나 요청이 바뀜 (BOX_VIEW 실패 → DRIVE 되돌림)
+                    return False, self.why or f"요청이 {self.want}"
+                if idle and time.time() - last > 0.2:
+                    idle()
+                    last = time.time()
+                self.cv.wait(0.1)
+            if self.at == pose and not self.busy:
+                return True, ""
+            return False, f"{timeout:.0f} s 안에 {pose} 못 감" if not STOP.is_set() else "Ctrl+C"
+
+    def close(self, timeout=15.0):
+        with self.cv:
+            self.closing = True
+            self.cv.notify_all()
+        self.th.join(timeout)
+
+
+BACK_TRIES_Z = 3   # ArmZone DRIVE 접기 시도 수 (arm_look BACK_TRIES 와 같게)
+
+
+def arm_hold_start(node):
+    """11-22 밤 (사용자 결정): BOX_VIEW 는 주행 내내 유지 — 자율 시작 전 (출발 확인 뒤 · 첫 구간 전) 바퀴 0 명령으로 팔 DRIVE → BOX_VIEW 한 번.
+    못 펴면 경고하고 팔은 DRIVE 그대로 라이다만으로 진행 (ARM_LOOK 자동 off). step 모드면 Enter 확인"""
+    if STOP.is_set() or not ARM["ok"] or ARM["mode"] == "off" or getattr(node, "arm", None) is None or not al.pose_hold(ARM_POSE):
+        return
+    if getattr(node, "arm_zone", None) is not None:   # 11-23: 시작에는 DRIVE 만 (STOW 면 단계 펴기). BOX_VIEW 는 상자 구간에서 ArmZone 이
+        ap_zero(node)
+        print(f"  · 팔 DRIVE → {node.arm_zone.fold} (바퀴 0 명령) — 상자 구간에 들어가면 주행 중 BOX_VIEW · 벗어나면 {node.arm_zone.fold}", flush=True)
+        ok, msg = node.arm.go("DRIVE")
+        ap_zero(node)
+        if ok and node.arm_zone.fold != "DRIVE":   # 접는 자세까지 서서 기다림 (출발 전)
+            node.arm_zone.request(node.arm_zone.fold)
+            ok2, why2 = node.arm_zone.wait_at(node.arm_zone.fold, ARM_ZONE_WAIT, idle=lambda: ap_cmd(node, 0.0, 0.0))
+            if not ok2:
+                print(f"  ⚠ 팔 {node.arm_zone.fold} 로 못 감 ({why2}) — DRIVE 를 접는 자세로 씀", flush=True)
+                node.arm_zone.fold = "DRIVE"
+                node.arm_zone.request("DRIVE")
+        if not ok:
+            ARM["mode"], ARM["why"] = "off", f"팔 DRIVE 로 못 감: {msg}"
+            node.arm_zone.close()
+            node.arm_zone = None
+            print(f"  ⚠ 팔을 DRIVE 로 못 폄 ({msg}) — 팔 카메라 끄고 라이다만으로 진행", flush=True)
+        return
+    if STEP_MODE and not ask_run(f"  ▶ 팔을 {ARM_POSE} 로 폄 (DRIVE → {ARM_POSE}, 이후 주행 내내 유지 · 끝나면 DRIVE 로 접음) — Enter 실행 · s 건너뛰기 (팔 카메라 끔) : "):
+        ARM["mode"], ARM["why"] = "off", "사람이 건너뜀"
+        print("  · 팔 카메라 상자 재기 꺼짐 (사람이 건너뜀) — 팔은 DRIVE 그대로", flush=True)
+        return
+    ap_zero(node)
+    print(f"  · 팔 {ARM_POSE} 로 폄 (바퀴 0 명령) …", flush=True)
+    ok, msg = node.arm.raise_hold()
+    ap_zero(node)
+    if ok:
+        node.arm_held = True
+        print(f"  · 팔 {msg} — 이후 구간 이동 중에도 유지 (상자 측정 자리에서 팔을 안 움직이고 카메라만 켬)", flush=True)
+        return
+    ARM["mode"], ARM["why"] = "off", f"팔 {ARM_POSE} 로 못 폄: {msg}"
+    print(f"  ⚠ 팔을 {ARM_POSE} 로 못 폄 ({msg}) — 팔 카메라 끄고 라이다만으로 진행. DRIVE 로 되돌림 시도", flush=True)
+    if not node.arm.fold():
+        safe_stop(node, "팔이 DRIVE 로 안 돌아옴 (BOX_VIEW 로 펴다 실패) — 팔 상태를 확인")
+
+
+def arm_hold_end(node):
+    """끝 (정상 · 복귀 뒤 · Ctrl+C · 실패) — 바퀴 정지 상태에서 BOX_VIEW → DRIVE 로 접음. 안전 정지 (safe_msg) 때는 팔도 그 자리 유지"""
+    az = getattr(node, "arm_zone", None)
+    if az is not None:   # 11-23: 주행 중 팔 이동 멈춤 (지금 하던 이동은 끝까지 기다림) → 팔 상태를 arm.up 에 넘김
+        az.close()
+        if node.arm is not None:
+            node.arm.up = az.at != "DRIVE"
+    arm = getattr(node, "arm", None)
+    if arm is None or not arm.up:
+        return
+    if getattr(node, "safe_msg", None):
+        print(f"\n  ⚠ 안전 정지라 팔을 안 접음 — 팔이 {ARM_POSE} 로 펴진 채 (차체 앞으로 약 18 cm 나옴). 리모컨으로 옮기기 전에 팔 상태 확인, 접으려면 arm_demo.py DRIVE", flush=True)
+        return
+    try:
+        for _ in range(5):
+            ap_cmd(node, 0.0, 0.0)
+            time.sleep(0.05)
+        print(f"  · 팔 {ARM_POSE} → DRIVE 로 접는 중 (바퀴 정지) …", flush=True)
+        if arm.fold():
+            print("  · 팔 DRIVE 확인", flush=True)
+        else:
+            print("  ⚠⚠ 팔을 DRIVE 로 못 접음 — 팔이 펴진 채. 직접 확인하고 arm_demo.py DRIVE", flush=True)
+    except Exception as e:  # noqa: BLE001
+        print(f"  ⚠⚠ 팔 접기 중 오류 ({e}) — 팔 상태 직접 확인", flush=True)
 
 
 def ask_run(prompt):
@@ -1321,6 +1634,18 @@ def ap_turn(node, target, F=None, scan=True, min_gap=None):
         time.sleep(AP_DT)
 
 
+def ap_stuck_why(node, sg, now):
+    """11-23 곧게 가다 안 나아갈 때 원인 구분: collision_monitor STOP 이 계속이면 그것 (FootprintApproach → VelocityStop), 아니면 방향별 추정"""
+    cm = node.cm_since
+    if cm is not None and now - cm >= AP_CM_STOP_T:
+        return f"collision_monitor 정지 {now - cm:.1f} s 째 (cmd 는 나가는데 막힘 — 앞 모서리 · 상자 점이 정지 띠에 들어감)"
+    tw = getattr(node, "odom_tw", None)
+    mv = f" · 측정 속도 {tw[0] * 100:+.1f} cm/s" if tw else ""
+    if sg < 0:
+        return f"v2_filter 이어진 후진 한도 {REV_MAX:.2f} m 이거나 모터 · 바닥 (collision_monitor 정지 아님{mv})"
+    return f"collision_monitor 정지 아님 · v2_filter 전진 한도 · 모터 · 바닥 확인{mv}"
+
+
 def ap_drive(node, dist, heading, vmax, scan=True):
     """heading (odom) 방향을 유지하며 곧게 dist m (음수 = 후진), 오도메트리 거리로 멈춤. 남은 거리 [m] (음수 = 지나침).
     scan=False (마지막 직진, 상자가 라이다 최소 거리 안) 면 라이다 끊김은 안 보고 누적 이동이 dist + AP_OVER 를 넘으면 그만둠"""
@@ -1347,8 +1672,8 @@ def ap_drive(node, dist, heading, vmax, scan=True):
         now = time.time()
         if s > best + 0.002:
             best, t_best = s, now
-        elif now - t_best > AP_STUCK_T:
-            raise ApFail(f"{'전진' if sg > 0 else '후진'}이 안 됨 ({s * 100:.1f} / {L * 100:.1f} cm, v2_filter 후진 한도?)")
+        elif now - t_best > AP_STUCK_T or (node.cm_since is not None and now - node.cm_since >= AP_CM_STOP_T and now - t_best > AP_CM_STOP_T):
+            raise ApFail(f"{'전진' if sg > 0 else '후진'}이 안 됨 ({s * 100:.1f} / {L * 100:.1f} cm, {ap_stuck_why(node, sg, now)})")
         if now - t0 > limit:
             raise ApFail(f"{'전진' if sg > 0 else '후진'} {limit:.0f} s 넘음 ({s * 100:.1f} / {L * 100:.1f} cm)")
         time.sleep(AP_DT)
@@ -1448,12 +1773,13 @@ def ap_measure(node, n, expect_fn, timeout=AP_SCAN_T):
 
 
 def ap_check(face, F, o):
-    """1 차 측정을 믿을지: 문제면 이유, 괜찮으면 "" """
+    """1 차 측정을 믿을지: 문제면 이유, 괜찮으면 "" (back 방식은 8 cm 미만도 받음 — 곧게 후진해 틈 확보)"""
     if not face.ok:
         return face.why or "상자 앞면 못 찾음"
     gap, lat, yaw = ap_rel(F, o)
-    if not AP_GAP_RANGE[0] <= gap <= AP_GAP_RANGE[1]:
-        return f"간격 {gap * 100:.1f} cm 가 {AP_GAP_RANGE[0] * 100:.0f} ~ {AP_GAP_RANGE[1] * 100:.0f} cm 밖"
+    lo = min(AP_GAP_RANGE[0], 0.05) if AP_S_MODE == "back" else AP_GAP_RANGE[0]
+    if not lo <= gap <= AP_GAP_RANGE[1]:
+        return f"간격 {gap * 100:.1f} cm 가 {lo * 100:.0f} ~ {AP_GAP_RANGE[1] * 100:.0f} cm 밖"
     if abs(lat) > AP_LAT_MAX:
         return f"중앙선 어긋남 {lat * 100:+.1f} cm > {AP_LAT_MAX * 100:.0f} cm (다른 물체?)"
     if abs(yaw) > AP_YAW_MAX:
@@ -1482,7 +1808,294 @@ def last_rev(pieces):
     return rev
 
 
-def box_approach(node, g, back=False, pre=None, rev0=0.0):
+def arm_pre_look(node, g, lidar=None):
+    """11-22 밤: 서 있는 채로 팔을 측정 자세 (ARM_POSE) 로 펴 팔 카메라로 상자 윗면을 재고 DRIVE 로 접음.
+    ALIGN = 1 차 정지 (틈 ≈ AP_PRE_GAP) 에서 · BOX_VIEW = 라이다 측정 자리 (틈 ≈ AP_MEASURE_GAP) 에서 라이다 측정 뒤 (lidar = 그 FaceResult, 있으면 사전값 · 예상 틈에 씀).
+    node.arm_pre = {"rec": 기록, "F": 상자 앞면 (odom 프레임, ap_face_frame 과 같은 꼴) 또는 None}. 안 재거나 실패해도 예외 없음 (라이다만으로 계속).
+    예상 틈이 자세별 허용 범위 밖이면 팔을 안 폄. 팔을 DRIVE 로 못 접으면 safe_stop (바퀴를 움직이지 않음)"""
+    at = al.pose_at(ARM_POSE)
+    rec = {"mode": ARM["mode"], "pose": ARM_POSE, "at": at}
+    if at == "pre":
+        rec["pre_gap_cm"] = round(AP_PRE_GAP * 100, 1)
+    node.arm_pre = {"rec": rec, "F": None}
+    p = node.pose()
+    expect = ap_expect_goal(g, p)   # 계획으로 본 앞면 (MAX_SHIFT 거름용)
+    pexp = expect
+    if lidar is not None and lidar.ok:
+        pexp = (lidar.cx, lidar.cy)   # 라이다 앞면 중앙 (base_link) — 사전값은 이쪽이 더 정확
+    exp_gap = al.expected_gap(pexp)
+    skip = ""
+    if exp_gap is None:
+        skip = "예상 틈을 모름 (map 자세 없음)"
+    elif al.gap_skip_reason(ARM_POSE, exp_gap):
+        skip = al.gap_skip_reason(ARM_POSE, exp_gap)
+    elif STOP.is_set():
+        skip = "Ctrl+C"
+    elif node.odom is None or time.time() - node.odom[3] > ODOM_STALE:
+        skip = "오도메트리 못 받음"
+    elif getattr(node, "arm_zone", None) is not None:   # 11-23: 상자 구간에서 주행 중 BOX_VIEW 로 갔는지 (아직 가는 중이면 서서 기다림)
+        ok, why = node.arm_zone.wait_at(ARM_POSE, ARM_ZONE_WAIT, idle=lambda: ap_cmd(node, 0.0, 0.0))
+        if not ok:
+            skip = f"팔이 {ARM_POSE} 가 아님 ({why})"
+    if not skip and STEP_MODE and not ask_run(f"  ▶ 팔 카메라로 상자 재기 ({'팔은 이미 ' + ARM_POSE + ' 유지 중' if al.pose_hold(ARM_POSE) else '팔 ' + ARM_POSE + ' 로 폈다 DRIVE 로 접음'}) — Enter 실행 · s 건너뛰기 : "):
+        skip = "사람이 건너뜀"
+    if skip:
+        rec.update(ok=False, why=skip, skipped=True)
+        print(f"    · 팔 카메라 상자 재기 안 함: {skip}", flush=True)
+        return
+    rel = wrap(g["goal"][2] - p[2]) if g["goal"][2] is not None else 0.0
+    if lidar is not None and lidar.ok:
+        rel = lidar.nyaw
+    prior = al.prior_from_expect(pexp, rel)   # 윗면 중심 (base_link). 틈 0.145 이면 x ≈ 0.38 (BOX_VIEW) · 0.30 이면 ≈ 0.535 (ALIGN, perception 기본 prior 0.3625 ± 0.08 밖이라 꼭 냄)
+    print(f"    · 팔 카메라 상자 재기 ({ARM['mode']}): 바퀴 정지 · " + (f"팔 {ARM_POSE} 유지 중 → 재기만" if al.pose_hold(ARM_POSE) else f"팔 {ARM_POSE} → 재기 → DRIVE") + f" (예상 틈 {exp_gap * 100:.0f} cm · 사전값 윗면 중심 x {prior[0]:.3f})", flush=True)
+    ap_zero(node)
+    try:
+        r, face = node.arm.look(prior=prior, odom_fn=lambda: node.odom if (node.odom and time.time() - node.odom[3] < 2 * ODOM_STALE) else None,
+                                expect=expect, bf=bf, move=not al.pose_hold(ARM_POSE))
+    except al.ArmStuck as e:
+        rec.update(ok=False, why=str(e), stuck=True)
+        safe_stop(node, f"팔 카메라 상자 재기 뒤 {e} — 팔이 펴져 있을 수 있어 바퀴를 움직이지 않음 (팔 상태 확인)")
+        return
+    rec.update(r)
+    if face is None:
+        print(f"    ⚠ 팔 카메라 측정 못 함 ({r['why']}) · {r.get('total_s', 0):.0f} s — " + ("팔은 그대로 유지 · " if al.pose_hold(ARM_POSE) else "팔 DRIVE 로 접음 · ") + "라이다만으로 계속", flush=True)
+        return
+    o = node.odom
+    node.arm_pre["F"] = ap_face_frame(face, o)   # odom 에 고정 — 15 cm 앞 (측정 자리) 에서 오도메트리로 옮겨 라이다와 비교
+    rec["rel"] = ap_rec(face.gap, face.lateral, face.nyaw)
+    print(f"    · 팔 카메라 측정 (윗면 → 앞면, {r.get('total_s', 0):.0f} s{'' if al.pose_hold(ARM_POSE) else ' · 팔 DRIVE 확인'}): 앞 끝 ↔ 상자 {face.gap * 100:.1f} cm · 옆 {face.lateral * 100:+.1f} cm · "
+          f"방향 {math.degrees(face.nyaw):+.1f}° · 흩어짐 {r['status'].get('spread_m', 0) * 1000:.1f} mm · {r['status'].get('spread_deg', 0):.2f}°", flush=True)
+
+
+def ap_retry_far(node, g, ap, rev0, why0):
+    """11-23 첫 측정이 믿을 수 없게 끝남 (점 부족 · 길이 불일치 · 스캔 부족) — 곧게 후진해 틈 AP_RETRY_GAP 에서 한 번 더 잼. 후진은 chain (ap["back_m"]) 에 합산"""
+    p = node.pose()
+    ex = ap_expect_goal(g, p) if p else None
+    gap_now = (ex[0] - AP_FRONT) if ex else STOP_GAP
+    b = max(AP_RETRY_GAP - gap_now, 0.02)
+    budget = REV_MAX - 0.02 - rev0 - (ap.get("back_m") or 0.0)
+    if b > budget:
+        raise ApFail(f"측정 못 믿음 ({why0}) · 다시 재려고 후진 {b:.2f} m > 이어진 후진 남은 {max(budget, 0):.2f} m")
+    print(f"    · 정지점 측정 못 믿음 ({why0}) — 곧게 후진 {b * 100:.1f} cm → 틈 약 {AP_RETRY_GAP * 100:.0f} cm 에서 다시 잼", flush=True)
+    o = ap_guard(node, scan=False)
+    ap_drive(node, -b, o[2], AP_V_MAX)
+    ap["back_m"] = round((ap.get("back_m") or 0.0) + b, 3)
+    ap["rev_chain_m"] = round(rev0 + ap["back_m"], 3)
+    ap["retry_far"] = True
+    node.ap_deadline = time.time() + AP_TOTAL_T
+    sleep_s(node, 0.3)
+    return ap_measure(node, AP_N_SCANS, lambda: ap_expect_goal(g, node.pose()))
+
+
+def ap_zone_update(node, face):
+    """11-23 box_zone 중심 (box_scan_guard 가 상자 점을 지우는 마스크) 을 라이다로 잰 값으로: 잰 앞면 중앙 + 법선 반 변 → map 중심.
+    BOXES (발제 좌표) 와 0.15 m 넘게 다르면 쓰지 않음 (잘못 잰 것 방지). box_scan_guard.py 는 그대로 (cx, cy 만 바뀜)"""
+    p = node.pose()
+    q = node.quiet_box
+    if p is None or q is None or face is None or not face.ok:
+        return
+    rms = getattr(face, "rms", 0.0)
+    if getattr(face, "n_pts", 0) < ZONE_MIN_PTS or rms > ZONE_MAX_RMS or abs(face.length - AP_BOX_SIDE) > ZONE_LEN_TOL:   # 라이다 측정만 (팔 카메라 값은 n_pts 0)
+        print(f"    · box_zone 중심 안 바꿈: 측정 품질 부족 (점 {getattr(face, 'n_pts', 0)} · RMS {rms * 1000:.1f} mm · 길이 {face.length * 100:.1f} cm)", flush=True)
+        return
+    h = AP_BOX_SIDE / 2.0
+    bx, by = face.cx + h * math.cos(face.nyaw), face.cy + h * math.sin(face.nyaw)
+    mx, my = p[0] + math.cos(p[2]) * bx - math.sin(p[2]) * by, p[1] + math.sin(p[2]) * bx + math.cos(p[2]) * by
+    c0 = box_center(q[0])
+    if c0 is None or math.hypot(mx - c0[0], my - c0[1]) > ZONE_MAX_DEV:
+        print(f"    · box_zone 중심 안 바꿈: 잰 중심 ({mx:.3f}, {my:.3f}) 가 발제 좌표 {c0} 와 {ZONE_MAX_DEV:.2f} m 넘게 다름", flush=True)
+        return
+    with node.qlock:
+        if node.quiet_box is not None and node.quiet_box[0] == q[0]:
+            node.quiet_box = (q[0], (mx, my))
+    print(f"    · box_zone 중심 {q[0]}: 발제 ({c0[0]:.3f}, {c0[1]:.3f}) → 잰 ({mx:.3f}, {my:.3f}) (차 {math.hypot(mx - c0[0], my - c0[1]) * 100:.1f} cm)", flush=True)
+
+
+def ap_spin_after(st, steps):
+    """v2_filter 제자리 예산 모의: st = (yaw, lo, hi, sum, moved). steps 를 돌린 뒤 상태, 예산 (범위 · 합) 넘으면 None"""
+    y, lo, hi, sm, mv = st
+    for k, v in steps:
+        if k == "turn":
+            y += v
+            mv = 0.0   # v2_filter: 제자리 회전 틱마다 moved 를 0 으로 (v2_filter.py:175)
+            lo, hi, sm = min(lo, y), max(hi, y), sm + abs(v)
+            if hi - lo > AP_SPIN_RANGE or sm > AP_SPIN_SUM:
+                return None
+        else:
+            mv += abs(v)
+            if mv >= AP_RESET_M:
+                lo = hi = y
+                sm, mv = 0.0, 0.0
+    return y, lo, hi, sm, mv
+
+
+def ap_remeasure(node, F):
+    """멈춘 채 다시 잼: (F 갱신, 출처 'lidar' | 'odom', 그때 FaceResult, 장수). 라이다가 틈 AP_GAP_MIN − 1 cm 이상으로 보이고 F 와 5 cm 안이면 라이다 값"""
+    sleep_s(node, 0.3)
+    face2, n2 = None, 0
+    try:
+        face2, n2, _ = ap_measure(node, AP_N2_SCANS, lambda: ap_expect_odom(F, node.odom))
+    except ApFail as e:
+        if STOP.is_set() or str(e) == "Ctrl+C":
+            raise
+    o = ap_guard(node)
+    if face2 is not None and face2.ok and face2.gap is not None and face2.gap >= AP_GAP_MIN - 0.01:
+        F2 = ap_face_frame(face2, o)
+        if math.hypot(F2[0] - F[0], F2[1] - F[1]) <= 0.05:
+            return F2, "lidar", face2, n2
+    return F, "odom", face2, n2
+
+
+def ap_approach_back(node, g, ap, face, F, chain, n, spin0=0.0):
+    """11-23 (사용자 결정: 가까이 붙어 멈춘 뒤 후진 · 전진으로 중앙 맞춤) 정지점에서 잰 뒤:
+    ① 틈 < AP_GAP_MIN 이면 곧게 후진해 AP_BACK_GAP 로 + 다시 잼
+    ② 옆 오차 > AP_MID_TOL 이면 후진 S 자 (bf.plan_s_curve_back: 회전 −sgn(e)·α → 곧게 후진 |e|/sinα → 회전 +α) → 다시 잼 (최대 AP_MID_MAX 번)
+    ③ 방향 맞추기 (회전 여유 모자라면 곧게 후진) → 정면 법선 방향으로 곧게 (틈 − 목표) 전진만 (비스듬한 전진 없음)
+    chain = 지금까지 이어진 후진 [m] (v2_filter REV_MAX 한도 안으로: 후진마다 REV_MAX − 0.02 − chain 를 넘기지 않음, 0.15 m 전진해야 다시 셈)"""
+    ap["s_mode"] = "back"
+    o = ap_guard(node)
+    spin = (0.0, -spin0 / 2.0, spin0 / 2.0, spin0, 0.0)   # spin0 = 도착 직전 제자리 회전 [rad, 절대값] — 범위 · 합에 미리 넣음 (앞이 전진이면 0)
+    mids, fixes, lat0, k, kc = [], [], None, 0, 0
+    src = "lidar"
+    # ① + ②
+    while True:
+        gap, lat, yaw = ap_rel(F, o)
+        lat0 = lat if lat0 is None else lat0
+        mids.append(ap_rec(gap, lat, yaw, src=src, **({"n_pts": face.n_pts, "rms_mm": round(getattr(face, "rms", 0.0) * 1000, 1)} if (src == "lidar" and face is not None and face.ok) else {})))
+        budget = REV_MAX - 0.02 - chain
+        if gap < AP_GAP_MIN - 1e-3 and kc < AP_CLOSE_TRY:
+            b = AP_BACK_GAP - gap
+            if b > budget:
+                raise ApFail(f"이어진 후진 한도: 틈 확보 후진 {b:.2f} m > 남은 {max(budget, 0):.2f} m (앞 {chain:.2f} / {REV_MAX:.2f})")
+            print(f"    · 틈 {gap * 100:.1f} cm < {AP_GAP_MIN * 100:.0f} cm — 곧게 후진 {b * 100:.1f} cm → 약 {AP_BACK_GAP * 100:.0f} cm 에서 다시 잼", flush=True)
+            if STEP_MODE and not ask_run(f"  ▶ 틈 확보 곧게 {b * 100:.1f} cm 후진 — Enter 실행 · s 건너뛰기 : "):
+                raise ApFail("사람이 건너뜀", "skip")
+            ap_drive(node, -b, o[2], AP_V_MAX)
+            chain += b
+            spin = ap_spin_after(spin, [("drive", -b)])
+            kc += 1
+        elif abs(lat) > AP_MID_TOL and k < AP_MID_MAX:
+            sp = bf.plan_s_curve_back(lat, gap, yaw, rev_budget=budget, clamp=True)   # |e| > e_max 면 e_max 만큼만 (부분 보정, 다시 잰 뒤 이어 감)
+            fx = {"k": k + 1, "lat_cm": round(lat * 100, 1), "ok": sp.ok, "why": sp.why, "partial_cm": round(sp.partial * 100, 1)}
+            fixes.append(fx)
+            if not sp.ok:
+                print(f"    ⚠ 후진 S 자 계획 안 됨 ({sp.why}) — 그대로", flush=True)
+                break
+            st2 = ap_spin_after(spin, sp.steps)
+            if st2 is None:
+                fx["why"] = "제자리 예산 (범위 90° · 합 180°) 넘음"
+                print(f"    ⚠ 후진 S 자 {ap_plan_txt(sp.steps)}: 제자리 회전 예산 (범위 {math.degrees(AP_SPIN_RANGE):.0f}° · 합 {math.degrees(AP_SPIN_SUM):.0f}°) 넘음 — 보정 그만", flush=True)
+                break
+            fx.update(alpha_deg=round(math.degrees(sp.alpha), 1), back_m=round(sp.back, 3), plan=[[a, round(v, 4)] for a, v in sp.steps])
+            if STEP_MODE and not ask_run(f"  ▶ 후진 S 자 {k + 1}/{AP_MID_MAX}: 옆 {lat * 100:+.1f} cm → {ap_plan_txt(sp.steps)} — Enter 실행 · s 건너뛰기 : "):
+                fx["why"] = "사람이 건너뜀"
+                break
+            print(f"    · 후진 S 자 {k + 1}/{AP_MID_MAX}: 옆 {lat * 100:+.1f} cm → {ap_plan_txt(sp.steps)} ({sp.why}) · 이어진 후진 {chain + sp.back:.2f} m (한도 {REV_MAX:.2f})", flush=True)
+            tgt = o[2]
+            for kk, v in sp.steps:
+                if kk == "turn":
+                    tgt = wrap(tgt + v)
+                    ap_turn(node, tgt, F, min_gap=0.0)
+                else:
+                    ap_drive(node, v, tgt, AP_V_MAX)
+            chain += sp.back
+            spin = st2
+            k += 1
+        else:
+            break
+        F, src, face, n = ap_remeasure(node, F)
+        o = ap_guard(node)
+        gap, lat, yaw = ap_rel(F, o)
+        print(f"    · 다시 잼{f' ({k} 번 보정 뒤)' if k else ''} ({'라이다 · ' + ap_q(face, n) if src == 'lidar' else '오도메트리 예측'}): {ap_txt(gap, lat, yaw)}", flush=True)
+        if src == "lidar":
+            ap_zone_update(node, face)
+        if src != "lidar" and (k > 0 or kc > 0):   # 후진 뒤 라이다로 못 재면 더 고칠 근거 없음 (오도메트리 예측만)
+            mids.append(ap_rec(gap, lat, yaw, src=src))
+            break
+    ap["_Fm"] = F
+    lat_end = ap_rel(F, ap_guard(node, scan=False))[1]
+    ap["mid"] = mids[-1]
+    if len(mids) > 1 or fixes:
+        ap["mids"], ap["mid_fix"] = mids, fixes
+    ap["lat_before_cm"], ap["lat_mid_cm"], ap["mid_iter"] = round(lat0 * 100, 1), round(lat_end * 100, 1), sum(1 for f in fixes if f.get("plan"))
+    if fixes:
+        print(f"    · 후진 S 자 {ap['mid_iter']} 번: 옆 {lat0 * 100:+.1f} → {lat_end * 100:+.1f} cm ({'✓' if abs(lat_end) <= AP_MID_TOL else '⚠ 허용 ' + f'{AP_MID_TOL * 1000:.0f} mm 넘음'})", flush=True)
+    if abs(lat_end) > AP_LAT_LEFT:
+        raise ApFail(f"{'후진 S 자' if fixes else '측정'} 뒤 중앙선 어긋남 {lat_end * 100:+.1f} cm > {AP_LAT_LEFT * 100:.0f} cm")
+    # ③ 방향 맞추기 — 회전 여유 모자라면 곧게 후진
+    o = ap_guard(node, scan=False)
+    gap, lat, yaw = ap_rel(F, o)
+    if abs(yaw) >= AP_YAW_TOL:
+        fc = ap_face_now(F, o)
+        need = next((j * 0.005 for j in range(0, 31) if bf.turn_clearance(fc, yaw, (-j * 0.005, 0.0, 0.0)) >= 0.02), None)
+        if need is None or (need > 0 and need > REV_MAX - 0.02 - chain):
+            raise ApFail(f"방향 {math.degrees(yaw):+.1f}° 맞추기 회전 여유 부족 (후진 {('%.0f cm' % (need * 100)) if need is not None else '15 cm 넘게'} 필요)")
+        if need > 0:
+            print(f"    · 방향 맞추기 {math.degrees(yaw):+.1f}° 회전 여유 위해 곧게 후진 {need * 100:.1f} cm", flush=True)
+            ap_drive(node, -need, o[2], AP_V_MAX, scan=False)
+            chain += need
+    if ap_spin_after(spin, [("turn", yaw)]) is None:
+        print(f"    ⚠ 방향 맞추기 {math.degrees(yaw):+.1f}° 가 제자리 예산을 넘을 수 있음 (v2_filter 가 자르면 다가가기 그만)", flush=True)
+    ap_turn(node, F[2], F, min_gap=0.0)
+    gap, lat, yaw = ap_rel(F, ap_guard(node, scan=False))
+    d = gap - AP["gap"]
+    if not AP_DRIVE_MIN <= d <= AP_DRIVE_MAX:
+        raise ApFail(f"마지막 전진 {d * 100:.1f} cm 가 {AP_DRIVE_MIN * 100:.0f} ~ {AP_DRIVE_MAX * 100:.0f} cm 밖")
+    print(f"    · 법선 방향으로 곧게 {'전진' if d >= 0 else '후진'} {abs(d) * 100:.1f} cm (오도메트리, 정면 곧게만)", flush=True)
+    try:
+        ap_drive(node, d, F[2], AP_V_FINAL, scan=False)
+    except ApFail as e:
+        ap_zero(node)
+        left = ap_rel(F, node.odom)[0] - AP["gap"]
+        if d > 0 and left <= AP_FIN_TOL and "안 됨" in str(e):   # 목표 5 cm 에 거의 다 감: 막혀 멈췄어도 성공으로 침
+            ap["fin_stuck"] = {"left_cm": round(left * 100, 1), "why": str(e)}
+            print(f"    ⚠ 마지막 전진이 목표 {AP['gap'] * 100:.0f} cm 앞 {left * 100:.1f} cm (≤ {AP_FIN_TOL * 100:.1f}) 에서 멈춤 — done 으로 침 ({e})", flush=True)
+        else:
+            raise
+    sleep_s(node, 0.3)
+    gap, lat, yaw = ap_rel(F, ap_guard(node, scan=False))
+    p = node.pose()
+    gx, gy, gth = g["goal"]
+    ap["after"] = ap_rec(gap, lat, yaw, src="odom", map_err_cm=round(math.hypot(gx - p[0], gy - p[1]) * 100, 1) if p else None)
+    ap["rev_chain_m"] = round(chain, 3)
+    ap["_rev_prev"] = 0.0 if d >= AP_RESET_M else round(chain, 3)   # 0.15 m 이상 전진하면 이어진 후진이 다시 셈
+    ap["status"] = "done"
+    ap["_F"] = F
+    print(f"    · 상자 다가가기 끝: {ap_txt(gap, lat, yaw)} (오도메트리 예측) · 이어진 후진 합 {chain:.2f} m", flush=True)
+
+
+def cm_approach(node, on: bool) -> bool:
+    """11-23 안 B: /collision_monitor FootprintApproach.enabled 를 실행 중에 바꿈 (노트북 lyrical 시험: 바로 반영). 성공 여부.
+    collision_monitor 가 없으면 (SAFETY=0) 처음 한 번만 알리고 넘어감"""
+    cli = getattr(node, "cm_param_cli", None)
+    if cli is None:
+        cli = node.cm_param_cli = node.create_client(SetParameters, "/collision_monitor/set_parameters")
+    if not cli.wait_for_service(timeout_sec=0.5):
+        if not getattr(node, "cm_param_warned", False):
+            node.cm_param_warned = True
+            print("    ⚠ /collision_monitor/set_parameters 없음 — FootprintApproach 끄기 · 켜기 건너뜀 (SAFETY=0 ?)", flush=True)
+        return False
+    fut = cli.call_async(SetParameters.Request(parameters=[Parameter("FootprintApproach.enabled", value=on).to_parameter_msg()]))
+    end = time.time() + 2.0
+    while not fut.done() and time.time() < end:
+        time.sleep(0.02)
+    ok = fut.done() and fut.result() is not None and all(r.successful for r in fut.result().results)
+    print(f"    · collision_monitor FootprintApproach {'켬' if on else '끔'}" + ("" if ok else " ⚠ 실패 (응답 없음 · 거절)"), flush=True)
+    return ok
+
+
+def box_approach(node, g, **kw):
+    """11-23 안 B: _box_approach 동안 FootprintApproach 를 끄고 (AP_CM_APPROACH_OFF) 어떻게 끝나든 (예외 · Ctrl+C 포함) 다시 켬"""
+    if AP_CM_APPROACH_OFF:
+        cm_approach(node, False)
+    try:
+        return _box_approach(node, g, **kw)
+    finally:
+        if AP_CM_APPROACH_OFF:   # 끄기 응답이 늦게 와 실제로는 꺼졌을 수도 있으니 성공 여부와 상관없이 다시 켬
+            cm_approach(node, True)
+
+
+def _box_approach(node, g, back=False, pre=None, rev0=0.0, spin0=0.0):
     """상자 앞면을 재고 상판 앞 끝 ↔ 상자 AP["gap"] 자리 (중앙선 위 · 법선 방향) 로 다가감. 기록 dict (status done · fallback · skip).
     back = 도착한 자리에서 정지점 AP_MEASURE_D 앞이 되게 곧게 후진한 뒤 잼 (최대 AP_BACK_MAX). pre = 다가가기 전 판정 (cm, deg)
     rev0 = (back) 도착 직전 조각들의 이어진 후진 [m] — 후진 b 를 REV_MAX − rev0 − 0.02 안으로 줄임"""
@@ -1495,6 +2108,12 @@ def box_approach(node, g, back=False, pre=None, rev0=0.0):
             gx, gy, _ = g["goal"]
             ahead = (gx - p[0]) * math.cos(p[2]) + (gy - p[1]) * math.sin(p[2]) if p else 0.0
             b = min(max(AP_MEASURE_D - ahead, 0.0), AP_BACK_MAX)
+            if AP_S_MODE == "back":   # 11-23: 정지점 틈이 8 cm 미만으로 예상되면 곧게 후진해 약 10 cm 로 (라이다 · 회전 여유)
+                ex = ap_expect_goal(g, p)
+                gap_now = ex[0] - AP_FRONT - b if ex else None
+                if gap_now is not None and gap_now < AP_GAP_MIN:
+                    b = min(b + AP_BACK_GAP - gap_now, AP_BACK_MAX)
+                    print(f"    · 예상 틈 {gap_now * 100:.1f} cm < {AP_GAP_MIN * 100:.0f} cm — 곧게 후진해 {AP_BACK_GAP * 100:.0f} cm 로", flush=True)
             budget = REV_MAX - rev0 - 0.02   # 11-21 (2): v2_filter 이어진 후진 한도 (시뮬 0.40) 에 걸려 멈추지 않게
             if b > budget:
                 if budget < AP_BACK_MIN:
@@ -1511,9 +2130,46 @@ def box_approach(node, g, back=False, pre=None, rev0=0.0):
                 ap["back_m"] = round(b, 3)
         node.ap_deadline = time.time() + AP_TOTAL_T   # 측정부터 끝까지 (후진은 ap_drive 단계 상한)
         sleep_s(node, 0.3)
-        face, n, why = ap_measure(node, AP_N_SCANS, lambda: ap_expect_goal(g, node.pose()))
-        o = ap_guard(node)
-        if face.ok:
+        pre, node.arm_pre = getattr(node, "arm_pre", None), None   # (ALIGN) 1 차 정지 (틈 0.30) 에서 잰 팔 카메라 결과 (없으면 None)
+        measure_at = ARM["ok"] and ARM["mode"] != "off" and getattr(node, "arm", None) is not None and al.pose_at(ARM_POSE) == "measure"
+        solo = ARM["mode"] == "on" and ARM["solo"] and (pre is not None and pre.get("F") is not None or measure_at)
+        try:
+            try:
+                face, n, why = ap_measure(node, AP_N_SCANS, lambda: ap_expect_goal(g, node.pose()))
+            except ApFail as e0:
+                if AP_S_MODE != "back" or AP_RETRY_GAP <= 0 or STOP.is_set() or str(e0) == "Ctrl+C":
+                    raise
+                face, n, why = None, 0, str(e0)
+            if AP_S_MODE == "back" and AP_RETRY_GAP > 0 and not STOP.is_set() and (face is None or not face.ok):
+                face, n, why = ap_retry_far(node, g, ap, rev0, why)
+            o = ap_guard(node)
+            if measure_at:   # 11-22 밤 BOX_VIEW: 라이다 측정 직후 같은 자리에서 팔 BOX_VIEW → 재기 → DRIVE (실패해도 라이다만으로 계속 · DRIVE 못 접으면 safe_stop)
+                arm_pre_look(node, g, lidar=face if (face is not None and face.ok) else None)
+                pre, node.arm_pre = node.arm_pre, None
+                if STOP.is_set():
+                    raise ApFail("Ctrl+C" if not getattr(node, "safe_msg", None) else "안전 정지 (팔)")
+                sleep_s(node, 0.3)
+                o = ap_guard(node)
+                node.ap_deadline = time.time() + AP_TOTAL_T   # 팔 동작 시간은 다가가기 시간 상한에서 뺌
+        except ApFail as e:
+            if not solo or STOP.is_set() or str(e) == "Ctrl+C":
+                raise
+            face, n, why = None, 0, f"앞 라이다 측정 못 함: {e}"   # solo 면 라이다가 죽어도 팔 카메라 값으로 시도
+            o = ap_guard(node, scan=False)
+            if measure_at:   # BOX_VIEW + solo: 라이다가 못 잰 이 자리에서 팔로 잼
+                arm_pre_look(node, g, lidar=None)
+                pre, node.arm_pre = node.arm_pre, None
+                if STOP.is_set():
+                    raise ApFail("안전 정지 (팔)")
+                o = ap_guard(node, scan=False)
+        lid_ok = face is not None and face.ok
+        arm_face = None
+        if pre is not None:
+            ap["arm"] = pre["rec"]
+            if pre.get("F") is not None:   # 오도메트리로 지금 자리 (측정 자리) 에서 본 팔 카메라 앞면
+                arm_face = bf._fill(ap_face_now(pre["F"], o))
+                ap["arm"]["moved_rel"] = ap_rec(arm_face.gap, arm_face.lateral, arm_face.nyaw)
+        if lid_ok:
             F = ap_face_frame(face, o)
             ap["_Fm"] = F   # 11-21 (3) fallback 이어도 잰 상자면 (odom) 을 떼기 (leave_any) 가 씀 — 기록 전에 뺌
             gap, lat, yaw = ap_rel(F, o)
@@ -1521,8 +2177,35 @@ def box_approach(node, g, back=False, pre=None, rev0=0.0):
                                   rms_mm=round(getattr(face, "rms", 0.0) * 1000, 1), loose=AP["loose"])
             print(f"    · 상자 측정 ({ap_q(face, n)}): {ap_txt(gap, lat, yaw)} · 앞면 길이 {face.length * 100:.1f} cm", flush=True)
             why = ap_check(face, F, o)
+        if arm_face is not None:   # 11-22 밤: 팔 카메라 값 — 라이다와 비교 (on 에서 안 맞으면 포기) · solo 면 라이다가 못 잰 곳 대체
+            if lid_ok:
+                cc = al.cross_check(face, arm_face)
+                ap["arm"]["cross"] = cc
+                print(f"    · 라이다 ↔ 팔 카메라 (오도메트리로 옮김): 틈 {cc['dgap_cm']:+.1f} cm · 옆 {cc['dlat_cm']:+.1f} cm · 방향 {cc['dyaw_deg']:+.1f}° → "
+                      + ("일치" if cc["agree"] else f"⚠ 불일치 ({cc['why']})") + (" · dry 라 기록만" if ARM["mode"] == "dry" else ""), flush=True)
+                if ARM["mode"] == "on" and not cc["agree"] and not why:
+                    raise ApFail(f"라이다 ↔ 팔 카메라 불일치: {cc['why']}")
+            elif solo:
+                aw = ap_check(arm_face, ap_face_frame(arm_face, o), o)
+                if aw:
+                    ap["arm"]["solo_why"] = aw
+                    print(f"    ⚠ 라이다 실패 · 팔 카메라 값도 못 믿음: {aw}", flush=True)
+                else:
+                    lwhy = why or "실패"
+                    face, F, why, ap["src"] = arm_face, ap_face_frame(arm_face, o), "", "arm"
+                    ap["_Fm"] = F
+                    gap, lat, yaw = ap_rel(F, o)
+                    ap["before"] = ap_rec(gap, lat, yaw, len_cm=round(AP_BOX_SIDE * 100, 1), n_pts=0, n_scans=0, rms_mm=0.0, loose=AP["loose"], src="arm")
+                    print(f"    · ⚠ solo: 라이다로 못 잼 ({lwhy}) → 팔 카메라 값 단독으로 다가감: {ap_txt(gap, lat, yaw)}", flush=True)
+            else:
+                print("    · 라이다 실패 — 팔 카메라 값은 기록만 (--arm-solo 아님)", flush=True)
         if why:
             raise ApFail(f"측정 못 믿음: {why}" + (" · 느슨한 기준" if AP["loose"] else ""))
+        if ap.get("src") != "arm":
+            ap_zone_update(node, face)   # 11-23 box_zone 중심을 잰 값으로 (라이다 측정만)
+        if AP_S_MODE == "back":
+            ap_approach_back(node, g, ap, face, F, rev0 + (ap.get("back_m") or 0.0), n, spin0)
+            return ap
         close = face.gap is not None and face.gap <= AP_CLOSE_GAP
         if close:   # 11-22: 가까이 잼 → 후진 없는 (옆 ≳ 3 cm 면 짧은 후진) S 자 한 번으로 5 cm 자리까지. 회전 여유는 계획이 모의로 확인 (turn_clearance ≥ 2 cm)
             sp = bf.plan_s_curve_face(face, gap_target=AP["gap"], back_room=AP_MID_BACK)
@@ -1950,13 +2633,20 @@ def ap_tail(ap):
     """구간 요약 줄 끝 꼬리"""
     if not ap:
         return ""
+    arm = ap.get("arm")
+    at = ""
+    if arm:   # 11-22 밤 팔 카메라
+        c = arm.get("cross")
+        at = (" · 팔카메라 " + ("건너뜀" if arm.get("skipped") else "실패" if not arm.get("ok") else
+                             ("라이다와 일치" if c and c["agree"] else f"라이다와 불일치 ({c['why']})" if c else
+                              "대체 사용" if ap.get("src") == "arm" else "값 못 믿음" if arm.get("solo_why") else "측정됨"))) if arm.get("mode") else ""
     if ap["status"] == "done":
         a = ap["after"]
-        return f" · 상자 다가가기 {a['gap_cm']:.1f} cm · 중앙선 {a['lat_cm']:+.1f} cm · {a['yaw_deg']:+.1f}°"
+        return f" · 상자 다가가기 {a['gap_cm']:.1f} cm · 중앙선 {a['lat_cm']:+.1f} cm · {a['yaw_deg']:+.1f}°" + at
     if ap["status"] == "dry":
         b = ap.get("before")
         return f" · 상자 측정 (dry) {b['gap_cm']:.1f} cm · 중앙선 {b['lat_cm']:+.1f} cm · {b['yaw_deg']:+.1f}°" if b else f" · 상자 측정 (dry) ⚠ {ap['why']}"
-    return f" · 상자 다가가기 ⚠ {'건너뜀' if ap['status'] == 'skip' else '안 함'} ({ap['why']})"
+    return f" · 상자 다가가기 ⚠ {'건너뜀' if ap['status'] == 'skip' else '안 함'} ({ap['why']})" + at
 
 
 def run_leg(node, g, results):
@@ -1996,15 +2686,38 @@ def _run_leg(node, g, results, tl, tries, ok, det_n):
         elif AP["mode"] == "dry":
             node.ap_dry_goal = tuple(g["goal"])
         else:
-            sp, cut = ap_split(pieces)
+            if AP_MEASURE_D < AP_NOCUT_D:   # 11-23: 끊지 않음 — 정지점까지 가서 그 자리에서 잼 (도착 뒤 box_approach back=True)
+                sp, cut = None, 0.0
+                print(f"    · 상자 다가가기: 조각을 끊지 않고 정지점 (틈 약 {STOP_GAP * 100:.1f} cm) 까지 가서 잼 ({AP_S_MODE})", flush=True)
+            else:
+                sp, cut = ap_split(pieces)
             dcut = wrap(sp[-1]["poses"][-1][2] - sp[-2]["poses"][-1][2]) if sp is not None else 0.0
             if sp is not None and AP_CUT_YAW > 0 and abs(dcut) > AP_CUT_YAW:
                 # 11-21 (2): 끊는 점에서 정지점과 방향이 크게 다르면 1 차 측정이 AP_YAW_MAX 에 걸려 늘 fallback (wide S5 · S6) → 도착 뒤 후진해서 잼
                 print(f"    · 상자 다가가기: 끊는 점 방향이 정지점과 {math.degrees(dcut):+.0f}° 다름 (> {math.degrees(AP_CUT_YAW):.0f}°) — 끊지 않고 도착 뒤 후진해서 잼", flush=True)
             elif sp is not None:
-                pieces = sp
+                base, pieces = pieces, sp
                 print(f"    · 상자 다가가기: 마지막 전진을 정지점 {cut:.2f} m 앞에서 끊고 상자를 잼", flush=True)
+                if ARM["ok"] and ARM["mode"] != "off" and getattr(node, "arm", None) is not None and al.pose_at(ARM_POSE) == "pre":   # 11-22 밤 (ALIGN 만): 그보다 앞 (틈 AP_PRE_GAP) 에서 한 번 더 끊어 팔 카메라로 재기
+                    sp1, cut1 = ap_split(base, AP_PRE_GAP - STOP_GAP)
+                    if sp1 is not None:
+                        t1 = {k: v for k, v in sp1[-1].items() if k != "_box_tail"}
+                        sp2, cut2 = ap_split([t1])
+                        if sp2 is not None:
+                            sp2[0]["_arm_pre"] = True
+                            pieces = sp1[:-1] + sp2
+                            print(f"    · 팔 카메라: 정지점 {cut1:.2f} m 앞 (틈 약 {AP_PRE_GAP * 100:.0f} cm) 에서 먼저 서서 상자 윗면을 잼 → 팔 접고 {cut2:.2f} m 앞으로", flush=True)
+                        else:
+                            print("    · 팔 카메라: 1 차 정지 자리를 못 끊음 (조각이 짧음) — 팔 안 씀", flush=True)
+                    else:
+                        print("    · 팔 카메라: 1 차 정지 자리를 못 끊음 (마지막 전진이 짧음) — 팔 안 씀", flush=True)
+    node.arm_pre = None
     for i, pc in enumerate(pieces):
+        if pc.get("_arm_pre"):   # 11-22 밤: 1 차 정지 (틈 ≈ AP_PRE_GAP) 에 멈춘 뒤 — 팔 카메라로 재고 접은 다음 측정 자리로
+            sleep_s(node, 0.5)
+            arm_pre_look(node, g)
+            if STOP.is_set():
+                break
         if pc.get("_box_tail"):   # 11-21: 끊은 점에 멈춘 뒤 — 재고 다가감. 되면 나머지 조각은 안 감, 안 되면 나머지를 그대로
             sleep_s(node, 0.5)
             p, e = node.pose(), pieces[i - 1]["poses"][-1]
@@ -2023,6 +2736,9 @@ def _run_leg(node, g, results, tl, tries, ok, det_n):
         r, msg = follow_piece(node, cur, final=fin)
         k = 0
         while not r and not STOP.is_set():
+            if msg.startswith(SAFE):   # 11-22 접촉 · 걸림 의심: 되찾기 · 우회 없이 전체 멈춤
+                safe_stop(node, f"조각 {i + 1} ({what}): {msg[len(SAFE) + 2:]}")
+                break
             # 11-19 우회: 전진 조각이 장애물로 BLOCK_WAIT 넘게 막히면 planner 우회 경로 → 합류점부터 남은 조각
             if msg.startswith(BLOCKED) and cur["kind"] == "F" and DETOUR_ON and det_n < DETOUR_MAX:
                 det_n += 1
@@ -2067,16 +2783,27 @@ def _run_leg(node, g, results, tl, tries, ok, det_n):
             k += 1
             print(f"  ↺ 되찾기 {k}/{RECOVER_TRIES} ({msg})", flush=True)
             tries.append({"status": "recover", "msg": f"조각 {i + 1} ({what}): {msg}", "t": round(node.now_s() - tl, 1)})
-            relocalize(node, "멈춤")
+            if reloc_bad(node, "멈춤"):
+                break
             back = backtrack_piece(node, cur) if cur["kind"] in "FR" else None
             if back:
                 print(f"    · 왔던 길 {back['len']:.2f} m 되돌아가기 ({'후진' if back['kind'] == 'R' else '전진'})", flush=True)
                 rb, mb = follow_piece(node, back)
+                if not rb and mb.startswith(SAFE):
+                    safe_stop(node, f"조각 {i + 1} 되돌아가기: {mb[len(SAFE) + 2:]}")
+                    break
                 if not rb:
                     print(f"    · 되돌아가기 못 함 ({mb}) — 이 자리에서 다시", flush=True)
-                relocalize(node, "되돌아간 뒤")
+                if reloc_bad(node, "되돌아간 뒤"):
+                    break
             if STOP.is_set():
                 break
+            if msg.startswith(BLOCKED):   # 11-22: 막혀서 되찾기 — 그 방향 띠가 아직 막혀 있으면 다시 하지 않음 (1518 S8: 뒤가 막힌 채 다시 후진 → 접촉)
+                n, why = node.band_count(cur["kind"])
+                if n is None or n >= HOLD_PTS:
+                    msg = f"되찾기 뒤에도 {'앞' if cur['kind'] == 'F' else '뒤'} 띠 막힘 ({f'점 {n} 개' if n is not None else why}) — 다시 안 함"
+                    print(f"    · {msg}", flush=True)
+                    break
             print(f"    · 조각 {i + 1}/{len(pieces)} {what} 다시", flush=True)
             r, msg = follow_piece(node, cur, final=fin)
         if k:
@@ -2114,6 +2841,8 @@ def _run_leg(node, g, results, tl, tries, ok, det_n):
             if abs(err) > YAW_FIX:
                 print(f"  · 정지점 방향 맞추기 {math.degrees(err):+.0f}°", flush=True)
                 r, msg = follow_piece(node, {"kind": "S", "dth": err})
+                if not r and msg.startswith(SAFE):
+                    safe_stop(node, f"정지점 방향 맞추기: {msg[len(SAFE) + 2:]}")
                 if not r:
                     ok = False
                     tries.append({"status": "fail", "msg": f"방향 맞추기 {math.degrees(err):+.0f}°: {msg}", "t": round(node.now_s() - tl, 1)})
@@ -2130,7 +2859,7 @@ def _run_leg(node, g, results, tl, tries, ok, det_n):
                     first.pop("_retry", None)
                     print("    · 끊고 잰 다가가기 안 됨 — 도착 자리에서 후진해서 한 번 더 잼", flush=True)
                 ap = box_approach(node, g, back=True, pre={"ref": "정지점", "err_cm": round(dpos * 100, 1), "err_deg": round(math.degrees(dyaw), 1)},
-                                  rev0=last_rev(pieces))
+                                  rev0=last_rev(pieces), spin0=abs(pieces[-1].get("dth", 0.0)) if pieces and pieces[-1]["kind"] == "S" else 0.0)
                 if first is not None:
                     ap["first"] = first
                 if ap["status"] != "done" and not STOP.is_set() and not ap_return(node, g, tries, tl):
@@ -2501,7 +3230,8 @@ def run_auto(a, node, data, legs, results):
                  + (" ✓" if home_info["ok"] else " ✗"))
     skipped = [x["name"] for x in st if x["result"] == "skip"]
     if STOP.is_set():
-        lines.append("(Ctrl+C 로 멈춤 — 복귀 안 함)")
+        sm = getattr(node, "safe_msg", None)
+        lines.append(f"(⛔ 안전 정지: {sm} — 복귀 안 함, 리모컨으로 옮기기)" if sm else "(Ctrl+C 로 멈춤 — 복귀 안 함)")
     first_bad = next((x for x in st if x["result"] == "skip"), None)
     seen = {x["leg"] for x in st}
     left = [g for g in stops if g["leg"] not in seen]
@@ -2516,7 +3246,8 @@ def run_auto(a, node, data, legs, results):
     data["_auto"] = {"order": order, "skipped": skipped, "approach_fail": [x["name"] for x in st if x["result"] == "nogap"],
                      "home_ok": home_info["ok"], "home_err_cm": home_info["err_cm"], "home_err_deg": home_info["err_deg"],
                      "via_planner": [x["name"] for x in rec if x["via_planner"]], "home_how": home_info["how"], "home_notes": home_info["notes"],
-                     "places": rec, "total_s": round(node.now_s() - t_run, 1), "resume_from": again, "stopped": STOP.is_set()}
+                     "places": rec, "total_s": round(node.now_s() - t_run, 1), "resume_from": again, "stopped": STOP.is_set(),
+                     "safe_stop": getattr(node, "safe_msg", None)}
 
 
 def run_route(a, node, data, LIB, PTS, results):

@@ -2,7 +2,7 @@
 (python3 -m pytest -q test_box_face.py 로도 돕니다)
 
 합성 스캔: laser_front (base_link 에서 (0.1318, 0), rpy(π,0,π)) 에서 광선을 쏴 LaserScan 처럼 ranges 를 만듭니다.
-  angle_min = −π, 1° 간격, 360칸, range_min 0.12, range_max 8
+  angle_min = −π, 1° 간격, 360칸, range_min 0.08 (실물 틈 10 cm 측정 성공 근거), range_max 8
   광선 θ 의 base_link 방향 = (−cosθ, +sinθ)
 """
 import math
@@ -11,12 +11,12 @@ import sys
 
 from box_face import (BOX_SIDE, FRONT_OFFSET, LASER_FRONT_TF, S_CFG, FaceResult, average_faces, find_box_face,
                       plan_approach, plan_s_curve, plan_s_curve_face, scan_to_base, turn_clear, turn_clearance,
-                      turn_intrusion)
+                      turn_intrusion, plan_s_curve_back, plan_s_curve_back_face)
 
 ANGLE_MIN = -math.pi
 ANGLE_INC = math.radians(1.0)
 N_RAYS = 360
-RANGE_MIN = 0.12
+RANGE_MIN = 0.08   # 11-23: 예전 가정 0.12 는 실물보다 비관적 — 11-22 실물에서 앞 끝 ↔ 상자 틈 10.0 cm (점 97 · RMS 1.2 mm) · 9.9 cm 측정 성공
 RANGE_MAX = 8.0
 LASER_X = 0.1318
 DEG = math.pi / 180.0
@@ -623,6 +623,139 @@ def _accuracy_report():
                        math.degrees(wrap(f.yaw_err - yaw_deg * DEG)), f.length * 1000, f.n_pts))
     return rows
 
+
+
+# ---------------------------------------------------------------- 11-22 실물 box1 회귀 (앞면이 안 보일 때 이유 보고)
+
+# 실물 1122_1851 /scan_front 에서 뽑은 base_link 점 (x 0.14~0.9 · |y| ≤ 0.5, mm 반올림) — box1 (t 60 s, 남쪽 접근: 상자 앞면 대신 3 cm 폭 조각 둘 + 동쪽 벽) · box2 (t 140.5 s, 성공)
+REAL_BOX1_SPARSE = [(0.142, 0.382), (0.149, 0.395), (0.155, 0.388), (0.161, 0.39), (0.167, 0.389), (0.173, 0.389), (0.179, 0.389), (0.186, 0.389), (0.192, 0.388), (0.198, 0.389), (0.204, 0.389), (0.211, 0.389), (0.217, 0.389), (0.223, 0.389), (0.23, 0.389), (0.236, 0.388), (0.242, 0.387), (0.249, 0.387), (0.256, 0.388), (0.262, 0.386), (0.269, 0.387), (0.276, 0.387), (0.283, 0.388), (0.29, 0.388), (0.297, 0.387), (0.304, 0.387), (0.312, 0.387), (0.319, 0.386), (0.326, 0.386), (0.333, 0.385), (0.34, 0.384), (0.348, 0.384), (0.357, 0.386), (0.364, 0.383), (0.372, 0.383), (0.38, 0.382), (0.388, 0.381), (0.397, 0.381), (0.405, 0.38), (0.413, 0.379), (0.423, 0.379), (0.431, 0.378), (0.441, 0.378), (0.451, 0.378), (0.46, 0.377), (0.47, 0.376), (0.481, 0.376), (0.491, 0.376), (0.503, 0.376), (0.514, 0.375), (0.525, 0.373), (0.537, 0.373), (0.551, 0.374), (0.564, 0.373), (0.578, 0.374), (0.591, 0.372), (0.605, 0.372), (0.619, 0.37), (0.634, 0.369), (0.649, 0.368), (0.665, 0.367), (0.681, 0.366), (0.699, 0.365), (0.72, 0.366), (0.735, 0.362), (0.744, 0.355), (0.745, 0.342), (0.744, 0.329), (0.744, 0.317), (0.744, 0.305), (0.743, 0.293), (0.744, 0.282), (0.744, 0.27), (0.742, 0.258), (0.741, 0.246), (0.74, 0.235), (0.74, 0.224), (0.74, 0.213), (0.427, 0.093), (0.438, 0.091), (0.438, 0.086), (0.435, 0.08), (0.436, 0.075), (0.435, 0.07), (0.435, 0.065), (0.736, 0.11), (0.736, 0.1), (0.735, 0.09), (0.735, 0.081), (0.736, 0.071), (0.735, 0.062), (0.446, 0.022), (0.457, 0.018), (0.454, 0.013), (0.451, 0.007), (0.45, 0.002), (0.453, -0.003), (0.732, -0.024), (0.733, -0.033), (0.733, -0.042), (0.733, -0.052), (0.733, -0.061), (0.732, -0.071), (0.732, -0.08), (0.731, -0.09), (0.732, -0.1), (0.731, -0.109), (0.731, -0.119), (0.73, -0.128), (0.73, -0.138), (0.732, -0.149), (0.73, -0.158), (0.73, -0.168), (0.729, -0.178), (0.728, -0.188), (0.727, -0.198), (0.726, -0.208), (0.726, -0.219), (0.726, -0.229), (0.724, -0.239), (0.726, -0.251), (0.725, -0.261), (0.725, -0.273), (0.725, -0.284), (0.724, -0.295), (0.727, -0.308), (0.725, -0.319), (0.725, -0.331), (0.724, -0.343), (0.725, -0.356), (0.721, -0.366), (0.705, -0.369), (0.704, -0.381)]
+REAL_BOX2_OK = [(0.141, 0.389), (0.147, 0.389), (0.153, 0.388), (0.159, 0.388), (0.165, 0.389), (0.171, 0.389), (0.178, 0.389), (0.184, 0.389), (0.19, 0.388), (0.196, 0.388), (0.203, 0.39), (0.209, 0.388), (0.215, 0.389), (0.221, 0.389), (0.228, 0.389), (0.234, 0.389), (0.241, 0.389), (0.247, 0.388), (0.254, 0.389), (0.261, 0.389), (0.268, 0.389), (0.275, 0.391), (0.283, 0.392), (0.289, 0.391), (0.297, 0.392), (0.304, 0.391), (0.311, 0.391), (0.318, 0.389), (0.325, 0.389), (0.333, 0.389), (0.34, 0.389), (0.348, 0.388), (0.356, 0.388), (0.363, 0.387), (0.373, 0.388), (0.38, 0.387), (0.388, 0.387), (0.397, 0.387), (0.407, 0.387), (0.415, 0.386), (0.425, 0.387), (0.434, 0.386), (0.444, 0.386), (0.454, 0.386), (0.464, 0.386), (0.475, 0.386), (0.486, 0.386), (0.496, 0.385), (0.508, 0.386), (0.519, 0.385), (0.531, 0.384), (0.545, 0.385), (0.559, 0.385), (0.572, 0.385), (0.587, 0.386), (0.271, 0.111), (0.271, 0.107), (0.27, 0.103), (0.273, 0.102), (0.274, 0.099), (0.274, 0.096), (0.273, 0.092), (0.273, 0.089), (0.273, 0.086), (0.273, 0.083), (0.273, 0.08), (0.272, 0.077), (0.272, 0.074), (0.272, 0.071), (0.272, 0.068), (0.271, 0.065), (0.27, 0.062), (0.271, 0.06), (0.271, 0.058), (0.27, 0.055), (0.27, 0.052), (0.271, 0.05), (0.273, 0.048), (0.275, 0.046), (0.274, 0.044), (0.273, 0.041), (0.273, 0.038), (0.273, 0.036), (0.273, 0.034), (0.273, 0.031), (0.276, 0.03), (0.273, 0.027), (0.274, 0.025), (0.273, 0.022), (0.272, 0.02), (0.273, 0.018), (0.273, 0.016), (0.272, 0.013), (0.272, 0.011), (0.272, 0.009), (0.273, 0.007), (0.273, 0.004), (0.273, 0.002), (0.272, -0.0), (0.273, -0.002), (0.273, -0.004), (0.273, -0.007), (0.272, -0.009), (0.274, -0.011), (0.274, -0.013), (0.275, -0.016), (0.274, -0.018), (0.274, -0.02), (0.275, -0.023), (0.276, -0.025), (0.274, -0.027), (0.274, -0.029), (0.274, -0.032), (0.273, -0.034), (0.274, -0.036), (0.275, -0.039), (0.275, -0.041), (0.274, -0.044), (0.275, -0.046), (0.276, -0.049), (0.274, -0.051), (0.273, -0.053), (0.274, -0.056), (0.273, -0.058), (0.272, -0.06), (0.274, -0.064), (0.273, -0.066), (0.274, -0.069), (0.274, -0.072), (0.273, -0.075), (0.275, -0.078), (0.276, -0.082), (0.276, -0.085), (0.276, -0.088), (0.277, -0.092), (0.277, -0.095), (0.277, -0.098), (0.277, -0.101), (0.276, -0.104)]
+
+
+def test_real1122_box1_sparse_reports_missing_face_not_wall_tilt():
+    """실물 1122 box1: 예상 자리 (0.28, 0) 에 상자 앞면 선이 없고 (3 cm 폭 조각 둘) 창 밖 동쪽 벽만 선으로 잡힘.
+    예전 이유 = "기울기 96° > 25°" (벽 · 상자 옆면으로 오해) → 이제 "예상 자리 안 점이 적어 앞면 선 못 찾음" 이어야 하고, 벽을 앞면으로 고르면 안 됨"""
+    f = find_box_face(REAL_BOX1_SPARSE, expect=(0.28, 0.0, 0.0))
+    assert not f.ok
+    assert "예상 자리 안 점이 적어 앞면 선 못 찾음" in f.why, f.why
+    assert not f.why.startswith("기울기"), f.why
+    f2 = find_box_face(REAL_BOX1_SPARSE)   # expect 없이 (넓은 창) 도 실패여야 (벽을 상자로 안 잡음)
+    assert not f2.ok, f2.why
+
+
+def test_real1122_box2_still_ok():
+    f = find_box_face(REAL_BOX2_OK, expect=(0.28, 0.0, 0.0))
+    assert f.ok, f.why
+    assert abs(f.gap - 0.141) < 0.01 and abs(f.lateral) < 0.01 and abs(math.degrees(f.yaw_err)) < 3.0, (f.gap, f.lateral, f.yaw_err)
+
+
+def test_failure_reason_prefers_in_window_line():
+    """창 안에 기울어진 선 (옆면) 이 있으면 그 이유를, 창 밖 벽 선은 이유로 안 씀"""
+    wall = [(0.15 + 0.01 * i, -0.40) for i in range(45)]    # 오른쪽 벽 (창 밖, 기울기 90°)
+    sparse = [(0.40, 0.05 + 0.005 * i) for i in range(6)]   # 앞쪽 조각 6 점뿐
+    f = find_box_face(wall + sparse, expect=(0.28, 0.0, 0.0))
+    assert not f.ok and "예상 자리" in f.why and "기울기" in f.why and "창 밖" in f.why, f.why
+
+
+# ---------------------------------------------------------------- 후진 S 자 (11-23)
+def _check_back(e, g, yaw=0.0, **kw):
+    """계획을 ICR 모의로 실행: 끝 옆 오차 · 방향 작음, 회전 여유 ≥ 2 cm, 전진 없음, 틈은 늘기만"""
+    p = plan_s_curve_back(e, g, yaw, **kw)
+    assert p.ok, (e, g, yaw, p.why)
+    face = box_face_from(e, g, yaw)
+    x, y, th = 0.0, 0.0, 0.0
+    worst = math.inf
+    for kind, v in p.steps:
+        if kind == "turn":
+            worst = min(worst, turn_clearance(face, v, (x, y, th)))
+        x, y, th = _step(x, y, th, kind, v)
+        assert not (kind == "drive" and v > 0), p.steps   # 전진 없음
+    dx, dy = face.cx - x, face.cy - y
+    ny = face.nyaw - th
+    lat = -math.sin(face.nyaw) * dx + math.cos(face.nyaw) * dy
+    gap = math.cos(face.nyaw) * dx + math.sin(face.nyaw) * dy - FRONT_OFFSET
+    assert abs(lat) <= 0.001, (e, g, yaw, lat)            # 최종 중앙선 오차 1 mm 이하
+    assert abs(ny) <= 0.2 * DEG, (e, g, yaw, ny)          # 방향 법선
+    assert worst >= 0.02 - 1e-6, (e, g, yaw, worst)       # 회전 모서리 여유
+    assert gap >= g - 0.011, (gap, g)
+    back = sum(-v for k, v in p.steps if k == "drive")
+    assert abs(back - p.back) < 1e-9
+    return p, gap, back
+
+
+def box_face_from(e, g, yaw):
+    from box_face import _face_from_err
+    return _face_from_err(e, g, yaw)
+
+
+def test_back_s_geometry_grid():
+    for e_cm in (-8, -5, -3, -1, 1, 2, 4, 6, 8):
+        for g in (0.08, 0.10, 0.14):
+            for yaw_deg in (-10, -4, 0, 5, 12):
+                p, gap, back = _check_back(e_cm / 100.0, g, yaw_deg * DEG)
+                assert back <= abs(e_cm) / 100.0 / math.sin(10 * DEG) + 0.16   # 후진 합 상한 (α ≥ 10° · d0 ≤ 0.15)
+
+
+def test_back_s_typical_numbers():
+    """e 5 cm · 틈 10 cm: α 30° → f = 10 cm, 틈 약 18.7 cm. 회전 방향 = −sgn(e)"""
+    p, gap, back = _check_back(0.05, 0.10)
+    assert abs(p.f_back - 0.10) < 0.002 and abs(gap - 0.187) < 0.003, (p.why, gap)
+    assert p.alpha > 0 and p.steps[0][0] == "turn" and p.steps[0][1] < 0   # e > 0 이면 오른쪽 (−) 으로 먼저 돎
+    p, _, _ = _check_back(-0.05, 0.10)
+    assert p.steps[0][1] > 0
+
+
+def test_back_s_budget_and_room():
+    p = plan_s_curve_back(0.08, 0.10, rev_budget=0.10)       # f 만 16 cm → 한도 10 cm 로 안 됨
+    assert not p.ok and "후진" in p.why, p.why
+    p = plan_s_curve_back(0.03, 0.10, back_room=0.05)
+    assert not p.ok
+    p = plan_s_curve_back(0.03, 0.10, rev_budget=0.10)
+    assert p.ok and p.back <= 0.10 + 1e-9
+
+
+def test_back_s_rejects_and_wrapper():
+    assert not plan_s_curve_back(0.10, 0.10).ok
+    assert not plan_s_curve_back(0.02, 0.10, 30 * DEG).ok
+    assert not plan_s_curve_back_face(FaceResult(False, "x")).ok
+    f = face_of(box_segments(0.12, lateral=0.03, yaw=4 * DEG))
+    assert f.ok, f.why
+    p, q = plan_s_curve_back_face(f), plan_s_curve_back(f.lateral, f.gap, f.yaw_err)
+    assert p.ok and p.steps == q.steps
+
+
+def test_back_s_turn_room_when_tight():
+    """틈 7 cm 에선 회전 여유 (α 30° 약 7.7 cm 필요) 가 모자라 처음에 곧게 후진"""
+    p, gap, back = _check_back(0.04, 0.07)
+    assert p.pre_back > 0 and p.steps[0][0] == "drive" and p.steps[0][1] < 0, p.steps
+
+
+def test_back_s_partial_when_over_emax():
+    """|e| 가 e_max (8 cm) 를 넘으면 clamp 로 e_max 만큼만 보정, 남은 옆 오차를 partial 로 돌려줌 (다시 잰 뒤 이어 감)"""
+    assert not plan_s_curve_back(0.095, 0.10).ok
+    for e in (0.095, -0.10):
+        p = plan_s_curve_back(e, 0.10, clamp=True)
+        assert p.ok and abs(p.partial - (e - math.copysign(0.08, e))) < 1e-9, p.why
+        assert p.alpha * e < 0 or p.alpha * e > 0   # 방향은 e 부호를 따름
+        q = plan_s_curve_back(math.copysign(0.08, e), 0.10)
+        assert p.steps == q.steps and abs(p.end_lat) < 0.001
+    assert plan_s_curve_back(0.03, 0.10, clamp=True).partial == 0.0
+
+
+def test_back_s_threat_cases_after_partial():
+    """부분 보정 뒤 남은 옆 (≤ 2 cm) 은 다시 재서 한 번 더 — 두 번째 계획도 성립"""
+    p1 = plan_s_curve_back(0.10, 0.10, clamp=True)
+    assert p1.ok and 0 < p1.partial <= 0.021
+    p2 = plan_s_curve_back(p1.partial, p1.end_gap)
+    assert p2.ok, p2.why
+
+
+def test_stop_gap_107_measures_ok():
+    """정지점 틈 10.7 cm (끊지 않고 정지점에서 잼): 노이즈 1 mm 에서 틈 · 옆 · 방향이 맞게 잼"""
+    for lat, yaw in ((0.0, 0.0), (0.03, 4 * DEG), (-0.05, -6 * DEG)):
+        f = face_of(box_segments(0.107, lateral=lat, yaw=yaw), noise=0.001, rng=random.Random(7))
+        assert f.ok, (lat, yaw, f.why)
+        assert abs(f.cx - (FRONT_OFFSET + 0.107)) < 0.004 and abs(f.cy - lat) < 0.004 and abs(f.nyaw - yaw) < 2 * DEG, (f.cx, f.cy, f.nyaw)   # 중점 (base_link) 으로 비교 — FaceResult.lateral 은 법선 기준
 
 if __name__ == "__main__":
     tests = [(k, v) for k, v in sorted(globals().items(), key=lambda kv: kv[1].__code__.co_firstlineno
