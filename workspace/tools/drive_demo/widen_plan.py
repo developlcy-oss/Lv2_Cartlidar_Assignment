@@ -16,6 +16,8 @@
   - 정지점 앞 곧게 들어가기는 0.25 → 안 되면 0.15 → 0.08 m (상자가 좁은 칸에 있는 S5 · S6)
   - 전진 급한 반경 0.25 는 벌점 (정지점 근처 좁은 칸만) · 방향 바뀜 때 굽은 채 멈춤 · 출발 벌점 (조각 시작 방향 맞추기 줄이기)
   - 지도: mission_planner/maps/map_nav (벽 · 상자 · 기둥) + map_amcl
+  - 11-22 --arm 0.06: 팔 (BOX_VIEW 자세, 주행 내내) 외곽 ARM_POLY 도 검사 — 최저 z 0.184 < 벽 0.39 라 벽 · 기둥 (map_amcl) 만, 상자 · 퍽은 팔보다 낮아 뺌.
+    팔 여유 ≥ --arm (AMCL ±3 cm 여유) 를 차체 요구 HARD 와 같은 줄로 맞춰 (팔 여유 − (ARM_HARD − HARD)) 차체 여유와 작은 쪽을 씀
 """
 import argparse, heapq, json, math, sys, time
 import numpy as np
@@ -27,6 +29,8 @@ import os
 REPO = os.environ.get('LV2_REPO', str(Path(__file__).resolve().parents[3])).rstrip('/') + '/'   # 이 파일이 든 저장소 (workspace/tools/drive_demo) · 사본에서 돌릴 때 LV2_REPO=<저장소>
 RES, OX, OY = 0.025, -0.15, -0.15
 FP = np.array([[0.25, 0.07], [0.25, -0.07], [0.1328, -0.1676], [-0.2135, -0.1676], [-0.2135, 0.1676], [0.1328, 0.1676]])
+ARM_POLY = np.array([[0.318, 0.064], [0.318, -0.064], [0.034, -0.064], [0.034, 0.064]])   # 11-22 BOX_VIEW 팔 몸통 외곽 (base 기준 x 0.034 ~ 0.318, 폭 ±0.064)
+ARM_HARD = None   # 팔 ↔ 벽 여유 요구 [m] (None = 팔 검사 안 함 · --arm 0.06)
 SEP = 0.317 * 1.29
 MS = 0.0335 * 2.0 * 5.5          # 바깥 바퀴 둘레 속도 상한 [m/s] (v2_filter turn_motor 5.5 · 벨트 2.0)
 VF, VR = 0.45, 0.15
@@ -81,6 +85,12 @@ class Clear:
             n = max(2, int(np.hypot(*(b - a)) / 0.01))
             bd += [a + (b - a) * t for t in np.linspace(0, 1, n, endpoint=False)]
         self.bd = np.array(bd)
+        arm = []
+        for i in range(len(ARM_POLY)):
+            a, b = ARM_POLY[i], ARM_POLY[(i + 1) % len(ARM_POLY)]
+            n = max(2, int(np.hypot(*(b - a)) / 0.01))
+            arm += [a + (b - a) * t for t in np.linspace(0, 1, n, endpoint=False)]
+        self.arm = np.array(arm)
         # 안쪽 원 반지름 (차체가 늘 덮는 원) — 2D 길찾기 어림값용
         r = 9.0
         for i in range(len(FP)):
@@ -114,13 +124,20 @@ class Clear:
         bad = np.where(c < 0.0)[0]
         return maxL if len(bad) == 0 else (bad[0]) * maxL / n
 
+    def arm_clear(self, P):
+        """P: (n,3) 자세 → 각 자세 팔 외곽 ↔ 벽 · 기둥 (map_amcl) 최소 여유"""
+        return self.body_pts(P, self.arm, self.dta)
+
     def poses(self, P):
-        """P: (n,3) 자세 → 각 자세 차체 테두리 최소 여유"""
+        """P: (n,3) 자세 → 각 자세 차체 테두리 최소 여유 (ARM_HARD 면 팔 여유 − (ARM_HARD − HARD) 와 작은 쪽)"""
         P = np.atleast_2d(P)
         c, s = np.cos(P[:, 2]), np.sin(P[:, 2])
         X = P[:, None, 0] + c[:, None] * self.bd[None, :, 0] - s[:, None] * self.bd[None, :, 1]
         Y = P[:, None, 1] + s[:, None] * self.bd[None, :, 0] + c[:, None] * self.bd[None, :, 1]
-        return self.at(X.ravel(), Y.ravel()).reshape(X.shape).min(axis=1)
+        body = self.at(X.ravel(), Y.ravel()).reshape(X.shape).min(axis=1)
+        if ARM_HARD is None:
+            return body
+        return np.minimum(body, self.arm_clear(P) - (ARM_HARD - HARD))
 
 
 def arc(x, y, th, k, d, L, n):
@@ -367,7 +384,8 @@ def plan_leg(C, q0, qg, r, deadline=60.0, r_rev=0.28, APP=APP, spin_pen=None, cu
         # 제자리 회전 (벌점 큼, 멈춰 있을 때 어디서나)
         for dth in (math.radians(15), -math.radians(15)):
             nth = wrap(th + dth)
-            if C.poses(np.array([[x, y, th + dth / 2], [x, y, nth]])).min() < need(moved, x, y):
+            fr = (0.25, 0.5, 0.75, 1.0) if ARM_HARD is not None else (0.5, 1.0)   # 11-22 팔 모서리 반경 0.324 m > 차체 0.271 — 팔 켜면 3.75° 마다
+            if C.poses(np.array([[x, y, th + dth * f] for f in fr])).min() < need(moved, x, y):
                 continue
             kk = key(x, y, nth, 0, rev)
             ng = g + abs(dth) / 0.5 + SPIN_PEN_ + (CUSP_ if d != 0 else 0.0)
@@ -509,9 +527,12 @@ def main():
     ap.add_argument('--cusp', type=float, default=CUSP, help='방향 바뀜 (전진 ↔ 후진) 벌점 [s]')
     ap.add_argument('--restop', action='store_true', help='11-21: 정지점을 box_quiet.stop_pose (발제 상자 면 중앙, 앞 끝 ↔ 면 STOP_GAP) 로 바꾸고 course_text 도 고침')
     ap.add_argument('--hard', type=float, default=None, help='벽 여유 요구 [m] (기본 HARD 0.04)')
+    ap.add_argument('--arm', type=float, nargs='?', const=0.06, default=None, help='11-22 팔 (BOX_VIEW) 외곽 ↔ 벽 · 기둥 여유 요구 [m] (값 없이 --arm = 0.06, 안 주면 팔 검사 안 함)')
     a = ap.parse_args()
     if a.hard is not None:
         globals()['HARD'] = a.hard
+    if a.arm is not None:
+        globals()['ARM_HARD'] = a.arm
     C = Clear()
     d = json.load(open(a.src))
     legs = d['legs']
@@ -560,7 +581,7 @@ def main():
             print('    ' + s, flush=True)
     if not d['plan'].endswith('_반경넓힘'):
         d['plan'] = d['plan'] + '_반경넓힘'
-    d['note_widen'] = f"11-19 widen_plan.py: 하이브리드 A* (구간마다 최소 반경 {a.radii} 중 r ≥ {a.r_floor} 에서 시간 최소, 제자리 · 방향 바뀜 벌점, 정지점 앞 {APP} m 곧게, 벽 여유 ≥ {HARD * 100:.0f} cm) 로 구간 길만 새로 — 정지점 그대로" + (f" · 원래 길 그대로 S{', S'.join(str(k) for k in sorted(keep))}" if keep else "")
+    d['note_widen'] = f"11-19 widen_plan.py: 하이브리드 A* (구간마다 최소 반경 {a.radii} 중 r ≥ {a.r_floor} 에서 시간 최소, 제자리 · 방향 바뀜 벌점, 정지점 앞 {APP} m 곧게, 벽 여유 ≥ {HARD * 100:.1f} cm" + (f", 팔 ↔ 벽 ≥ {ARM_HARD * 100:.1f} cm" if ARM_HARD is not None else '') + ") 로 구간 길만 새로 — 정지점 그대로" + (f" · 원래 길 그대로 S{', S'.join(str(k) for k in sorted(keep))}" if keep else "")
     json.dump(d, open(a.dst, 'w'), ensure_ascii=False, indent=1)
     print(f"이론 시간 (조각 사이 1 s · 제자리 1.5 s 더함) {T0:.0f} → {T1:.0f} s → {a.dst}")
 

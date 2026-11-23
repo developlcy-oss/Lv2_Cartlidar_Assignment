@@ -69,6 +69,7 @@ def _widen_job(job):
     key, q0, qg, a = job
     if a.get('hard') is not None:
         W.HARD = a['hard']   # 벽 여유 요구 [m] (기본 0.04)
+    W.ARM_HARD = a.get('arm')   # 11-22 팔 ↔ 벽 여유 요구 [m] (None = 팔 검사 안 함)
     C = W.Clear()
     cands, log = [], []
     for app in (0.25, 0.15, 0.08):
@@ -115,6 +116,7 @@ def main():
     ap.add_argument('--jobs', type=int, default=8)
     ap.add_argument('--spin-pen', type=float, default=None, help='widen 제자리 회전 벌점 [s / 15°] (기본 = widen_plan SPIN_PEN 6)')
     ap.add_argument('--hard', type=float, default=None, help='widen 벽 여유 요구 [m] (기본 widen_plan HARD 0.04 — 격자 오차로 실제 3.4 cm 가 나오는 곳이 있어 0.045 ~ 0.05 로 올려 시험)')
+    ap.add_argument('--arm', type=float, nargs='?', const=0.06, default=None, help='11-22 widen 팔 (BOX_VIEW) 외곽 ↔ 벽 여유 요구 [m] (값 없이 --arm = 0.06)')
     ap.add_argument('--fresh', action='store_true', help='--order 가 wide 순서와 같아도 S0 ~ S8 을 복사하지 않고 새로 계산')
     ap.add_argument('--cusp', type=float, default=None, help='widen 방향 바뀜 벌점 [s] (기본 = widen_plan CUSP 4)')
     ap.add_argument('--via-src', default='L1', help='두 단계 길: 입구 → HOME 꼬리를 이 정지점의 직접 복귀 길에서 잘라 씀')
@@ -148,7 +150,7 @@ def main():
         return
 
     wopt = {'radii': [float(v) for v in a.radii.split(',')], 'r_floor': a.r_floor, 'r_bonus': a.r_bonus, 'r_rev': a.r_rev, 'deadline': a.deadline,
-            'spin_pen': a.spin_pen, 'cusp': a.cusp, 'hard': a.hard}
+            'spin_pen': a.spin_pen, 'cusp': a.cusp, 'hard': a.hard, 'arm': a.arm}
     same_plan = order == plan_order(base) and not a.fresh
     seq = ['HOME'] + order + ['HOME']
     faces = [float(v) for v in a.home_face.split(',') if v.strip()]
@@ -179,7 +181,7 @@ def main():
             for k, (q0, qg) in jobs.items():
                 if os.path.exists(cpath(k)):
                     c = json.load(open(cpath(k), encoding='utf-8'))
-                    if c['q0'] == list(q0) and c['qg'] == list(qg) and c.get('spin_pen') == a.spin_pen and c.get('cusp') == a.cusp and c.get('hard') == a.hard:   # 벌점이 다르면 다시
+                    if c['q0'] == list(q0) and c['qg'] == list(qg) and c.get('spin_pen') == a.spin_pen and c.get('cusp') == a.cusp and c.get('hard') == a.hard and c.get('arm') == a.arm:   # 벌점 · 여유 요구가 다르면 다시
                         R[k] = (c['res'], c['winfo'], c['st'])
                         hit.append(k)
             if hit:
@@ -197,7 +199,7 @@ def main():
                 R[k] = (res, winfo, st)
                 if a.cache and res is not None:
                     json.dump({'q0': list(jobs[k][0]), 'qg': list(jobs[k][1]), 'res': res, 'winfo': winfo, 'st': st, 'deadline': a.deadline,
-                               'spin_pen': a.spin_pen, 'cusp': a.cusp, 'hard': a.hard},
+                               'spin_pen': a.spin_pen, 'cusp': a.cusp, 'hard': a.hard, 'arm': a.arm},
                               open(cpath(k), 'w', encoding='utf-8'), ensure_ascii=False)
                 for s in log:
                     print(s, flush=True)
@@ -229,6 +231,9 @@ def main():
         print(f'두 단계 길 경유 자세 W = {Wp} ({a.via_src} 길 꼬리 {len(tail)} 점) · 대상 {sorted(miss)}', flush=True)
         run({f'{s}>VIA': (P[s], Wp) for s in miss})
         import widen_plan as WP
+        WP.ARM_HARD = a.arm
+        if a.hard is not None:
+            WP.HARD = a.hard
         Cm = WP.Clear()
         for s in miss:
             r1 = R[f'{s}>VIA'][0]
@@ -299,7 +304,7 @@ def main():
                         + ('S0 ~ S8 은 wide 그대로, S9 만 widen 으로 새로' if same_plan else '구간마다 widen 으로 새로')
                         + (' · home_legs = 정지점 9 곳 → 출발 자세 길 (자율 모드 중간 복귀용)' if a.home_legs else '')
                         + f" · 출발 자리 들어올 방향 {dict(sorted(face_of.items()))} 뒤 끝 제자리로 {hdeg:.0f}° 맞춤 (서향 곧게 들어오기는 벽에 막힘)"
-                        + f" · widen 옵션 radii {a.radii} · r_floor {a.r_floor} · r_rev {a.r_rev} · legs.json time_s 합 {t_lib:.1f} s"
+                        + f" · widen 옵션 radii {a.radii} · r_floor {a.r_floor} · r_rev {a.r_rev}" + (f" · 팔 ↔ 벽 ≥ {a.arm * 100:.1f} cm" if a.arm is not None else '') + f" · legs.json time_s 합 {t_lib:.1f} s"
                         + (f" · 길 못 찾음 {bad}" if bad else ''))
     dst = a.out if os.path.isabs(a.out) else os.path.join(HERE, a.out)
     json.dump(out, open(dst, 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
