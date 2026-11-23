@@ -16,7 +16,7 @@ import sys
 import threading
 
 import rclpy
-from geometry_msgs.msg import Point32, PolygonStamped, PoseWithCovarianceStamped, TransformStamped
+from geometry_msgs.msg import Point32, PolygonStamped, PoseStamped, PoseWithCovarianceStamped, TransformStamped
 from rclpy.executors import ExternalShutdownException
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
@@ -52,6 +52,10 @@ n.create_timer(0.2, pose_tick)
 rclpy.spin(n)
 EOF
 '''
+# 11-23: 출발 구역 (mission_plan.yaml return_check zone_center (0.734, 0.95) · zone_half 0.30 = 0.6 m 사각, poses.py START_ZONE_HALF) → /view/start_zone (map)
+START_ZONE = (0.734, 0.95, 0.30)
+# 11-23: 신호등 · 바코드 관찰 자리 (mission_plan.yaml observe.view_pose) → /view/observe_pose (map, 화살표)
+OBSERVE_POSE = (0.575, 0.95, math.pi)
 OUT = {"/scan_merged": ("/view/scan_merged", "base_link"), "/scan_front_filtered": ("/view/scan_front", "laser_front"),
        "/scan_rear_filtered": ("/view/scan_rear", "laser_rear")}
 
@@ -84,6 +88,8 @@ class Relay(Node):
         self.got_pose = False
         self.pubs = {k: self.create_publisher(LaserScan, v[0], 10) for k, v in OUT.items()}
         self.fp = self.create_publisher(PolygonStamped, "/view/footprint", 10)
+        self.zone = self.create_publisher(PolygonStamped, "/view/start_zone", 10)
+        self.obs = self.create_publisher(PoseStamped, "/view/observe_pose", 10)
         self.tfb = TransformBroadcaster(self)
         self.stb = StaticTransformBroadcaster(self)
         self.pose = [0.6936, 0.95, math.pi]
@@ -131,6 +137,17 @@ class Relay(Node):
         for x, y in ((0.25, 0.07), (0.25, -0.07), (0.1328, -0.1676), (-0.2135, -0.1676), (-0.2135, 0.1676), (0.1328, 0.1676)):
             p.polygon.points.append(Point32(x=x, y=y))
         self.fp.publish(p)
+        z = PolygonStamped()
+        z.header.stamp, z.header.frame_id = now, "map"
+        cx, cy, h = START_ZONE
+        for x, y in ((cx - h, cy - h), (cx + h, cy - h), (cx + h, cy + h), (cx - h, cy + h)):
+            z.polygon.points.append(Point32(x=x, y=y))
+        self.zone.publish(z)
+        o = PoseStamped()
+        o.header.stamp, o.header.frame_id = now, "map"
+        o.pose.position.x, o.pose.position.y = OBSERVE_POSE[0], OBSERVE_POSE[1]
+        o.pose.orientation.z, o.pose.orientation.w = q_yaw(OBSERVE_POSE[2])
+        self.obs.publish(o)
 
     def reader(self):
         for line in self.proc.stdout:
