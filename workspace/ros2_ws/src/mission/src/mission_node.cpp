@@ -27,6 +27,7 @@
 //                                 지금 방향을 지킨 채 TFmini 거리만으로 <distance> 까지). 남는 좌우 · 각도는 measure_box 가 메움
 //   pick                          SEARCH_FRONT | ARM_ALIGN | READ_TAG 유지, /manipulator/pick (grasped 확인)
 //                                 READ_TAG: perception 이 Arducam 태그로 /arm_range (팔 끝 → 퍽) 를 정밀하게 낸다
+//   backup <m> <m/s>              Nav2 BackUp (/backup): observe 뒤 곧게 후진 (observe.leave_back_m). 실패해도 미션은 계속
 //   pose <name>                   /manipulator/pose
 //   unfold <name>                 /manipulator/pose (새 시작 맨 앞, arm.unfold_on_start): 켜진 뒤 STOW 에 접힌 팔을 묶음 순서로 폄 (timeout.unfold)
 //   skill <drive|manipulator> <policy> [timeout] [mode=이름+이름] [fallback=<단계>]
@@ -140,6 +141,7 @@
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "geometry_msgs/msg/pose_stamped.hpp"
+#include "nav2_msgs/action/back_up.hpp"
 #include "nav2_msgs/action/navigate_to_pose.hpp"
 #include "ament_index_cpp/get_package_share_path.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -166,6 +168,7 @@
 #include "tf2/utils.hpp"
 #include "yaml-cpp/yaml.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+#include "mission/barcode_view.hpp"
 #include "mission/episode_log.hpp"
 #include "mission/give_up.hpp"
 #include "mission/readiness.hpp"
@@ -188,6 +191,7 @@ class MissionNode : public rclcpp::Node
 {
 public:
   using NavigateToPose = nav2_msgs::action::NavigateToPose;
+  using BackUp = nav2_msgs::action::BackUp;
   using AlignBase = robot_interfaces::action::AlignBase;
   using ArmPose = robot_interfaces::action::ArmPose;
   using Pick = robot_interfaces::action::Pick;
@@ -287,6 +291,7 @@ public:
     align_client_ = rclcpp_action::create_client<AlignBase>(this, "/drive/align", mission_cb_group_);
     drive_skill_client_ =
       rclcpp_action::create_client<ExecuteSkill>(this, "/drive/execute_skill", mission_cb_group_);
+    backup_client_ = rclcpp_action::create_client<BackUp>(this, "/backup", mission_cb_group_);   // Nav2 behavior_server (drive_node 의 spin 과 같은 전역 이름)
     pose_client_ = rclcpp_action::create_client<ArmPose>(this, "/manipulator/pose", mission_cb_group_);
     pick_client_ = rclcpp_action::create_client<Pick>(this, "/manipulator/pick", mission_cb_group_);
     arm_skill_client_ =
@@ -536,6 +541,12 @@ private:
     verify_arm_pose_ = declare_parameter<std::string>("verify.arm_pose", "TAG_VIEW");
     // #65: observe.arm_pose = barcode_look 이면 이 점 (map = 발제 좌표, 바코드 라벨 중심 (80, 650, 450) mm) 을 팔 카메라로 봄
     barcode_point_ = declare_parameter<std::vector<double>>("observe.barcode_point", {0.08, 0.65, 0.45});
+    // 2026-11-23: observe 앞 관찰 자리 이동 · 뒤 빠져나옴 (barcode_view.hpp). view_pose 빈 배열 = 예전 순서
+    bc_view_.view_pose = declare_parameter<std::vector<double>>("observe.view_pose", std::vector<double>{});
+    bc_view_.leave_pose = declare_parameter<std::vector<double>>("observe.leave_pose", std::vector<double>{});
+    bc_view_.leave_back_m = declare_parameter<double>("observe.leave_back_m", 0.0);
+    bc_view_.backup_speed = declare_parameter<double>("observe.backup_speed", 0.10);
+    timeout_["backup"] = declare_parameter<double>("timeout.backup", 20.0);
     // #65: verify 앞에 정렬이 없으면 끼울 approach 거리 (FINE, >= 0.13). 0 = 끼우지 않음
     verify_approach_ = declare_parameter<double>("verify.approach_distance", 0.13);
     // 신호 묶음을 이만큼 (점멸 수가 맞는 것) 보고도 확정이 안 되면 안전 정지. 한 묶음 약 26 s (12 x 2 s + 3 s 텀 - 1 s)
@@ -854,6 +865,7 @@ private:
         throw std::invalid_argument("verify.id_min_seen must be >= 1 and verify.region_margin >= 0");
       }
       if (barcode_point_.size() != 3) {throw std::invalid_argument("observe.barcode_point must be [x, y, z]");}
+      if (const auto e = barcode_view_error(bc_view_); !e.empty()) {throw std::invalid_argument(e);}
       if (verify_approach_ != 0.0 && !(verify_approach_ >= 0.13)) {
         throw std::invalid_argument("verify.approach_distance must be 0 (off) or >= 0.13 (TFmini FINE)");
       }
@@ -974,6 +986,10 @@ private:
       // FINE 정렬 거리는 미션표에서 준다 (TFmini 렌즈 → 박스 앞면). drive align.min_target_distance 와 같게
       if (s.args.size() != 1 || !isNumber(s.args[0], v) || v < 0.13) {
         bad("needs <distance> >= 0.13 (FINE align, TFmini lens to box front)");
+      }
+    } else if (s.type == "backup") {
+      if (s.args.size() != 2 || !isNumber(s.args[0], v) || v <= 0.0 || v > 1.0 || !isNumber(s.args[1], v) || v <= 0.0 || v > 0.3) {
+        bad("needs <distance 0-1 m> <speed 0-0.3 m/s> (Nav2 BackUp)");
       }
     } else if (s.type == "skill") {
       if (s.args.size() < 2 || s.args.size() > 3 || (s.args[0] != "drive" && s.args[0] != "manipulator")) {
@@ -1344,7 +1360,14 @@ private:
     return nav_client_->action_server_is_ready() && align_client_->action_server_is_ready() &&
            pose_client_->action_server_is_ready() && pick_client_->action_server_is_ready() &&
            mode_client_->service_is_ready() &&
-           (!plan_mode_ || (plan_client_->service_is_ready() && dice_client_->service_is_ready()));
+           (!plan_mode_ || (plan_client_->service_is_ready() && dice_client_->service_is_ready() && surveyServersReady()));
+  }
+
+  // 측량 서비스 (perception_survey 는 Python 노드라 늦게 뜸 — 준비 전에 시작하면 survey_start 가 "not ready" 로 바로 FAILED)
+  bool surveyServersReady() const
+  {
+    return !survey_enabled_ || !survey_start_client_ ||
+           (survey_start_client_->service_is_ready() && survey_finish_client_->service_is_ready());
   }
 
   // ------------------------------------------------------------------ 시작 전 준비 확인 (R3)
@@ -1378,6 +1401,9 @@ private:
       };
     srv("/drive/navigate", nav_client_->action_server_is_ready());
     srv("/drive/align", align_client_->action_server_is_ready());
+    if (plan_mode_ && !barcode_post_lines(bc_view_, travel_pose_).empty() && bc_view_.leave_pose.empty()) {
+      srv("/backup (Nav2 BackUp)", backup_client_->action_server_is_ready());   // observe 뒤 후진
+    }
     srv("/manipulator/pose", pose_client_->action_server_is_ready());
     srv("/manipulator/pick", pick_client_->action_server_is_ready());
     srv("/manipulator/execute_skill", arm_skill_client_->action_server_is_ready());   // observe barcode_look · 집기 · 놓기
@@ -1391,6 +1417,10 @@ private:
     if (plan_mode_) {
       srv(plan_service_ + " (계획기)", plan_client_->service_is_ready());
       srv("/perception/check_dice", dice_client_->service_is_ready());
+      if (survey_enabled_ && survey_start_client_) {
+        srv("/perception/survey/start", survey_start_client_->service_is_ready());
+        srv("/perception/survey/finish", survey_finish_client_->service_is_ready());
+      }
     }
     if (ready_loc_) {
       std::string st;
@@ -1495,7 +1525,9 @@ private:
     }
     if (plan_mode_) {
       // 출발 구역에서 신호 · 바코드 관측 → 계획기에 단계 요청 (뒤에 붙음)
+      for (const auto & l : barcode_pre_lines(bc_view_)) {steps_.push_back(parseStep(l));}   // 관찰 자리로 (DRIVE 자세로 이동)
       steps_.push_back(parseStep("observe"));
+      for (const auto & l : barcode_post_lines(bc_view_, travel_pose_)) {steps_.push_back(parseStep(l));}   // 팔 접고 빠져나옴
       if (survey_enabled_) {
         survey_round_ = 0;
         steps_.push_back(parseStep("survey_start"));
@@ -1641,6 +1673,9 @@ private:
       sendNavigate({std::stod(s.args[0]), std::stod(s.args[1]), std::stod(s.args[2])});
       if (id != stage_id_) {return;}
       sendArmPose(travel_pose_);
+    } else if (s.type == "backup") {
+      arm_done_ = true;   // 팔은 앞 단계 (pose DRIVE) 에서 접음
+      sendBackUp(std::stod(s.args[0]), std::stod(s.args[1]));
     } else if (s.type == "pick_target") {
       drive_done_ = true;
       geometry_msgs::msg::PoseStamped target;
@@ -3311,6 +3346,18 @@ private:
     watching_ = false;
     stopVerifyRecord();
 
+    // 바코드를 읽은 뒤 빠져나오기 (후진 · 이동) 가 안 되는 것은 미션을 멈추지 않음 (barcode_view.hpp is_leave_step)
+    if (std::vector<std::string> texts; [&] {
+        for (const auto & st : steps_) {texts.push_back(st.text);}
+        return leave_failure_nonfatal(texts, failed);
+      }())
+    {
+      RCLCPP_WARN(get_logger(), "[%zu] 빠져나오기 실패 -> 건너뛰고 계속", failed);
+      logEvent("skip", "\"what\": \"" + s.type + "\", \"reason\": \"" + escape(reason) + "\"");
+      enterStep(failed + 1);
+      return;
+    }
+
     // skill 실패 → fallback 단계로 대체 (한 번만)
     if (s.type == "skill" && !s.fallback.empty() && !fallback_used_[failed]) {
       fallback_used_[failed] = true;
@@ -3552,6 +3599,7 @@ private:
   void cancelAll()
   {
     cancelGoal<NavigateToPose>(nav_client_, nav_goal_, "/drive/navigate");
+    cancelGoal<BackUp>(backup_client_, backup_goal_, "/backup");
     cancelGoal<AlignBase>(align_client_, align_goal_, "/drive/align");
     cancelGoal<ExecuteSkill>(drive_skill_client_, drive_skill_goal_, "/drive/execute_skill");
     cancelGoal<ArmPose>(pose_client_, pose_goal_, "/manipulator/pose");
@@ -3765,6 +3813,20 @@ private:
       });
   }
 
+  // observe 뒤 후진 (Nav2 behavior_server BackUp): target.x = 뒤로 갈 거리 (양수), speed > 0, 곧게 후진 · 뒤 충돌은 Nav2 가 검사
+  void sendBackUp(double dist, double speed)
+  {
+    BackUp::Goal goal;
+    goal.target.x = static_cast<float>(dist);
+    goal.speed = static_cast<float>(speed);
+    goal.time_allowance.sec = static_cast<int32_t>(std::ceil(dist / speed + 5.0));
+    sendGoal<BackUp>(backup_client_, goal, backup_goal_, "/backup", driveReport(),
+      [](const BackUp::Result & r, std::string & msg) {
+        msg = "backup error " + std::to_string(r.error_code);
+        return r.error_code == 0;
+      });
+  }
+
   void sendSkill(const Step & s)
   {
     ExecuteSkill::Goal goal;
@@ -3803,6 +3865,7 @@ private:
   int snapshot_seq_{0};        // 에피소드 안 사진 요청 번호
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr snapshot_pub_;
   std::vector<double> barcode_point_;
+  BarcodeView bc_view_;   // observe.view_pose · leave_pose · leave_back_m · backup_speed
   double verify_approach_{0.13};
   double verify_settle_{2.0}, verify_tolerance_{0.0};
   bool verify_stop_on_fail_{false};
@@ -3914,6 +3977,7 @@ private:
   rclcpp::Client<CheckDice>::SharedPtr dice_client_;
   rclcpp::Client<SetPerceptionMode>::SharedPtr mode_client_;
   rclcpp_action::Client<NavigateToPose>::SharedPtr nav_client_;
+  rclcpp_action::Client<BackUp>::SharedPtr backup_client_;
   rclcpp_action::Client<AlignBase>::SharedPtr align_client_;
   rclcpp_action::Client<ExecuteSkill>::SharedPtr drive_skill_client_, arm_skill_client_;
   rclcpp_action::Client<ArmPose>::SharedPtr pose_client_;
@@ -3924,6 +3988,7 @@ private:
 
   // 진행 중 goal (cancel용)
   rclcpp_action::ClientGoalHandle<NavigateToPose>::SharedPtr nav_goal_;
+  rclcpp_action::ClientGoalHandle<BackUp>::SharedPtr backup_goal_;
   rclcpp_action::ClientGoalHandle<AlignBase>::SharedPtr align_goal_;
   rclcpp_action::ClientGoalHandle<ExecuteSkill>::SharedPtr drive_skill_goal_, arm_skill_goal_;
   rclcpp_action::ClientGoalHandle<ArmPose>::SharedPtr pose_goal_;
