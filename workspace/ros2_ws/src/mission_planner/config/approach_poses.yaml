@@ -910,17 +910,17 @@ L1:
   ok: true
   note: stage 에서 제자리 회전 여유 0.05 없음
   final:
-  - 3.3575
-  - 1.01
+  - 3.2545
+  - 1.002
   - -0.0
   stage:
-  - 3.0347
-  - 1.01
+  - 2.9317
+  - 1.002
   - -0.0
   standoff: 0.45
   gap: 0.1272
-  final_clearance: 0.105
-  stage_clearance: 0.105
+  final_clearance: 0.115
+  stage_clearance: 0.115
   stage_rotate: false
   tag: 12
   geom:
@@ -928,64 +928,64 @@ L1:
     tfmini_x: 0.13
   cells:
     -1,-1:
-      x: 3.66
-      y: 0.95
+      x: 3.557
+      y: 0.942
       dist: 0.215
       fwd: 0.2065
       lat: -0.06
       mode: tilt
     -1,0:
-      x: 3.66
-      y: 1.01
+      x: 3.557
+      y: 1.002
       dist: 0.2065
       fwd: 0.2065
       lat: 0.0
       mode: tilt
     -1,1:
-      x: 3.66
-      y: 1.07
+      x: 3.557
+      y: 1.062
       dist: 0.215
       fwd: 0.2065
       lat: 0.06
       mode: tilt
     0,-1:
-      x: 3.72
-      y: 0.95
+      x: 3.617
+      y: 0.942
       dist: 0.2732
       fwd: 0.2665
       lat: -0.06
       mode: tilt
     0,0:
-      x: 3.72
-      y: 1.01
+      x: 3.617
+      y: 1.002
       dist: 0.2665
       fwd: 0.2665
       lat: 0.0
       mode: tilt
     0,1:
-      x: 3.72
-      y: 1.07
+      x: 3.617
+      y: 1.062
       dist: 0.2732
       fwd: 0.2665
       lat: 0.06
       mode: tilt
     1,-1:
-      x: 3.78
-      y: 0.95
+      x: 3.677
+      y: 0.942
       dist: 0.332
       fwd: 0.3265
       lat: -0.06
       mode: tilt
     1,0:
-      x: 3.78
-      y: 1.01
+      x: 3.677
+      y: 1.002
       dist: 0.3265
       fwd: 0.3265
       lat: 0.0
       mode: tilt
     1,1:
-      x: 3.78
-      y: 1.07
+      x: 3.677
+      y: 1.062
       dist: 0.332
       fwd: 0.3265
       lat: 0.06
@@ -1080,17 +1080,17 @@ L3:
   ok: true
   note: ''
   final:
-  - 3.7
-  - 4.9875
+  - 3.672
+  - 5.0255
   - 1.5708
   stage:
-  - 3.7
-  - 4.6647
+  - 3.672
+  - 4.7027
   - 1.5708
   standoff: 0.45
   gap: 0.1272
   final_clearance: 0.125
-  stage_clearance: 0.165
+  stage_clearance: 0.17
   stage_rotate: true
   tag: 14
   geom:
@@ -1098,64 +1098,64 @@ L3:
     tfmini_x: 0.13
   cells:
     -1,-1:
-      x: 3.64
-      y: 5.29
+      x: 3.612
+      y: 5.328
       dist: 0.215
       fwd: 0.2065
       lat: 0.06
       mode: tilt
     -1,0:
-      x: 3.64
-      y: 5.35
+      x: 3.612
+      y: 5.388
       dist: 0.2732
       fwd: 0.2665
       lat: 0.06
       mode: tilt
     -1,1:
-      x: 3.64
-      y: 5.41
+      x: 3.612
+      y: 5.448
       dist: 0.332
       fwd: 0.3265
       lat: 0.06
       mode: tilt
     0,-1:
-      x: 3.7
-      y: 5.29
+      x: 3.672
+      y: 5.328
       dist: 0.2065
       fwd: 0.2065
       lat: 0.0
       mode: tilt
     0,0:
-      x: 3.7
-      y: 5.35
+      x: 3.672
+      y: 5.388
       dist: 0.2665
       fwd: 0.2665
       lat: 0.0
       mode: tilt
     0,1:
-      x: 3.7
-      y: 5.41
+      x: 3.672
+      y: 5.448
       dist: 0.3265
       fwd: 0.3265
       lat: 0.0
       mode: tilt
     1,-1:
-      x: 3.76
-      y: 5.29
+      x: 3.732
+      y: 5.328
       dist: 0.215
       fwd: 0.2065
       lat: -0.06
       mode: tilt
     1,0:
-      x: 3.76
-      y: 5.35
+      x: 3.732
+      y: 5.388
       dist: 0.2732
       fwd: 0.2665
       lat: -0.06
       mode: tilt
     1,1:
-      x: 3.76
-      y: 5.41
+      x: 3.732
+      y: 5.448
       dist: 0.332
       fwd: 0.3265
       lat: -0.06
