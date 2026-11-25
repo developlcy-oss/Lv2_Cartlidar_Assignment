@@ -58,6 +58,23 @@ Visualization Manager:
       Topic:
         Value: /view/footprint
       Color: 0; 200; 0
+    - Class: rviz_default_plugins/Polygon
+      Name: 출발 구역 (노랑, 0.6 m 사각)
+      Enabled: true
+      Topic:
+        Value: /view/start_zone
+      Color: 252; 233; 79
+    - Class: rviz_default_plugins/Pose
+      Name: 관찰 자리 (주황 화살표, 신호등 · 바코드)
+      Enabled: true
+      Topic:
+        Value: /view/observe_pose
+      Shape: Arrow
+      Color: 245; 121; 0
+      Shaft Length: 0.2
+      Shaft Radius: 0.02
+      Head Length: 0.08
+      Head Radius: 0.04
     - Class: rviz_default_plugins/TF
       Name: TF
       Enabled: true

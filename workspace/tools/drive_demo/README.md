@@ -9,6 +9,8 @@
 | **B. 전체 미션** | 팀 bringup 하나로 하드웨어 · 카메라 · 인식 · 위치 추정 · Nav2 · 계획기 · 미션을 모두 띄우고 `/mission/start` | 경기와 같은 흐름 확인 |
 | **C. 노트북 시뮬** | 로봇 없이 같은 것을 노트북에서 (주행 시연 = loopback, 전체 미션 = Gazebo) | 코드 · 설정을 바꾼 뒤 먼저 확인 |
 
+> **11-23: 한 번에 띄우기** — 아래 A (단계 3~9) · B (단계 10~12) 를 스크립트 하나로 순서대로: 젯슨 `~/robot_up/up.sh drive <run_demo 인자>` · `up.sh mission` · `up.sh down`. 단계마다 준비를 확인하고 안 되면 멈춤. 저장소 `workspace/tools/robot_up/README.md` (★ 실물 미시험 — 아래 손 절차는 그대로 유효).
+
 ## 이 폴더 (`workspace/tools/drive_demo`)
 
 | 파일 | 하는 일 |
@@ -18,6 +20,7 @@
 | `box_quiet.py` · `test_box_quiet.py` | 상자 정지점 0.40 m 안 · 0.30 m 안 판정 · 상자 좌표 · 점 지우기 함수 (demo_follow · box_scan_guard 가 import — **`demo_follow.py` 와 같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_quiet.py` |
 | `box_scan_guard.py` | 11-21 상자 구간에서 그 상자 점만 지운 `/scan_guard` · 앞 라이다 원본 `/scan_front_guard` (collision_monitor · HOLD 소스, run_demo.sh 가 `SAFETY=1` 일 때 띄움) |
 | `box_face.py` · `test_box_face.py` | 11-21 `/scan_front` 로 상자 앞면 재기 (선분 맞춤 · 길이 205 ± 25 mm, demo_follow 가 import — **같은 폴더에 함께 복사**) · 시험 `python3 -m pytest -q test_box_face.py` |
+| `arm_look.py` · `test_arm_look.py` | 11-22 밤 팔 카메라 (Arducam) 로 상자 재기 (`ARM_LOOK`) — 측정 자세 `ARM_LOOK_POSE` (기본 BOX_VIEW = 11-23 상자 구간 (정지점 0.40 m 안) 에 들어가면 주행 중 BOX_VIEW · 벗어나면 DRIVE_LOW, 측정 자리 (틈 약 10.7 cm) 에서 카메라만 · ALIGN = 틈 30 cm 1 차 정지) · **기본 켜짐 (`ARM_LOOK=0` 으로 끔)** 팔 ↔ DRIVE · `/perception/place_box/measure` · 윗면 → 앞면 변환 · 라이다와 비교 |
 | `v2_filter.py` | Nav2 속도를 규칙 v2 로 자름 (제자리 ≤ 90° 실제 각도 · 이어진 후진 ≤ 0.40 m (실물 0.50) · 반경 ≥ 0.20 · 꺾는 중 모터 상한 · 11-21 상자 앞 `/drive_demo/speed_cap`) |
 | `sim_turn_scale.py` | 시뮬만: 실물처럼 덜 도는 로봇 흉내 (회전 명령을 꺾기 · 제자리 비율로 줄임, `SIM_TURN=0.79,0.70`) |
 | `scan_rotate.py` | LDS-03 두 대 드라이버 (URDF 에 라이다 보정이 없을 때만 180° 돌림, 자동) |
@@ -345,11 +348,55 @@ bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
 | `BOX_APPROACH` | `1` 켬 (기본) · `0` 끔 · `dry` 재고 로그만 | `--box-approach on\|off\|dry` |
 | `BOX_APPROACH_AT` | `box1,L2` = 그곳만 · 빈 값 = 9 곳 전부 | `--box-approach-at box1,L2` |
 | `BOX_APPROACH_LOOSE` | `1` 느슨한 판정 · `0` 기본 | `--box-loose` |
+| `ARM_LOOK_POSE` | `BOX_VIEW` (기본, 상자 구간에서만 펴 측정 자리에서 카메라만 · 허용 틈 8~20 cm · `--no-arm-zone` 이면 11-22 처럼 주행 내내 유지) · `ALIGN` (틈 30 cm 1 차 정지 · 허용 20~65 cm) — `ARM_LOOK` 가 켜졌을 때만 의미 | `--arm-pose` |
+| `ARM_LOOK` | `on` 켜짐 (**기본**, 서비스가 안 보이면 자동 꺼짐) · `0` 안 씀 · `dry` 팔 카메라로 재서 기록만 · `on` 라이다와 3 cm · 3° 넘게 다르면 포기 (기본) · `ARM_LOOK_SOLO=1` 라이다 실패 곳 팔 단독 (아래 "팔 카메라 상자 재기") | `--arm-look off\|dry\|on` · `--arm-solo` |
 | – | 목표 틈 (기본 0.05 m) | `--box-gap 0.05` |
 | (자동) | 회전 · 거리에 쓰는 오도메트리 (실물 `/odometry/filtered` · 시뮬 `/odom`) | `--odom-topic` |
 
 - `BOX_APPROACH_LOOSE=1` 은 실물 dry 로그의 실패 이유에 찍히는 `RMS x mm` 가 늘 7 mm 를 넘을 때 켭니다 (라이다 잡음 약 1 cm). 대신 상자 옆 2 cm 틈에 놓인 퍽은 상자와 구분하지 못합니다.
 - 재는 라이다는 `/scan_front` 고정입니다 (`--box-scan-topic`, 넘기지 않음).
+
+### 팔 카메라 (Arducam) 로 상자 재기 — `ARM_LOOK` (11-22 밤, ★ 실물 · 팔 동작 미시험)
+
+측정 자세는 `ARM_LOOK_POSE` 로 고릅니다 (사용자 결정 11-22 밤, 기본 **`BOX_VIEW`**).
+- **`BOX_VIEW`** (기본, `--arm-pose BOX_VIEW`, **사용자 결정 11-22 밤: 기본 켜짐 · 주행 중에도 팔 유지**): 자율 · 계획 주행 **시작 전** (출발 확인 뒤 · 첫 구간 전, 바퀴 0 명령) 에 팔을 `DRIVE` → `BOX_VIEW` (바로 아래 약 89.5° 를 봄, `poses.BOX_VIEW = [0, -0.65, 0, 1.95, 0, 0]`, 미션 `box_look` 과 같은 자세) 로 **한 번** 펴고, 이후 모든 구간 이동 · 되찾기 · 복귀 중 **그대로 유지** 합니다. 1 차 정지 없이 라이다 측정 자리 (틈 `AP_MEASURE_GAP` 14.5 cm) 에서는 **팔을 안 움직이고** 라이다 측정 + 팔 카메라 `measure` 만 (정지점마다 팔 왕복 없음) → S 자. 끝날 때 (정상 종료 · 복귀 뒤 · Ctrl+C · 실패 종료) 바퀴 정지 상태에서 `BOX_VIEW` → `DRIVE` 로 접음 (3 번 시도, 못 하면 화면 경고). **안전 정지 (`⛔`) 때는 팔을 안 움직이고** 안내만. 시작 때 `BOX_VIEW` 로 못 펴면 경고 후 `DRIVE` 로 되돌려 보고 라이다만으로 진행 (팔 카메라 자동 끔). step 모드는 펴기 전에 Enter 를 묻습니다 (`s` = 팔 카메라 끔). 팔 허용 예상 틈 **10~20 cm** (밖이면 안 폄). 사전값 = 라이다 앞면 중앙 + 반 변 (틈 14.5 cm 이면 윗면 중심 base x ≈ 0.38 — perception 기본 prior 0.3625 ± 0.08 안).
+- **`ALIGN`** (`--arm-pose ALIGN`): 예전 동작 — 상자 앞 **틈 약 30 cm 1 차 정지** 에서 팔 `ALIGN` ↔ `DRIVE`, 그 뒤 측정 자리로 가서 라이다와 비교. 허용 예상 틈 20~65 cm.
+
+팔 카메라 값은 라이다 정밀 측정과 **비교** 합니다.
+라이다가 주 센서이고 Arducam 은 큰 오검출을 거르는 확인용입니다 (팔 기구학 RMS 19~20 mm 라 가중 평균 · 칼만 결합은 안 함). 새 토픽 · 서비스 없음 — 미션 `center_box` 와 같은 `/manipulator/pose` · `/perception/place_box/measure`.
+**BOX_VIEW 의 한계 (설계 검토값, 실물 미확인 — `/home/pa8/handoff_1122/review_arducam_*.md`)**
+- **⚠ 팔 끝이 라이다 높이 위입니다**: 팔 최저 z ≈ 0.18 m 로 라이다 (z 0.075) · 정지 띠 · collision_monitor 가 못 보는 높이 — 경기장 벽 높이 39 cm 보다 낮아 **팔이 벽에 닿을 수 있고, 벽 · 높은 물체와의 접촉을 아무 장치도 감지하지 못합니다.** 11-23 부터 BOX_VIEW 는 상자 구간 (0.40 m 안) 에서만 펴고 그 밖은 DRIVE_LOW (앞 끝 x 0.22~0.25) 라 아래 값은 접기를 못 했을 때의 최악값. 주행 내내 펴 두면 (계산 11-22 밤, done_boxview2.md) 팔 앞 끝 ↔ 벽 최소 틈이 S4 · 복귀 box3 에서 약 6.6 cm (팔 폭 ±6.4 cm 기준, AMCL ±3 cm 빼면 3.6 cm) 로 **여유가 작습니다.**
+- **`on` 의 3 cm · 3° 문턱은 실물 미검증** — 라이다만으로 성공하던 상자에서도 팔 값 오차 (기구학 RMS 약 2 cm · 윗면 일부만 보임) 때문에 5 cm 다가가기를 포기할 수 있습니다. 먼저 `dry` 로 분포를 보세요.
+- **윗면 일부만** 보입니다: 윗면이 보이는 범위 base x 0.16~0.33 (상판 앞 끝 ↔ 상자 틈 약 0.03~0.20), 윗면 전체는 안 들어옴 (틈 14.5 cm 에서 앞쪽 일부) → 윗면 중심 · 요 추정이 **부정확할 수 있음** (그래서 on 에서도 라이다와 3 cm · 3° 비교로 거르고, 먼저 dry 로 오차 분포를 봄). 예전 계산 (done_arm.md) 은 앞 5 cm 만 보인다고 했음.
+- 팔이 상자 위로 걸침: 팔 앞 끝 base x ≈ 0.318 → 틈 14.5 cm 에서 상자 위로 약 4 cm (5 cm 접근 끝에서는 약 13.5 cm), 팔 최저 z ≈ 0.184 m (상자 윗면 0.07 m 위, 퍽 Ø30 × 60 mm 윗면 0.13 m → **퍽 위 여유 약 5 cm**, 계산값 · 실물 미확인) — 벤치에서 퍽 얹은 상자로 확인 전엔 on 금지.
+- ALIGN 은 앞 · 아래 41.9°, 윗면 전체가 보이는 틈 ≈ 0.19~0.65, 팔 최저 z 0.178 m, 앞으로 2~7 cm 라 상자 · 라이다를 안 가리지만 1 차 정지가 따로 필요 (시간 · 끊는 조각 하나 더).
+
+| `ARM_LOOK` | 하는 일 | `demo_follow.py` 인자 |
+|---|---|---|
+| `0` | 안 씀 — 예전과 똑같음 (`run_demo.sh` 기본은 `on`) | (없음) |
+| `dry` | 재서 **기록만** (움직임에 안 씀) — 두 센서 차이를 `auto_result.json` 에 남김. **먼저 이것으로** | `--arm-look dry` |
+| `on` (**`run_demo.sh` 기본**) | 라이다와 틈 · 옆 3 cm · 방향 3° 넘게 다르면 5 cm 다가가기 **포기** (기존 fallback) | `--arm-look on` |
+| `ARM_LOOK_SOLO=1` (`on` 에서만) | 라이다가 못 잰 곳 (box1 · box3 처럼 앞면이 안 보이는 곳) 을 **팔 카메라 값 단독** 으로 다가감. 기본 꺼짐 | `--arm-solo` |
+
+**SOLO 위험** (기본 끔 · 켜기 전에 dry 로그로 확인): 팔 기구학 오차가 약 2 cm 이고 (실물 윗면 중심 정확도 미확인) 라이다 확인 없이 5 cm 틈까지 다가가므로 상자에 닿을 수 있음. 켜도 `ap_check` (틈 8~45 cm · 옆 10 cm · 방향 25° 이내) 를 통과한 값만 쓰고 로그에 `⚠ solo` 로 표시, 기록 `ap.src = "arm"`. 리모컨 1 에 손.
+
+**켜는 법** (Jetson, 주행 모드 bringup 은 `use_perception:=false` 그대로 — `bringup.launch.py` 는 안 바꿈: 인식 전체 (D435 · scan_merger · 측량) 를 켜지 않고 `perception_node` 하나만 따로 띄우는 편이 부하 · 충돌이 적음):
+```bash
+ros2 launch bringup arm_look.launch.py        # perception_node 하나 (place_box · set_mode 서비스, 색 검출기) + 팔 Arducam 드라이버. D435 · 라이다는 안 켬
+# Arducam 을 이미 다른 launch (sensors.launch.py) 가 띄웠으면:  ros2 launch bringup arm_look.launch.py use_arm_camera:=false
+ARM_LOOK=dry BOX_APPROACH_AT=box1 ./run_demo.sh real slow step init 0-0      # 먼저 한 곳, 기록만
+```
+- `bringup.launch.py use_perception:=true` 와 같이 띄우지 않습니다 (perception_node 가 둘). 라이다 (`scan_rotate.py`) 는 건드리지 않습니다 (`use_lidar:=false`). TF (`base_link → arm_camera_optical_frame`) 는 단계 4 의 `base_bringup` (robot_state_publisher) 가 냅니다.
+- 노트북에서 D435 없이 `perception_node` 가 뜨고 서비스가 나오는 것까지 확인했습니다 (카메라 없으면 `CAMERA_STALL` 경고). Jetson CPU · 영상 지연은 미확인.
+- 시작할 때 `/manipulator/pose` · `/perception/set_mode` · `/perception/place_box/measure` 가 안 보이면 `팔 카메라 상자 재기: ⚠ 꺼짐 — 없음: …` 을 찍고 **자동으로 꺼져** 라이다만으로 진행합니다 (시뮬 · 인식이 없는 회차).
+- **BOX_VIEW 흐름 (기본, 11-23)**: 시작 전 팔 DRIVE → `DRIVE_LOW` (바퀴 정지) → 상자 구간 (정지점 0.40 m 안) 에 들어가면 **주행 중** `BOX_VIEW` 로 폄 (ArmZone, 바퀴 0 명령 없음 · 실물 왕복 20 회 이동당 약 1 s) → 정지점 (측정 자리, 틈 약 10.7 cm, `--ap-s-mode back` 은 끊지 않음) 에 멈춤 · 팔이 아직 가는 중이면 최대 12 s 기다림 (못 가면 라이다만) → 라이다 측정 → (같은 자리 · 바퀴 0 명령 유지 · **팔 안 움직임**) 카메라 켬 → 사전값 (라이다 앞면 + 반 변) 을 `prior` 로 내고 `measure` → 카메라 끔 → 비교 (바퀴 안 움직였으니 옮길 필요 없음, `moved_rel` 은 같은 값) → S 자 → 구간을 벗어나면 (0.42 m 밖 · 구간 끝) 주행 중 `DRIVE_LOW` 로 접음 (3 번 실패하면 BOX_VIEW 인 채 계속 — 경로는 BOX_VIEW 팔 외곽으로 계산돼 있음) · 끝나면 DRIVE. `--arm-zone-fold` 로 접는 자세, `--no-arm-zone` 으로 11-22 방식 (주행 내내 BOX_VIEW). 팔 동작 시간은 다가가기 전체 시간 상한 (30 s) 을 다시 시작해 안 셉니다. `ARM_LOOK_SOLO=1` 이면 라이다 실패 시 이 자리에서 팔로 잼.
+- **ALIGN 흐름**: 마지막 전진을 정지점 19 cm 앞 (틈 30 cm) 에서 한 번 더 끊어 정지 → 바퀴 0 명령 유지 · 팔 `ALIGN` → 팔 카메라 켜기 (`READ_TAG`) → 사전값 (계획 기준 윗면 중심, 틈 30 cm 이면 x ≈ 0.535 — perception 기본값 0.3625 ± 0.08 밖이라 꼭 냄) 을 `/perception/place_box/prior` 로 내고 `measure` → `/perception/place_box/status` (odom 기준 윗면 중심 · 요) → 카메라 끔 → **팔 `DRIVE` 복귀 (3 번 시도)** → 그 뒤에만 바퀴가 움직여 측정 자리로 → 라이다 측정 → 비교 (팔 값은 오도메트리로 옮겨 비교).
+- 윗면 → 앞면: 앞면 중앙 = 윗면 중심에서 법선 반대로 반 변 (0.1025 m). 윗면 요는 90° 마다 같아 정면에 가장 가까운 방향을 법선으로 고릅니다. 계획 예상에서 8 cm 넘게 벗어난 값은 버립니다 (`mission center.max_shift` 와 같게).
+- **팔 접기 실패 (BOX_VIEW 는 끝에서 · 시작 펴기 실패 때, ALIGN 은 측정마다)**: 시작 펴기 실패 + DRIVE 도 못 접으면 `⛔ 안전 정지`, 끝 접기가 3 번 실패하면 `⚠⚠ 팔을 DRIVE 로 못 접음` 화면 경고 (직접 `arm_demo.py DRIVE`). ALIGN: **팔을 DRIVE 로 못 접으면** `⛔ 안전 정지` 로 전체를 멈춥니다 (바퀴 안 움직임 · 팔 상태 확인). 팔 · 카메라 · 측정이 실패하면 팔은 접고 **라이다만으로 계속** 합니다. 예상 틈이 자세별 허용 범위 (BOX_VIEW 10~20 cm · ALIGN 20~65 cm) 밖이면 팔을 펴지 않습니다.
+- ALIGN: 곳마다 약 15 ~ 25 초 더 걸립니다 (팔 이동 2 번 + 영상 3 장 · 정지 · 감속). BOX_VIEW 기본은 시작 · 끝에 팔 이동 한 번씩 + 곳마다 영상 3 장 (약 10 s). 이 시간은 다가가기 전체 시간 상한 (30 s) 에 안 셉니다. Spin 예산 (제자리 합 90°) 은 영향 없음 (회전 안 씀). BOX_VIEW 는 1 차 정지가 없어 ALIGN 보다 짧음 (팔 이동 2 번 + 영상).
+- `step` 모드는 (BOX_VIEW) 주행 시작 전 `▶ 팔을 BOX_VIEW 로 폄 … Enter 실행 · s 건너뛰기 (팔 카메라 끔)` 를, 측정 자리마다 `▶ 팔 카메라로 상자 재기 …` 를 묻습니다 (ALIGN 은 팔을 펴기 전에 묻기).
+- 기록: `follow.log` 의 `· 팔 카메라 측정 …` · `· 라이다 ↔ 팔 카메라 …` 줄, `course_result.json` · `auto_result.json` 각 곳의 `ap.arm` (`pose` · `at` (measure/pre), `rel` = 측정한 자리 (ALIGN 은 1 차 정지) 에서 본 틈 · 옆 · 방향, `moved_rel` = 측정 자리로 옮긴 값, `cross` = 라이다와의 차이 · `agree`, `status`, `ok`, `why`, 시간, `skipped`/`stuck`).
+- **실물 순서 (권장)**: ⓪ **첫 실물은 `step` 모드로 S4 (box3 → box5) · S2 (box2 → box6) 구간에서 팔 ↔ 벽 간격을 눈으로 확인** (리모컨 1 에 손, 모자라면 `ARM_LOOK=0`). ① 벤치 (BOX_VIEW 기본): 바퀴 없이 상자를 상판 앞 끝에서 **틈 14.5 cm** 에 두고 `arm_demo.py DRIVE BOX_VIEW DRIVE` 로 팔 왕복 시간 · 충돌 확인 (팔이 상자 위 약 4 cm 걸침 · **퍽이 얹힌 상자면 팔 최저 z 0.18 m 와 높이 여유 확인** — 미확인) + `arm_look.launch.py` 로 `ros2 service call /perception/place_box/measure` 가 `status ok true` 를 내는지, 윗면 앞쪽 일부만 보이는데 `x`·`y`·`yaw` 가 줄자와 몇 cm 맞는지 (ALIGN 으로 바꿔 쓸 땐 상자를 틈 30 cm 에 두고 윗면이 다 보이는지) → ② `ARM_LOOK=dry BOX_APPROACH_AT=box1 … step` (box1 만, 기록만) → ③ dry 로 9 곳 — `ap.arm.cross` 의 틈 · 옆 · 방향 차이 분포 (라이다와 몇 cm · 몇 °) → ④ 차이 p95 ≤ 3 cm 이면 `ARM_LOOK=on` 으로 box1 접근 → ⑤ 9 곳. `SOLO` 는 ③ 에서 라이다 실패 곳의 팔 값이 줄자와 맞는 것을 본 뒤에만.
 
 - 기록 폴더 이름 끝에 `_접근끔` (0) · `_접근측정` (dry) 이 붙습니다. `settings.txt` 의 "추가 인자" 에도 적힙니다.
 - step 모드에서는 움직이기 전에 `▶ … Enter 실행 · s 건너뛰기` 를 묻습니다.
@@ -390,6 +437,18 @@ bringup 은 `mode` 인자로 두 모드 중 하나로 뜹니다.
 **실물 보정** — 상자를 앞 라이다 정면 25 ~ 30 cm 에 두고 dry 로 잽니다.
 - 기울기가 0° 에서 벗어나면 `laser_front` yaw, 틈이 줄자와 계속 같은 만큼 다르면 거리 바이어스입니다. 값을 제어 담당에게 알립니다.
 - `ros2 topic echo /scan_front --once | grep range_min` 으로 최소 거리 (0.12 m 쯤) 를 확인합니다.
+
+#### 제자리 회전 예산 `SPIN_MODE` (11-22 밤, 사용자 결정)
+- 규칙 v2 (벨트 보호): 멈춘 채 도는 각도를 0.15 m 움직일 때까지 묶어 셈. 넘으면 v2_filter 가 제자리 회전 명령을 자름 (→ Nav2 Spin "Exceeded time allowance").
+- 1122 실물: 상자 다가가기 S 자 (−23° → +25°) · 방향 맞추기 왕복이 예전 방식 (`sum` = 절대값 합 ≤ 90°) 을 다 써 Spin 이 잘림 (1851 · 1859 · 1915).
+
+| `SPIN_MODE` | 세는 법 | 1122 bag 재생 잘림 |
+|---|---|---|
+| `span_cap` (기본) | 방향 범위 (최대 − 최소 yaw) ≤ 90° **그리고** 왕복 총량 ≤ `SPIN_TOTAL_DEG` (기본 180°) | 0 |
+| `sum` | 예전 규칙: 절대값 합 ≤ 90° | 1851 1164 틱 · 1859 2372 틱 |
+| `span` | 방향 범위 ≤ 90° 만 (왕복 상한 없음, 벨트 보호 약함) | 0 |
+
+- 한 방향으로 90° 넘게 이어 도는 것은 세 방식 모두 막힘. 끝에 nav.log 의 "v2_filter 잘림 횟수 · 제자리 예산 최대" 로 확인.
 
 #### 반경 넓힌 계획 `demo_plan_wide.json` (11-19 추가, 실물 미시험)
 

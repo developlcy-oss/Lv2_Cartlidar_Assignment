@@ -18,6 +18,15 @@
 #             11-21 (3): AP_MID_FIX=2 (0.20 m 자리 S 자 옆 보정 최대 횟수, 0 = 확인만) · AP_MID_TOL=8 (허용 옆 오차 mm)
 #                        TURN_DIRECT=5 (이 각 ° 이하 제자리는 Spin 대신 cmd_vel 직접, 0 = 늘 Spin) · TURN_ROOM=1|0 (상자 앞 Spin 전 틈 확보 후진)
 #                        AP_LEAVE_ALL=1|0 (다가가기 안 된 상자 정지점도 떼기 후진) — 빈 값 = demo_follow 기본값 (위 값)
+#             11-22 밤: ARM_LOOK=on|dry|0 — 팔 카메라 (Arducam) 로 상자 윗면을 잼. **기본 on (켜짐)**, 0 = 끔. 서비스 (/manipulator/pose · 인식 place_box) 가 안 보이면 (시뮬 · 인식 안 뜸) 자동으로 꺼짐 (라이다만).
+#                        ARM_LOOK_POSE=BOX_VIEW (기본) = 자율 시작 전 (출발 확인 뒤) 팔 DRIVE → BOX_VIEW 한 번, **주행 내내 유지**, 끝 (정상 · Ctrl+C · 실패) 에 DRIVE 로 접음. 안전 정지 때는 팔 안 움직임 (안내만).
+#                        상자 측정 자리 (틈 14.5 cm, 허용 10~20 cm) 에서는 팔을 안 움직이고 라이다 측정 + 팔 카메라 재기만 (윗면 일부만 보임). 못 펴면 경고 후 라이다만.
+#                        ⚠ 팔 끝이 라이다 높이 위라 벽 (39 cm) · 높은 물체 접촉을 아무 장치도 못 봄 → 첫 실물은 step 모드로 S4 · S2 에서 팔–벽을 눈으로 확인.
+#                        ⚠ on 의 3 cm · 3° 문턱은 실물 미검증 — 성공하던 상자에서도 다가가기를 포기할 수 있음 (dry 로 먼저 값 확인 가능).
+#                        ARM_LOOK_POSE=ALIGN = 틈 30 cm 1 차 정지, 허용 20~65 cm — 측정 때만 펴고 접은 뒤 틈 14.5 cm 라이다와 비교 (예전 동작).
+#                        dry = 재서 기록만 (움직임엔 안 씀) · on = 3 cm · 3° 넘게 다르면 5 cm 다가가기 포기 · ARM_LOOK_SOLO=1 (on 에서 라이다 실패 곳을 팔 값 단독으로 다가감, 기본 0 — 위험 README).
+#                        인식 place_box 가 떠 있어야 함 (bringup arm_look.launch.py, README)
+#             11-22 밤 v2: SPIN_MODE=span_cap|sum|span (v2_filter 제자리 예산 방식, 기본 span_cap = 방향 범위 ≤ 90° + 왕복 총량 ≤ SPIN_TOTAL_DEG, 사용자 결정 11-22 밤 · sum = 예전 규칙) · SPIN_TOTAL_DEG=180
 #   11-21 상자 구간 (정지점 0.40 m 안): 정지 띠 · HOLD 는 그 상자 점만 지운 라이다 (box_scan_guard.py, SAFETY=1) · 0.30 m 안 속도 ≤ 0.15 m/s
 # 멈추기: 이 터미널 Ctrl+C (Nav2 동작 취소 → 0) · 리모컨 1 (E-stop, 풀기 2+3) — 소프트웨어 정지, 물리 비상정지 아님
 # 기록: 이 폴더 runs/<월일_시각>_<실물|시뮬>_<speed>/ → 노트북 2026-11-12_기준주행/runs/ 로 복사하면 주행기록 HTML 에 Nav2 기록으로 보임
@@ -70,6 +79,8 @@ case "${AP_RETURN:-}" in 1) FA+=(--ap-return-stop) ;; 0) FA+=(--no-ap-return-sto
 [ -n "${TURN_DIRECT:-}" ] && FA+=(--turn-direct "$TURN_DIRECT")
 case "${TURN_ROOM:-}" in 1) FA+=(--turn-room) ;; 0) FA+=(--no-turn-room) ;; "") ;; *) echo "TURN_ROOM 은 1 · 0 중 하나 (지금 $TURN_ROOM)"; exit 2 ;; esac
 case "${AP_LEAVE_ALL:-}" in 1) FA+=(--ap-leave-all) ;; 0) FA+=(--no-ap-leave-all) ;; "") ;; *) echo "AP_LEAVE_ALL 은 1 · 0 중 하나 (지금 $AP_LEAVE_ALL)"; exit 2 ;; esac
+case "${ARM_LOOK:-on}" in 1|on) FA+=(--arm-look on); [ "${ARM_LOOK_SOLO:-0}" = 1 ] && FA+=(--arm-solo) ;; dry) FA+=(--arm-look dry) ;; 0) ;; *) echo "ARM_LOOK 은 0 · dry · on 중 하나 (지금 $ARM_LOOK)"; exit 2 ;; esac
+case "${ARM_LOOK_POSE:-BOX_VIEW}" in BOX_VIEW|ALIGN) FA+=(--arm-pose "${ARM_LOOK_POSE:-BOX_VIEW}") ;; *) echo "ARM_LOOK_POSE 는 BOX_VIEW · ALIGN 중 하나 (지금 $ARM_LOOK_POSE)"; exit 2 ;; esac   # 11-22 밤: 팔 카메라 측정 자세 (ARM_LOOK 켠 때만 쓰임)
 # RPP 곡선 감속 반경 = 그 속도로 반경 1 m 를 돌 때 바깥 모터가 상한 (벨트 2.0 · 모터 3.0 → 0.201 m/s) 이 되는 값 (params_demo_max.yaml 의 __MRF__ · __MRR__)
 MRF=$(python3 -c "print(round($VF * 1.1585 / 0.201, 2))"); MRR=$(python3 -c "print(round($VR * 1.1585 / 0.201, 2))")
 set +u; source /opt/ros/lyrical/setup.bash; set -u
@@ -108,7 +119,7 @@ stop_bag() {   # 11-21: ros2 bag record 는 SIGINT 로 닫아야 파일 끝 (mca
 cleanup() { stop_bag; for p in "${PIDS[@]}"; do kill -INT -- -"$p" 2>/dev/null; done; sleep 2; for p in "${PIDS[@]}"; do kill -KILL -- -"$p" 2>/dev/null; done; }
 trap cleanup EXIT TERM
 if [ "$DEMO_BAG" = 1 ]; then   # 11-21: 기록 폴더/bag 에 rosbag (백그라운드, 로그 bag.log). 없는 토픽은 생기면 그때부터 기록
-  BT=(/amcl_pose /odometry/filtered /scan_merged /scan_front /tf /tf_static /loc_guard/pose /loc_guard/event /cmd_vel_raw /scan_guard /scan_front_guard /drive_demo/box_zone /drive_demo/speed_cap /collision_monitor_state)
+  BT=(/amcl_pose /odometry/filtered /scan_merged /scan_front /tf /tf_static /loc_guard/pose /loc_guard/event /cmd_vel_raw /cmd_vel /odom_icr /imu/data /diagnostics /scan_guard /scan_front_guard /drive_demo/box_zone /drive_demo/speed_cap /collision_monitor_state /perception/place_box/status /perception/place_box/prior /rosout)   # 11-23: 팔 측정 진단용 3 개 추가
   [ "$DEMO_BAG_PARTICLES" = 0 ] || BT+=(/particle_cloud)
   BOPT=(); BFMT=sqlite3
   BH=$(ros2 bag record --help 2>&1)
@@ -146,7 +157,7 @@ if [ "$SAFETY" = 1 ]; then
   NODES="$NODES, 'collision_monitor', 'planner_server'"   # planner_server 맨 뒤: global_costmap 이 map TF 를 기다림 (시뮬은 demo_follow 의 /initialpose 뒤에 생김)
 fi
 start python3 "$HERE/v2_filter.py" --ros-args "${SIMP[@]}" -p out_topic:=$FOUT -p vx_fwd:=$VF -p vx_rev:=$VR -p spin_w:=$SW \
-  -p belt:=$(printf %.3f "${BELT:-1.5}") -p turn_motor:=$(printf %.3f "${TURN_MOTOR:-5.5}") -p odom_topic:=$ODOM -p rev_max:=$(printf %.3f "${REV_MAX:-$([ $MODE = real ] && echo 0.50 || echo 0.40)}")
+  -p spin_mode:=${SPIN_MODE:-span_cap} -p spin_total_deg:=$(printf %.1f "${SPIN_TOTAL_DEG:-180}") -p belt:=$(printf %.3f "${BELT:-1.5}") -p turn_motor:=$(printf %.3f "${TURN_MOTOR:-5.5}") -p odom_topic:=$ODOM -p rev_max:=$(printf %.3f "${REV_MAX:-$([ $MODE = real ] && echo 0.50 || echo 0.40)}")
 start ros2 run nav2_lifecycle_manager lifecycle_manager --ros-args -r __node:=lifecycle_manager_demo "${SIMP[@]}" \
   -p autostart:=true -p bond_timeout:=0.0 -p node_names:="[$NODES]"
 

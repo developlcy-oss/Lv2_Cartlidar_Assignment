@@ -231,3 +231,35 @@ def test_no_spin_pieces_between_stops(plan):
     """11-22 곡선으로 이어 가기: 정지점 사이 구간 (S0 ~ S8) 에 제자리 회전 조각 없음 (HOME 끝 맞추기 S9 · home_legs 는 예외)"""
     for L in plan["legs"][:9]:
         assert all(pc["kind"] != "S" for pc in L["pieces"]), L["name"]
+
+
+ARM_MIN = 0.06   # 11-22 팔 (BOX_VIEW) 외곽 ↔ 벽 · 기둥 (map_amcl) 최소 [m] — widen_plan --arm 0.06 (AMCL ±3 cm 여유)
+
+
+def arm_paths():
+    out = [(L["name"], L["pieces"]) for L in AUTO["legs"]] + [(f"W {L['name']}", L["pieces"]) for L in WIDE["legs"][:9]]
+    return out + [(h["name"], h["pieces"]) for h in AUTO["home_legs"].values()]
+
+
+@pytest.fixture(scope="module")
+def clear():
+    import widen_plan
+    return widen_plan.Clear()
+
+
+@pytest.mark.parametrize("name,pieces", arm_paths(), ids=[p[0] for p in arm_paths()])
+def test_arm_wall_clearance(clear, name, pieces):
+    """주행 내내 팔이 BOX_VIEW (최저 z 0.184 < 벽 0.39) — 정지점 · 제자리 회전 (2° 마다) 포함 팔 외곽 ↔ 벽 ≥ ARM_MIN"""
+    import numpy as np
+    P, q = [], None
+    for pc in pieces:
+        if pc["kind"] == "S":
+            n = max(2, int(abs(pc["dth"]) / math.radians(2)) + 1)
+            P += [[q[0], q[1], q[2] + pc["dth"] * t] for t in np.linspace(0, 1, n)]
+            q = [q[0], q[1], q[2] + pc["dth"]]
+        else:
+            P += pc["poses"]
+            q = pc["poses"][-1]
+    c = clear.arm_clear(np.array(P))
+    i = int(np.argmin(c))
+    assert c[i] >= ARM_MIN, f"{name}: 팔 ↔ 벽 {c[i] * 100:.2f} cm @ {P[i]}"

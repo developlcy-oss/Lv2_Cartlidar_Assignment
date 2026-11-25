@@ -5,7 +5,10 @@ drive_rl base_cmd.py 규칙 v2 와 같은 한계 (가속은 diff_drive 가 맡�
   - 이어진 후진 ≤ rev_max (기본 0.40 m, 0.15 m 전진해야 다시 셈) — 넘으면 뒤로 가는 명령을 0
     11-15 21:2x 사용자 결정: 실물만 0.50 m (계획은 0.40 그대로). 실물이 덜 꺾어 (79 %) 꺾으며 하는 후진이 계획보다 길어짐 (S4 막힘, 1115_2104)
   - 움직이는 중 (|v| ≥ 0.03) |ω| ≤ |v| / 0.20 (반경 ≥ 0.20 m)
-  - 멈춘 채 제자리 회전 |ω| ≤ spin_w, 돈 각도 합 ≤ 90° (0.15 m 움직여야 다시 셈)
+  - 멈춘 채 제자리 회전 |ω| ≤ spin_w, 돈 각도 ≤ 90° (0.15 m 움직여야 다시 셈)
+    11-22 spin_mode (기본 "span_cap" = 사용자 결정 11-22 밤, "sum" = 예전 규칙): "span" = 쓴 각도를 '방향 범위 (최대 − 최소 yaw)' 로 셈 — 왔다 갔다 (S자 다가가기 −30° → +25°, Spin 되찾기 −47° → +41°)
+    는 이미 지나간 범위 안이라 안 줆. 한 방향 이어 돌기 (90° + 90° = 180° · 360°) 는 그대로 막힘 (범위 > 90°).
+    "span_cap" = span + 절대값 합 총량 ≤ spin_total (기본 180°) 도 같이 (왕복 마모 상한). "sum" = 예전 (돈 각도 절대값 합). 실물 1122: 합으로 세면 되돌아오는 회전이 예산을 먹어 Spin 이 잘림 (Exceeded time allowance)
     11-15 21:1x: odom_topic 을 주면 돈 각도를 명령이 아니라 실제 (오도메트리 yaw 변화) 로 셈 — 실물은 명령보다 느리게 돌아
     (제자리 66 ~ 80 %) 명령으로 세면 예산이 일찍 차서 S1 시작 방향 맞추기가 0 으로 잘림 (1115_2055)
   - 꺾는 중 가장 빠른 모터 ≤ turn_motor (기본 3.0) rad/s (곡률 0.5 /m 부터 줄어 1 /m 부터 상한), v · ω 같은 비율로 줄임
@@ -27,6 +30,40 @@ from std_msgs.msg import Float32
 from rclpy.node import Node
 
 REV_MAX, RESET, R_MIN, SPIN_V, SPIN_MAX = 0.40, 0.15, 0.20, 0.03, math.radians(90.0)
+
+
+class SpinBudget:
+    """제자리 회전 예산 (순수 함수 · ROS 없음, test_v2_filter.py 로 시험).
+    mode "sum": 돈 각도 절대값 합 ≤ max_rad. mode "span": 부호 있는 누적 yaw 의 범위 (최대 − 최소) ≤ max_rad.
+    mode "span_cap": span 에 더해 절대값 합 ≤ total_rad."""
+
+    def __init__(self, max_rad=SPIN_MAX, mode="sum", total_rad=2 * SPIN_MAX):
+        if mode not in ("sum", "span", "span_cap"):
+            raise ValueError(mode)
+        self.max, self.mode, self.total_max = max_rad, mode, total_rad
+        self.reset()
+
+    def reset(self):
+        self.cum = self.lo = self.hi = self.total = 0.0
+
+    def add(self, dyaw):
+        self.cum += dyaw
+        self.lo, self.hi = min(self.lo, self.cum), max(self.hi, self.cum)
+        self.total += abs(dyaw)
+
+    @property
+    def used(self):
+        return self.total if self.mode == "sum" else self.hi - self.lo   # span_cap 도 범위를 보여줌 (총량은 total)
+
+    def remaining(self, sign):
+        """sign 쪽 (+1 왼쪽 · −1 오른쪽) 으로 더 돌 수 있는 각도 [rad]"""
+        free = max(self.max - self.used, 0.0)
+        if self.mode == "sum":
+            return free
+        r = free + ((self.hi - self.cum) if sign > 0 else (self.cum - self.lo))
+        return min(r, max(self.total_max - self.total, 0.0)) if self.mode == "span_cap" else r
+
+
 K0, K1, R_WHEEL = 0.5, 1.0, 0.0335
 SEP = 0.317 * 1.29   # 실효 바퀴 간격 = 기하 0.317 × controllers_4wd.yaml wheel_separation_multiplier (2026-11-18, 실물 회전 0.775 배)
 DT = 0.02
@@ -57,12 +94,13 @@ class V2Filter(Node):
         self.mon = self.create_publisher(TwistStamped, "cmd_vel_v2", 10)
         self.create_subscription(TwistStamped, "cmd_vel_raw", self._in, 20)
         self.raw, self.t_raw = (0.0, 0.0), -1e9
-        self.spin_used = self.moved = self.rev_run = self.fwd = 0.0
+        self.budget = SpinBudget(SPIN_MAX, self.declare_parameter("spin_mode", "span_cap").value, math.radians(self.declare_parameter("spin_total_deg", 180.0).value))
+        self.moved = self.rev_run = self.fwd = 0.0
         self.clips = {"speed": 0, "curv": 0, "spin": 0, "rev": 0, "motor": 0, "stop": 0, "zone": 0}
         if self.odom_topic:
             self.create_subscription(Odometry, self.odom_topic, self._odom, 20)
         self.create_timer(DT, self._tick)
-        self.get_logger().info(f"규칙 v2 필터: cmd_vel_raw → {out} · 전진 ≤ {self.vx_fwd} · 후진 ≤ {self.vx_rev} m/s · 제자리 ≤ {self.spin_w} rad/s · 벨트 {self.belt} · 꺾는 중 모터 ≤ {self.turn_motor} · 제자리 예산 = {"실제 " + self.odom_topic if self.odom_topic else "명령"} · 이어진 후진 ≤ {self.rev_max} m · 정지 앞 감속 {self.stop_decel} m/s² → {self.stop_creep_v} m/s (마지막 {self.stop_creep_d} m)")
+        self.get_logger().info(f"규칙 v2 필터: cmd_vel_raw → {out} · 전진 ≤ {self.vx_fwd} · 후진 ≤ {self.vx_rev} m/s · 제자리 ≤ {self.spin_w} rad/s · 벨트 {self.belt} · 꺾는 중 모터 ≤ {self.turn_motor} · 제자리 예산 ({self.budget.mode}) = {"실제 " + self.odom_topic if self.odom_topic else "명령"} · 이어진 후진 ≤ {self.rev_max} m · 정지 앞 감속 {self.stop_decel} m/s² → {self.stop_creep_v} m/s (마지막 {self.stop_creep_d} m)")
 
     def now(self):
         return self.get_clock().now().nanoseconds * 1e-9
@@ -71,8 +109,8 @@ class V2Filter(Node):
         q = m.pose.pose.orientation
         yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
         if self.yaw_last is not None and self.now() - self.t_spin < 0.5:   # 제자리 회전 명령 중 · 끝난 뒤 0.5 s (미끄러져 더 도는 것)
-            self.spin_used += abs((yaw - self.yaw_last + math.pi) % (2 * math.pi) - math.pi)
-            self.spin_peak = max(self.spin_peak, self.spin_used)
+            self.budget.add((yaw - self.yaw_last + math.pi) % (2 * math.pi) - math.pi)
+            self.spin_peak = max(self.spin_peak, self.budget.used)
         self.yaw_last = yaw
 
     def _stop(self, m):
@@ -103,7 +141,7 @@ class V2Filter(Node):
                 w = math.copysign(lim, w)
                 self.clips["curv"] += 1
         else:
-            left = max(SPIN_MAX - self.spin_used, 0.0) / DT
+            left = self.budget.remaining(1 if w >= 0 else -1) / DT
             lim = min(max(self.spin_w, abs(v) / R_MIN), left)
             if abs(w) > lim + 1e-9:
                 w = math.copysign(lim, w)
@@ -132,11 +170,11 @@ class V2Filter(Node):
         if sp < SPIN_V and abs(w) > 0.05:
             self.t_spin = self.now()
         if sp < SPIN_V and not self.odom_topic:
-            self.spin_used += abs(w) * DT
-            self.spin_peak = max(self.spin_peak, self.spin_used)
+            self.budget.add(w * DT)
+            self.spin_peak = max(self.spin_peak, self.budget.used)
         self.moved = 0.0 if (sp < SPIN_V and abs(w) > 0.05) else self.moved + sp * DT
         if self.moved >= RESET:
-            self.spin_used = 0.0
+            self.budget.reset()
         if v < 0:
             self.rev_run += -v * DT
             self.fwd = 0.0

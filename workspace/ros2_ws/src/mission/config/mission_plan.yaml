@@ -7,6 +7,7 @@ mission_node:
       service: /mission_planner/plan
     timeout:
       observe: 180.0             # 묶음 약 26 s (12 x 2 s + 3 s 텀) x (중간부터 본 첫 묶음 + max_cycles 4) + 바코드 읽기
+      backup: 20.0               # observe 뒤 후진 (Nav2 BackUp)
       plan: 60.0
       verify: 40.0
       survey: 20.0               # survey start · finish 서비스
@@ -18,9 +19,20 @@ mission_node:
       #   (보통은 1 회 약 28 s · 3 회 약 58 s, review_center 4 절. 상한일 뿐)
     observe:
       # 바코드 읽기 (#65): manipulator barcode_look skill 이 observe.barcode_point 를 팔 카메라로 거의 수평으로 봄.
-      #   출발 자세에서 라벨까지 J1 0.60 m 라 카메라 약 0.3 m 가 가장 가까움 (인지: 0.3 m 에서 읽음). 이름 자세를 쓰려면 그 이름으로
+      #   출발 자세에서는 라벨까지 J1 0.766 m 라 팔이 닿지 않아 실패 (11-20 실물). 그래서 아래 view_pose 로 먼저 감
+      #   (카메라 약 0.3 m — 인지는 0.3 m 에서 읽은 실적). 이름 자세를 쓰려면 그 이름으로
       arm_pose: barcode_look
       barcode_point: [0.08, 0.65, 0.45]   # 바코드 라벨 중심 (map = 발제 좌표, (80, 650, 450) mm, +X 를 봄)
+      # 관찰 자리 · 빠져나오기 (2026-11-23): unfold → goto view_pose → observe → pose DRIVE → backup → survey · plan …
+      #   출발 위치에는 신호등과 바코드만 있음 (사용자 확인). view_pose 에서 신호등 (map 0.08, 0.95, 앞 D435) 과 바코드 (팔 카메라 barcode_look) 를 함께 봄.
+      #   근거 (팀원 계산): Nav2 허용오차 최악 (xy ±5 cm, yaw ±0.1 rad, 카메라 pitch ±2°) 에서도 신호등 시야 여유 가로 17° · 세로 6.6°,
+      #   barcode_look 0.30 m IK 성공, 벽 여유 17.5 cm, 정지 띠 벽 점 0.
+      #   기각: 출발 자세 그대로 (신호등 세로 여유 3° 라 부족), (0.60, 0.65) (신호등이 시야 밖).
+      #   view_pose 가 [] 면 이동 · 빠져나옴 없이 예전 순서. 빠져나오기 (backup · goto) 가 실패해도 미션은 계속 (barcode_view.hpp is_leave_step)
+      view_pose: [0.575, 0.95, 180.0]       # [x, y, yaw_deg] map. 신호등 + 바코드를 함께 보는 자리 (+X 를 봄 → 차체 yaw 180°)
+      leave_pose: []                        # [x, y, yaw_deg]. [] 이고 leave_back_m 도 0 이면 빠져나오지 않음
+      leave_back_m: 0.12         # > 0 이면 leave_pose 가 [] 일 때 Nav2 BackUp 으로 곧게 후진 → 출발 자세 (0.6936, 0.95, 180°) 근처로 회전 없이 복귀
+      backup_speed: 0.10         # m/s (leave_back_m 쓸 때)
       max_cycles: 4              # 신호 묶음이 반복됨 (12 회 → 3 s 꺼짐 → 다시). 이만큼 보고도 같은 순서 2 번이 안 나오면 안전 정지
     verify:
       # 장소 3 x 3 칸 보기 (#65): manipulator box_look skill 이 verify 줄의 칸 중심 · 윗면을 위에서 내려다봄 (바로 아래 · 0.20 m 우선).
